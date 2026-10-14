@@ -1,0 +1,19 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Game {
+  id          Int      @id @default(autoincrement())
+  title       String
+  platform    String
+  status      String   @default("Backlog")
+  lengthHours Int      @default(10)
+  difficulty  Int      @default(1)
+  earnedXp    Int      @default(0)
+  createdAt   DateTime @default(now())
+}
