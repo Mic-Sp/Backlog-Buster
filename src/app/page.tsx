@@ -147,6 +147,7 @@ async function SavedGames() {
             <form
               action={updateGame}
               className="game-row"
+              data-status={game.status}
               key={`${game.id}-${game.status}-${game.lengthHours}-${game.difficulty}`}
               role="row"
             >
