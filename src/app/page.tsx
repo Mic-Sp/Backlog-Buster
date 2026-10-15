@@ -7,6 +7,89 @@ import { createGame, deleteGame, updateGame } from "./actions";
 const platforms = ["PC", "Switch", "PS5", "Retro"];
 const statuses = ["Backlog", "Playing", "Completed"];
 
+function calculateLevelProgress(totalXp: number) {
+  let level = 1;
+  let xpForNextLevel = 500;
+  let xpTowardNextLevel = totalXp;
+
+  while (xpTowardNextLevel >= xpForNextLevel) {
+    xpTowardNextLevel -= xpForNextLevel;
+    level += 1;
+    xpForNextLevel = Math.round(xpForNextLevel * 1.5);
+  }
+
+  return {
+    level,
+    xpForNextLevel,
+    xpTowardNextLevel,
+    progressPercent: Math.round((xpTowardNextLevel / xpForNextLevel) * 100),
+  };
+}
+
+async function PlayerSummary() {
+  await connection();
+
+  const games = await prisma.game.findMany({
+    select: { earnedXp: true, status: true },
+  });
+  const totalXp = Math.round(
+    games.reduce((total, game) => total + game.earnedXp, 0),
+  );
+  const backlogCount = games.filter((game) => game.status === "Backlog").length;
+  const playingCount = games.filter((game) => game.status === "Playing").length;
+  const completedCount = games.filter(
+    (game) => game.status === "Completed",
+  ).length;
+  const progress = calculateLevelProgress(totalXp);
+
+  return (
+    <section className="player-summary" aria-label="Player stats">
+      <div className="summary-level">
+        <span className="summary-label">Current level</span>
+        <p className="summary-level-value">
+          <span>LV</span>
+          <strong>{progress.level.toLocaleString("en-US")}</strong>
+        </p>
+      </div>
+
+      <div className="summary-total-xp">
+        <span className="summary-label">Total lifetime XP</span>
+        <strong>{totalXp.toLocaleString("en-US")}</strong>
+      </div>
+
+      <div className="summary-progress">
+        <div className="summary-progress-heading">
+          <span className="summary-label">Next level</span>
+          <strong>
+            {progress.xpTowardNextLevel.toLocaleString("en-US")} / {progress.xpForNextLevel.toLocaleString("en-US")} XP
+          </strong>
+        </div>
+        <div
+          className="summary-progress-track"
+          role="progressbar"
+          aria-label="Progress toward next level"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={progress.progressPercent}
+          aria-valuetext={`${progress.xpTowardNextLevel} of ${progress.xpForNextLevel} XP`}
+        >
+          <span style={{ width: `${progress.progressPercent}%` }} />
+        </div>
+        <span className="summary-progress-percent">{progress.progressPercent}%</span>
+      </div>
+
+      <div className="summary-counts" aria-label="Game counts by status">
+        <span className="summary-label">Games</span>
+        <div className="summary-count-items">
+          <p><strong>{backlogCount}</strong><span>Backlog</span></p>
+          <p><strong>{playingCount}</strong><span>Playing</span></p>
+          <p><strong>{completedCount}</strong><span>Completed</span></p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 async function SavedGames() {
   await connection();
 
@@ -114,6 +197,16 @@ export default function Home() {
         </Link>
         <p className="masthead-note">A little progress, every session.</p>
       </header>
+
+      <Suspense
+        fallback={
+          <section className="player-summary summary-loading" aria-label="Player stats">
+            Loading player stats...
+          </section>
+        }
+      >
+        <PlayerSummary />
+      </Suspense>
 
       <section className="intro">
         <p className="eyebrow">PLAYER 01 <span>•</span> SAVE FILE ACTIVE</p>

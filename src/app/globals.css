@@ -61,6 +61,138 @@ select {
 	min-height: 48px;
 }
 
+.player-summary {
+	display: grid;
+	grid-template-columns: minmax(100px, 0.7fr) minmax(140px, 1fr) minmax(190px, 1.8fr) minmax(240px, 1.8fr);
+	align-items: center;
+	gap: 18px;
+	margin-top: 24px;
+	padding: 20px 22px;
+	border-radius: 8px;
+	color: var(--paper);
+	background: var(--green);
+}
+
+.summary-label {
+	display: block;
+	margin-bottom: 8px;
+	color: rgba(255, 254, 250, 0.7);
+	font-family: "Courier New", monospace;
+	font-size: 9px;
+	font-weight: 700;
+	letter-spacing: 0.6px;
+	text-transform: uppercase;
+}
+
+.summary-level-value {
+	display: flex;
+	align-items: baseline;
+	gap: 7px;
+	margin: 0;
+}
+
+.summary-level-value span {
+	color: var(--lime);
+	font-family: "Courier New", monospace;
+	font-size: 10px;
+	font-weight: 700;
+}
+
+.summary-level-value strong {
+	font-family: Georgia, "Times New Roman", serif;
+	font-size: 42px;
+	font-weight: 400;
+	line-height: 0.9;
+}
+
+.summary-total-xp > strong {
+	display: block;
+	font-family: Georgia, "Times New Roman", serif;
+	font-size: 26px;
+	font-weight: 400;
+	white-space: nowrap;
+}
+
+.summary-progress {
+	position: relative;
+	padding-right: 42px;
+}
+
+.summary-progress-heading {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 8px;
+	margin-bottom: 11px;
+}
+
+.summary-progress-heading .summary-label {
+	margin-bottom: 0;
+}
+
+.summary-progress-heading strong {
+	font-size: 11px;
+	font-weight: 700;
+	white-space: nowrap;
+}
+
+.summary-progress-track {
+	height: 8px;
+	overflow: hidden;
+	border-radius: 99px;
+	background: rgba(255, 254, 250, 0.2);
+}
+
+.summary-progress-track span {
+	display: block;
+	height: 100%;
+	border-radius: inherit;
+	background: var(--lime);
+	transition: width 180ms ease;
+}
+
+.summary-progress-percent {
+	position: absolute;
+	right: 0;
+	bottom: -3px;
+	font-size: 11px;
+	font-weight: 700;
+}
+
+.summary-counts {
+	padding-left: 18px;
+	border-left: 1px solid rgba(255, 254, 250, 0.25);
+}
+
+.summary-count-items {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 8px;
+}
+
+.summary-count-items p {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	margin: 0;
+}
+
+.summary-count-items strong {
+	font-size: 18px;
+	font-weight: 700;
+}
+
+.summary-count-items span {
+	color: rgba(255, 254, 250, 0.7);
+	font-size: 10px;
+}
+
+.summary-loading {
+	min-height: 105px;
+	align-content: center;
+	font-size: 12px;
+}
+
 .wordmark {
 	justify-content: flex-start;
 	gap: 10px;
@@ -416,6 +548,17 @@ p {
 }
 
 @media (max-width: 900px) {
+	.player-summary {
+		grid-template-columns: minmax(90px, 0.7fr) minmax(120px, 1fr) minmax(220px, 1.7fr);
+	}
+
+	.summary-counts {
+		grid-column: 1 / -1;
+		padding: 14px 0 0;
+		border-top: 1px solid rgba(255, 254, 250, 0.25);
+		border-left: 0;
+	}
+
 	.game-form {
 		grid-template-columns: minmax(180px, 2fr) minmax(120px, 1fr) minmax(100px, 0.8fr);
 	}
@@ -466,6 +609,32 @@ p {
 
 	.masthead-note {
 		max-width: 145px;
+		text-align: right;
+	}
+
+	.player-summary {
+		grid-template-columns: 1fr 1fr;
+		gap: 18px 12px;
+		margin-top: 18px;
+		padding: 18px;
+	}
+
+	.summary-progress,
+	.summary-counts {
+		grid-column: 1 / -1;
+	}
+
+	.summary-total-xp > strong {
+		font-size: 24px;
+	}
+
+	.summary-progress-heading {
+		align-items: flex-start;
+	}
+
+	.summary-progress-heading strong {
+		font-size: 10px;
+		white-space: normal;
 		text-align: right;
 	}
 
