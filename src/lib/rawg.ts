@@ -30,6 +30,22 @@ type RawgSearchResponse = {
   results?: unknown;
 };
 
+export function resizeRawgImageUrl(value: string): string {
+  try {
+    const url = new URL(value);
+    if (
+      url.origin === "https://media.rawg.io" &&
+      url.pathname.startsWith("/media/") &&
+      !url.pathname.startsWith("/media/resize/")
+    ) {
+      url.pathname = `/media/resize/640/-/${url.pathname.slice("/media/".length)}`;
+    }
+    return url.toString();
+  } catch {
+    return value;
+  }
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
@@ -42,7 +58,7 @@ function safeHttpUrl(value: unknown): string | null {
   try {
     const url = new URL(value);
     return url.protocol === "https:" || url.protocol === "http:"
-      ? url.toString()
+      ? resizeRawgImageUrl(url.toString())
       : null;
   } catch {
     return null;

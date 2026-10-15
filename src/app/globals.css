@@ -279,11 +279,44 @@ p {
 }
 
 .section-heading h2,
+.section-heading-title,
 .collection-heading h2 {
 	margin: 6px 0 0;
 	font-family: Georgia, "Times New Roman", serif;
 	font-size: 25px;
 	font-weight: 400;
+}
+
+.add-disclosure > summary {
+	list-style: none;
+	cursor: pointer;
+}
+
+.add-disclosure > summary::-webkit-details-marker {
+	display: none;
+}
+
+.add-disclosure > summary::marker {
+	content: "";
+}
+
+.add-disclosure:not([open]) > summary {
+	margin-bottom: 0;
+}
+
+.add-disclosure[open] > summary {
+	margin-bottom: 20px;
+}
+
+.add-disclosure > summary:focus-visible {
+	border-radius: 5px;
+	outline: 2px solid var(--green);
+	outline-offset: 4px;
+}
+
+.section-heading-copy {
+	display: grid;
+	gap: 6px;
 }
 
 .section-index {
@@ -296,6 +329,11 @@ p {
 	color: var(--green);
 	font-size: 22px;
 	font-weight: 300;
+	transition: transform 180ms ease;
+}
+
+.add-disclosure[open] .section-index {
+	transform: rotate(45deg);
 }
 
 .game-form {
@@ -488,14 +526,13 @@ p {
 }
 
 .game-cover {
+	display: block;
 	width: 48px;
 	height: 64px;
 	flex: 0 0 auto;
 	border-radius: 4px;
 	background-color: #dce5dc;
-	background-position: center;
-	background-repeat: no-repeat;
-	background-size: cover;
+	object-fit: cover;
 }
 
 .game-cover-placeholder {

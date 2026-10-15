@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { connection } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { resizeRawgImageUrl } from "@/lib/rawg";
 import { deleteGame, updateGame } from "./actions";
 import GameForm from "./GameForm";
 
@@ -150,13 +151,12 @@ async function SavedGames() {
                 <span className="mobile-label">Game</span>
                 <span className="game-identity">
                   {game.coverUrl ? (
-                    <div
-                      aria-label={`${game.title} cover art`}
+                    <img
+                      alt={`${game.title} cover art`}
                       className="game-cover"
-                      role="img"
-                      style={{
-                        backgroundImage: `url(${JSON.stringify(game.coverUrl)})`,
-                      }}
+                      decoding="async"
+                      loading="lazy"
+                      src={resizeRawgImageUrl(game.coverUrl)}
                     />
                   ) : (
                     <div
@@ -279,15 +279,18 @@ export default function Home() {
       </section>
 
       <section className="add-section" aria-labelledby="add-title">
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">01 / NEW ENTRY</p>
-            <h2 id="add-title">Add to the stack</h2>
-          </div>
-          <span className="section-index" aria-hidden="true">+</span>
-        </div>
-
-        <GameForm />
+        <details className="add-disclosure">
+          <summary className="section-heading">
+            <span className="section-heading-copy">
+              <span className="eyebrow">01 / NEW ENTRY</span>
+              <span className="section-heading-title" id="add-title">
+                Add to the stack
+              </span>
+            </span>
+            <span className="section-index" aria-hidden="true">+</span>
+          </summary>
+          <GameForm />
+        </details>
       </section>
 
       <Suspense
