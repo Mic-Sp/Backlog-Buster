@@ -50,6 +50,10 @@ async function PlayerSummary() {
 
   return (
     <section className="player-summary" aria-label="Player stats">
+      <Link className="hud-brand" href="/" aria-label="Backlog Buster home">
+        <span className="wordmark-icon" aria-hidden="true">B</span>
+      </Link>
+
       <div className="summary-level">
         <span className="summary-label">Current level</span>
         <p className="summary-level-value">
@@ -252,14 +256,6 @@ async function SavedGames() {
 export default function Home() {
   return (
     <main className="page-shell">
-      <header className="masthead">
-        <Link className="wordmark" href="/" aria-label="Backlog Buster home">
-          <span className="wordmark-icon" aria-hidden="true">B</span>
-          <span>BACKLOG<br />BUSTER</span>
-        </Link>
-        <p className="masthead-note">A little progress, every session.</p>
-      </header>
-
       <Suspense
         fallback={
           <section className="player-summary summary-loading" aria-label="Player stats">
@@ -269,14 +265,6 @@ export default function Home() {
       >
         <PlayerSummary />
       </Suspense>
-
-      <section className="intro">
-        <p className="eyebrow">PLAYER 01 <span>•</span> SAVE FILE ACTIVE</p>
-        <h1>Make room<br />for <em>one more.</em></h1>
-        <p className="intro-copy">
-          Keep your next adventure in sight. One game at a time.
-        </p>
-      </section>
 
       <section className="add-section" aria-labelledby="add-title">
         <details className="add-disclosure">

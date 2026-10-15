@@ -47,8 +47,6 @@ select {
 	padding: 30px 0 24px;
 }
 
-.masthead,
-.wordmark,
 .section-heading,
 .collection-heading,
 .page-footer {
@@ -57,16 +55,12 @@ select {
 	justify-content: space-between;
 }
 
-.masthead {
-	min-height: 48px;
-}
-
 .player-summary {
 	display: grid;
-	grid-template-columns: minmax(100px, 0.7fr) minmax(140px, 1fr) minmax(190px, 1.8fr) minmax(240px, 1.8fr);
+	grid-template-columns: 62px minmax(100px, 0.7fr) minmax(140px, 1fr) minmax(190px, 1.8fr) minmax(240px, 1.8fr);
 	align-items: center;
 	gap: 18px;
-	margin-top: 24px;
+	margin-top: 0;
 	padding: 20px 22px;
 	border-radius: 8px;
 	color: var(--paper);
@@ -193,38 +187,27 @@ select {
 	font-size: 12px;
 }
 
-.wordmark {
-	justify-content: flex-start;
-	gap: 10px;
-	color: var(--ink);
-	font-size: 10px;
-	font-weight: 800;
-	line-height: 1.05;
-	letter-spacing: 1.2px;
-	text-decoration: none;
+.hud-brand {
+	display: flex;
+	min-height: 54px;
+	align-items: center;
+	justify-content: center;
+	padding-right: 16px;
+	border-right: 1px solid rgba(255, 254, 250, 0.25);
 }
 
 .wordmark-icon {
 	display: grid;
-	width: 34px;
+	width: 42px;
 	aspect-ratio: 1;
 	place-items: center;
 	border-radius: 9px;
 	color: var(--ink);
 	background: var(--lime);
 	font-family: Georgia, serif;
-	font-size: 22px;
-	font-weight: 700;
-}
-
-.masthead-note {
-	margin: 0;
-	color: var(--muted);
-	font-size: 12px;
-}
-
-.intro {
-	padding: 60px 0 42px;
+	font-size: 28px;
+	font-weight: 900;
+	line-height: 1;
 }
 
 .eyebrow {
@@ -236,42 +219,29 @@ select {
 	letter-spacing: 1px;
 }
 
-.intro .eyebrow span {
-	padding: 0 5px;
-	color: var(--coral);
-}
-
 h1,
 h2,
 p {
 	margin-top: 0;
 }
 
-.intro h1 {
-	margin: 14px 0 10px;
-	font-family: Georgia, "Times New Roman", serif;
-	font-size: 58px;
-	font-weight: 400;
-	line-height: 0.98;
-}
-
-.intro h1 em {
-	color: var(--green);
-	font-weight: 400;
-}
-
-.intro-copy {
-	margin: 0;
-	color: var(--muted);
-	font-size: 14px;
-}
-
 .add-section {
+	margin-top: 16px;
 	padding: 24px;
 	border: 1px solid var(--line);
 	border-radius: 8px;
 	background: var(--paper);
 	box-shadow: 0 8px 24px rgba(28, 48, 42, 0.035);
+}
+
+.add-disclosure {
+	border: 0;
+	background: transparent;
+}
+
+.add-disclosure > summary {
+	border: 0;
+	background: transparent;
 }
 
 .section-heading {
@@ -742,7 +712,7 @@ p {
 	}
 
 	.player-summary {
-		grid-template-columns: minmax(90px, 0.7fr) minmax(120px, 1fr) minmax(220px, 1.7fr);
+		grid-template-columns: 60px minmax(90px, 0.7fr) minmax(120px, 1fr) minmax(220px, 1.7fr);
 	}
 
 	.summary-counts {
@@ -800,16 +770,21 @@ p {
 		padding-top: 18px;
 	}
 
-	.masthead-note {
-		max-width: 145px;
-		text-align: right;
+	.player-summary {
+		grid-template-columns: 48px 1fr 1fr;
+		gap: 18px 12px;
+		margin-top: 0;
+		padding: 18px;
 	}
 
-	.player-summary {
-		grid-template-columns: 1fr 1fr;
-		gap: 18px 12px;
-		margin-top: 18px;
-		padding: 18px;
+	.hud-brand {
+		grid-row: span 1;
+		padding-right: 10px;
+	}
+
+	.wordmark-icon {
+		width: 38px;
+		font-size: 26px;
 	}
 
 	.summary-progress,
@@ -829,14 +804,6 @@ p {
 		font-size: 10px;
 		white-space: normal;
 		text-align: right;
-	}
-
-	.intro {
-		padding: 46px 0 30px;
-	}
-
-	.intro h1 {
-		font-size: 48px;
 	}
 
 	.add-section {
