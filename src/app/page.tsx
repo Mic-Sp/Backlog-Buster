@@ -117,7 +117,7 @@ async function SavedGames() {
       <div className="collection-heading">
         <div>
           <p className="eyebrow">02 / YOUR LIBRARY</p>
-          <h2 id="collection-title">The stack</h2>
+          <h2 id="collection-title">System Playqueue</h2>
         </div>
         <p className="game-count">
           <strong>{String(games.length).padStart(2, "0")}</strong>
@@ -273,7 +273,7 @@ export default function Home() {
             <span className="section-heading-copy">
               <span className="eyebrow">01 / NEW ENTRY</span>
               <span className="section-heading-title" id="add-title">
-                Add to the stack
+                Initialize Game Entry
               </span>
             </span>
             <span className="section-index" aria-hidden="true">+</span>
