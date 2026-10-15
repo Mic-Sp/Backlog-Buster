@@ -16,4 +16,7 @@ model Game {
   difficulty  Int      @default(1)
   earnedXp    Int      @default(0)
   createdAt   DateTime @default(now())
+  coverUrl    String?
+  genre       String?
+  releaseYear Int?
 }
