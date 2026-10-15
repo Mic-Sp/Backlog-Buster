@@ -2,9 +2,10 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { connection } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { createGame } from "./actions";
+import { createGame, updateGame } from "./actions";
 
 const platforms = ["PC", "Switch", "PS5", "Retro"];
+const statuses = ["Backlog", "Playing", "Completed"];
 
 async function SavedGames() {
   await connection();
@@ -40,6 +41,7 @@ async function SavedGames() {
             <span role="columnheader">Hours</span>
             <span role="columnheader">Difficulty</span>
             <span role="columnheader">Earned XP</span>
+            <span role="columnheader">Change status</span>
           </div>
           {games.map((game) => (
             <div className="game-row" role="row" key={game.id}>
@@ -70,6 +72,22 @@ async function SavedGames() {
                 <span className="mobile-label">Earned XP</span>
                 {game.earnedXp.toLocaleString()} XP
               </span>
+              <form action={updateGame} className="status-update-form" role="cell">
+                <input name="id" type="hidden" value={game.id} />
+                <span className="mobile-label">Change status</span>
+                <select
+                  aria-label={`New status for ${game.title}`}
+                  className="status-select"
+                  defaultValue={game.status}
+                  name="status"
+                  required
+                >
+                  {statuses.map((status) => (
+                    <option key={status} value={status}>{status}</option>
+                  ))}
+                </select>
+                <button className="status-save" type="submit">Save</button>
+              </form>
             </div>
           ))}
         </div>

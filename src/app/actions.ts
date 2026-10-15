@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 
 const allowedPlatforms = new Set(["PC", "Switch", "PS5", "Retro"]);
+const allowedStatuses = new Set(["Backlog", "Playing", "Completed"]);
 
 function calculateEarnedXp(
   status: string,
@@ -56,6 +57,44 @@ export async function createGame(formData: FormData) {
       lengthHours,
       difficulty,
       earnedXp: calculateEarnedXp(status, lengthHours, difficulty),
+    },
+  });
+
+  revalidatePath("/");
+}
+
+export async function updateGame(formData: FormData) {
+  const idValue = formData.get("id");
+  const statusValue = formData.get("status");
+
+  if (typeof idValue !== "string" || typeof statusValue !== "string") {
+    throw new Error("Please provide a valid game and status.");
+  }
+
+  const id = Number(idValue);
+
+  if (!Number.isSafeInteger(id) || id < 1 || !allowedStatuses.has(statusValue)) {
+    throw new Error("Please provide a valid game and status.");
+  }
+
+  const game = await prisma.game.findUnique({
+    where: { id },
+    select: { lengthHours: true, difficulty: true },
+  });
+
+  if (!game) {
+    throw new Error("That game could not be found.");
+  }
+
+  await prisma.game.update({
+    where: { id },
+    data: {
+      status: statusValue,
+      earnedXp: calculateEarnedXp(
+        statusValue,
+        game.lengthHours,
+        game.difficulty,
+      ),
     },
   });
 

@@ -276,10 +276,10 @@ p {
 
 .game-row {
 	display: grid;
-	grid-template-columns: minmax(180px, 2.1fr) minmax(100px, 1fr) minmax(112px, 1fr) minmax(70px, 0.7fr) minmax(100px, 0.9fr) minmax(100px, 0.9fr);
+	grid-template-columns: minmax(160px, 1.8fr) minmax(90px, 0.9fr) minmax(100px, 1fr) minmax(60px, 0.65fr) minmax(85px, 0.9fr) minmax(82px, 0.85fr) minmax(134px, 1.4fr);
 	min-height: 62px;
 	align-items: center;
-	gap: 12px;
+	gap: 10px;
 	padding: 0 14px;
 	border-bottom: 1px solid var(--line);
 	background: rgba(255, 254, 250, 0.72);
@@ -318,6 +318,40 @@ p {
 .xp-value {
 	color: var(--green);
 	font-weight: 800;
+}
+
+.status-update-form {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.status-select {
+	width: 100%;
+	min-width: 0;
+	height: 34px;
+	padding: 0 7px;
+	border: 1px solid var(--line);
+	border-radius: 4px;
+	color: var(--ink);
+	background: #fff;
+	font-size: 11px;
+}
+
+.status-save {
+	height: 34px;
+	padding: 0 9px;
+	border: 0;
+	border-radius: 4px;
+	color: #fffefa;
+	background: var(--green);
+	cursor: pointer;
+	font-size: 11px;
+	font-weight: 700;
+}
+
+.status-save:hover {
+	background: #1e4b3f;
 }
 
 .mobile-label {
@@ -379,6 +413,34 @@ p {
 	}
 }
 
+@media (max-width: 850px) {
+	.game-row-head {
+		display: none;
+	}
+
+	.game-row:not(.game-row-head) {
+		grid-template-columns: 1fr 1fr;
+		gap: 14px 10px;
+		padding: 15px 12px;
+	}
+
+	.game-name,
+	.status-update-form {
+		grid-column: 1 / -1;
+	}
+
+	.mobile-label {
+		display: block;
+		margin-bottom: 4px;
+		color: var(--muted);
+		font-family: "Courier New", monospace;
+		font-size: 9px;
+		font-weight: 700;
+		letter-spacing: 0.5px;
+		text-transform: uppercase;
+	}
+}
+
 @media (max-width: 640px) {
 	.page-shell {
 		width: min(100% - 36px, 500px);
@@ -418,31 +480,6 @@ p {
 
 	.collection {
 		margin-top: 34px;
-	}
-
-	.game-row-head {
-		display: none;
-	}
-
-	.game-row:not(.game-row-head) {
-		grid-template-columns: 1fr 1fr;
-		gap: 14px 10px;
-		padding: 15px 12px;
-	}
-
-	.game-name {
-		grid-column: 1 / -1;
-	}
-
-	.mobile-label {
-		display: block;
-		margin-bottom: 4px;
-		color: var(--muted);
-		font-family: "Courier New", monospace;
-		font-size: 9px;
-		font-weight: 700;
-		letter-spacing: 0.5px;
-		text-transform: uppercase;
 	}
 
 	.page-footer {
