@@ -6,6 +6,11 @@ import { deleteGame, updateGame } from "./actions";
 import GameForm from "./GameForm";
 
 const statuses = ["Backlog", "Playing", "Completed"];
+const statusPriority: Record<string, number> = {
+  Playing: 0,
+  Backlog: 1,
+  Completed: 2,
+};
 
 function calculateLevelProgress(totalXp: number) {
   let level = 1;
@@ -95,6 +100,11 @@ async function SavedGames() {
 
   const games = await prisma.game.findMany({
     orderBy: { createdAt: "desc" },
+  });
+  games.sort((left, right) => {
+    const priorityDifference =
+      (statusPriority[left.status] ?? 3) - (statusPriority[right.status] ?? 3);
+    return priorityDifference || right.createdAt.getTime() - left.createdAt.getTime();
   });
 
   return (

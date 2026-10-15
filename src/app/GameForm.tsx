@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
+import { resolveRawgPlaytime } from "@/lib/game-playtime";
 import { createGame, searchGameInfo } from "./actions";
 
 const defaultPlatforms = ["PC", "Switch", "PS5", "Retro"];
@@ -53,16 +54,21 @@ export default function GameForm() {
           if (gameInfo.releaseYear) {
             setInputValue("releaseYear", String(gameInfo.releaseYear));
           }
+          const genreField = currentForm.elements.namedItem("genre");
+          const resolvedGenre = genreField instanceof HTMLInputElement
+            ? genreField.value.trim() || gameInfo.genre
+            : gameInfo.genre;
+          const rawgLengthHours = resolveRawgPlaytime(
+            gameInfo.playtime,
+            resolvedGenre,
+          );
           const lengthHoursField = currentForm.elements.namedItem("lengthHours");
           if (
             lengthHoursField instanceof HTMLInputElement &&
             lengthHoursField.value.trim() === "" &&
-            gameInfo.playtime !== null &&
-            gameInfo.playtime > 0
+            rawgLengthHours !== null
           ) {
-            lengthHoursField.value = String(
-              Math.min(10000, Math.max(1, Math.round(gameInfo.playtime))),
-            );
+            lengthHoursField.value = String(rawgLengthHours);
           }
         }
 

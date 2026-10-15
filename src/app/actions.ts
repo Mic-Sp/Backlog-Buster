@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { resolveRawgPlaytime } from "@/lib/game-playtime";
 import { lookupRawgGame, type RawgGameInfo } from "@/lib/rawg";
 
 const allowedStatuses = new Set(["Backlog", "Playing", "Completed"]);
@@ -105,12 +106,9 @@ export async function createGame(formData: FormData) {
     ? await lookupRawgGame(title)
     : null;
   const metadata = resolveGameMetadata(manualMetadata, lookup);
-  const rawgPlaytime = lookup?.playtime;
-  const lengthHours = submittedLengthHours ?? (
-    rawgPlaytime !== null && rawgPlaytime !== undefined && rawgPlaytime > 0
-      ? Math.min(10000, Math.max(1, Math.round(rawgPlaytime)))
-      : 10
-  );
+  const lengthHours = submittedLengthHours ??
+    resolveRawgPlaytime(lookup?.playtime, metadata.genre) ??
+    10;
   const status = "Backlog";
 
   await prisma.game.create({
