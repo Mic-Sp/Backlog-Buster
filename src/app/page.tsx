@@ -2,9 +2,9 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { connection } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { createGame, deleteGame, updateGame } from "./actions";
+import { deleteGame, updateGame } from "./actions";
+import GameForm from "./GameForm";
 
-const platforms = ["PC", "Switch", "PS5", "Retro"];
 const statuses = ["Backlog", "Playing", "Completed"];
 
 function calculateLevelProgress(totalXp: number) {
@@ -130,7 +130,35 @@ async function SavedGames() {
             <div className="game-row" role="row" key={game.id}>
               <span className="game-name" role="cell">
                 <span className="mobile-label">Game</span>
-                <strong>{game.title}</strong>
+                <span className="game-identity">
+                  {game.coverUrl ? (
+                    <div
+                      aria-label={`${game.title} cover art`}
+                      className="game-cover"
+                      role="img"
+                      style={{
+                        backgroundImage: `url(${JSON.stringify(game.coverUrl)})`,
+                      }}
+                    />
+                  ) : (
+                    <div
+                      aria-label={`${game.title} cover art unavailable`}
+                      className="game-cover game-cover-placeholder"
+                      role="img"
+                    >
+                      <span>NO<br />COVER</span>
+                    </div>
+                  )}
+                  <span className="game-title-stack">
+                    <strong>{game.title}</strong>
+                    <span className="game-metadata">
+                      {game.genre && <span className="genre-badge">{game.genre}</span>}
+                      {game.releaseYear && (
+                        <span className="release-year">{game.releaseYear}</span>
+                      )}
+                    </span>
+                  </span>
+                </span>
               </span>
               <span role="cell">
                 <span className="mobile-label">Platform</span>
@@ -225,54 +253,7 @@ export default function Home() {
           <span className="section-index" aria-hidden="true">+</span>
         </div>
 
-        <form action={createGame} className="game-form">
-          <label className="field field-title">
-            <span>Game title</span>
-            <input
-              autoComplete="off"
-              maxLength={120}
-              name="title"
-              placeholder="What are you playing next?"
-              required
-            />
-          </label>
-
-          <label className="field">
-            <span>Platform</span>
-            <select name="platform" defaultValue="PC" required>
-              {platforms.map((platform) => (
-                <option key={platform} value={platform}>{platform}</option>
-              ))}
-            </select>
-          </label>
-
-          <label className="field field-hours">
-            <span>Length <small>(hours)</small></span>
-            <input
-              inputMode="numeric"
-              max="10000"
-              min="1"
-              name="lengthHours"
-              placeholder="10"
-              required
-              step="1"
-              type="number"
-            />
-          </label>
-
-          <label className="field">
-            <span>Difficulty</span>
-            <select name="difficulty" defaultValue="1" required>
-              <option value="1">1 · Easy</option>
-              <option value="2">2 · Medium</option>
-              <option value="3">3 · Tough</option>
-            </select>
-          </label>
-
-          <button className="add-button" type="submit">
-            <span aria-hidden="true">+</span> Add game
-          </button>
-        </form>
+        <GameForm />
       </section>
 
       <Suspense

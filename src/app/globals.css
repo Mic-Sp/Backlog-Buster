@@ -300,9 +300,55 @@ p {
 
 .game-form {
 	display: grid;
-	grid-template-columns: minmax(180px, 2.1fr) minmax(120px, 1fr) minmax(100px, 0.8fr) minmax(138px, 1fr) auto;
+	grid-template-columns: repeat(5, minmax(0, 1fr));
 	align-items: end;
 	gap: 12px;
+}
+
+.field-title,
+.field-cover {
+	grid-column: span 2;
+}
+
+.title-search-row {
+	display: flex;
+	gap: 8px;
+}
+
+.title-search-row input {
+	flex: 1 1 auto;
+	width: 0;
+}
+
+.search-button {
+	flex: 0 0 auto;
+	min-height: 44px;
+	padding: 0 11px;
+	border: 1px solid var(--line);
+	border-radius: 5px;
+	color: var(--green);
+	background: #f7faf4;
+	cursor: pointer;
+	font-size: 11px;
+	font-weight: 700;
+	white-space: nowrap;
+}
+
+.search-button:hover:not(:disabled) {
+	border-color: var(--green);
+	background: #edf4e9;
+}
+
+.search-button:disabled {
+	cursor: wait;
+	opacity: 0.7;
+}
+
+.lookup-message {
+	min-height: 12px;
+	color: var(--muted);
+	font-size: 10px;
+	font-weight: 400;
 }
 
 .field {
@@ -408,8 +454,8 @@ p {
 
 .game-row {
 	display: grid;
-	grid-template-columns: minmax(160px, 1.8fr) minmax(90px, 0.9fr) minmax(100px, 1fr) minmax(60px, 0.65fr) minmax(85px, 0.9fr) minmax(82px, 0.85fr) minmax(134px, 1.4fr);
-	min-height: 62px;
+	grid-template-columns: minmax(220px, 2.4fr) minmax(90px, 0.9fr) minmax(100px, 1fr) minmax(60px, 0.65fr) minmax(85px, 0.9fr) minmax(82px, 0.85fr) minmax(134px, 1.4fr);
+	min-height: 80px;
 	align-items: center;
 	gap: 10px;
 	padding: 0 14px;
@@ -432,6 +478,71 @@ p {
 .game-name strong {
 	font-size: 13px;
 	font-weight: 700;
+}
+
+.game-identity {
+	display: flex;
+	min-width: 0;
+	align-items: center;
+	gap: 10px;
+}
+
+.game-cover {
+	width: 48px;
+	height: 64px;
+	flex: 0 0 auto;
+	border-radius: 4px;
+	background-color: #dce5dc;
+	background-position: center;
+	background-repeat: no-repeat;
+	background-size: cover;
+}
+
+.game-cover-placeholder {
+	display: grid;
+	place-items: center;
+	border: 1px solid var(--line);
+	color: var(--muted);
+	font-family: "Courier New", monospace;
+	font-size: 8px;
+	font-weight: 700;
+	line-height: 1.35;
+	text-align: center;
+}
+
+.game-title-stack {
+	display: flex;
+	min-width: 0;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.game-title-stack strong {
+	overflow-wrap: anywhere;
+}
+
+.game-metadata {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex-wrap: wrap;
+}
+
+.genre-badge {
+	max-width: 130px;
+	overflow: hidden;
+	padding: 3px 6px;
+	border-radius: 4px;
+	color: var(--green);
+	background: #e6eee5;
+	font-size: 9px;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.release-year {
+	color: var(--muted);
+	font-size: 10px;
 }
 
 .status-value {
@@ -548,6 +659,32 @@ p {
 }
 
 @media (max-width: 900px) {
+	.game-row-head {
+		display: none;
+	}
+
+	.game-row:not(.game-row-head) {
+		grid-template-columns: 1fr 1fr;
+		gap: 14px 10px;
+		padding: 15px 12px;
+	}
+
+	.game-name,
+	.status-update-form {
+		grid-column: 1 / -1;
+	}
+
+	.mobile-label {
+		display: block;
+		margin-bottom: 4px;
+		color: var(--muted);
+		font-family: "Courier New", monospace;
+		font-size: 9px;
+		font-weight: 700;
+		letter-spacing: 0.5px;
+		text-transform: uppercase;
+	}
+
 	.player-summary {
 		grid-template-columns: minmax(90px, 0.7fr) minmax(120px, 1fr) minmax(220px, 1.7fr);
 	}
@@ -655,7 +792,8 @@ p {
 		gap: 14px 10px;
 	}
 
-	.field-title {
+	.field-title,
+	.field-cover {
 		grid-column: 1 / -1;
 	}
 
