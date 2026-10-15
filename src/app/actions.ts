@@ -138,35 +138,43 @@ export async function searchGameInfo(title: string): Promise<RawgGameInfo | null
 export async function updateGame(formData: FormData) {
   const idValue = formData.get("id");
   const statusValue = formData.get("status");
+  const lengthHoursValue = formData.get("lengthHours");
+  const difficultyValue = formData.get("difficulty");
 
-  if (typeof idValue !== "string" || typeof statusValue !== "string") {
-    throw new Error("Please provide a valid game and status.");
+  if (
+    typeof idValue !== "string" ||
+    typeof statusValue !== "string" ||
+    typeof lengthHoursValue !== "string" ||
+    typeof difficultyValue !== "string"
+  ) {
+    throw new Error("Please provide valid game details.");
   }
 
   const id = Number(idValue);
+  const lengthHours = Number(lengthHoursValue);
+  const difficulty = Number(difficultyValue);
 
-  if (!Number.isSafeInteger(id) || id < 1 || !allowedStatuses.has(statusValue)) {
-    throw new Error("Please provide a valid game and status.");
-  }
-
-  const game = await prisma.game.findUnique({
-    where: { id },
-    select: { lengthHours: true, difficulty: true },
-  });
-
-  if (!game) {
-    throw new Error("That game could not be found.");
+  if (
+    !Number.isSafeInteger(id) ||
+    id < 1 ||
+    !allowedStatuses.has(statusValue) ||
+    !Number.isSafeInteger(lengthHours) ||
+    lengthHours < 1 ||
+    lengthHours > 10000 ||
+    !Number.isInteger(difficulty) ||
+    difficulty < 1 ||
+    difficulty > 3
+  ) {
+    throw new Error("Please provide valid game details.");
   }
 
   await prisma.game.update({
     where: { id },
     data: {
       status: statusValue,
-      earnedXp: calculateEarnedXp(
-        statusValue,
-        game.lengthHours,
-        game.difficulty,
-      ),
+      lengthHours,
+      difficulty,
+      earnedXp: calculateEarnedXp(statusValue, lengthHours, difficulty),
     },
   });
 

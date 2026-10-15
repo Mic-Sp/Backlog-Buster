@@ -120,14 +120,22 @@ async function SavedGames() {
           <div className="game-row game-row-head" role="row">
             <span role="columnheader">Game</span>
             <span role="columnheader">Platform</span>
+            <span role="columnheader">Genre</span>
+            <span role="columnheader">Year</span>
             <span role="columnheader">Status</span>
             <span role="columnheader">Hours</span>
             <span role="columnheader">Difficulty</span>
             <span role="columnheader">Earned XP</span>
-            <span role="columnheader">Change status</span>
+            <span role="columnheader">Actions</span>
           </div>
           {games.map((game) => (
-            <div className="game-row" role="row" key={game.id}>
+            <form
+              action={updateGame}
+              className="game-row"
+              key={`${game.id}-${game.status}-${game.lengthHours}-${game.difficulty}`}
+              role="row"
+            >
+              <input name="id" type="hidden" value={game.id} />
               <span className="game-name" role="cell">
                 <span className="mobile-label">Game</span>
                 <span className="game-identity">
@@ -151,12 +159,6 @@ async function SavedGames() {
                   )}
                   <span className="game-title-stack">
                     <strong>{game.title}</strong>
-                    <span className="game-metadata">
-                      {game.genre && <span className="genre-badge">{game.genre}</span>}
-                      {game.releaseYear && (
-                        <span className="release-year">{game.releaseYear}</span>
-                      )}
-                    </span>
                   </span>
                 </span>
               </span>
@@ -164,30 +166,18 @@ async function SavedGames() {
                 <span className="mobile-label">Platform</span>
                 {game.platform}
               </span>
+              <span className="genre-cell" role="cell">
+                <span className="mobile-label">Genre</span>
+                {game.genre?.trim() || "—"}
+              </span>
               <span role="cell">
+                <span className="mobile-label">Year</span>
+                {game.releaseYear ?? "—"}
+              </span>
+              <label className="row-edit-field" role="cell">
                 <span className="mobile-label">Status</span>
-                <span className="status-value">
-                  <span className="status-dot" aria-hidden="true" />
-                  {game.status}
-                </span>
-              </span>
-              <span role="cell">
-                <span className="mobile-label">Hours</span>
-                {game.lengthHours} hrs
-              </span>
-              <span role="cell">
-                <span className="mobile-label">Difficulty</span>
-                {game.difficulty} / 3
-              </span>
-              <span className="xp-value" role="cell">
-                <span className="mobile-label">Earned XP</span>
-                {game.earnedXp.toLocaleString()} XP
-              </span>
-              <form action={updateGame} className="status-update-form" role="cell">
-                <input name="id" type="hidden" value={game.id} />
-                <span className="mobile-label">Change status</span>
                 <select
-                  aria-label={`New status for ${game.title}`}
+                  aria-label={`Status for ${game.title}`}
                   className="status-select"
                   defaultValue={game.status}
                   name="status"
@@ -197,6 +187,40 @@ async function SavedGames() {
                     <option key={status} value={status}>{status}</option>
                   ))}
                 </select>
+              </label>
+              <label className="row-edit-field" role="cell">
+                <span className="mobile-label">Hours</span>
+                <input
+                  aria-label={`Hours for ${game.title}`}
+                  className="row-hours-input"
+                  defaultValue={game.lengthHours}
+                  max="10000"
+                  min="1"
+                  name="lengthHours"
+                  required
+                  step="1"
+                  type="number"
+                />
+              </label>
+              <label className="row-edit-field" role="cell">
+                <span className="mobile-label">Difficulty</span>
+                <select
+                  aria-label={`Difficulty for ${game.title}`}
+                  className="difficulty-select"
+                  defaultValue={game.difficulty}
+                  name="difficulty"
+                  required
+                >
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                </select>
+              </label>
+              <span className="xp-value" role="cell">
+                <span className="mobile-label">Earned XP</span>
+                {game.earnedXp.toLocaleString()} XP
+              </span>
+              <span className="row-actions" role="cell">
                 <button className="status-save" type="submit">Save</button>
                 <button
                   className="delete-button"
@@ -206,8 +230,8 @@ async function SavedGames() {
                 >
                   Delete
                 </button>
-              </form>
-            </div>
+              </span>
+            </form>
           ))}
         </div>
       )}

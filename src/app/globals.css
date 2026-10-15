@@ -454,10 +454,10 @@ p {
 
 .game-row {
 	display: grid;
-	grid-template-columns: minmax(220px, 2.4fr) minmax(90px, 0.9fr) minmax(100px, 1fr) minmax(60px, 0.65fr) minmax(85px, 0.9fr) minmax(82px, 0.85fr) minmax(134px, 1.4fr);
+	grid-template-columns: minmax(170px, 2fr) minmax(72px, 0.8fr) minmax(78px, 0.9fr) minmax(45px, 0.55fr) minmax(98px, 1.15fr) minmax(72px, 0.8fr) minmax(78px, 0.85fr) minmax(86px, 0.9fr) minmax(108px, 1.2fr);
 	min-height: 80px;
 	align-items: center;
-	gap: 10px;
+	gap: 6px;
 	padding: 0 14px;
 	border-bottom: 1px solid var(--line);
 	background: rgba(255, 254, 250, 0.72);
@@ -563,7 +563,7 @@ p {
 	font-weight: 800;
 }
 
-.status-update-form {
+.row-actions {
 	display: flex;
 	align-items: center;
 	gap: 6px;
@@ -574,6 +574,25 @@ p {
 	min-width: 0;
 	height: 34px;
 	padding: 0 7px;
+	border: 1px solid var(--line);
+	border-radius: 4px;
+	color: var(--ink);
+	background: #fff;
+	font-size: 11px;
+}
+
+.row-edit-field {
+	display: grid;
+	min-width: 0;
+	gap: 4px;
+}
+
+.row-hours-input,
+.difficulty-select {
+	width: 100%;
+	min-width: 0;
+	height: 34px;
+	padding: 0 6px;
 	border: 1px solid var(--line);
 	border-radius: 4px;
 	color: var(--ink);
@@ -670,7 +689,7 @@ p {
 	}
 
 	.game-name,
-	.status-update-form {
+	.row-actions {
 		grid-column: 1 / -1;
 	}
 
@@ -722,7 +741,7 @@ p {
 	}
 
 	.game-name,
-	.status-update-form {
+	.row-actions {
 		grid-column: 1 / -1;
 	}
 
