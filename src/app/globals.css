@@ -354,6 +354,23 @@ p {
 	background: #1e4b3f;
 }
 
+.delete-button {
+	height: 34px;
+	padding: 0 9px;
+	border: 1px solid rgba(221, 121, 94, 0.55);
+	border-radius: 4px;
+	color: #9f4934;
+	background: transparent;
+	cursor: pointer;
+	font-size: 11px;
+	font-weight: 700;
+}
+
+.delete-button:hover {
+	color: #fffefa;
+	background: var(--coral);
+}
+
 .mobile-label {
 	display: none;
 }

@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { connection } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { createGame, updateGame } from "./actions";
+import { createGame, deleteGame, updateGame } from "./actions";
 
 const platforms = ["PC", "Switch", "PS5", "Retro"];
 const statuses = ["Backlog", "Playing", "Completed"];
@@ -87,6 +87,14 @@ async function SavedGames() {
                   ))}
                 </select>
                 <button className="status-save" type="submit">Save</button>
+                <button
+                  className="delete-button"
+                  formAction={deleteGame}
+                  formNoValidate
+                  type="submit"
+                >
+                  Delete
+                </button>
               </form>
             </div>
           ))}

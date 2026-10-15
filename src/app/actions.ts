@@ -100,3 +100,21 @@ export async function updateGame(formData: FormData) {
 
   revalidatePath("/");
 }
+
+export async function deleteGame(formData: FormData) {
+  const idValue = formData.get("id");
+
+  if (typeof idValue !== "string") {
+    throw new Error("Please provide a valid game ID.");
+  }
+
+  const id = Number(idValue);
+
+  if (!Number.isSafeInteger(id) || id < 1) {
+    throw new Error("Please provide a valid game ID.");
+  }
+
+  await prisma.game.delete({ where: { id } });
+
+  revalidatePath("/");
+}
