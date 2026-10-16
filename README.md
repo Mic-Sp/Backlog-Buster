@@ -1,34 +1,60 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Backlog Buster
+
+A gamified video game backlog tracker. Track games across status stages (*Backlog*, *Playing*, *Completed*), earn XP based on game length and difficulty, level up, and automatically pull game metadata and box art using the RAWG API.
+
+## Tech Stack
+
+- **Framework:** Next.js (App Router, Server Actions)
+- **Language & Styling:** TypeScript, Tailwind CSS
+- **Database & ORM:** PostgreSQL (Neon Serverless), Prisma ORM
+- **Integrations:** [RAWG Video Games Database API](https://rawg.io/apidocs)
+
+## Prerequisites
+
+- Node.js 20+
+- A PostgreSQL database (e.g. [Neon](https://neon.tech))
+- A RAWG API key (optional, for automatic game metadata lookup)
 
 ## Getting Started
 
-First, run the development server:
+### 1. Clone & Install Dependencies
+
+```bash
+git clone <repository-url>
+cd backlogbuster
+npm install
+```
+
+### 2. Configure Environment Variables
+
+Create a `.env` file in the project root:
+
+```env
+DATABASE_URL="postgresql://USER:PASSWORD@HOST/DB_NAME?sslmode=require"
+RAWG_API_KEY="your_rawg_api_key" # optional
+```
+
+### 3. Sync Database Schema
+
+Push the Prisma schema to your PostgreSQL database:
+
+```bash
+npx prisma db push
+```
+
+### 4. Run Development Server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Visit [http://localhost:3000](http://localhost:3000) to view the application.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Available Scripts
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Command | Description |
+| --- | --- |
+| `npm run dev` | Starts the development server |
+| `npm run build` | Builds the production bundle |
+| `npm run start` | Runs the production build |
+| `npm run lint` | Runs ESLint |
