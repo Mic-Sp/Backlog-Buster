@@ -16,6 +16,7 @@ model Game {
   lengthHours Int      @default(10)
   hoursPlayed Int      @default(0)
   notes       String?
+  rating      Int?
   difficulty  Int      @default(1)
   earnedXp    Int      @default(0)
   createdAt   DateTime @default(now())

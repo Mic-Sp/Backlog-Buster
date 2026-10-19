@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import { completeGame, deleteGame, logPlaySession, startGame, updateGame } from "@/app/actions";
 import type { Achievement } from "@/lib/achievements";
+import StarRatingInput from "@/components/StarRatingInput";
+import LibraryDataVault from "@/components/LibraryDataVault";
 
 export type LibraryGame = {
   id: number;
@@ -12,9 +14,11 @@ export type LibraryGame = {
   lengthHours: number;
   hoursPlayed: number;
   notes: string | null;
+  rating: number | null;
   difficulty: number;
   earnedXp: number;
   coverUrl: string | null;
+  backupCoverUrl?: string | null;
   genre: string | null;
   releaseYear: number | null;
 };
@@ -264,6 +268,10 @@ export default function GameLibrary({ games, achievements = [], children }: { ga
               {[1, 2, 3].map((difficulty) => <option key={difficulty} value={difficulty}>{difficulty} · {difficultyLabels[difficulty]}</option>)}
             </select>
           </label>
+          <div className="star-rating-field">
+            <span>Rating</span>
+            <StarRatingInput defaultValue={game.rating} label={`Rating for ${game.title}`} />
+          </div>
         </div>
         <label className="field-log-label">
           NETRUNNER FIELD LOG
@@ -291,6 +299,7 @@ export default function GameLibrary({ games, achievements = [], children }: { ga
             <span>{!hasActiveFilters && visibleGames.length === 1 ? "game" : "games"}</span>
           </p>
           {children}
+          <LibraryDataVault games={games} />
         </div>
       </div>
 
@@ -403,7 +412,7 @@ export default function GameLibrary({ games, achievements = [], children }: { ga
               <form
                 action={updateGame}
                 className="spotlight-card"
-                key={`${game.id}-${game.status}-${game.lengthHours}-${game.difficulty}-${game.title}-${game.platform}-${game.genre ?? ""}-${game.releaseYear ?? ""}-${game.coverUrl ?? ""}-${game.hoursPlayed}-${game.notes ?? ""}`}
+                key={`${game.id}-${game.status}-${game.lengthHours}-${game.difficulty}-${game.title}-${game.platform}-${game.genre ?? ""}-${game.releaseYear ?? ""}-${game.coverUrl ?? ""}-${game.hoursPlayed}-${game.notes ?? ""}-${game.rating ?? ""}`}
               >
                 {renderCardCover(game, "spotlight-cover")}
                 <div className="spotlight-card-body">
@@ -439,7 +448,7 @@ export default function GameLibrary({ games, achievements = [], children }: { ga
         ) : activeView === "Completed" ? (
           <div className="trophy-grid">
             {visibleGames.map((game) => (
-              <article className="trophy-card" key={`${game.id}-${game.status}-${game.lengthHours}-${game.difficulty}-${game.title}-${game.platform}-${game.genre ?? ""}-${game.releaseYear ?? ""}-${game.coverUrl ?? ""}-${game.hoursPlayed}-${game.notes ?? ""}`}>
+              <article className="trophy-card" key={`${game.id}-${game.status}-${game.lengthHours}-${game.difficulty}-${game.title}-${game.platform}-${game.genre ?? ""}-${game.releaseYear ?? ""}-${game.coverUrl ?? ""}-${game.hoursPlayed}-${game.notes ?? ""}-${game.rating ?? ""}`}>
                 <p className="trophy-badge">🏆 GIG CLEARED</p>
                 {renderCardCover(game, "trophy-cover")}
                 <div className="trophy-card-body">
@@ -447,6 +456,11 @@ export default function GameLibrary({ games, achievements = [], children }: { ga
                   <p className="library-card-metadata">{game.platform} · {game.genre?.trim() || "Unknown genre"} · {game.releaseYear ?? "Unknown year"}</p>
                   <p className="trophy-record">{game.hoursPlayed}h played · {game.lengthHours}h length · Tier {game.difficulty} / {difficultyLabels[game.difficulty]}</p>
                   <p className="trophy-reward">+{game.earnedXp.toLocaleString()} XP</p>
+                  <p className="trophy-rating" data-rated={game.rating != null} aria-label={game.rating != null ? `Personal rating: ${game.rating} out of 5 stars` : "Unrated"}>
+                    {game.rating != null ? (
+                      <><span className="trophy-rating-stars" aria-hidden="true">{"★".repeat(game.rating) + "☆".repeat(5 - game.rating)}</span> <span>{game.rating}/5</span></>
+                    ) : "UNRATED"}
+                  </p>
                   {game.notes?.trim() && (
                     <div className="trophy-field-log">
                       <span>NETRUNNER FIELD LOG</span>
@@ -455,7 +469,7 @@ export default function GameLibrary({ games, achievements = [], children }: { ga
                   )}
                   <details className="trophy-edit-drawer">
                     <summary>Manage Record</summary>
-                    <form action={updateGame} key={`${game.id}-${game.status}-${game.lengthHours}-${game.difficulty}-${game.title}-${game.platform}-${game.genre ?? ""}-${game.releaseYear ?? ""}-${game.coverUrl ?? ""}-${game.hoursPlayed}-${game.notes ?? ""}`}>
+                    <form action={updateGame} key={`${game.id}-${game.status}-${game.lengthHours}-${game.difficulty}-${game.title}-${game.platform}-${game.genre ?? ""}-${game.releaseYear ?? ""}-${game.coverUrl ?? ""}-${game.hoursPlayed}-${game.notes ?? ""}-${game.rating ?? ""}`}>
                       {renderCardControls(game)}
                     </form>
                   </details>
@@ -481,7 +495,7 @@ export default function GameLibrary({ games, achievements = [], children }: { ga
                 action={updateGame}
                 className="game-row"
                 data-status={game.status}
-                key={`${game.id}-${game.status}-${game.lengthHours}-${game.difficulty}-${game.title}-${game.platform}-${game.genre ?? ""}-${game.releaseYear ?? ""}-${game.coverUrl ?? ""}-${game.hoursPlayed}-${game.notes ?? ""}`}
+                key={`${game.id}-${game.status}-${game.lengthHours}-${game.difficulty}-${game.title}-${game.platform}-${game.genre ?? ""}-${game.releaseYear ?? ""}-${game.coverUrl ?? ""}-${game.hoursPlayed}-${game.notes ?? ""}-${game.rating ?? ""}`}
                 role="row"
               >
                 <input name="id" type="hidden" value={game.id} />
@@ -602,7 +616,7 @@ export default function GameLibrary({ games, achievements = [], children }: { ga
             ref={metadataModalRef}
             action={updateGame}
             onSubmit={() => setEditingMetaGame(null)}
-            key={`${editingMetaGame.id}-${editingMetaGame.status}-${editingMetaGame.lengthHours}-${editingMetaGame.difficulty}-${editingMetaGame.title}-${editingMetaGame.platform}-${editingMetaGame.genre ?? ""}-${editingMetaGame.releaseYear ?? ""}-${editingMetaGame.coverUrl ?? ""}-${editingMetaGame.hoursPlayed}-${editingMetaGame.notes ?? ""}`}
+            key={`${editingMetaGame.id}-${editingMetaGame.status}-${editingMetaGame.lengthHours}-${editingMetaGame.difficulty}-${editingMetaGame.title}-${editingMetaGame.platform}-${editingMetaGame.genre ?? ""}-${editingMetaGame.releaseYear ?? ""}-${editingMetaGame.coverUrl ?? ""}-${editingMetaGame.hoursPlayed}-${editingMetaGame.notes ?? ""}-${editingMetaGame.rating ?? ""}`}
           >
             <p className="eyebrow">RECORD // METADATA EDITOR</p>
             <h2 id="metadata-modal-title">Edit Game Metadata</h2>

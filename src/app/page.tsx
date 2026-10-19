@@ -151,9 +151,11 @@ async function SavedGames() {
     lengthHours: game.lengthHours,
     hoursPlayed: game.hoursPlayed,
     notes: game.notes,
+    rating: game.rating,
     difficulty: game.difficulty,
     earnedXp: game.earnedXp,
     coverUrl: game.coverUrl ? resizeRawgImageUrl(game.coverUrl) : null,
+    backupCoverUrl: game.coverUrl,
     genre: game.genre,
     releaseYear: game.releaseYear,
   }));
