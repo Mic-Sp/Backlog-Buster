@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { resizeRawgImageUrl } from "@/lib/rawg";
 import { deleteGame, updateGame } from "./actions";
 import GameForm from "./GameForm";
+import QuestRoulette from "@/components/QuestRoulette";
 
 const statuses = ["Backlog", "Playing", "Completed"];
 const statusPriority: Record<string, number> = {
@@ -119,10 +120,23 @@ async function SavedGames() {
           <p className="eyebrow">02 / YOUR LIBRARY</p>
           <h2 id="collection-title">System Playqueue</h2>
         </div>
-        <p className="game-count">
-          <strong>{String(games.length).padStart(2, "0")}</strong>
-          <span>{games.length === 1 ? "game" : "games"}</span>
-        </p>
+        <div className="collection-heading-actions">
+          <p className="game-count">
+            <strong>{String(games.length).padStart(2, "0")}</strong>
+            <span>{games.length === 1 ? "game" : "games"}</span>
+          </p>
+          <QuestRoulette
+            games={games.filter((game) => game.status === "Backlog").map((game) => ({
+              id: game.id,
+              title: game.title,
+              platform: game.platform,
+              genre: game.genre,
+              lengthHours: game.lengthHours,
+              difficulty: game.difficulty,
+              coverUrl: game.coverUrl ? resizeRawgImageUrl(game.coverUrl) : null,
+            }))}
+          />
+        </div>
       </div>
 
       {games.length === 0 ? (

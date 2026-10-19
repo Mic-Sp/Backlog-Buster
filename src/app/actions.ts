@@ -133,6 +133,19 @@ export async function searchGameInfo(title: string): Promise<RawgGameInfo | null
     : lookupRawgGame(cleanTitle);
 }
 
+export async function acceptQuest(gameId: number) {
+  if (!Number.isSafeInteger(gameId) || gameId < 1) {
+    throw new Error("Please provide a valid game ID.");
+  }
+
+  await prisma.game.update({
+    where: { id: gameId, status: "Backlog" },
+    data: { status: "Playing", earnedXp: 0 },
+  });
+
+  revalidatePath("/");
+}
+
 export async function updateGame(formData: FormData) {
   const idValue = formData.get("id");
   const statusValue = formData.get("status");

@@ -1173,3 +1173,277 @@ body {
 		margin-inline: 2px;
 	}
 }
+/* Backlog roulette HUD */
+.collection-heading-actions {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	flex-wrap: wrap;
+}
+
+.quest-trigger-button {
+	min-height: 42px;
+	padding: 10px 14px;
+	border: 1px solid #00e5ff;
+	border-radius: 2px;
+	color: #00e5ff;
+	background: #0a1118;
+	box-shadow: 0 0 10px rgba(0, 229, 255, 0.18);
+	font-family: "Courier New", monospace;
+	font-size: 11px;
+	font-weight: 800;
+	letter-spacing: 0.5px;
+	text-transform: uppercase;
+	cursor: pointer;
+}
+
+.quest-trigger-button:hover {
+	color: #080a0e;
+	background: #00e5ff;
+}
+
+.quest-modal-backdrop {
+	position: fixed;
+	inset: 0;
+	z-index: 1000;
+	background: rgba(5, 8, 15, 0.75);
+	backdrop-filter: blur(8px);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 20px;
+}
+
+.quest-roulette.quest-modal {
+	max-width: 580px;
+	width: 100%;
+	max-height: calc(100dvh - 40px);
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	margin: 0;
+	border-color: #00e5ff;
+	border-top-color: #fcee0a;
+	box-shadow: 0 0 24px rgba(0, 229, 255, 0.2), 0 0 48px rgba(255, 42, 109, 0.12);
+}
+
+.quest-modal-header {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 16px;
+}
+
+.quest-modal-close {
+	display: grid;
+	width: 36px;
+	height: 36px;
+	flex-shrink: 0;
+	place-items: center;
+	border: 1px solid #ff2a6d;
+	border-radius: 2px;
+	color: #ff8bad;
+	background: #1a0d14;
+	font: inherit;
+	cursor: pointer;
+}
+
+.quest-modal-close:hover:not(:disabled) {
+	color: #080a0e;
+	background: #ff2a6d;
+}
+
+.quest-modal-close:disabled {
+	opacity: 0.5;
+	cursor: default;
+}
+
+.quest-trigger-button:focus-visible,
+.quest-modal-close:focus-visible {
+	outline: 2px solid #fcee0a;
+	outline-offset: 3px;
+}
+
+.quest-roulette {
+	margin-top: 28px;
+	padding: 24px;
+	border: 1px solid #353944;
+	border-top: 2px solid #fcee0a;
+	border-radius: 3px;
+	color: #f1f0e8;
+	background: #11151c;
+}
+
+.quest-roulette h2 {
+	margin: 8px 0;
+	font-size: 21px;
+	font-weight: 800;
+	text-transform: uppercase;
+}
+
+.quest-intro,
+.quest-match-count,
+.quest-message {
+	color: #a4a7b0;
+	font-size: 13px;
+	line-height: 1.6;
+}
+
+.quest-filters {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 14px;
+	min-width: 0;
+	margin: 20px 0 12px;
+	padding: 0;
+	border: 0;
+}
+
+.quest-filters label {
+	display: grid;
+	min-width: 0;
+	gap: 8px;
+	color: #c3c6cb;
+	font-size: 12px;
+	font-weight: 700;
+}
+
+.quest-filters select {
+	width: 100%;
+	min-width: 0;
+	min-height: 44px;
+	padding: 0 10px;
+	border: 1px solid #393e49;
+	border-radius: 2px;
+	color: #f1f0e8;
+	background: #0a0d12;
+	color-scheme: dark;
+	font: inherit;
+}
+
+.quest-button {
+	min-height: 44px;
+	padding: 10px 18px;
+	border: 1px solid #fcee0a;
+	border-radius: 2px;
+	color: #080a0e;
+	background: #fcee0a;
+	font: inherit;
+	font-size: 12px;
+	font-weight: 800;
+	cursor: pointer;
+}
+
+.quest-accept {
+	border-color: #00e6a8;
+	background: #00e6a8;
+}
+
+.quest-reroll {
+	border-color: #00e5ff;
+	color: #00e5ff;
+	background: #0a0d12;
+}
+
+.quest-button:hover:not(:disabled) {
+	border-color: #f1f0e8;
+}
+
+.quest-button:disabled,
+.quest-filters:disabled {
+	opacity: 0.6;
+	cursor: default;
+}
+
+.quest-button:focus-visible,
+.quest-filters select:focus-visible {
+	outline: 2px solid #00e5ff;
+	outline-offset: 3px;
+}
+
+.quest-cycling {
+	min-height: 24px;
+	margin: 16px 0 0;
+	color: #00e5ff;
+	font-weight: 700;
+	overflow-wrap: anywhere;
+}
+
+.quest-winner {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	padding: 16px;
+	border: 1px solid #00e5ff;
+	background: #0a0d12;
+}
+
+.quest-cover {
+	width: 72px;
+	height: 96px;
+	flex: 0 0 auto;
+	border: 1px solid #454b56;
+	border-radius: 2px;
+	object-fit: cover;
+}
+
+.quest-no-cover {
+	display: grid;
+	place-items: center;
+	color: #a4a7b0;
+	background: #171c24;
+	font-size: 10px;
+}
+
+.quest-winner h3 {
+	margin: 8px 0;
+	font-size: 18px;
+	overflow-wrap: anywhere;
+}
+
+.quest-winner p:not(.eyebrow) {
+	margin-bottom: 6px;
+	font-size: 12px;
+	line-height: 1.5;
+	overflow-wrap: anywhere;
+}
+
+.quest-reward {
+	color: #fcee0a;
+	font-weight: 800;
+}
+
+.quest-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+	margin-top: 14px;
+}
+
+.quest-message {
+	margin: 14px 0 0;
+}
+
+.quest-sr-only {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+	.collection-heading {
+		flex-wrap: wrap;
+		gap: 16px;
+	}
+
+	.quest-roulette {
+		padding: 18px;
+	}
+
+	.quest-filters {
+		grid-template-columns: 1fr;
+	}
+}
