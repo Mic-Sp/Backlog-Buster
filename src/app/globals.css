@@ -57,7 +57,7 @@ select {
 
 .player-summary {
 	display: grid;
-	grid-template-columns: 62px minmax(100px, 0.7fr) minmax(140px, 1fr) minmax(190px, 1.8fr) minmax(240px, 1.8fr);
+	grid-template-columns: 90px minmax(100px, 0.7fr) minmax(140px, 1fr) minmax(190px, 1.8fr) minmax(240px, 1.8fr);
 	align-items: center;
 	gap: 18px;
 	margin-top: 0;
@@ -189,7 +189,10 @@ select {
 
 .hud-brand {
 	display: flex;
-	min-height: 54px;
+	min-width: 90px;
+	min-height: 72px;
+	height: 72px;
+	align-self: stretch;
 	align-items: center;
 	justify-content: center;
 	padding-right: 16px;
@@ -197,17 +200,22 @@ select {
 }
 
 .wordmark-icon {
-	display: grid;
-	width: 42px;
-	aspect-ratio: 1;
-	place-items: center;
-	border-radius: 9px;
-	color: var(--ink);
-	background: var(--lime);
-	font-family: Georgia, serif;
-	font-size: 28px;
-	font-weight: 900;
-	line-height: 1;
+	display: block;
+	width: 72px;
+	height: 72px;
+	flex-shrink: 0;
+	padding: 0;
+	border: 1px solid rgba(252, 238, 10, 0.65);
+	border-radius: 3px;
+	overflow: hidden;
+	box-shadow: 0 0 14px rgba(0, 229, 255, 0.22);
+}
+
+.hud-brand-logo {
+	display: block;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
 }
 
 .eyebrow {
@@ -748,7 +756,7 @@ button.start-gig-badge:focus-visible {
 	}
 
 	.player-summary {
-		grid-template-columns: 60px minmax(90px, 0.7fr) minmax(120px, 1fr) minmax(220px, 1.7fr);
+		grid-template-columns: 90px minmax(70px, 0.7fr) minmax(100px, 1fr) minmax(0, 1.7fr);
 	}
 
 	.summary-counts {
@@ -807,7 +815,7 @@ button.start-gig-badge:focus-visible {
 	}
 
 	.player-summary {
-		grid-template-columns: 48px 1fr 1fr;
+		grid-template-columns: 84px minmax(0, 1fr) minmax(0, 1fr);
 		gap: 18px 12px;
 		margin-top: 0;
 		padding: 18px;
@@ -815,12 +823,8 @@ button.start-gig-badge:focus-visible {
 
 	.hud-brand {
 		grid-row: span 1;
+		min-width: 84px;
 		padding-right: 10px;
-	}
-
-	.wordmark-icon {
-		width: 38px;
-		font-size: 26px;
 	}
 
 	.summary-progress,
@@ -912,7 +916,7 @@ body {
 
 .player-summary {
 	position: relative;
-	grid-template-columns: 62px minmax(100px, 0.7fr) minmax(140px, 1fr) minmax(190px, 1.8fr) minmax(240px, 1.8fr);
+	grid-template-columns: 90px minmax(100px, 0.7fr) minmax(140px, 1fr) minmax(190px, 1.8fr) minmax(240px, 1.8fr);
 	gap: 16px;
 	border: 1px solid #3b414d;
 	border-left: 3px solid var(--lime);
@@ -965,18 +969,6 @@ body {
 
 .hud-brand {
 	border-right-color: rgba(252, 238, 10, 0.55);
-}
-
-.wordmark-icon {
-	width: 44px;
-	border: 1px solid #fff36a;
-	border-radius: 3px;
-	color: #080a0e;
-	background: linear-gradient(145deg, #fff83b, #d8bd00);
-	box-shadow: 2px 2px 0 #ff2a6d;
-	font-family: inherit;
-	font-size: 30px;
-	font-weight: 900;
 }
 
 .eyebrow {
@@ -1196,13 +1188,27 @@ body {
 	color: #818996;
 }
 
+@media (max-width: 1000px) {
+	.player-summary {
+		grid-template-columns: 90px minmax(70px, 0.7fr) minmax(100px, 1fr) minmax(0, 1.7fr);
+	}
+
+	.summary-counts {
+		grid-column: 1 / -1;
+		padding: 14px 0 0;
+		border-top: 1px solid rgba(255, 254, 250, 0.25);
+		border-left: 0;
+	}
+}
+
 @media (max-width: 640px) {
 	.page-shell {
 		width: min(100% - 32px, 500px);
 	}
 
 	.player-summary {
-		grid-template-columns: 48px 1fr 1fr;
+		grid-template-columns: 84px minmax(0, 1fr) minmax(0, 1fr);
+		column-gap: 12px;
 	}
 
 	.game-row:not(.game-row-head) {

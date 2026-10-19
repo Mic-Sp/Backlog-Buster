@@ -1,5 +1,6 @@
 import { cache, Suspense } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { connection } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { resizeRawgImageUrl } from "@/lib/rawg";
@@ -67,7 +68,9 @@ async function PlayerSummary() {
     <section className="player-summary" aria-label="Player stats">
       <AchievementToast achievements={achievements} level={progress.level} totalXp={totalXp} />
       <Link className="hud-brand" href="/" aria-label="Backlog Buster home">
-        <span className="wordmark-icon" aria-hidden="true">B</span>
+        <span className="wordmark-icon">
+          <Image className="hud-brand-logo" src="/hud-logo.png" alt="Backlog Buster logo" width={190} height={189} sizes="72px" loading="eager" />
+        </span>
       </Link>
 
       <div className="summary-level">
