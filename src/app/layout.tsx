@@ -1,5 +1,13 @@
 import type { Metadata } from "next";
+import { VT323 } from "next/font/google";
 import "./globals.css";
+
+const terminalFont = VT323({
+  weight: "400",
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-terminal",
+});
 
 export const metadata: Metadata = {
   title: "Backlog Buster",
@@ -8,7 +16,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en">
+    <html lang="en" className={terminalFont.variable}>
       <body>{children}</body>
     </html>
   );

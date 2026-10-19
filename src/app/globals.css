@@ -2929,3 +2929,70 @@ button.achievement-toast-dismiss:focus-visible {
 		animation: none;
 	}
 }
+
+/* Keep terminal typography after the individual HUD heading styles. */
+.section-heading h2,
+.section-heading-title,
+.collection-heading h2,
+.quest-roulette h2,
+.advisor-header h2,
+.advisor-external-section > h3,
+.vault-modal h2,
+.vault-section h3,
+.metadata-modal h2,
+.trophy-room-banner h3,
+.trophy-milestones-drawer > summary,
+.telemetry-drawer > summary,
+.telemetry-content h3 {
+	font-family: var(--font-terminal), "Courier New", monospace;
+	font-weight: 400;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: #e6fff9;
+	text-shadow: 0 0 10px rgba(0, 229, 255, 0.35), 0 0 2px rgba(5, 255, 161, 0.4);
+}
+
+.section-heading h2,
+.section-heading-title,
+.collection-heading h2,
+.quest-roulette h2,
+.advisor-header h2,
+.vault-modal h2,
+.metadata-modal h2,
+.trophy-room-banner h3 {
+	font-size: clamp(26px, 2.5vw, 32px);
+	line-height: 1.15;
+}
+
+.advisor-external-section > h3,
+.vault-section h3,
+.trophy-milestones-drawer > summary,
+.telemetry-drawer > summary,
+.telemetry-content h3 {
+	font-size: 22px;
+	line-height: 1.3;
+}
+
+#add-title::after {
+	content: "";
+	display: inline-block;
+	width: 0.45em;
+	height: 0.75em;
+	margin-left: 8px;
+	vertical-align: -0.05em;
+	background: #05ffa1;
+	box-shadow: 0 0 8px rgba(5, 255, 161, 0.45);
+	animation: terminalBlockBlink 1.1s step-end infinite;
+}
+
+@keyframes terminalBlockBlink {
+	0%, 100% { opacity: 1; }
+	50% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	#add-title::after {
+		animation: none;
+		opacity: 1;
+	}
+}
