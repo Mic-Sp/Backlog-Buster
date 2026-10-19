@@ -13,6 +13,7 @@ export const achievementDefinitions = [
   { key: "multi-deck", title: "Multi Deck", description: "Complete gigs on 2 different platforms.", icon: "🎮", xpBonus: 300, target: 2 },
   { key: "genre-specialist", title: "Genre Specialist", description: "Complete 3 gigs in the same genre.", icon: "🎯", xpBonus: 400, target: 3 },
   { key: "cyberware-critic", title: "Cyberware Critic", description: "Log a star rating on 5 completed gigs.", icon: "⭐", xpBonus: 350, target: 5 },
+  { key: "second-heart", title: "Second Heart", description: "Revive a Flatlined gig and see it through to completion.", icon: "⚡", xpBonus: 400, target: 1 },
 ] as const;
 
 export type Achievement = {
@@ -32,14 +33,14 @@ export async function syncAndGetAchievements(userId = getCurrentPlayerId()): Pro
   const [games, existing] = await Promise.all([
     prisma.game.findMany({
       where: { userId },
-      select: { status: true, lengthHours: true, hoursPlayed: true, difficulty: true, platform: true, genre: true, rating: true },
+      select: { status: true, wasFlatlined: true, lengthHours: true, hoursPlayed: true, difficulty: true, platform: true, genre: true, rating: true },
     }),
     prisma.userAchievement.findMany({ where: { userId } }),
   ]);
   const completed = games.filter((game) => game.status === "Completed");
   const totalHours = games.reduce((sum, game) => {
     if (game.status === "Completed") return sum + Math.max(game.lengthHours, game.hoursPlayed);
-    if (game.status === "Playing") return sum + game.hoursPlayed;
+    if (game.status === "Playing" || game.status === "Flatlined") return sum + game.hoursPlayed;
     return sum;
   }, 0);
   const genreCounts = new Map<string, number>();
@@ -57,6 +58,7 @@ export async function syncAndGetAchievements(userId = getCurrentPlayerId()): Pro
     "multi-deck": new Set(completed.map((game) => game.platform.trim().toLowerCase()).filter(Boolean)).size,
     "genre-specialist": Math.max(0, ...genreCounts.values()),
     "cyberware-critic": completed.filter((game) => typeof game.rating === "number" && game.rating >= 1 && game.rating <= 5).length,
+    "second-heart": completed.filter((game) => game.wasFlatlined).length,
   };
   const owned = new Set(existing.map((achievement) => achievement.achievementKey));
   const newlyEligible = achievementDefinitions.filter((definition) =>

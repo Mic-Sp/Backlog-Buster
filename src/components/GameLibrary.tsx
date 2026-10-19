@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
-import { completeGame, deleteGame, logPlaySession, startGame, updateGame } from "@/app/actions";
+import { completeGame, deleteGame, flatlineGame, logPlaySession, startGame, updateGame } from "@/app/actions";
 import type { Achievement } from "@/lib/achievements";
 import StarRatingInput from "@/components/StarRatingInput";
 import LibraryDataVault from "@/components/LibraryDataVault";
@@ -15,6 +15,7 @@ export type LibraryGame = {
   title: string;
   platform: string;
   status: string;
+  wasFlatlined: boolean;
   lengthHours: number;
   hoursPlayed: number;
   notes: string | null;
@@ -27,11 +28,11 @@ export type LibraryGame = {
   releaseYear: number | null;
 };
 
-const statuses = ["Backlog", "Playing", "Completed"];
-const views = ["All", "Playing", "Backlog", "Completed"] as const;
+const statuses = ["Backlog", "Playing", "Completed", "Flatlined"];
+const views = ["All", "Playing", "Backlog", "Completed", "Flatlined"] as const;
 type LibraryView = typeof views[number];
 type SortColumn = "title" | "platform" | "genre" | "year" | "status" | "hours" | "difficulty" | "xp";
-const statusPriority: Record<string, number> = { Playing: 0, Backlog: 1, Completed: 2 };
+const statusPriority: Record<string, number> = { Playing: 0, Backlog: 1, Completed: 2, Flatlined: 3 };
 const primaryColumnSort = {
   title: "title-asc",
   platform: "platform-asc",
@@ -43,6 +44,10 @@ const primaryColumnSort = {
   xp: "xp-desc",
 } as const;
 const difficultyLabels: Record<number, string> = { 1: "Easy", 2: "Medium", 3: "Tough" };
+
+function sortableXp(game: LibraryGame) {
+  return game.status === "Flatlined" ? 0 : game.earnedXp || game.lengthHours * game.difficulty * 10;
+}
 
 export default function GameLibrary({ games, achievements = [], children }: { games: LibraryGame[]; achievements?: Achievement[]; children?: ReactNode }) {
   const [activeView, setActiveView] = useState<LibraryView>("All");
@@ -109,6 +114,7 @@ export default function GameLibrary({ games, achievements = [], children }: { ga
       Playing: games.filter((game) => game.status === "Playing").length,
       Backlog: games.filter((game) => game.status === "Backlog").length,
       Completed: games.filter((game) => game.status === "Completed").length,
+      Flatlined: games.filter((game) => game.status === "Flatlined").length,
     },
   }), [games]);
 
@@ -129,11 +135,9 @@ export default function GameLibrary({ games, achievements = [], children }: { ga
         case "hours-desc":
           return right.lengthHours - left.lengthHours;
         case "xp-desc":
-          return (right.earnedXp || right.lengthHours * right.difficulty * 10) -
-            (left.earnedXp || left.lengthHours * left.difficulty * 10);
+          return sortableXp(right) - sortableXp(left);
         case "xp-asc":
-          return (left.earnedXp || left.lengthHours * left.difficulty * 10) -
-            (right.earnedXp || right.lengthHours * right.difficulty * 10);
+          return sortableXp(left) - sortableXp(right);
         case "year-desc":
         case "year-asc":
           if (left.releaseYear === null && right.releaseYear === null) return 0;
@@ -162,9 +166,9 @@ export default function GameLibrary({ games, achievements = [], children }: { ga
             : rightGenre.localeCompare(leftGenre);
         }
         case "status-asc":
-          return (statusPriority[left.status] ?? 3) - (statusPriority[right.status] ?? 3);
+          return (statusPriority[left.status] ?? 4) - (statusPriority[right.status] ?? 4);
         case "status-desc":
-          return (statusPriority[right.status] ?? 3) - (statusPriority[left.status] ?? 3);
+          return (statusPriority[right.status] ?? 4) - (statusPriority[left.status] ?? 4);
         case "difficulty-desc":
           return right.difficulty - left.difficulty;
         case "difficulty-asc":
@@ -284,10 +288,16 @@ export default function GameLibrary({ games, achievements = [], children }: { ga
         <div className="library-card-actions">
           <button className="status-save" type="submit">Save</button>
           <button className="delete-button" formAction={deleteGame} formNoValidate type="submit">Delete</button>
-          <button type="button" className="edit-meta-btn" onClick={() => setEditingMetaGame(game)}>⚙ EDIT META</button>
+          {game.status === "Playing" && (
+            <button className="flatline-gig-button" formAction={flatlineGame} type="submit">💀 FLATLINE GIG</button>
+          )}
+          {game.status === "Flatlined" && (
+            <button className="revive-gig-button" formAction={startGame} type="submit">▶ REVIVE GIG</button>
+          )}
           {game.status === "Playing" && (
             <a className="trailer-link-button" href={buildTrailerUrl(game.title, game.releaseYear)} target="_blank" rel="noopener noreferrer">🎬 WATCH TRAILER ↗</a>
           )}
+          <button type="button" className="edit-meta-btn" onClick={() => setEditingMetaGame(game)}>⚙ EDIT META</button>
         </div>
       </>
     );
@@ -318,6 +328,7 @@ export default function GameLibrary({ games, achievements = [], children }: { ga
           <button
             key={view}
             type="button"
+            data-view={view.toLowerCase()}
             aria-pressed={activeView === view}
             onClick={() => setActiveView(view)}
           >
@@ -366,8 +377,8 @@ export default function GameLibrary({ games, achievements = [], children }: { ga
             <option value="platform-desc">Platform: Z–A</option>
             <option value="genre-asc">Genre: A–Z</option>
             <option value="genre-desc">Genre: Z–A</option>
-            <option value="status-asc">Status: Playing → Completed</option>
-            <option value="status-desc">Status: Completed → Playing</option>
+            <option value="status-asc">Status: Playing → Flatlined</option>
+            <option value="status-desc">Status: Flatlined → Playing</option>
             <option value="difficulty-desc">Difficulty: hardest first</option>
             <option value="difficulty-asc">Difficulty: easiest first</option>
           </select>
@@ -416,26 +427,29 @@ export default function GameLibrary({ games, achievements = [], children }: { ga
             <span className="empty-mark" aria-hidden="true">+</span>
             <p>{games.length === 0 ? "Your list is clear. Add a game to get started." : "No games match. Try another view or clear your filters."}</p>
           </div>
-        ) : activeView === "Playing" ? (
+        ) : activeView === "Playing" || activeView === "Flatlined" ? (
           <div className="playing-spotlight-grid">
             {visibleGames.map((game) => (
               <form
                 action={updateGame}
                 className="spotlight-card"
+                data-status={game.status}
                 key={`${game.id}-${game.status}-${game.lengthHours}-${game.difficulty}-${game.title}-${game.platform}-${game.genre ?? ""}-${game.releaseYear ?? ""}-${game.coverUrl ?? ""}-${game.hoursPlayed}-${game.notes ?? ""}-${game.rating ?? ""}`}
               >
                 {renderCardCover(game, "spotlight-cover")}
                 <div className="spotlight-card-body">
-                  <p className="spotlight-badge">LIVE GIG // IN PROGRESS</p>
+                  <p className="spotlight-badge">{game.status === "Flatlined" ? "💀 FLATLINED // SHELVED" : "LIVE GIG // IN PROGRESS"}</p>
                   <h3>{game.title}</h3>
                   <p className="library-card-metadata">{game.platform} · {game.genre?.trim() || "Unknown genre"} · {game.releaseYear ?? "Unknown year"}</p>
                   <div className="gig-progress-block">
                     <div className="gig-progress-header">
-                      <span>ACTIVE GIG PROGRESS</span>
-                      <div className="gig-session-actions">
-                        <button type="button" disabled={isLogging} onClick={() => logSession(game.id, 1)} aria-label={`Log one hour for ${game.title}`}>+1H</button>
-                        <button type="button" disabled={isLogging} onClick={() => logSession(game.id, 2)} aria-label={`Log two hours for ${game.title}`}>+2H</button>
-                      </div>
+                      <span>{game.status === "Flatlined" ? "ARCHIVED GIG PROGRESS" : "ACTIVE GIG PROGRESS"}</span>
+                      {game.status === "Playing" && (
+                        <div className="gig-session-actions">
+                          <button type="button" disabled={isLogging} onClick={() => logSession(game.id, 1)} aria-label={`Log one hour for ${game.title}`}>+1H</button>
+                          <button type="button" disabled={isLogging} onClick={() => logSession(game.id, 2)} aria-label={`Log two hours for ${game.title}`}>+2H</button>
+                        </div>
+                      )}
                     </div>
                     <p>{game.hoursPlayed} / {game.lengthHours}h ({Math.min(100, Math.round((game.hoursPlayed / game.lengthHours) * 100))}%)</p>
                     <div className="gig-progress-track" role="progressbar" aria-label={`Progress for ${game.title}`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.min(100, Math.round((game.hoursPlayed / game.lengthHours) * 100))} aria-valuetext={`${game.hoursPlayed} of ${game.lengthHours} hours`}>
@@ -444,13 +458,15 @@ export default function GameLibrary({ games, achievements = [], children }: { ga
                     {sessionError?.gameId === game.id && <p role="alert">{sessionError.message}</p>}
                   </div>
                   <div className="spotlight-bounty">
-                    <span>Potential XP Bounty</span>
-                    <strong>{(game.lengthHours * game.difficulty * 10).toLocaleString()} XP</strong>
+                    <span>{game.status === "Flatlined" ? "Shelved Gig // No Game XP" : "Potential XP Bounty"}</span>
+                    <strong>{(game.status === "Flatlined" ? 0 : game.lengthHours * game.difficulty * 10).toLocaleString()} XP</strong>
                   </div>
                   {renderCardControls(game)}
-                  <button type="submit" formAction={completeGame} className="complete-gig-button">
-                    🏆 COMPLETE GIG (+{Math.max(game.lengthHours, game.hoursPlayed) * game.difficulty * 10} XP)
-                  </button>
+                  {game.status === "Playing" && (
+                    <button type="submit" formAction={completeGame} className="complete-gig-button">
+                      🏆 COMPLETE GIG (+{Math.max(game.lengthHours, game.hoursPlayed) * game.difficulty * 10} XP)
+                    </button>
+                  )}
                 </div>
               </form>
             ))}
@@ -463,6 +479,7 @@ export default function GameLibrary({ games, achievements = [], children }: { ga
                 {renderCardCover(game, "trophy-cover")}
                 <div className="trophy-card-body">
                   <h3>{game.title}</h3>
+                  {game.wasFlatlined && <p className="trophy-revived-badge">⚡ REVIVED FROM FLATLINE</p>}
                   <p className="library-card-metadata">{game.platform} · {game.genre?.trim() || "Unknown genre"} · {game.releaseYear ?? "Unknown year"}</p>
                   <p className="trophy-record">{game.hoursPlayed}h played · {game.lengthHours}h length · Tier {game.difficulty} / {difficultyLabels[game.difficulty]}</p>
                   <p className="trophy-reward">+{game.earnedXp.toLocaleString()} XP</p>
@@ -528,8 +545,8 @@ export default function GameLibrary({ games, achievements = [], children }: { ga
                     <span className="game-title-stack">
                       <strong>{game.title}</strong>
                       <span className="game-title-actions">
-                        {game.status === "Backlog" && (
-                          <button className="start-gig-badge" formAction={startGame} type="submit">▶ START GIG</button>
+                        {(game.status === "Backlog" || game.status === "Flatlined") && (
+                          <button className="start-gig-badge" formAction={startGame} type="submit">{game.status === "Flatlined" ? "▶ REVIVE GIG" : "▶ START GIG"}</button>
                         )}
                         <button type="button" className="edit-meta-btn" onClick={() => setEditingMetaGame(game)}>⚙ EDIT META</button>
                       </span>

@@ -13,6 +13,7 @@ model Game {
   title       String
   platform    String
   status      String   @default("Backlog")
+  wasFlatlined Boolean @default(false)
   lengthHours Int      @default(10)
   hoursPlayed Int      @default(0)
   notes       String?

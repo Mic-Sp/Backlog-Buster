@@ -18,6 +18,7 @@ const statusPriority: Record<string, number> = {
   Playing: 0,
   Backlog: 1,
   Completed: 2,
+  Flatlined: 3,
 };
 
 function calculateLevelProgress(totalXp: number) {
@@ -62,6 +63,7 @@ async function PlayerSummary() {
   const completedCount = games.filter(
     (game) => game.status === "Completed",
   ).length;
+  const flatlinedCount = games.filter((game) => game.status === "Flatlined").length;
   const progress = calculateLevelProgress(totalXp);
 
   return (
@@ -113,6 +115,7 @@ async function PlayerSummary() {
           <p><strong>{backlogCount}</strong><span>Backlog</span></p>
           <p><strong>{playingCount}</strong><span>Playing</span></p>
           <p><strong>{completedCount}</strong><span>Completed</span></p>
+          <p data-status="Flatlined"><strong>{flatlinedCount}</strong><span>Flatlined</span></p>
         </div>
       </div>
       <div className="hud-achievements-bar" aria-label="Player achievements">
@@ -142,7 +145,7 @@ async function SavedGames() {
   ]);
   games.sort((left, right) => {
     const priorityDifference =
-      (statusPriority[left.status] ?? 3) - (statusPriority[right.status] ?? 3);
+      (statusPriority[left.status] ?? 4) - (statusPriority[right.status] ?? 4);
     return priorityDifference || right.createdAt.getTime() - left.createdAt.getTime();
   });
 
@@ -151,6 +154,7 @@ async function SavedGames() {
     title: game.title,
     platform: game.platform,
     status: game.status,
+    wasFlatlined: game.wasFlatlined,
     lengthHours: game.lengthHours,
     hoursPlayed: game.hoursPlayed,
     notes: game.notes,

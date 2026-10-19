@@ -23,7 +23,7 @@ export function calculateLibraryTelemetry(games: LibraryGame[]) {
 
   for (const game of games) {
     const hours = game.status === "Completed" ? Math.max(game.lengthHours, game.hoursPlayed)
-      : game.status === "Playing" ? game.hoursPlayed : 0;
+      : game.status === "Playing" || game.status === "Flatlined" ? game.hoursPlayed : 0;
     if (game.status === "Completed") completedCount++;
     if (game.status === "Backlog") backlogHours += game.lengthHours;
     activeHours += hours;

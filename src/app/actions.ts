@@ -9,7 +9,7 @@ import { lookupRawgGame, type RawgGameInfo } from "@/lib/rawg";
 import { getBacklogRecommendations, getExternalRecommendations } from "@/lib/recommendations";
 import { normalizeGameTitle } from "@/lib/game-title";
 
-const allowedStatuses = new Set(["Backlog", "Playing", "Completed"]);
+const allowedStatuses = new Set(["Backlog", "Playing", "Completed", "Flatlined"]);
 
 function calculateEarnedXp(
   status: string,
@@ -224,6 +224,7 @@ export async function bulkImportGames(payload: {
   }
   type ImportedGame = {
     userId: string; title: string; platform: string; status: string;
+    wasFlatlined: boolean;
     lengthHours: number; hoursPlayed: number; difficulty: number; earnedXp: number;
     rating: number | null; notes: string | null; genre: string | null;
     releaseYear: number | null; coverUrl: string | null;
@@ -250,6 +251,7 @@ export async function bulkImportGames(payload: {
           userId, title,
           platform: platform || defaultPlatform || lookup?.platforms[0] || "PC",
           status: "Backlog",
+          wasFlatlined: false,
           lengthHours: resolveRawgPlaytime(lookup?.playtime, lookup?.genre) ?? 10,
           hoursPlayed: 0, difficulty: 2, earnedXp: 0, rating: null, notes: null,
           genre: lookup?.genre ?? null, releaseYear: lookup?.releaseYear ?? null,
@@ -277,12 +279,16 @@ export async function bulkImportGames(payload: {
       if (typeof status !== "string" || !allowedStatuses.has(status)) {
         throw new Error(`Game ${index + 1} has an invalid status.`);
       }
+      if (game.wasFlatlined !== undefined && typeof game.wasFlatlined !== "boolean") {
+        throw new Error(`Game ${index + 1} has an invalid Flatlined history flag.`);
+      }
       const lengthHours = integer(game.lengthHours, "Length hours", 1, 10000, 10);
       const difficulty = integer(game.difficulty, "Difficulty", 1, 3, 2);
       const coverUrl = nullableText(game.coverUrl, "cover URL");
       return {
         userId, title: text(game.title, "title", 120), platform: text(game.platform, "platform", 80),
         status, lengthHours, difficulty,
+        wasFlatlined: status === "Flatlined" || game.wasFlatlined === true,
         hoursPlayed: integer(game.hoursPlayed, "Hours played", 0, 10000, 0),
         earnedXp: calculateEarnedXp(status, lengthHours, difficulty),
         rating: game.rating == null ? null : integer(game.rating, "Rating", 1, 5, 1),
@@ -401,6 +407,7 @@ export async function updateGame(formData: FormData) {
       lengthHours,
       difficulty,
       earnedXp: calculateEarnedXp(statusValue, lengthHours, difficulty),
+      ...(statusValue === "Flatlined" ? { wasFlatlined: true } : {}),
       ...metadata,
       ...progress,
     },
@@ -410,7 +417,13 @@ export async function updateGame(formData: FormData) {
   revalidatePath("/");
 }
 
+export async function flatlineGame(formData: FormData) {
+  formData.set("status", "Flatlined");
+  await updateGame(formData);
+}
+
 export async function startGame(formData: FormData) {
+  const progress = readProgressFields(formData);
   const idValue = formData.get("id");
   const lengthHoursValue = formData.get("lengthHours");
   const difficultyValue = formData.get("difficulty");
@@ -442,9 +455,10 @@ export async function startGame(formData: FormData) {
 
   await prisma.game.update({
     where: { id, userId: getCurrentPlayerId() },
-    data: { status: "Playing", lengthHours, difficulty, earnedXp: 0 },
+    data: { status: "Playing", lengthHours, difficulty, earnedXp: 0, ...progress },
   });
 
+  await syncAndGetAchievements();
   revalidatePath("/");
 }
 

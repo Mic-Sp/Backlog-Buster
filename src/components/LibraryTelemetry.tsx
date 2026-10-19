@@ -46,7 +46,7 @@ export default function LibraryTelemetry({ games }: { games: LibraryGame[] }) {
         <p className="telemetry-intro">ANALYTICS &amp; CRITIC BREAKDOWN // Entire library · {telemetry.totalGames.toLocaleString("en-US")} games</p>
         <dl className="telemetry-stats-grid">
           <div className="telemetry-stat"><dt>Completion Rate</dt><dd>{telemetry.completionRate.toFixed(1)}%</dd><span>{telemetry.completedCount} / {telemetry.totalGames} gigs cleared</span></div>
-          <div className="telemetry-stat"><dt>Active Hours Logged</dt><dd>{telemetry.activeHours.toLocaleString("en-US")}h</dd><span>Completed + current sessions</span></div>
+          <div className="telemetry-stat"><dt>Active Hours Logged</dt><dd>{telemetry.activeHours.toLocaleString("en-US")}h</dd><span>Completed + playing + flatlined sessions</span></div>
           <div className="telemetry-stat"><dt>Remaining Backlog</dt><dd>{telemetry.backlogHours.toLocaleString("en-US")}h</dd><span>Estimated hours to clear</span></div>
           <div className="telemetry-stat telemetry-critic-stat"><dt>Average Star Rating</dt><dd>{telemetry.avgRating !== null ? `${telemetry.avgRating.toFixed(1)} ★` : "UNRATED"}</dd><span>{telemetry.ratedCount} rated games</span></div>
         </dl>

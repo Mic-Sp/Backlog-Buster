@@ -160,7 +160,7 @@ select {
 
 .summary-count-items {
 	display: grid;
-	grid-template-columns: repeat(3, minmax(0, 1fr));
+	grid-template-columns: repeat(4, minmax(0, 1fr));
 	gap: 8px;
 }
 
@@ -1655,10 +1655,10 @@ a.trailer-link-button {
 	min-height: 40px;
 	margin-top: 8px;
 	padding: 8px 14px;
-	border: 1px solid #ff2a6d;
+	border: 1px solid #00f0ff;
 	border-radius: 2px;
-	color: #ff8bad;
-	background: rgba(255, 42, 109, 0.12);
+	color: #00f0ff;
+	background: #10252c;
 	font-family: "Courier New", monospace;
 	font-size: 11px;
 	font-weight: 800;
@@ -1673,13 +1673,13 @@ a.trailer-link-button {
 .trailer-link-button:hover,
 a.trailer-link-button:hover {
 	color: #080a0e;
-	background: #ff2a6d;
-	box-shadow: 0 0 12px rgba(255, 42, 109, 0.35);
+	background: #00f0ff;
+	box-shadow: 0 0 12px rgba(0, 240, 255, 0.35);
 }
 
 .trailer-link-button:focus-visible,
 a.trailer-link-button:focus-visible {
-	outline: 2px solid #ff2a6d;
+	outline: 2px solid #00f0ff;
 	outline-offset: 3px;
 }
 
@@ -2134,6 +2134,22 @@ a.trailer-link-button:focus-visible {
 	padding: 16px;
 }
 
+.trophy-revived-badge {
+	display: inline-block;
+	max-width: 100%;
+	margin: 0 0 12px;
+	padding: 5px 8px;
+	border: 1px solid #346c65;
+	border-radius: 2px;
+	color: #9affd4;
+	background: #0b201b;
+	font-family: "Courier New", monospace;
+	font-size: 9px;
+	font-weight: 700;
+	line-height: 1.5;
+	letter-spacing: 0.04em;
+}
+
 .trophy-card h3 {
 	margin: 0 0 10px;
 	color: #fff4b1;
@@ -2319,6 +2335,10 @@ button.edit-meta-btn:hover {
 	border-color: #00f0ff;
 	color: #00f0ff;
 	box-shadow: 0 0 8px rgba(0, 240, 255, 0.18);
+}
+
+.spotlight-card .library-card-actions > button.edit-meta-btn {
+	margin-left: auto;
 }
 
 .metadata-modal-backdrop {
@@ -2995,4 +3015,114 @@ button.achievement-toast-dismiss:focus-visible {
 		animation: none;
 		opacity: 1;
 	}
+}
+
+/* Retired contracts retain their records with a muted crimson HUD accent. */
+.summary-count-items [data-status="Flatlined"] strong {
+	color: #ff8bad;
+	text-shadow: none;
+}
+
+.library-tabs button[data-view="flatlined"] {
+	border-color: #633244;
+	color: #cc869e;
+}
+
+.library-tabs button[data-view="flatlined"]:hover,
+.library-tabs button[data-view="flatlined"][aria-pressed="true"] {
+	border-color: #ff2a6d;
+	color: #ff8bad;
+	background: #2b111c;
+}
+
+.library-tabs button[data-view="flatlined"][aria-pressed="true"] span {
+	border-color: #ff2a6d;
+}
+
+.game-row[data-status="Flatlined"],
+.spotlight-card[data-status="Flatlined"] {
+	border-color: #633244;
+	border-left-color: #ff2a6d;
+	background: #1b1119;
+}
+
+.game-row[data-status="Flatlined"]:hover {
+	border-color: #ff2a6d;
+}
+
+.game-row[data-status="Flatlined"] .game-name strong,
+.game-row[data-status="Flatlined"] .xp-value,
+.spotlight-card[data-status="Flatlined"] .spotlight-badge,
+.spotlight-card[data-status="Flatlined"] .gig-progress-header {
+	color: #ff8bad;
+	text-shadow: none;
+}
+
+.game-row[data-status="Flatlined"] .status-select {
+	border-color: #633244;
+	color: #ff8bad;
+}
+
+.spotlight-card[data-status="Flatlined"] {
+	border-top-color: #ff2a6d;
+	backdrop-filter: none;
+	box-shadow: none;
+}
+
+.spotlight-card[data-status="Flatlined"] .spotlight-bounty {
+	border-color: #633244;
+	color: #cc869e;
+	background: #21131c;
+	box-shadow: none;
+}
+
+.spotlight-card[data-status="Flatlined"] .spotlight-bounty strong {
+	text-shadow: none;
+}
+
+.spotlight-card[data-status="Flatlined"] .gig-progress-track {
+	border-color: #633244;
+}
+
+.spotlight-card[data-status="Flatlined"] .gig-progress-track span {
+	background: #c45174;
+	box-shadow: none;
+}
+
+button.flatline-gig-button,
+button.revive-gig-button {
+	min-height: 40px;
+	padding: 8px 14px;
+	border: 1px solid #ff2a6d;
+	border-radius: 2px;
+	color: #ff8bad;
+	background: #28111c;
+	font-family: "Courier New", monospace;
+	font-size: 11px;
+	font-weight: 800;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	cursor: pointer;
+}
+
+button.flatline-gig-button:hover {
+	color: #080a0e;
+	background: #ff2a6d;
+}
+
+button.revive-gig-button {
+	border-color: #00f0ff;
+	color: #00f0ff;
+	background: #10252c;
+}
+
+button.revive-gig-button:hover {
+	color: #080a0e;
+	background: #00f0ff;
+}
+
+button.flatline-gig-button:focus-visible,
+button.revive-gig-button:focus-visible {
+	outline: 2px solid #fcee0a;
+	outline-offset: 3px;
 }
