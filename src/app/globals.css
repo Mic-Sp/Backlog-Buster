@@ -2350,7 +2350,7 @@ textarea.field-log-textarea:focus-visible {
 }
 
 .achievement-toast-eyebrow {
-	padding: 14px 42px 14px 16px;
+	padding: 14px 84px 14px 16px;
 	border-bottom: 1px solid #514c24;
 	color: #fcee0a;
 	background: #191b12;
@@ -2359,6 +2359,33 @@ textarea.field-log-textarea:focus-visible {
 	font-weight: 800;
 	line-height: 1.6;
 	letter-spacing: 0.05em;
+}
+
+.achievement-toast[data-variant="level-up"] {
+	border-color: #05ffa1;
+	border-top-color: #00f0ff;
+	background: #09191b;
+	box-shadow: 0 0 18px rgba(5, 255, 161, 0.22), 0 0 30px rgba(0, 240, 255, 0.16);
+}
+
+.achievement-toast[data-variant="level-up"] .achievement-toast-eyebrow {
+	border-bottom-color: #20524d;
+	color: #00f0ff;
+	background: #10282b;
+}
+
+.achievement-toast[data-variant="level-up"] .achievement-toast-crest {
+	border-color: #05ffa1;
+	background: #103329;
+	box-shadow: inset 0 0 12px rgba(5, 255, 161, 0.12);
+}
+
+.achievement-toast[data-variant="level-up"] h2 {
+	color: #05ffa1;
+}
+
+.achievement-toast[data-variant="level-up"] .achievement-toast-timer span {
+	background: #05ffa1;
 }
 
 button.achievement-toast-dismiss {
@@ -2381,6 +2408,10 @@ button.achievement-toast-dismiss:hover {
 	border-color: #00f0ff;
 	color: #06090f;
 	background: #00f0ff;
+}
+
+button.achievement-toast-sound {
+	right: 46px;
 }
 
 button.achievement-toast-dismiss:focus-visible {

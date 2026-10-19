@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { resizeRawgImageUrl } from "@/lib/rawg";
 import GameForm from "./GameForm";
 import GameLibrary from "@/components/GameLibrary";
+import AchievementToast from "@/components/AchievementToast";
 import QuestRoulette from "@/components/QuestRoulette";
 import { syncAndGetAchievements } from "@/lib/achievements";
 import { getCurrentPlayerId } from "@/lib/player";
@@ -64,6 +65,7 @@ async function PlayerSummary() {
 
   return (
     <section className="player-summary" aria-label="Player stats">
+      <AchievementToast achievements={achievements} level={progress.level} totalXp={totalXp} />
       <Link className="hud-brand" href="/" aria-label="Backlog Buster home">
         <span className="wordmark-icon" aria-hidden="true">B</span>
       </Link>

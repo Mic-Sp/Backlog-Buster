@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import { completeGame, deleteGame, logPlaySession, startGame, updateGame } from "@/app/actions";
 import type { Achievement } from "@/lib/achievements";
-import AchievementToast from "@/components/AchievementToast";
 
 export type LibraryGame = {
   id: number;
@@ -281,7 +280,6 @@ export default function GameLibrary({ games, achievements = [], children }: { ga
 
   return (
     <section className="collection" aria-labelledby="collection-title">
-      <AchievementToast achievements={achievements} />
       <div className="collection-heading">
         <div>
           <p className="eyebrow">02 / YOUR LIBRARY</p>
