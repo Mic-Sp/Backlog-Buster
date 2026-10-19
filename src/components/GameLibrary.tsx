@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, type ReactNode } from "react";
-import { deleteGame, updateGame } from "@/app/actions";
+import { completeGame, deleteGame, startGame, updateGame } from "@/app/actions";
 
 export type LibraryGame = {
   id: number;
@@ -31,6 +31,7 @@ const primaryColumnSort = {
   difficulty: "difficulty-desc",
   xp: "xp-desc",
 } as const;
+const difficultyLabels: Record<number, string> = { 1: "Easy", 2: "Medium", 3: "Tough" };
 
 export default function GameLibrary({ games, children }: { games: LibraryGame[]; children?: ReactNode }) {
   const [activeView, setActiveView] = useState<LibraryView>("All");
@@ -148,6 +149,46 @@ export default function GameLibrary({ games, children }: { games: LibraryGame[];
     );
   }
 
+  function renderCardCover(game: LibraryGame, className: string) {
+    return game.coverUrl ? (
+      // Keep the same lazy thumbnail behavior in every library view.
+      // eslint-disable-next-line @next/next/no-img-element
+      <img className={className} src={game.coverUrl} alt={`${game.title} cover art`} width={640} height={360} loading="lazy" decoding="async" />
+    ) : (
+      <div className={`${className} library-card-no-cover`} role="img" aria-label={`${game.title} cover art unavailable`}>NO COVER</div>
+    );
+  }
+
+  function renderCardControls(game: LibraryGame) {
+    return (
+      <>
+        <input name="id" type="hidden" value={game.id} />
+        <div className="library-card-controls">
+          <label>
+            Status
+            <select name="status" defaultValue={game.status} aria-label={`Status for ${game.title}`} required>
+              {statuses.map((status) => <option key={status} value={status}>{status}</option>)}
+            </select>
+          </label>
+          <label>
+            Hours
+            <input name="lengthHours" type="number" defaultValue={game.lengthHours} aria-label={`Hours for ${game.title}`} min="1" max="10000" step="1" required />
+          </label>
+          <label>
+            Difficulty
+            <select name="difficulty" defaultValue={game.difficulty} aria-label={`Difficulty for ${game.title}`} required>
+              {[1, 2, 3].map((difficulty) => <option key={difficulty} value={difficulty}>{difficulty} · {difficultyLabels[difficulty]}</option>)}
+            </select>
+          </label>
+        </div>
+        <div className="library-card-actions">
+          <button className="status-save" type="submit">Save</button>
+          <button className="delete-button" formAction={deleteGame} formNoValidate type="submit">Delete</button>
+        </div>
+      </>
+    );
+  }
+
   return (
     <section className="collection" aria-labelledby="collection-title">
       <div className="collection-heading">
@@ -228,11 +269,70 @@ export default function GameLibrary({ games, children }: { games: LibraryGame[];
         )}
       </div>
 
-      <div data-view={activeView.toLowerCase()}>
+      <div data-view={activeView.toLowerCase()} className={activeView === "Completed" ? "trophy-room" : undefined}>
+        {activeView === "Completed" && (
+          <div className="trophy-room-banner" aria-label="Completed games shown">
+            <div>
+              <p className="eyebrow">ARCHIVE // ACHIEVEMENTS UNLOCKED</p>
+              <h3>Trophy Room</h3>
+            </div>
+            <dl>
+              <div><dt>Gigs cleared</dt><dd>{visibleGames.length.toLocaleString()}</dd></div>
+              <div><dt>Hours logged</dt><dd>{visibleGames.reduce((total, game) => total + game.lengthHours, 0).toLocaleString()}h</dd></div>
+              <div><dt>XP earned</dt><dd>+{visibleGames.reduce((total, game) => total + game.earnedXp, 0).toLocaleString()} XP</dd></div>
+            </dl>
+          </div>
+        )}
         {visibleGames.length === 0 ? (
           <div className="empty-state">
             <span className="empty-mark" aria-hidden="true">+</span>
             <p>{games.length === 0 ? "Your list is clear. Add a game to get started." : "No games match. Try another view or clear your filters."}</p>
+          </div>
+        ) : activeView === "Playing" ? (
+          <div className="playing-spotlight-grid">
+            {visibleGames.map((game) => (
+              <form
+                action={updateGame}
+                className="spotlight-card"
+                key={`${game.id}-${game.status}-${game.lengthHours}-${game.difficulty}`}
+              >
+                {renderCardCover(game, "spotlight-cover")}
+                <div className="spotlight-card-body">
+                  <p className="spotlight-badge">LIVE GIG // IN PROGRESS</p>
+                  <h3>{game.title}</h3>
+                  <p className="library-card-metadata">{game.platform} · {game.genre?.trim() || "Unknown genre"} · {game.releaseYear ?? "Unknown year"}</p>
+                  <div className="spotlight-bounty">
+                    <span>Potential XP Bounty</span>
+                    <strong>{(game.lengthHours * game.difficulty * 10).toLocaleString()} XP</strong>
+                  </div>
+                  {renderCardControls(game)}
+                  <button type="submit" formAction={completeGame} className="complete-gig-button">
+                    🏆 COMPLETE GIG (+{game.lengthHours * game.difficulty * 10} XP)
+                  </button>
+                </div>
+              </form>
+            ))}
+          </div>
+        ) : activeView === "Completed" ? (
+          <div className="trophy-grid">
+            {visibleGames.map((game) => (
+              <article className="trophy-card" key={`${game.id}-${game.status}-${game.lengthHours}-${game.difficulty}`}>
+                <p className="trophy-badge">🏆 GIG CLEARED</p>
+                {renderCardCover(game, "trophy-cover")}
+                <div className="trophy-card-body">
+                  <h3>{game.title}</h3>
+                  <p className="library-card-metadata">{game.platform} · {game.genre?.trim() || "Unknown genre"} · {game.releaseYear ?? "Unknown year"}</p>
+                  <p className="trophy-record">{game.lengthHours}h logged · Tier {game.difficulty} / {difficultyLabels[game.difficulty]}</p>
+                  <p className="trophy-reward">+{game.earnedXp.toLocaleString()} XP</p>
+                  <details className="trophy-edit-drawer">
+                    <summary>Manage Record</summary>
+                    <form action={updateGame} key={`${game.id}-${game.status}-${game.lengthHours}-${game.difficulty}`}>
+                      {renderCardControls(game)}
+                    </form>
+                  </details>
+                </div>
+              </article>
+            ))}
           </div>
         ) : (
           <div className="game-table" role="table" aria-label="Saved games">
@@ -278,6 +378,9 @@ export default function GameLibrary({ games, children }: { games: LibraryGame[];
                     )}
                     <span className="game-title-stack">
                       <strong>{game.title}</strong>
+                      {game.status === "Backlog" && (
+                        <button className="start-gig-badge" formAction={startGame} type="submit">▶ START GIG</button>
+                      )}
                     </span>
                   </span>
                 </span>

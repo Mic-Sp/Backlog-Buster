@@ -192,6 +192,87 @@ export async function updateGame(formData: FormData) {
   revalidatePath("/");
 }
 
+export async function startGame(formData: FormData) {
+  const idValue = formData.get("id");
+  const lengthHoursValue = formData.get("lengthHours");
+  const difficultyValue = formData.get("difficulty");
+
+  if (
+    typeof idValue !== "string" ||
+    typeof lengthHoursValue !== "string" ||
+    typeof difficultyValue !== "string"
+  ) {
+    throw new Error("Please provide valid game details.");
+  }
+
+  const id = Number(idValue);
+  const lengthHours = Number(lengthHoursValue);
+  const difficulty = Number(difficultyValue);
+
+  if (
+    !Number.isSafeInteger(id) ||
+    id < 1 ||
+    !Number.isSafeInteger(lengthHours) ||
+    lengthHours < 1 ||
+    lengthHours > 10000 ||
+    !Number.isInteger(difficulty) ||
+    difficulty < 1 ||
+    difficulty > 3
+  ) {
+    throw new Error("Please provide valid game details.");
+  }
+
+  await prisma.game.update({
+    where: { id },
+    data: { status: "Playing", lengthHours, difficulty, earnedXp: 0 },
+  });
+
+  revalidatePath("/");
+}
+
+export async function completeGame(formData: FormData) {
+  const idValue = formData.get("id");
+  const lengthHoursValue = formData.get("lengthHours");
+  const difficultyValue = formData.get("difficulty");
+
+  if (
+    typeof idValue !== "string" ||
+    typeof lengthHoursValue !== "string" ||
+    typeof difficultyValue !== "string"
+  ) {
+    throw new Error("Please provide valid game details.");
+  }
+
+  const id = Number(idValue);
+  const lengthHours = Number(lengthHoursValue);
+  const difficulty = Number(difficultyValue);
+
+  if (
+    !Number.isSafeInteger(id) ||
+    id < 1 ||
+    !Number.isSafeInteger(lengthHours) ||
+    lengthHours < 1 ||
+    lengthHours > 10000 ||
+    !Number.isInteger(difficulty) ||
+    difficulty < 1 ||
+    difficulty > 3
+  ) {
+    throw new Error("Please provide valid game details.");
+  }
+
+  await prisma.game.update({
+    where: { id },
+    data: {
+      status: "Completed",
+      lengthHours,
+      difficulty,
+      earnedXp: calculateEarnedXp("Completed", lengthHours, difficulty),
+    },
+  });
+
+  revalidatePath("/");
+}
+
 export async function deleteGame(formData: FormData) {
   const idValue = formData.get("id");
 
