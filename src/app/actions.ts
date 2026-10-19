@@ -6,6 +6,8 @@ import { syncAndGetAchievements } from "@/lib/achievements";
 import { getCurrentPlayerId } from "@/lib/player";
 import { resolveRawgPlaytime } from "@/lib/game-playtime";
 import { lookupRawgGame, type RawgGameInfo } from "@/lib/rawg";
+import { getBacklogRecommendations, getExternalRecommendations } from "@/lib/recommendations";
+import { normalizeGameTitle } from "@/lib/game-title";
 
 const allowedStatuses = new Set(["Backlog", "Playing", "Completed"]);
 
@@ -165,6 +167,29 @@ export async function searchGameInfo(title: string): Promise<RawgGameInfo | null
   return cleanTitle === "" || cleanTitle.length > 120
     ? null
     : lookupRawgGame(cleanTitle);
+}
+
+export async function fetchBacklogAdvisor() {
+  return getBacklogRecommendations(getCurrentPlayerId());
+}
+
+export async function fetchExternalScout() {
+  return getExternalRecommendations(getCurrentPlayerId());
+}
+
+export async function addExternalScoutGame(formData: FormData) {
+  const title = formData.get("title");
+  if (typeof title !== "string" || !title.trim() || title.trim().length > 120) {
+    throw new Error("Please provide a valid game title.");
+  }
+  const existing = await prisma.game.findMany({
+    where: { userId: getCurrentPlayerId() }, select: { title: true },
+  });
+  if (existing.some((game) => normalizeGameTitle(game.title) === normalizeGameTitle(title))) {
+    revalidatePath("/");
+    return;
+  }
+  await createGame(formData);
 }
 
 export async function bulkImportGames(payload: {

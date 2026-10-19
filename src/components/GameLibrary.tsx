@@ -7,6 +7,8 @@ import StarRatingInput from "@/components/StarRatingInput";
 import LibraryDataVault from "@/components/LibraryDataVault";
 import LibraryTelemetry from "@/components/LibraryTelemetry";
 import TrophyRatingEditor from "@/components/TrophyRatingEditor";
+import TacticalAdvisor from "@/components/TacticalAdvisor";
+import { buildTrailerUrl } from "@/lib/trailers";
 
 export type LibraryGame = {
   id: number;
@@ -283,6 +285,9 @@ export default function GameLibrary({ games, achievements = [], children }: { ga
           <button className="status-save" type="submit">Save</button>
           <button className="delete-button" formAction={deleteGame} formNoValidate type="submit">Delete</button>
           <button type="button" className="edit-meta-btn" onClick={() => setEditingMetaGame(game)}>⚙ EDIT META</button>
+          {game.status === "Playing" && (
+            <a className="trailer-link-button" href={buildTrailerUrl(game.title, game.releaseYear)} target="_blank" rel="noopener noreferrer">🎬 WATCH TRAILER ↗</a>
+          )}
         </div>
       </>
     );
@@ -301,6 +306,7 @@ export default function GameLibrary({ games, achievements = [], children }: { ga
             <span>{!hasActiveFilters && visibleGames.length === 1 ? "game" : "games"}</span>
           </p>
           {children}
+          <TacticalAdvisor games={games} />
           <LibraryDataVault games={games} />
         </div>
       </div>

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { acceptQuest } from "@/app/actions";
+import { buildTrailerUrl } from "@/lib/trailers";
 
 type QuestGame = {
   id: number;
@@ -11,6 +12,7 @@ type QuestGame = {
   lengthHours: number;
   difficulty: number;
   coverUrl: string | null;
+  releaseYear?: number | null;
 };
 
 export default function QuestRoulette({ games }: { games: QuestGame[] }) {
@@ -70,7 +72,7 @@ export default function QuestRoulette({ games }: { games: QuestGame[] }) {
         const dialog = dialogRef.current;
         if (!dialog) return;
         const controls = dialog.querySelectorAll<HTMLElement>(
-          'button:not(:disabled), select:not(:disabled), input:not(:disabled), [tabindex="0"]',
+          'button:not(:disabled), select:not(:disabled), input:not(:disabled), a[href], [tabindex="0"]',
         );
         const first = controls[0];
         const last = controls[controls.length - 1];
@@ -234,6 +236,7 @@ export default function QuestRoulette({ games }: { games: QuestGame[] }) {
                       {isAccepting ? "ACCEPTING…" : "ACCEPT GIG"}
                     </button>
                     <button className="quest-button quest-reroll" type="button" disabled={busy} onClick={roll}>REROLL</button>
+                    <a className="trailer-link-button" href={buildTrailerUrl(winner.title, winner.releaseYear)} target="_blank" rel="noopener noreferrer">🎬 WATCH TRAILER ↗</a>
                   </div>
                 </>
               )}

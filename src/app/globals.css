@@ -1217,6 +1217,87 @@ body {
 	flex-wrap: wrap;
 }
 
+button.advisor-trigger-button {
+	min-height: 42px;
+	padding: 10px 14px;
+	border: 1px solid #ff2a6d;
+	border-radius: 2px;
+	color: #fcee0a;
+	background: #16101b;
+	font-family: "Courier New", monospace;
+	font-size: 11px;
+	font-weight: 800;
+	letter-spacing: 0.04em;
+	cursor: pointer;
+}
+button.advisor-trigger-button:hover { border-color: #00f0ff; color: #00f0ff; background: #10282b; }
+.advisor-modal-backdrop { position: fixed; inset: 0; z-index: 1100; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(5, 8, 15, 0.88); }
+.advisor-modal {
+	width: 100%;
+	max-width: 940px;
+	max-height: calc(100dvh - 40px);
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	padding: 24px;
+	border: 1px solid #00f0ff;
+	border-top: 3px solid #fcee0a;
+	border-radius: 3px;
+	color: #e8edf7;
+	background: #0b101b;
+	box-shadow: 0 0 20px rgba(0, 240, 255, 0.12);
+}
+.advisor-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.advisor-header h2 { margin: 8px 0; color: #fcee0a; font-family: "Courier New", monospace; font-size: 21px; line-height: 1.4; }
+.advisor-intro { margin: 6px 0 20px; color: #a4b5ca; font-size: 12px; line-height: 1.6; }
+.advisor-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.advisor-card { display: flex; flex-direction: column; min-width: 0; border: 1px solid #ff2a6d; border-top-width: 3px; background: #11101b; }
+.advisor-card[data-variant="cleanser"] { border-color: #05ffa1; background: #0b171b; }
+.advisor-card-eyebrow { margin: 0; padding: 14px; border-bottom: 1px solid #393044; color: #ff6b9a; font-family: "Courier New", monospace; font-size: 11px; line-height: 1.6; }
+.advisor-card[data-variant="cleanser"] .advisor-card-eyebrow { border-color: #20524d; color: #00f0ff; }
+.advisor-cover { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: cover; background: #06090f; }
+.advisor-no-cover { display: grid; place-items: center; color: #8795a8; font-family: "Courier New", monospace; font-size: 12px; }
+.advisor-card-body { display: flex; flex: 1; flex-direction: column; padding: 16px; }
+.advisor-card-body h4 { margin: 0 0 10px; color: #fff4b1; font-size: 20px; overflow-wrap: anywhere; }
+.advisor-metadata { margin: 0 0 14px; color: #a4b5ca; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.advisor-bounty { margin: 0 0 14px; padding: 10px; border: 1px solid #514c24; color: #fcee0a; background: #25240e; font-family: "Courier New", monospace; font-size: 12px; font-weight: 800; }
+.advisor-reason { flex: 1; padding: 12px; border-left: 2px solid #ff2a6d; background: #0b101b; }
+.advisor-card[data-variant="cleanser"] .advisor-reason { border-color: #00f0ff; }
+.advisor-reason > span { color: #00f0ff; font-family: "Courier New", monospace; font-size: 10px; letter-spacing: 0.05em; }
+.advisor-reason p { margin: 8px 0 0; color: #c3dbe1; font-size: 12px; line-height: 1.7; overflow-wrap: anywhere; }
+.advisor-card-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 16px; }
+.advisor-modal .advisor-card-actions > button.advisor-start-button,
+.advisor-modal .advisor-card-actions > button.advisor-acquire-button { width: auto; min-width: 0; margin-top: 0; }
+.advisor-card-actions > a { min-width: 0; text-align: center; }
+.advisor-modal button { padding: 9px 12px; border: 1px solid #2e3a52; border-radius: 2px; color: #00f0ff; background: #111827; font-family: "Courier New", monospace; font-size: 11px; font-weight: 800; cursor: pointer; }
+.advisor-modal button.advisor-start-button { width: 100%; min-height: 40px; margin-top: 16px; border-color: #fcee0a; color: #fcee0a; }
+.advisor-card[data-variant="cleanser"] button.advisor-start-button { border-color: #05ffa1; color: #05ffa1; }
+.advisor-modal button:hover:not(:disabled) { border-color: #00f0ff; color: #06090f; background: #00f0ff; }
+.advisor-modal button:disabled { opacity: 0.5; cursor: wait; }
+.advisor-modal button.advisor-refresh { margin-top: 18px; }
+.advisor-loading, .advisor-empty { margin: 0; padding: 20px; border: 1px solid #2e3a52; color: #a4b5ca; font-family: "Courier New", monospace; font-size: 12px; line-height: 1.7; }
+.advisor-error { margin: 0 0 16px; color: #ff6b8b; font-size: 12px; line-height: 1.6; }
+.advisor-external-section { margin-top: 26px; padding-top: 20px; border-top: 1px solid #514c24; }
+.advisor-external-section > h3 { margin: 0 0 10px; color: #fcee0a; font-family: "Courier New", monospace; font-size: 14px; line-height: 1.6; }
+.advisor-scout-locked { padding: 18px; border: 1px solid #8f8526; border-left: 3px solid #fcee0a; background: #191b12; }
+.advisor-scout-locked p { margin: 0 0 14px; color: #d6c96e; font-family: "Courier New", monospace; font-size: 12px; line-height: 1.7; }
+.advisor-external-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.advisor-card[data-variant="external"] { border-color: #fcee0a; background: #121615; }
+.advisor-card[data-variant="external"] .advisor-card-body { padding: 12px; }
+.advisor-card[data-variant="external"] h4 { font-size: 17px; }
+.advisor-card[data-variant="external"] .advisor-reason { border-color: #fcee0a; }
+.advisor-modal button.advisor-acquire-button { width: 100%; min-height: 42px; margin-top: 14px; border-color: #00f0ff; color: #00f0ff; }
+.advisor-modal button.advisor-acquire-button[data-added="true"] { border-color: #05ffa1; color: #05ffa1; background: #103329; opacity: 1; cursor: default; }
+.advisor-scout-status { margin: 12px 0 0; color: #05ffa1; font-family: "Courier New", monospace; font-size: 11px; }
+button.advisor-trigger-button:focus-visible, .advisor-modal button:focus-visible { outline: 2px solid #fcee0a; outline-offset: 3px; }
+@media (max-width: 760px) {
+	.advisor-grid { grid-template-columns: minmax(0, 1fr); }
+	.advisor-external-grid { grid-template-columns: minmax(0, 1fr); }
+	.advisor-modal-backdrop { padding: 12px; }
+	.advisor-modal { padding: 16px; max-height: calc(100dvh - 24px); }
+	.advisor-header h2 { font-size: 17px; }
+	button.advisor-trigger-button { max-width: 100%; text-align: left; }
+}
+
 button.vault-trigger-button {
 	min-height: 42px;
 	padding: 10px 14px;
@@ -1555,6 +1636,57 @@ button.vault-trigger-button:focus-visible, .vault-modal :is(button, input, texta
 	flex-wrap: wrap;
 	gap: 10px;
 	margin-top: 14px;
+}
+
+.trailer-link-button,
+a.trailer-link-button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	box-sizing: border-box;
+	width: 100%;
+	min-height: 40px;
+	margin-top: 8px;
+	padding: 8px 14px;
+	border: 1px solid #ff2a6d;
+	border-radius: 2px;
+	color: #ff8bad;
+	background: rgba(255, 42, 109, 0.12);
+	font-family: "Courier New", monospace;
+	font-size: 11px;
+	font-weight: 800;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	line-height: 1.5;
+	text-decoration: none;
+	text-align: center;
+	cursor: pointer;
+}
+
+.trailer-link-button:hover,
+a.trailer-link-button:hover {
+	color: #080a0e;
+	background: #ff2a6d;
+	box-shadow: 0 0 12px rgba(255, 42, 109, 0.35);
+}
+
+.trailer-link-button:focus-visible,
+a.trailer-link-button:focus-visible {
+	outline: 2px solid #ff2a6d;
+	outline-offset: 3px;
+}
+
+.quest-actions a.trailer-link-button,
+.library-card-actions a.trailer-link-button {
+	width: auto;
+	margin-top: 0;
+	align-self: stretch;
+}
+
+.advisor-card-actions a.trailer-link-button {
+	margin-top: 0;
+	align-self: stretch;
 }
 
 .quest-message {
