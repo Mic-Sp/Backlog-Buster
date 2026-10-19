@@ -19,6 +19,18 @@ export type LibraryGame = {
 const statuses = ["Backlog", "Playing", "Completed"];
 const views = ["All", "Playing", "Backlog", "Completed"] as const;
 type LibraryView = typeof views[number];
+type SortColumn = "title" | "platform" | "genre" | "year" | "status" | "hours" | "difficulty" | "xp";
+const statusPriority: Record<string, number> = { Playing: 0, Backlog: 1, Completed: 2 };
+const primaryColumnSort = {
+  title: "title-asc",
+  platform: "platform-asc",
+  genre: "genre-asc",
+  year: "year-desc",
+  status: "status-asc",
+  hours: "hours-asc",
+  difficulty: "difficulty-desc",
+  xp: "xp-desc",
+} as const;
 
 export default function GameLibrary({ games, children }: { games: LibraryGame[]; children?: ReactNode }) {
   const [activeView, setActiveView] = useState<LibraryView>("All");
@@ -57,6 +69,9 @@ export default function GameLibrary({ games, children }: { games: LibraryGame[];
         case "xp-desc":
           return (right.earnedXp || right.lengthHours * right.difficulty * 10) -
             (left.earnedXp || left.lengthHours * left.difficulty * 10);
+        case "xp-asc":
+          return (left.earnedXp || left.lengthHours * left.difficulty * 10) -
+            (right.earnedXp || right.lengthHours * right.difficulty * 10);
         case "year-desc":
         case "year-asc":
           if (left.releaseYear === null && right.releaseYear === null) return 0;
@@ -67,6 +82,31 @@ export default function GameLibrary({ games, children }: { games: LibraryGame[];
             : left.releaseYear - right.releaseYear;
         case "title-asc":
           return left.title.localeCompare(right.title);
+        case "title-desc":
+          return right.title.localeCompare(left.title);
+        case "platform-asc":
+          return left.platform.localeCompare(right.platform);
+        case "platform-desc":
+          return right.platform.localeCompare(left.platform);
+        case "genre-asc":
+        case "genre-desc": {
+          const leftGenre = left.genre?.trim() || "";
+          const rightGenre = right.genre?.trim() || "";
+          if (!leftGenre && !rightGenre) return 0;
+          if (!leftGenre) return 1;
+          if (!rightGenre) return -1;
+          return sortBy === "genre-asc"
+            ? leftGenre.localeCompare(rightGenre)
+            : rightGenre.localeCompare(leftGenre);
+        }
+        case "status-asc":
+          return (statusPriority[left.status] ?? 3) - (statusPriority[right.status] ?? 3);
+        case "status-desc":
+          return (statusPriority[right.status] ?? 3) - (statusPriority[left.status] ?? 3);
+        case "difficulty-desc":
+          return right.difficulty - left.difficulty;
+        case "difficulty-asc":
+          return left.difficulty - right.difficulty;
         default:
           return 0;
       }
@@ -80,6 +120,32 @@ export default function GameLibrary({ games, children }: { games: LibraryGame[];
     setPlatformFilter("");
     setGenreFilter("");
     setSortBy("default");
+  }
+
+  function toggleColumnSort(column: SortColumn) {
+    const primary = primaryColumnSort[column];
+    const reverse = primary.endsWith("asc") ? `${column}-desc` : `${column}-asc`;
+    setSortBy((current) => current === primary ? reverse : primary);
+  }
+
+  function getAriaSort(column: SortColumn) {
+    return sortBy === `${column}-asc` ? "ascending"
+      : sortBy === `${column}-desc` ? "descending" : "none";
+  }
+
+  function getSortIcon(column: SortColumn) {
+    const direction = getAriaSort(column);
+    return direction === "ascending" ? "▲" : direction === "descending" ? "▼" : "↕";
+  }
+
+  function renderSortableHeader(column: SortColumn, label: string) {
+    return (
+      <span role="columnheader" aria-sort={getAriaSort(column)}>
+        <button type="button" className="column-sort-btn" onClick={() => toggleColumnSort(column)}>
+          {label} <span aria-hidden="true">{getSortIcon(column)}</span>
+        </button>
+      </span>
+    );
   }
 
   return (
@@ -142,9 +208,19 @@ export default function GameLibrary({ games, children }: { games: LibraryGame[];
             <option value="hours-asc">Hours: shortest first</option>
             <option value="hours-desc">Hours: longest first</option>
             <option value="xp-desc">XP: highest first</option>
+            <option value="xp-asc">XP: lowest first</option>
             <option value="year-desc">Year: newest first</option>
             <option value="year-asc">Year: oldest first</option>
             <option value="title-asc">Title: A–Z</option>
+            <option value="title-desc">Title: Z–A</option>
+            <option value="platform-asc">Platform: A–Z</option>
+            <option value="platform-desc">Platform: Z–A</option>
+            <option value="genre-asc">Genre: A–Z</option>
+            <option value="genre-desc">Genre: Z–A</option>
+            <option value="status-asc">Status: Playing → Completed</option>
+            <option value="status-desc">Status: Completed → Playing</option>
+            <option value="difficulty-desc">Difficulty: hardest first</option>
+            <option value="difficulty-asc">Difficulty: easiest first</option>
           </select>
         </label>
         {hasActiveFilters && (
@@ -161,14 +237,14 @@ export default function GameLibrary({ games, children }: { games: LibraryGame[];
         ) : (
           <div className="game-table" role="table" aria-label="Saved games">
             <div className="game-row game-row-head" role="row">
-              <span role="columnheader">Game</span>
-              <span role="columnheader">Platform</span>
-              <span role="columnheader">Genre</span>
-              <span role="columnheader">Year</span>
-              <span role="columnheader">Status</span>
-              <span role="columnheader">Hours</span>
-              <span role="columnheader">Difficulty</span>
-              <span role="columnheader">Earned XP</span>
+              {renderSortableHeader("title", "Game")}
+              {renderSortableHeader("platform", "Platform")}
+              {renderSortableHeader("genre", "Genre")}
+              {renderSortableHeader("year", "Year")}
+              {renderSortableHeader("status", "Status")}
+              {renderSortableHeader("hours", "Hours")}
+              {renderSortableHeader("difficulty", "Difficulty")}
+              {renderSortableHeader("xp", "Earned XP")}
               <span role="columnheader">Actions</span>
             </div>
             {visibleGames.map((game) => (

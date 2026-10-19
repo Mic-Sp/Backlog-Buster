@@ -1566,3 +1566,41 @@ body {
 		grid-template-columns: 1fr;
 	}
 }
+.column-sort-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	width: 100%;
+	padding: 0;
+	border: 0;
+	color: inherit;
+	background: transparent;
+	font: inherit;
+	letter-spacing: inherit;
+	text-align: left;
+	text-transform: uppercase;
+	cursor: pointer;
+}
+
+.column-sort-btn span {
+	opacity: 0.6;
+	font-size: 8px;
+}
+
+[role="columnheader"][aria-sort="ascending"] .column-sort-btn,
+[role="columnheader"][aria-sort="descending"] .column-sort-btn,
+.column-sort-btn:hover {
+	color: #00f0ff;
+	text-shadow: 0 0 6px #00f0ff;
+}
+
+[role="columnheader"][aria-sort="ascending"] .column-sort-btn span,
+[role="columnheader"][aria-sort="descending"] .column-sort-btn span {
+	opacity: 1;
+	color: #fcee0a;
+}
+
+.column-sort-btn:focus-visible {
+	outline: 1px solid #00f0ff;
+	outline-offset: 4px;
+}
