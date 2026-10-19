@@ -1447,3 +1447,122 @@ body {
 		grid-template-columns: 1fr;
 	}
 }
+.library-tabs {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin: 20px 0 16px;
+	padding-bottom: 12px;
+	border-bottom: 1px solid #353944;
+}
+
+.library-tabs button,
+.library-clear {
+	min-height: 42px;
+	padding: 10px 14px;
+	border: 1px solid #393e49;
+	border-radius: 2px;
+	color: #c3c6cb;
+	background: #11151c;
+	font-family: "Courier New", monospace;
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 0.5px;
+	cursor: pointer;
+}
+
+.library-tabs button {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.library-tabs button span {
+	min-width: 20px;
+	padding: 3px 5px;
+	border: 1px solid #454b56;
+	font-size: 10px;
+	text-align: center;
+}
+
+.library-tabs button[aria-pressed="true"] {
+	border-color: #00e5ff;
+	color: #00e5ff;
+	background: #101c22;
+}
+
+.library-tabs button[aria-pressed="true"] span {
+	border-color: #00e5ff;
+}
+
+.library-tabs button:hover,
+.library-clear:hover {
+	border-color: #00e5ff;
+	color: #00e5ff;
+}
+
+.library-toolbar {
+	display: grid;
+	grid-template-columns: 1fr auto auto auto auto;
+	align-items: end;
+	gap: 12px;
+	margin-bottom: 20px;
+}
+
+.library-toolbar label {
+	display: grid;
+	min-width: 0;
+	gap: 8px;
+	color: #c3c6cb;
+	font-size: 11px;
+	font-weight: 700;
+}
+
+.library-toolbar input,
+.library-toolbar select {
+	width: 100%;
+	min-width: 0;
+	height: 44px;
+	padding: 0 10px;
+	border: 1px solid #393e49;
+	border-radius: 2px;
+	color: #f1f0e8;
+	background: #0a0d12;
+	color-scheme: dark;
+	font: inherit;
+	font-size: 12px;
+}
+
+.library-toolbar input::placeholder {
+	color: #a4a7b0;
+}
+
+.library-clear {
+	min-height: 44px;
+	border-color: #ff2a6d;
+	color: #ff8bad;
+}
+
+.library-tabs button:focus-visible,
+.library-toolbar input:focus-visible,
+.library-toolbar select:focus-visible,
+.library-clear:focus-visible {
+	outline: 2px solid #00e5ff;
+	outline-offset: 3px;
+}
+
+@media (max-width: 1000px) {
+	.library-toolbar {
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+	}
+
+	.library-toolbar .library-search {
+		grid-column: 1 / -1;
+	}
+}
+
+@media (max-width: 640px) {
+	.library-toolbar {
+		grid-template-columns: 1fr;
+	}
+}

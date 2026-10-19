@@ -3,11 +3,10 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { resizeRawgImageUrl } from "@/lib/rawg";
-import { deleteGame, updateGame } from "./actions";
 import GameForm from "./GameForm";
+import GameLibrary from "@/components/GameLibrary";
 import QuestRoulette from "@/components/QuestRoulette";
 
-const statuses = ["Backlog", "Playing", "Completed"];
 const statusPriority: Record<string, number> = {
   Playing: 0,
   Backlog: 1,
@@ -113,158 +112,23 @@ async function SavedGames() {
     return priorityDifference || right.createdAt.getTime() - left.createdAt.getTime();
   });
 
-  return (
-    <section className="collection" aria-labelledby="collection-title">
-      <div className="collection-heading">
-        <div>
-          <p className="eyebrow">02 / YOUR LIBRARY</p>
-          <h2 id="collection-title">System Playqueue</h2>
-        </div>
-        <div className="collection-heading-actions">
-          <p className="game-count">
-            <strong>{String(games.length).padStart(2, "0")}</strong>
-            <span>{games.length === 1 ? "game" : "games"}</span>
-          </p>
-          <QuestRoulette
-            games={games.filter((game) => game.status === "Backlog").map((game) => ({
-              id: game.id,
-              title: game.title,
-              platform: game.platform,
-              genre: game.genre,
-              lengthHours: game.lengthHours,
-              difficulty: game.difficulty,
-              coverUrl: game.coverUrl ? resizeRawgImageUrl(game.coverUrl) : null,
-            }))}
-          />
-        </div>
-      </div>
+  const serializedGames = games.map((game) => ({
+    id: game.id,
+    title: game.title,
+    platform: game.platform,
+    status: game.status,
+    lengthHours: game.lengthHours,
+    difficulty: game.difficulty,
+    earnedXp: game.earnedXp,
+    coverUrl: game.coverUrl ? resizeRawgImageUrl(game.coverUrl) : null,
+    genre: game.genre,
+    releaseYear: game.releaseYear,
+  }));
 
-      {games.length === 0 ? (
-        <div className="empty-state">
-          <span className="empty-mark" aria-hidden="true">+</span>
-          <p>Your list is clear. Add a game to get started.</p>
-        </div>
-      ) : (
-        <div className="game-table" role="table" aria-label="Saved games">
-          <div className="game-row game-row-head" role="row">
-            <span role="columnheader">Game</span>
-            <span role="columnheader">Platform</span>
-            <span role="columnheader">Genre</span>
-            <span role="columnheader">Year</span>
-            <span role="columnheader">Status</span>
-            <span role="columnheader">Hours</span>
-            <span role="columnheader">Difficulty</span>
-            <span role="columnheader">Earned XP</span>
-            <span role="columnheader">Actions</span>
-          </div>
-          {games.map((game) => (
-            <form
-              action={updateGame}
-              className="game-row"
-              data-status={game.status}
-              key={`${game.id}-${game.status}-${game.lengthHours}-${game.difficulty}`}
-              role="row"
-            >
-              <input name="id" type="hidden" value={game.id} />
-              <span className="game-name" role="cell">
-                <span className="mobile-label">Game</span>
-                <span className="game-identity">
-                  {game.coverUrl ? (
-                    <img
-                      alt={`${game.title} cover art`}
-                      className="game-cover"
-                      decoding="async"
-                      loading="lazy"
-                      src={resizeRawgImageUrl(game.coverUrl)}
-                    />
-                  ) : (
-                    <div
-                      aria-label={`${game.title} cover art unavailable`}
-                      className="game-cover game-cover-placeholder"
-                      role="img"
-                    >
-                      <span>NO<br />COVER</span>
-                    </div>
-                  )}
-                  <span className="game-title-stack">
-                    <strong>{game.title}</strong>
-                  </span>
-                </span>
-              </span>
-              <span role="cell">
-                <span className="mobile-label">Platform</span>
-                {game.platform}
-              </span>
-              <span className="genre-cell" role="cell">
-                <span className="mobile-label">Genre</span>
-                {game.genre?.trim() || "—"}
-              </span>
-              <span role="cell">
-                <span className="mobile-label">Year</span>
-                {game.releaseYear ?? "—"}
-              </span>
-              <label className="row-edit-field" role="cell">
-                <span className="mobile-label">Status</span>
-                <select
-                  aria-label={`Status for ${game.title}`}
-                  className="status-select"
-                  defaultValue={game.status}
-                  name="status"
-                  required
-                >
-                  {statuses.map((status) => (
-                    <option key={status} value={status}>{status}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="row-edit-field" role="cell">
-                <span className="mobile-label">Hours</span>
-                <input
-                  aria-label={`Hours for ${game.title}`}
-                  className="row-hours-input"
-                  defaultValue={game.lengthHours}
-                  max="10000"
-                  min="1"
-                  name="lengthHours"
-                  required
-                  step="1"
-                  type="number"
-                />
-              </label>
-              <label className="row-edit-field" role="cell">
-                <span className="mobile-label">Difficulty</span>
-                <select
-                  aria-label={`Difficulty for ${game.title}`}
-                  className="difficulty-select"
-                  defaultValue={game.difficulty}
-                  name="difficulty"
-                  required
-                >
-                  <option value="1">1</option>
-                  <option value="2">2</option>
-                  <option value="3">3</option>
-                </select>
-              </label>
-              <span className="xp-value" role="cell">
-                <span className="mobile-label">Earned XP</span>
-                {game.earnedXp.toLocaleString()} XP
-              </span>
-              <span className="row-actions" role="cell">
-                <button className="status-save" type="submit">Save</button>
-                <button
-                  className="delete-button"
-                  formAction={deleteGame}
-                  formNoValidate
-                  type="submit"
-                >
-                  Delete
-                </button>
-              </span>
-            </form>
-          ))}
-        </div>
-      )}
-    </section>
+  return (
+    <GameLibrary games={serializedGames}>
+      <QuestRoulette games={serializedGames.filter((game) => game.status === "Backlog")} />
+    </GameLibrary>
   );
 }
 
