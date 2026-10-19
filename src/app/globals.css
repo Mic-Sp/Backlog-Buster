@@ -2047,6 +2047,28 @@ button.vault-trigger-button:focus-visible, .vault-modal :is(button, input, texta
 	background: #0b101b;
 }
 
+button.trophy-rating-trigger {
+	cursor: pointer;
+}
+
+button.trophy-rating-trigger:hover {
+	border-color: #ffd700;
+	color: #ffd700;
+	background: #25240e;
+}
+
+button.trophy-rating-trigger:focus-visible {
+	outline: 2px solid #00f0ff;
+	outline-offset: 3px;
+}
+
+.trophy-quick-rating { margin: 0 0 16px; }
+.trophy-quick-rating fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
+.trophy-quick-rating legend { margin-bottom: 8px; color: #a4b5ca; font-size: 10px; text-transform: uppercase; }
+.trophy-quick-rating fieldset:disabled { opacity: 0.6; }
+.trophy-quick-rating fieldset:disabled .star-rating-button { cursor: wait; }
+.trophy-rating-error { margin: 8px 0 0; color: #ff6b8b; font-size: 11px; }
+
 .trophy-edit-drawer summary {
 	padding: 12px 0 0;
 	color: #d6c96e;
@@ -2429,6 +2451,89 @@ textarea.field-log-textarea:focus-visible {
 	border: 1px solid #514c24;
 	border-radius: 2px;
 	background: #11151c;
+}
+
+.telemetry-drawer {
+	margin: 18px 0;
+	border: 1px solid #2e3a52;
+	border-left: 3px solid #00f0ff;
+	border-radius: 3px;
+	color: #c3dbe1;
+	background: #0b101b;
+}
+
+.telemetry-drawer > summary {
+	padding: 16px;
+	color: #00f0ff;
+	font-family: "Courier New", monospace;
+	font-size: 12px;
+	font-weight: 800;
+	line-height: 1.6;
+	letter-spacing: 0.04em;
+	cursor: pointer;
+}
+
+.telemetry-drawer[open] > summary { border-bottom: 1px solid #2e3a52; }
+.telemetry-content { padding: 18px; }
+.telemetry-intro, .telemetry-legend, .telemetry-empty { margin: 0 0 16px; color: #8795a8; font-size: 11px; line-height: 1.6; }
+.telemetry-stats-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 0 0 20px; }
+.telemetry-stat { min-width: 0; padding: 14px; border: 1px solid #2e3a52; background: #0b101b; }
+.telemetry-stat dt { color: #a4b5ca; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; }
+.telemetry-stat dd { margin: 10px 0 6px; color: #00f0ff; font-family: "Courier New", monospace; font-size: 25px; font-weight: 800; overflow-wrap: anywhere; }
+.telemetry-stat > span { color: #8795a8; font-size: 10px; }
+.telemetry-critic-stat dd { color: #fcee0a; text-shadow: 0 0 8px rgba(252, 238, 10, 0.25); }
+.telemetry-content h3 { margin: 0; color: #00f0ff; font-family: "Courier New", monospace; font-size: 12px; line-height: 1.6; letter-spacing: 0.04em; }
+.telemetry-distribution { padding: 16px; border: 1px solid #2e3a52; background: #080d16; }
+.telemetry-distribution h3 > span { margin-left: 10px; color: #8795a8; font-size: 10px; font-weight: 400; }
+.telemetry-distribution ul { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16px; margin: 14px 0 0; padding: 0; list-style: none; }
+.telemetry-distribution li { min-width: 0; }
+.telemetry-distribution-label { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 8px; color: #a4b5ca; font-size: 10px; }
+.telemetry-distribution-label > span:first-child { color: #fcee0a; }
+.telemetry-distribution-label strong { color: #e8edf7; }
+.telemetry-matrix-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin: 22px 0 12px; }
+.telemetry-sort { display: flex; flex-wrap: wrap; gap: 6px; }
+.telemetry-sort button {
+	padding: 7px 10px;
+	border: 1px solid #2e3a52;
+	border-radius: 2px;
+	color: #a4b5ca;
+	background: #0b101b;
+	font-family: "Courier New", monospace;
+	font-size: 10px;
+	font-weight: 700;
+	cursor: pointer;
+}
+.telemetry-sort button[aria-pressed="true"], .telemetry-sort button:hover { border-color: #00f0ff; color: #00f0ff; background: #10282b; }
+.telemetry-matrix { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 16px; }
+.telemetry-breakdown { min-width: 0; border: 1px solid #2e3a52; background: #080d16; }
+.telemetry-breakdown > h3 { padding: 14px; border-bottom: 1px solid #2e3a52; }
+.telemetry-breakdown > ul { margin: 0; padding: 0; list-style: none; }
+.telemetry-group { min-width: 0; padding: 14px; }
+.telemetry-group + .telemetry-group { border-top: 1px solid #1d293d; }
+.telemetry-group-heading, .telemetry-group-stats { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.telemetry-group-heading h4 { margin: 0; color: #e8edf7; font-size: 13px; overflow-wrap: anywhere; }
+.telemetry-completion-badge { padding: 3px 6px; border: 1px solid #2e3a52; color: #a4b5ca; font-family: "Courier New", monospace; font-size: 10px; white-space: nowrap; }
+.telemetry-group-stats { margin: 10px 0 12px; color: #00f0ff; font-size: 12px; }
+.telemetry-rating-pill { padding: 4px 8px; border: 1px solid #514c24; border-radius: 999px; color: #fcee0a; background: #25240e; font-family: "Courier New", monospace; font-size: 11px; text-shadow: 0 0 6px rgba(252, 238, 10, 0.3); white-space: nowrap; }
+.telemetry-rating-pill[data-rated="false"] { border-color: #2e3a52; color: #8795a8; background: #0b101b; text-shadow: none; }
+.telemetry-bar-labels { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px; margin-bottom: 6px; color: #8795a8; font-size: 9px; }
+.telemetry-dual-bars { display: grid; gap: 3px; }
+.telemetry-bar-track { height: 5px; overflow: hidden; background: #1d293d; }
+.telemetry-bar-track > span { display: block; height: 100%; }
+.telemetry-hours-fill { background: #00f0ff; }
+.telemetry-completion-fill { background: #fcee0a; }
+.telemetry-breakdown > .telemetry-empty { margin: 0; padding: 14px; }
+.telemetry-drawer > summary:focus-visible, .telemetry-sort button:focus-visible { outline: 2px solid #fcee0a; outline-offset: 3px; }
+
+@media (max-width: 900px) {
+	.telemetry-matrix { grid-template-columns: minmax(0, 1fr); }
+	.telemetry-stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+	.telemetry-distribution ul { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+	.telemetry-content { padding: 12px; }
+	.telemetry-stats-grid, .telemetry-distribution ul { grid-template-columns: minmax(0, 1fr); }
+	.telemetry-distribution h3 > span { display: block; margin-left: 0; }
 }
 
 .trophy-milestones-drawer > summary {

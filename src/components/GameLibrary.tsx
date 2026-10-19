@@ -5,6 +5,8 @@ import { completeGame, deleteGame, logPlaySession, startGame, updateGame } from 
 import type { Achievement } from "@/lib/achievements";
 import StarRatingInput from "@/components/StarRatingInput";
 import LibraryDataVault from "@/components/LibraryDataVault";
+import LibraryTelemetry from "@/components/LibraryTelemetry";
+import TrophyRatingEditor from "@/components/TrophyRatingEditor";
 
 export type LibraryGame = {
   id: number;
@@ -303,6 +305,8 @@ export default function GameLibrary({ games, achievements = [], children }: { ga
         </div>
       </div>
 
+      <LibraryTelemetry games={games} />
+
       <div className="library-tabs" role="group" aria-label="Library view">
         {views.map((view) => (
           <button
@@ -456,11 +460,7 @@ export default function GameLibrary({ games, achievements = [], children }: { ga
                   <p className="library-card-metadata">{game.platform} · {game.genre?.trim() || "Unknown genre"} · {game.releaseYear ?? "Unknown year"}</p>
                   <p className="trophy-record">{game.hoursPlayed}h played · {game.lengthHours}h length · Tier {game.difficulty} / {difficultyLabels[game.difficulty]}</p>
                   <p className="trophy-reward">+{game.earnedXp.toLocaleString()} XP</p>
-                  <p className="trophy-rating" data-rated={game.rating != null} aria-label={game.rating != null ? `Personal rating: ${game.rating} out of 5 stars` : "Unrated"}>
-                    {game.rating != null ? (
-                      <><span className="trophy-rating-stars" aria-hidden="true">{"★".repeat(game.rating) + "☆".repeat(5 - game.rating)}</span> <span>{game.rating}/5</span></>
-                    ) : "UNRATED"}
-                  </p>
+                  <TrophyRatingEditor game={game} />
                   {game.notes?.trim() && (
                     <div className="trophy-field-log">
                       <span>NETRUNNER FIELD LOG</span>

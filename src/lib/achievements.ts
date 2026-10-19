@@ -12,6 +12,7 @@ export const achievementDefinitions = [
   { key: "hardcore-netrunner", title: "Hardcore Netrunner", description: "Complete a gig at difficulty 3.", icon: "💀", xpBonus: 300, target: 1 },
   { key: "multi-deck", title: "Multi Deck", description: "Complete gigs on 2 different platforms.", icon: "🎮", xpBonus: 300, target: 2 },
   { key: "genre-specialist", title: "Genre Specialist", description: "Complete 3 gigs in the same genre.", icon: "🎯", xpBonus: 400, target: 3 },
+  { key: "cyberware-critic", title: "Cyberware Critic", description: "Log a star rating on 5 completed gigs.", icon: "⭐", xpBonus: 350, target: 5 },
 ] as const;
 
 export type Achievement = {
@@ -31,7 +32,7 @@ export async function syncAndGetAchievements(userId = getCurrentPlayerId()): Pro
   const [games, existing] = await Promise.all([
     prisma.game.findMany({
       where: { userId },
-      select: { status: true, lengthHours: true, hoursPlayed: true, difficulty: true, platform: true, genre: true },
+      select: { status: true, lengthHours: true, hoursPlayed: true, difficulty: true, platform: true, genre: true, rating: true },
     }),
     prisma.userAchievement.findMany({ where: { userId } }),
   ]);
@@ -55,6 +56,7 @@ export async function syncAndGetAchievements(userId = getCurrentPlayerId()): Pro
     "hardcore-netrunner": completed.filter((game) => game.difficulty === 3).length,
     "multi-deck": new Set(completed.map((game) => game.platform.trim().toLowerCase()).filter(Boolean)).size,
     "genre-specialist": Math.max(0, ...genreCounts.values()),
+    "cyberware-critic": completed.filter((game) => typeof game.rating === "number" && game.rating >= 1 && game.rating <= 5).length,
   };
   const owned = new Set(existing.map((achievement) => achievement.achievementKey));
   const newlyEligible = achievementDefinitions.filter((definition) =>

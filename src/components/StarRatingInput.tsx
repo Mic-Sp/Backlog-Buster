@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 
-export default function StarRatingInput({ defaultValue, label = "Personal rating" }: {
+export default function StarRatingInput({ defaultValue, label = "Personal rating", onChange }: {
   defaultValue: number | null;
   label?: string;
+  onChange?: (rating: number | null) => void;
 }) {
   const [rating, setRating] = useState(defaultValue ?? 0);
   const [hoverRating, setHoverRating] = useState(0);
@@ -24,7 +25,11 @@ export default function StarRatingInput({ defaultValue, label = "Personal rating
           title={rating === starValue ? "Click again to clear rating" : `${starValue}/5`}
           onMouseEnter={() => setHoverRating(starValue)}
           onMouseLeave={() => setHoverRating(0)}
-          onClick={() => setRating((current) => current === starValue ? 0 : starValue)}
+          onClick={() => {
+            const nextRating = rating === starValue ? 0 : starValue;
+            setRating(nextRating);
+            onChange?.(nextRating > 0 ? nextRating : null);
+          }}
         >
           {starValue <= activeStars ? "★" : "☆"}
         </button>
