@@ -2080,3 +2080,396 @@ button.edit-meta-btn:focus-visible,
 	outline: 2px solid #00f0ff;
 	outline-offset: 3px;
 }
+.gig-progress-block {
+	margin: 20px 0;
+	padding: 16px;
+	border: 1px solid #2e5964;
+	background: #0b101b;
+}
+
+.gig-progress-header {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	color: #00f0ff;
+	font-family: "Courier New", monospace;
+	font-size: 11px;
+	font-weight: 700;
+}
+
+.gig-session-actions {
+	display: flex;
+	gap: 8px;
+}
+
+.gig-session-actions button {
+	min-height: 32px;
+	padding: 5px 10px;
+	border: 1px solid #00f0ff;
+	border-radius: 2px;
+	color: #00f0ff;
+	background: #0b101b;
+	font: inherit;
+	cursor: pointer;
+}
+
+.gig-session-actions button:hover:not(:disabled) {
+	color: #06090f;
+	background: #00f0ff;
+}
+
+.gig-session-actions button:disabled {
+	opacity: 0.5;
+	cursor: wait;
+}
+
+.gig-progress-block p {
+	margin: 12px 0;
+	color: #c3dbe1;
+	font-size: 12px;
+}
+
+.gig-progress-track {
+	height: 10px;
+	overflow: hidden;
+	border: 1px solid #2e5964;
+	background: #0b101b;
+}
+
+.gig-progress-track span {
+	display: block;
+	height: 100%;
+	background: #05ffa1;
+	box-shadow: 0 0 8px rgba(5, 255, 161, 0.35);
+}
+
+.library-card-controls {
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.field-log-label {
+	display: block;
+	margin-top: 18px;
+	color: #00f0ff;
+	font-family: "Courier New", monospace;
+	font-size: 10px;
+	font-weight: 700;
+	letter-spacing: 0.05em;
+}
+
+textarea.field-log-textarea {
+	display: block;
+	width: 100%;
+	min-height: 90px;
+	margin-top: 8px;
+	padding: 10px 12px;
+	resize: vertical;
+	border: 1px solid #2e5964;
+	border-radius: 2px;
+	color: #e8edf7;
+	background: #0b101b;
+	font-family: inherit;
+	font-size: 12px;
+	font-weight: 400;
+	line-height: 1.6;
+	letter-spacing: normal;
+}
+
+.trophy-field-log {
+	margin: 16px 0;
+	padding: 12px;
+	border: 1px solid #8f8526;
+	background: #0b101b;
+}
+
+.trophy-field-log span {
+	color: #fcee0a;
+	font-family: "Courier New", monospace;
+	font-size: 9px;
+	letter-spacing: 0.05em;
+}
+
+.trophy-field-log p {
+	margin: 8px 0 0;
+	color: #e8edf7;
+	font-size: 12px;
+	line-height: 1.6;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+
+.trophy-edit-drawer textarea.field-log-textarea {
+	border-color: #8f8526;
+}
+
+.gig-session-actions button:focus-visible,
+textarea.field-log-textarea:focus-visible {
+	outline: 2px solid #00f0ff;
+	outline-offset: 3px;
+}
+.hud-achievements-bar {
+	grid-column: 1 / -1;
+	display: grid;
+	gap: 10px;
+	padding-top: 16px;
+	border-top: 1px solid #353944;
+}
+
+.hud-achievements-pills {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.hud-achievement-pill {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 6px 9px;
+	border: 1px solid #353f4c;
+	border-radius: 2px;
+	color: #8795a8;
+	background: #0b101b;
+	font-size: 10px;
+}
+
+.hud-achievement-pill[data-unlocked="true"] {
+	border-color: #8f8526;
+	color: #fcee0a;
+	background: #25240e;
+}
+
+.trophy-milestones-drawer {
+	margin-bottom: 24px;
+	padding: 16px;
+	border: 1px solid #514c24;
+	border-radius: 2px;
+	background: #11151c;
+}
+
+.trophy-milestones-drawer > summary {
+	color: #fcee0a;
+	font-family: "Courier New", monospace;
+	font-size: 12px;
+	font-weight: 700;
+	text-transform: uppercase;
+	cursor: pointer;
+}
+
+.trophy-milestones-drawer > summary:focus-visible {
+	outline: 2px solid #fcee0a;
+	outline-offset: 4px;
+}
+
+.milestones-hint {
+	margin: 16px 0;
+	color: #a4a7b0;
+	font-size: 12px;
+	line-height: 1.6;
+}
+
+.trophy-milestones-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+	gap: 14px;
+}
+
+.milestone-card {
+	min-width: 0;
+	padding: 16px;
+	border: 1px solid #353f4c;
+	border-top-width: 3px;
+	background: #0b101b;
+}
+
+.milestone-card[data-unlocked="true"] {
+	border-color: #8f8526;
+	border-top-color: #fcee0a;
+	background: #191b12;
+}
+
+.milestone-icon {
+	font-size: 24px;
+}
+
+.milestone-card h3 {
+	margin: 12px 0 8px;
+	color: #e8edf7;
+	font-size: 16px;
+}
+
+.milestone-card p {
+	margin-bottom: 10px;
+	color: #a4a7b0;
+	font-size: 12px;
+	line-height: 1.6;
+}
+
+.milestone-card .milestone-bonus {
+	color: #00f0ff;
+	font-weight: 700;
+}
+
+.milestone-card .milestone-unlock-stamp {
+	margin: 16px 0 0;
+	padding-top: 12px;
+	border-top: 1px solid #514c24;
+	color: #fcee0a;
+	font-family: "Courier New", monospace;
+	font-size: 10px;
+	font-weight: 700;
+}
+
+.milestone-card .milestone-locked {
+	color: #8795a8;
+	font-size: 10px;
+	letter-spacing: 1px;
+}
+.achievement-toast-region {
+	position: fixed;
+	top: 24px;
+	right: 24px;
+	z-index: 2000;
+	width: min(440px, calc(100% - 32px));
+	pointer-events: none;
+}
+
+.achievement-toast {
+	position: relative;
+	overflow: hidden;
+	border: 1px solid #00f0ff;
+	border-top: 3px solid #fcee0a;
+	border-radius: 3px;
+	color: #e8edf7;
+	background: #0b101b;
+	box-shadow: 0 0 18px rgba(0, 240, 255, 0.2), 0 0 30px rgba(252, 238, 10, 0.12);
+	pointer-events: auto;
+	animation: achievementSlideIn 250ms ease-out both;
+}
+
+.achievement-toast-eyebrow {
+	padding: 14px 42px 14px 16px;
+	border-bottom: 1px solid #514c24;
+	color: #fcee0a;
+	background: #191b12;
+	font-family: "Courier New", monospace;
+	font-size: 10px;
+	font-weight: 800;
+	line-height: 1.6;
+	letter-spacing: 0.05em;
+}
+
+button.achievement-toast-dismiss {
+	position: absolute;
+	top: 8px;
+	right: 8px;
+	display: grid;
+	width: 30px;
+	height: 30px;
+	place-items: center;
+	padding: 0;
+	border: 1px solid #2e3a52;
+	border-radius: 2px;
+	color: #00f0ff;
+	background: #0b101b;
+	cursor: pointer;
+}
+
+button.achievement-toast-dismiss:hover {
+	border-color: #00f0ff;
+	color: #06090f;
+	background: #00f0ff;
+}
+
+button.achievement-toast-dismiss:focus-visible {
+	outline: 2px solid #fcee0a;
+	outline-offset: 2px;
+}
+
+.achievement-toast-body {
+	display: grid;
+	grid-template-columns: 64px minmax(0, 1fr);
+	align-items: center;
+	gap: 16px;
+	padding: 20px 16px;
+}
+
+.achievement-toast-crest {
+	display: grid;
+	width: 64px;
+	height: 64px;
+	place-items: center;
+	border: 2px solid #fcee0a;
+	color: #fcee0a;
+	background: #25240e;
+	box-shadow: inset 0 0 12px rgba(252, 238, 10, 0.12);
+	font-size: 32px;
+}
+
+.achievement-toast h2 {
+	margin: 0 0 8px;
+	color: #fcee0a;
+	font-size: 20px;
+	font-weight: 800;
+	line-height: 1.3;
+	overflow-wrap: anywhere;
+}
+
+.achievement-toast p {
+	margin: 0 0 12px;
+	color: #c3dbe1;
+	font-size: 12px;
+	line-height: 1.6;
+}
+
+.achievement-toast-reward {
+	display: inline-block;
+	padding: 5px 10px;
+	border: 1px solid #00f0ff;
+	border-radius: 2px;
+	color: #00f0ff;
+	background: #10252c;
+	font-size: 12px;
+	font-weight: 800;
+	text-shadow: 0 0 6px rgba(0, 240, 255, 0.4);
+}
+
+.achievement-toast-timer {
+	height: 4px;
+	background: #2e3a52;
+}
+
+.achievement-toast-timer span {
+	display: block;
+	width: 100%;
+	height: 100%;
+	background: #fcee0a;
+	transform-origin: left;
+	animation: toastTimerShrink 5s linear forwards;
+}
+
+@keyframes achievementSlideIn {
+	from { opacity: 0; transform: translateY(-24px); }
+	to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes toastTimerShrink {
+	from { transform: scaleX(1); }
+	to { transform: scaleX(0); }
+}
+
+@media (max-width: 640px) {
+	.achievement-toast-region {
+		top: 16px;
+		right: 16px;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.achievement-toast,
+	.achievement-toast-timer span {
+		animation: none;
+	}
+}

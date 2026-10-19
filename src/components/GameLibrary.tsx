@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { completeGame, deleteGame, startGame, updateGame } from "@/app/actions";
+import { useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
+import { completeGame, deleteGame, logPlaySession, startGame, updateGame } from "@/app/actions";
+import type { Achievement } from "@/lib/achievements";
+import AchievementToast from "@/components/AchievementToast";
 
 export type LibraryGame = {
   id: number;
@@ -9,6 +11,8 @@ export type LibraryGame = {
   platform: string;
   status: string;
   lengthHours: number;
+  hoursPlayed: number;
+  notes: string | null;
   difficulty: number;
   earnedXp: number;
   coverUrl: string | null;
@@ -33,7 +37,7 @@ const primaryColumnSort = {
 } as const;
 const difficultyLabels: Record<number, string> = { 1: "Easy", 2: "Medium", 3: "Tough" };
 
-export default function GameLibrary({ games, children }: { games: LibraryGame[]; children?: ReactNode }) {
+export default function GameLibrary({ games, achievements = [], children }: { games: LibraryGame[]; achievements?: Achievement[]; children?: ReactNode }) {
   const [activeView, setActiveView] = useState<LibraryView>("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [platformFilter, setPlatformFilter] = useState("");
@@ -41,6 +45,19 @@ export default function GameLibrary({ games, children }: { games: LibraryGame[];
   const [sortBy, setSortBy] = useState("default");
   const [editingMetaGame, setEditingMetaGame] = useState<LibraryGame | null>(null);
   const metadataModalRef = useRef<HTMLFormElement>(null);
+  const [isLogging, startLogging] = useTransition();
+  const [sessionError, setSessionError] = useState<{ gameId: number; message: string } | null>(null);
+
+  function logSession(gameId: number, addHours: number) {
+    setSessionError(null);
+    startLogging(async () => {
+      try {
+        await logPlaySession(gameId, addHours);
+      } catch {
+        setSessionError({ gameId, message: "Could not log this session. Please try again." });
+      }
+    });
+  }
 
   useEffect(() => {
     if (!editingMetaGame) return;
@@ -235,8 +252,12 @@ export default function GameLibrary({ games, children }: { games: LibraryGame[];
             </select>
           </label>
           <label>
-            Hours
+            Est. Hours
             <input name="lengthHours" type="number" defaultValue={game.lengthHours} aria-label={`Hours for ${game.title}`} min="1" max="10000" step="1" required />
+          </label>
+          <label>
+            Hours Played
+            <input name="hoursPlayed" type="number" defaultValue={game.hoursPlayed} aria-label={`Hours played for ${game.title}`} min="0" max="10000" step="1" required />
           </label>
           <label>
             Difficulty
@@ -245,6 +266,10 @@ export default function GameLibrary({ games, children }: { games: LibraryGame[];
             </select>
           </label>
         </div>
+        <label className="field-log-label">
+          NETRUNNER FIELD LOG
+          <textarea className="field-log-textarea" name="notes" rows={3} maxLength={1000} defaultValue={game.notes ?? ""} placeholder="Log current checkpoint, build notes, or session thoughts..." />
+        </label>
         <div className="library-card-actions">
           <button className="status-save" type="submit">Save</button>
           <button className="delete-button" formAction={deleteGame} formNoValidate type="submit">Delete</button>
@@ -256,6 +281,7 @@ export default function GameLibrary({ games, children }: { games: LibraryGame[];
 
   return (
     <section className="collection" aria-labelledby="collection-title">
+      <AchievementToast achievements={achievements} />
       <div className="collection-heading">
         <div>
           <p className="eyebrow">02 / YOUR LIBRARY</p>
@@ -336,17 +362,37 @@ export default function GameLibrary({ games, children }: { games: LibraryGame[];
 
       <div data-view={activeView.toLowerCase()} className={activeView === "Completed" ? "trophy-room" : undefined}>
         {activeView === "Completed" && (
-          <div className="trophy-room-banner" aria-label="Completed games shown">
-            <div>
-              <p className="eyebrow">ARCHIVE // ACHIEVEMENTS UNLOCKED</p>
-              <h3>Trophy Room</h3>
+          <>
+            <div className="trophy-room-banner" aria-label="Completed games shown">
+              <div>
+                <p className="eyebrow">ARCHIVE // ACHIEVEMENTS UNLOCKED</p>
+                <h3>Trophy Room</h3>
+              </div>
+              <dl>
+                <div><dt>Gigs cleared</dt><dd>{visibleGames.length.toLocaleString()}</dd></div>
+                <div><dt>Hours logged</dt><dd>{visibleGames.reduce((total, game) => total + game.lengthHours, 0).toLocaleString()}h</dd></div>
+                <div><dt>XP earned</dt><dd>+{visibleGames.reduce((total, game) => total + game.earnedXp, 0).toLocaleString()} XP</dd></div>
+              </dl>
             </div>
-            <dl>
-              <div><dt>Gigs cleared</dt><dd>{visibleGames.length.toLocaleString()}</dd></div>
-              <div><dt>Hours logged</dt><dd>{visibleGames.reduce((total, game) => total + game.lengthHours, 0).toLocaleString()}h</dd></div>
-              <div><dt>XP earned</dt><dd>+{visibleGames.reduce((total, game) => total + game.earnedXp, 0).toLocaleString()} XP</dd></div>
-            </dl>
-          </div>
+            <details className="trophy-milestones-drawer">
+              <summary>Milestones · {achievements.filter((achievement) => achievement.unlocked).length} / {achievements.length} unlocked</summary>
+              <p className="milestones-hint">Career milestones cover your entire library. Earned badges and their bonus XP are permanent.</p>
+              <div className="trophy-milestones-grid">
+                {achievements.map((achievement) => (
+                  <article className="milestone-card" data-unlocked={achievement.unlocked} key={achievement.key}>
+                    <span className="milestone-icon" aria-hidden="true">{achievement.icon}</span>
+                    <h3>{achievement.title}</h3>
+                    <p>{achievement.description}</p>
+                    <p className="milestone-progress">{achievement.current} / {achievement.target} current progress</p>
+                    <p className="milestone-bonus">+{achievement.unlocked ? achievement.xpAwarded : achievement.xpBonus} XP {achievement.unlocked ? "awarded" : "bonus"}</p>
+                    {achievement.unlockedAt ? (
+                      <p className="milestone-unlock-stamp">UNLOCKED <time dateTime={achievement.unlockedAt}>{achievement.unlockedAt.slice(0, 10)}</time></p>
+                    ) : <p className="milestone-locked">LOCKED</p>}
+                  </article>
+                ))}
+              </div>
+            </details>
+          </>
         )}
         {visibleGames.length === 0 ? (
           <div className="empty-state">
@@ -359,20 +405,34 @@ export default function GameLibrary({ games, children }: { games: LibraryGame[];
               <form
                 action={updateGame}
                 className="spotlight-card"
-                key={`${game.id}-${game.status}-${game.lengthHours}-${game.difficulty}-${game.title}-${game.platform}-${game.genre ?? ""}-${game.releaseYear ?? ""}-${game.coverUrl ?? ""}`}
+                key={`${game.id}-${game.status}-${game.lengthHours}-${game.difficulty}-${game.title}-${game.platform}-${game.genre ?? ""}-${game.releaseYear ?? ""}-${game.coverUrl ?? ""}-${game.hoursPlayed}-${game.notes ?? ""}`}
               >
                 {renderCardCover(game, "spotlight-cover")}
                 <div className="spotlight-card-body">
                   <p className="spotlight-badge">LIVE GIG // IN PROGRESS</p>
                   <h3>{game.title}</h3>
                   <p className="library-card-metadata">{game.platform} · {game.genre?.trim() || "Unknown genre"} · {game.releaseYear ?? "Unknown year"}</p>
+                  <div className="gig-progress-block">
+                    <div className="gig-progress-header">
+                      <span>ACTIVE GIG PROGRESS</span>
+                      <div className="gig-session-actions">
+                        <button type="button" disabled={isLogging} onClick={() => logSession(game.id, 1)} aria-label={`Log one hour for ${game.title}`}>+1H</button>
+                        <button type="button" disabled={isLogging} onClick={() => logSession(game.id, 2)} aria-label={`Log two hours for ${game.title}`}>+2H</button>
+                      </div>
+                    </div>
+                    <p>{game.hoursPlayed} / {game.lengthHours}h ({Math.min(100, Math.round((game.hoursPlayed / game.lengthHours) * 100))}%)</p>
+                    <div className="gig-progress-track" role="progressbar" aria-label={`Progress for ${game.title}`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.min(100, Math.round((game.hoursPlayed / game.lengthHours) * 100))} aria-valuetext={`${game.hoursPlayed} of ${game.lengthHours} hours`}>
+                      <span style={{ width: `${Math.min(100, Math.round((game.hoursPlayed / game.lengthHours) * 100))}%` }} />
+                    </div>
+                    {sessionError?.gameId === game.id && <p role="alert">{sessionError.message}</p>}
+                  </div>
                   <div className="spotlight-bounty">
                     <span>Potential XP Bounty</span>
                     <strong>{(game.lengthHours * game.difficulty * 10).toLocaleString()} XP</strong>
                   </div>
                   {renderCardControls(game)}
                   <button type="submit" formAction={completeGame} className="complete-gig-button">
-                    🏆 COMPLETE GIG (+{game.lengthHours * game.difficulty * 10} XP)
+                    🏆 COMPLETE GIG (+{Math.max(game.lengthHours, game.hoursPlayed) * game.difficulty * 10} XP)
                   </button>
                 </div>
               </form>
@@ -381,17 +441,23 @@ export default function GameLibrary({ games, children }: { games: LibraryGame[];
         ) : activeView === "Completed" ? (
           <div className="trophy-grid">
             {visibleGames.map((game) => (
-              <article className="trophy-card" key={`${game.id}-${game.status}-${game.lengthHours}-${game.difficulty}-${game.title}-${game.platform}-${game.genre ?? ""}-${game.releaseYear ?? ""}-${game.coverUrl ?? ""}`}>
+              <article className="trophy-card" key={`${game.id}-${game.status}-${game.lengthHours}-${game.difficulty}-${game.title}-${game.platform}-${game.genre ?? ""}-${game.releaseYear ?? ""}-${game.coverUrl ?? ""}-${game.hoursPlayed}-${game.notes ?? ""}`}>
                 <p className="trophy-badge">🏆 GIG CLEARED</p>
                 {renderCardCover(game, "trophy-cover")}
                 <div className="trophy-card-body">
                   <h3>{game.title}</h3>
                   <p className="library-card-metadata">{game.platform} · {game.genre?.trim() || "Unknown genre"} · {game.releaseYear ?? "Unknown year"}</p>
-                  <p className="trophy-record">{game.lengthHours}h logged · Tier {game.difficulty} / {difficultyLabels[game.difficulty]}</p>
+                  <p className="trophy-record">{game.hoursPlayed}h played · {game.lengthHours}h length · Tier {game.difficulty} / {difficultyLabels[game.difficulty]}</p>
                   <p className="trophy-reward">+{game.earnedXp.toLocaleString()} XP</p>
+                  {game.notes?.trim() && (
+                    <div className="trophy-field-log">
+                      <span>NETRUNNER FIELD LOG</span>
+                      <p>{game.notes}</p>
+                    </div>
+                  )}
                   <details className="trophy-edit-drawer">
                     <summary>Manage Record</summary>
-                    <form action={updateGame} key={`${game.id}-${game.status}-${game.lengthHours}-${game.difficulty}-${game.title}-${game.platform}-${game.genre ?? ""}-${game.releaseYear ?? ""}-${game.coverUrl ?? ""}`}>
+                    <form action={updateGame} key={`${game.id}-${game.status}-${game.lengthHours}-${game.difficulty}-${game.title}-${game.platform}-${game.genre ?? ""}-${game.releaseYear ?? ""}-${game.coverUrl ?? ""}-${game.hoursPlayed}-${game.notes ?? ""}`}>
                       {renderCardControls(game)}
                     </form>
                   </details>
@@ -417,7 +483,7 @@ export default function GameLibrary({ games, children }: { games: LibraryGame[];
                 action={updateGame}
                 className="game-row"
                 data-status={game.status}
-                key={`${game.id}-${game.status}-${game.lengthHours}-${game.difficulty}-${game.title}-${game.platform}-${game.genre ?? ""}-${game.releaseYear ?? ""}-${game.coverUrl ?? ""}`}
+                key={`${game.id}-${game.status}-${game.lengthHours}-${game.difficulty}-${game.title}-${game.platform}-${game.genre ?? ""}-${game.releaseYear ?? ""}-${game.coverUrl ?? ""}-${game.hoursPlayed}-${game.notes ?? ""}`}
                 role="row"
               >
                 <input name="id" type="hidden" value={game.id} />
@@ -538,7 +604,7 @@ export default function GameLibrary({ games, children }: { games: LibraryGame[];
             ref={metadataModalRef}
             action={updateGame}
             onSubmit={() => setEditingMetaGame(null)}
-            key={`${editingMetaGame.id}-${editingMetaGame.status}-${editingMetaGame.lengthHours}-${editingMetaGame.difficulty}-${editingMetaGame.title}-${editingMetaGame.platform}-${editingMetaGame.genre ?? ""}-${editingMetaGame.releaseYear ?? ""}-${editingMetaGame.coverUrl ?? ""}`}
+            key={`${editingMetaGame.id}-${editingMetaGame.status}-${editingMetaGame.lengthHours}-${editingMetaGame.difficulty}-${editingMetaGame.title}-${editingMetaGame.platform}-${editingMetaGame.genre ?? ""}-${editingMetaGame.releaseYear ?? ""}-${editingMetaGame.coverUrl ?? ""}-${editingMetaGame.hoursPlayed}-${editingMetaGame.notes ?? ""}`}
           >
             <p className="eyebrow">RECORD // METADATA EDITOR</p>
             <h2 id="metadata-modal-title">Edit Game Metadata</h2>

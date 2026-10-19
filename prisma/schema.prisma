@@ -9,14 +9,29 @@ datasource db {
 
 model Game {
   id          Int      @id @default(autoincrement())
+  userId      String   @default("default-player")
   title       String
   platform    String
   status      String   @default("Backlog")
   lengthHours Int      @default(10)
+  hoursPlayed Int      @default(0)
+  notes       String?
   difficulty  Int      @default(1)
   earnedXp    Int      @default(0)
   createdAt   DateTime @default(now())
   coverUrl    String?
   genre       String?
   releaseYear Int?
+
+  @@index([userId])
+}
+
+model UserAchievement {
+  id             Int      @id @default(autoincrement())
+  userId         String   @default("default-player")
+  achievementKey String
+  xpAwarded      Int
+  unlockedAt     DateTime @default(now())
+
+  @@unique([userId, achievementKey])
 }

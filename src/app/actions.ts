@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { syncAndGetAchievements } from "@/lib/achievements";
+import { getCurrentPlayerId } from "@/lib/player";
 import { resolveRawgPlaytime } from "@/lib/game-playtime";
 import { lookupRawgGame, type RawgGameInfo } from "@/lib/rawg";
 
@@ -18,6 +20,26 @@ function calculateEarnedXp(
 function optionalText(formData: FormData, name: string) {
   const value = formData.get(name);
   return typeof value === "string" ? value.trim() : "";
+}
+
+function readProgressFields(formData: FormData) {
+  const progress: { hoursPlayed?: number; notes?: string | null } = {};
+  if (formData.has("hoursPlayed")) {
+    const value = formData.get("hoursPlayed");
+    const hours = typeof value === "string" && value.trim() !== "" ? Number(value) : NaN;
+    if (!Number.isSafeInteger(hours) || hours < 0 || hours > 10000) {
+      throw new Error("Hours played must be a whole number from 0 to 10000.");
+    }
+    progress.hoursPlayed = hours;
+  }
+  if (formData.has("notes")) {
+    const value = formData.get("notes");
+    if (typeof value !== "string" || value.trim().length > 1000) {
+      throw new Error("Field log must be at most 1000 characters.");
+    }
+    progress.notes = value.trim() || null;
+  }
+  return progress;
 }
 
 function optionalYear(value: string): number | null {
@@ -113,6 +135,7 @@ export async function createGame(formData: FormData) {
 
   await prisma.game.create({
     data: {
+      userId: getCurrentPlayerId(),
       title,
       platform: platform || lookup?.platforms[0] || "PC",
       status,
@@ -139,7 +162,7 @@ export async function acceptQuest(gameId: number) {
   }
 
   await prisma.game.update({
-    where: { id: gameId, status: "Backlog" },
+    where: { id: gameId, userId: getCurrentPlayerId(), status: "Backlog" },
     data: { status: "Playing", earnedXp: 0 },
   });
 
@@ -147,6 +170,7 @@ export async function acceptQuest(gameId: number) {
 }
 
 export async function updateGame(formData: FormData) {
+  const progress = readProgressFields(formData);
   const idValue = formData.get("id");
   const statusValue = formData.get("status");
   const lengthHoursValue = formData.get("lengthHours");
@@ -204,17 +228,32 @@ export async function updateGame(formData: FormData) {
     throw new Error("Please provide valid game details.");
   }
 
+  const existing = await prisma.game.findUniqueOrThrow({
+    where: { id, userId: getCurrentPlayerId() },
+    select: { status: true, hoursPlayed: true },
+  });
+  if (statusValue === "Backlog") {
+    progress.hoursPlayed = 0;
+  } else if (statusValue === "Completed" && existing.status !== "Completed") {
+    progress.hoursPlayed = Math.max(lengthHours, progress.hoursPlayed ?? existing.hoursPlayed);
+  } else if (statusValue === "Playing" && existing.status === "Completed" &&
+    (progress.hoursPlayed === undefined || progress.hoursPlayed === existing.hoursPlayed)) {
+    progress.hoursPlayed = 0;
+  }
+
   await prisma.game.update({
-    where: { id },
+    where: { id, userId: getCurrentPlayerId() },
     data: {
       status: statusValue,
       lengthHours,
       difficulty,
       earnedXp: calculateEarnedXp(statusValue, lengthHours, difficulty),
       ...metadata,
+      ...progress,
     },
   });
 
+  await syncAndGetAchievements();
   revalidatePath("/");
 }
 
@@ -249,7 +288,7 @@ export async function startGame(formData: FormData) {
   }
 
   await prisma.game.update({
-    where: { id },
+    where: { id, userId: getCurrentPlayerId() },
     data: { status: "Playing", lengthHours, difficulty, earnedXp: 0 },
   });
 
@@ -257,6 +296,7 @@ export async function startGame(formData: FormData) {
 }
 
 export async function completeGame(formData: FormData) {
+  const progress = readProgressFields(formData);
   const idValue = formData.get("id");
   const lengthHoursValue = formData.get("lengthHours");
   const difficultyValue = formData.get("difficulty");
@@ -286,16 +326,44 @@ export async function completeGame(formData: FormData) {
     throw new Error("Please provide valid game details.");
   }
 
+  const recordedHours = progress.hoursPlayed ?? (await prisma.game.findUniqueOrThrow({
+    where: { id, userId: getCurrentPlayerId() },
+    select: { hoursPlayed: true },
+  })).hoursPlayed;
+  const hoursPlayed = recordedHours === 0 ? lengthHours : recordedHours;
+  const finalLengthHours = Math.max(lengthHours, hoursPlayed);
+
   await prisma.game.update({
-    where: { id },
+    where: { id, userId: getCurrentPlayerId() },
     data: {
       status: "Completed",
-      lengthHours,
+      lengthHours: finalLengthHours,
       difficulty,
-      earnedXp: calculateEarnedXp("Completed", lengthHours, difficulty),
+      earnedXp: calculateEarnedXp("Completed", finalLengthHours, difficulty),
+      ...progress,
+      hoursPlayed,
     },
   });
 
+  await syncAndGetAchievements();
+  revalidatePath("/");
+}
+
+export async function logPlaySession(gameId: number, addHours: number) {
+  if (!Number.isSafeInteger(gameId) || gameId < 1 ||
+    !Number.isSafeInteger(addHours) || Math.abs(addHours) > 10000) {
+    throw new Error("Please provide a valid game ID and whole session hours.");
+  }
+
+  // Clamp and increment in one statement so concurrent sessions cannot overwrite each other.
+  const updated = await prisma.$queryRaw<Array<{ id: number }>>`
+    UPDATE "Game"
+    SET "hoursPlayed" = LEAST(10000, GREATEST(0, "hoursPlayed" + ${addHours}))
+    WHERE "id" = ${gameId} AND "userId" = ${getCurrentPlayerId()}
+    RETURNING "id"
+  `;
+  if (updated.length === 0) throw new Error("Game not found.");
+  await syncAndGetAchievements();
   revalidatePath("/");
 }
 
@@ -312,7 +380,9 @@ export async function deleteGame(formData: FormData) {
     throw new Error("Please provide a valid game ID.");
   }
 
-  await prisma.game.delete({ where: { id } });
+  // Capture earned milestones before removing a game that contributed to them.
+  await syncAndGetAchievements();
+  await prisma.game.delete({ where: { id, userId: getCurrentPlayerId() } });
 
   revalidatePath("/");
 }

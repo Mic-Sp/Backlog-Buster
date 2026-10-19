@@ -1,4 +1,4 @@
-import { Suspense } from "react";
+import { cache, Suspense } from "react";
 import Link from "next/link";
 import { connection } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -6,6 +6,11 @@ import { resizeRawgImageUrl } from "@/lib/rawg";
 import GameForm from "./GameForm";
 import GameLibrary from "@/components/GameLibrary";
 import QuestRoulette from "@/components/QuestRoulette";
+import { syncAndGetAchievements } from "@/lib/achievements";
+import { getCurrentPlayerId } from "@/lib/player";
+
+// Share one sync promise per player during this render, without caching Server Actions.
+const getPageAchievements = cache((userId: string) => syncAndGetAchievements(userId));
 
 const statusPriority: Record<string, number> = {
   Playing: 0,
@@ -35,11 +40,20 @@ function calculateLevelProgress(totalXp: number) {
 async function PlayerSummary() {
   await connection();
 
-  const games = await prisma.game.findMany({
-    select: { earnedXp: true, status: true },
+  const [games, achievements] = await Promise.all([
+    prisma.game.findMany({
+      where: { userId: getCurrentPlayerId() },
+      select: { earnedXp: true, status: true },
+    }),
+    getPageAchievements(getCurrentPlayerId()),
+  ]);
+  const badgeXp = await prisma.userAchievement.aggregate({
+    where: { userId: getCurrentPlayerId() },
+    _sum: { xpAwarded: true },
   });
   const totalXp = Math.round(
-    games.reduce((total, game) => total + game.earnedXp, 0),
+    games.reduce((total, game) => total + game.earnedXp, 0) +
+    (badgeXp._sum.xpAwarded ?? 0),
   );
   const backlogCount = games.filter((game) => game.status === "Backlog").length;
   const playingCount = games.filter((game) => game.status === "Playing").length;
@@ -96,6 +110,17 @@ async function PlayerSummary() {
           <p><strong>{completedCount}</strong><span>Completed</span></p>
         </div>
       </div>
+      <div className="hud-achievements-bar" aria-label="Player achievements">
+        <span className="summary-label">Milestones {achievements.filter((achievement) => achievement.unlocked).length} / {achievements.length}</span>
+        <div className="hud-achievements-pills">
+          {achievements.map((achievement) => (
+            <span className="hud-achievement-pill" data-unlocked={achievement.unlocked} key={achievement.key} title={`${achievement.description} ${achievement.unlockedAt ? `Unlocked ${achievement.unlockedAt.slice(0, 10)} · +${achievement.xpAwarded} XP` : `${achievement.current} / ${achievement.target} · +${achievement.xpBonus} XP bonus`}`}>
+              <span aria-hidden="true">{achievement.icon}</span> {achievement.title}
+              <span className="quest-sr-only">{achievement.unlocked ? ", unlocked" : ", locked"}</span>
+            </span>
+          ))}
+        </div>
+      </div>
     </section>
   );
 }
@@ -103,9 +128,13 @@ async function PlayerSummary() {
 async function SavedGames() {
   await connection();
 
-  const games = await prisma.game.findMany({
-    orderBy: { createdAt: "desc" },
-  });
+  const [games, achievements] = await Promise.all([
+    prisma.game.findMany({
+      where: { userId: getCurrentPlayerId() },
+      orderBy: { createdAt: "desc" },
+    }),
+    getPageAchievements(getCurrentPlayerId()),
+  ]);
   games.sort((left, right) => {
     const priorityDifference =
       (statusPriority[left.status] ?? 3) - (statusPriority[right.status] ?? 3);
@@ -118,6 +147,8 @@ async function SavedGames() {
     platform: game.platform,
     status: game.status,
     lengthHours: game.lengthHours,
+    hoursPlayed: game.hoursPlayed,
+    notes: game.notes,
     difficulty: game.difficulty,
     earnedXp: game.earnedXp,
     coverUrl: game.coverUrl ? resizeRawgImageUrl(game.coverUrl) : null,
@@ -126,7 +157,7 @@ async function SavedGames() {
   }));
 
   return (
-    <GameLibrary games={serializedGames}>
+    <GameLibrary games={serializedGames} achievements={achievements}>
       <QuestRoulette games={serializedGames.filter((game) => game.status === "Backlog")} />
     </GameLibrary>
   );
