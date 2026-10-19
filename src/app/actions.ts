@@ -151,6 +151,31 @@ export async function updateGame(formData: FormData) {
   const statusValue = formData.get("status");
   const lengthHoursValue = formData.get("lengthHours");
   const difficultyValue = formData.get("difficulty");
+  const metadata: {
+    title?: string;
+    platform?: string;
+    genre?: string | null;
+    releaseYear?: number | null;
+    coverUrl?: string | null;
+  } = {};
+
+  for (const name of ["title", "platform", "genre", "releaseYear", "coverUrl"]) {
+    if (formData.has(name) && typeof formData.get(name) !== "string") {
+      throw new Error("Please provide valid game metadata.");
+    }
+  }
+  for (const name of ["title", "platform"] as const) {
+    if (formData.has(name)) {
+      const value = optionalText(formData, name);
+      if (!value || value.length > (name === "title" ? 120 : 80)) {
+        throw new Error("Please provide a valid game title and platform.");
+      }
+      metadata[name] = value;
+    }
+  }
+  if (formData.has("genre")) metadata.genre = optionalText(formData, "genre") || null;
+  if (formData.has("releaseYear")) metadata.releaseYear = optionalYear(optionalText(formData, "releaseYear"));
+  if (formData.has("coverUrl")) metadata.coverUrl = optionalHttpUrl(optionalText(formData, "coverUrl"));
 
   if (
     typeof idValue !== "string" ||
@@ -186,6 +211,7 @@ export async function updateGame(formData: FormData) {
       lengthHours,
       difficulty,
       earnedXp: calculateEarnedXp(statusValue, lengthHours, difficulty),
+      ...metadata,
     },
   });
 

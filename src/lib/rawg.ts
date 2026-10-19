@@ -39,8 +39,9 @@ export function resizeRawgImageUrl(value: string): string {
       !url.pathname.startsWith("/media/resize/")
     ) {
       url.pathname = `/media/resize/640/-/${url.pathname.slice("/media/".length)}`;
+      return url.toString();
     }
-    return url.toString();
+    return value;
   } catch {
     return value;
   }

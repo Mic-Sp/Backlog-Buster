@@ -1940,3 +1940,143 @@ button.complete-gig-button:focus-visible {
 	outline: 2px solid #05ffa1;
 	outline-offset: 4px;
 }
+.game-title-actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px;
+}
+
+.game-title-actions button.start-gig-badge {
+	margin-top: 0;
+}
+
+.library-card-actions {
+	flex-wrap: wrap;
+}
+
+button.edit-meta-btn {
+	align-self: center;
+	min-height: 28px;
+	padding: 4px 9px;
+	border: 1px solid #2e3a52;
+	border-radius: 2px;
+	color: #a8c4d9;
+	background: #111827;
+	font-family: "Courier New", monospace;
+	font-size: 10px;
+	font-weight: 700;
+	line-height: 1.4;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	white-space: nowrap;
+	cursor: pointer;
+}
+
+button.edit-meta-btn:hover {
+	border-color: #00f0ff;
+	color: #00f0ff;
+	box-shadow: 0 0 8px rgba(0, 240, 255, 0.18);
+}
+
+.metadata-modal-backdrop {
+	position: fixed;
+	inset: 0;
+	z-index: 1000;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 20px;
+	background: rgba(5, 8, 15, 0.8);
+	backdrop-filter: blur(8px);
+}
+
+.metadata-modal {
+	width: 100%;
+	max-width: 520px;
+	max-height: calc(100dvh - 40px);
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	padding: 24px;
+	border: 1px solid #00f0ff;
+	border-top: 3px solid #fcee0a;
+	border-radius: 3px;
+	color: #e8edf7;
+	background: #111827;
+	box-shadow: 0 0 24px rgba(0, 240, 255, 0.15);
+}
+
+.metadata-modal h2 {
+	margin: 10px 0 20px;
+	font-size: 21px;
+	text-transform: uppercase;
+}
+
+.metadata-modal-fields {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: 14px;
+}
+
+.metadata-modal-fields label {
+	display: block;
+	min-width: 0;
+	color: #c3c6cb;
+	font-size: 12px;
+	font-weight: 700;
+}
+
+.metadata-modal .metadata-modal-fields input {
+	display: block;
+	width: 100%;
+	min-width: 0;
+	min-height: 42px;
+	margin-top: 6px;
+	padding: 10px 12px;
+	border: 1px solid #2e3a52;
+	border-radius: 2px;
+	color: #e8edf7;
+	background: #0b101b;
+	color-scheme: dark;
+	font: inherit;
+	font-weight: 400;
+}
+
+.metadata-modal-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+	margin-top: 24px;
+}
+
+button.metadata-save-btn,
+button.metadata-cancel-btn {
+	min-height: 42px;
+	padding: 10px 14px;
+	border: 1px solid #00f0ff;
+	border-radius: 2px;
+	color: #06090f;
+	background: #00f0ff;
+	font-family: "Courier New", monospace;
+	font-size: 11px;
+	font-weight: 800;
+	cursor: pointer;
+}
+
+button.metadata-cancel-btn {
+	border-color: #2e3a52;
+	color: #e8edf7;
+	background: #111827;
+}
+
+button.metadata-save-btn:hover,
+button.metadata-cancel-btn:hover {
+	border-color: #fcee0a;
+}
+
+button.edit-meta-btn:focus-visible,
+.metadata-modal input:focus-visible,
+.metadata-modal button:focus-visible {
+	outline: 2px solid #00f0ff;
+	outline-offset: 3px;
+}

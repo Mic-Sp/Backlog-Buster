@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { completeGame, deleteGame, startGame, updateGame } from "@/app/actions";
 
 export type LibraryGame = {
@@ -39,6 +39,43 @@ export default function GameLibrary({ games, children }: { games: LibraryGame[];
   const [platformFilter, setPlatformFilter] = useState("");
   const [genreFilter, setGenreFilter] = useState("");
   const [sortBy, setSortBy] = useState("default");
+  const [editingMetaGame, setEditingMetaGame] = useState<LibraryGame | null>(null);
+  const metadataModalRef = useRef<HTMLFormElement>(null);
+
+  useEffect(() => {
+    if (!editingMetaGame) return;
+    const trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const modal = metadataModalRef.current;
+    modal?.querySelector<HTMLInputElement>('input[name="title"]')?.focus();
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setEditingMetaGame(null);
+      }
+      if (event.key === "Tab" && modal) {
+        const controls = modal.querySelectorAll<HTMLElement>('input:not([type="hidden"]), button');
+        const first = controls[0];
+        const last = controls[controls.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last?.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first?.focus();
+        }
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", handleKeyDown);
+      trigger?.focus();
+    };
+  }, [editingMetaGame]);
 
   const { platforms, genres, viewCounts } = useMemo(() => ({
     platforms: [...new Set(games.map((game) => game.platform.trim()).filter(Boolean))].sort(),
@@ -159,6 +196,33 @@ export default function GameLibrary({ games, children }: { games: LibraryGame[];
     );
   }
 
+  function renderMetadataFields(game: LibraryGame) {
+    return (
+      <div className="metadata-modal-fields">
+        <label>
+          Title
+          <input name="title" defaultValue={game.title} maxLength={120} required aria-label={`Title for ${game.title}`} />
+        </label>
+        <label>
+          Platform
+          <input name="platform" defaultValue={game.platform} maxLength={80} required aria-label={`Platform for ${game.title}`} />
+        </label>
+        <label>
+          Genre
+          <input name="genre" defaultValue={game.genre ?? ""} aria-label={`Genre for ${game.title}`} />
+        </label>
+        <label>
+          Release year
+          <input name="releaseYear" type="number" min="1800" max="2100" step="1" defaultValue={game.releaseYear ?? ""} aria-label={`Release year for ${game.title}`} />
+        </label>
+        <label>
+          Cover image URL
+          <input name="coverUrl" type="url" defaultValue={game.coverUrl ?? ""} placeholder="https://..." aria-label={`Cover URL for ${game.title}`} />
+        </label>
+      </div>
+    );
+  }
+
   function renderCardControls(game: LibraryGame) {
     return (
       <>
@@ -184,6 +248,7 @@ export default function GameLibrary({ games, children }: { games: LibraryGame[];
         <div className="library-card-actions">
           <button className="status-save" type="submit">Save</button>
           <button className="delete-button" formAction={deleteGame} formNoValidate type="submit">Delete</button>
+          <button type="button" className="edit-meta-btn" onClick={() => setEditingMetaGame(game)}>⚙ EDIT META</button>
         </div>
       </>
     );
@@ -294,7 +359,7 @@ export default function GameLibrary({ games, children }: { games: LibraryGame[];
               <form
                 action={updateGame}
                 className="spotlight-card"
-                key={`${game.id}-${game.status}-${game.lengthHours}-${game.difficulty}`}
+                key={`${game.id}-${game.status}-${game.lengthHours}-${game.difficulty}-${game.title}-${game.platform}-${game.genre ?? ""}-${game.releaseYear ?? ""}-${game.coverUrl ?? ""}`}
               >
                 {renderCardCover(game, "spotlight-cover")}
                 <div className="spotlight-card-body">
@@ -316,7 +381,7 @@ export default function GameLibrary({ games, children }: { games: LibraryGame[];
         ) : activeView === "Completed" ? (
           <div className="trophy-grid">
             {visibleGames.map((game) => (
-              <article className="trophy-card" key={`${game.id}-${game.status}-${game.lengthHours}-${game.difficulty}`}>
+              <article className="trophy-card" key={`${game.id}-${game.status}-${game.lengthHours}-${game.difficulty}-${game.title}-${game.platform}-${game.genre ?? ""}-${game.releaseYear ?? ""}-${game.coverUrl ?? ""}`}>
                 <p className="trophy-badge">🏆 GIG CLEARED</p>
                 {renderCardCover(game, "trophy-cover")}
                 <div className="trophy-card-body">
@@ -326,7 +391,7 @@ export default function GameLibrary({ games, children }: { games: LibraryGame[];
                   <p className="trophy-reward">+{game.earnedXp.toLocaleString()} XP</p>
                   <details className="trophy-edit-drawer">
                     <summary>Manage Record</summary>
-                    <form action={updateGame} key={`${game.id}-${game.status}-${game.lengthHours}-${game.difficulty}`}>
+                    <form action={updateGame} key={`${game.id}-${game.status}-${game.lengthHours}-${game.difficulty}-${game.title}-${game.platform}-${game.genre ?? ""}-${game.releaseYear ?? ""}-${game.coverUrl ?? ""}`}>
                       {renderCardControls(game)}
                     </form>
                   </details>
@@ -352,7 +417,7 @@ export default function GameLibrary({ games, children }: { games: LibraryGame[];
                 action={updateGame}
                 className="game-row"
                 data-status={game.status}
-                key={`${game.id}-${game.status}-${game.lengthHours}-${game.difficulty}`}
+                key={`${game.id}-${game.status}-${game.lengthHours}-${game.difficulty}-${game.title}-${game.platform}-${game.genre ?? ""}-${game.releaseYear ?? ""}-${game.coverUrl ?? ""}`}
                 role="row"
               >
                 <input name="id" type="hidden" value={game.id} />
@@ -378,9 +443,12 @@ export default function GameLibrary({ games, children }: { games: LibraryGame[];
                     )}
                     <span className="game-title-stack">
                       <strong>{game.title}</strong>
-                      {game.status === "Backlog" && (
-                        <button className="start-gig-badge" formAction={startGame} type="submit">▶ START GIG</button>
-                      )}
+                      <span className="game-title-actions">
+                        {game.status === "Backlog" && (
+                          <button className="start-gig-badge" formAction={startGame} type="submit">▶ START GIG</button>
+                        )}
+                        <button type="button" className="edit-meta-btn" onClick={() => setEditingMetaGame(game)}>⚙ EDIT META</button>
+                      </span>
                     </span>
                   </span>
                 </span>
@@ -458,6 +526,34 @@ export default function GameLibrary({ games, children }: { games: LibraryGame[];
           </div>
         )}
       </div>
+      {editingMetaGame && (
+        <div className="metadata-modal-backdrop" onClick={(event) => {
+          if (event.target === event.currentTarget) setEditingMetaGame(null);
+        }}>
+          <form
+            className="metadata-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="metadata-modal-title"
+            ref={metadataModalRef}
+            action={updateGame}
+            onSubmit={() => setEditingMetaGame(null)}
+            key={`${editingMetaGame.id}-${editingMetaGame.status}-${editingMetaGame.lengthHours}-${editingMetaGame.difficulty}-${editingMetaGame.title}-${editingMetaGame.platform}-${editingMetaGame.genre ?? ""}-${editingMetaGame.releaseYear ?? ""}-${editingMetaGame.coverUrl ?? ""}`}
+          >
+            <p className="eyebrow">RECORD // METADATA EDITOR</p>
+            <h2 id="metadata-modal-title">Edit Game Metadata</h2>
+            <input type="hidden" name="id" value={editingMetaGame.id} />
+            <input type="hidden" name="status" value={editingMetaGame.status} />
+            <input type="hidden" name="lengthHours" value={editingMetaGame.lengthHours} />
+            <input type="hidden" name="difficulty" value={editingMetaGame.difficulty} />
+            {renderMetadataFields(editingMetaGame)}
+            <div className="metadata-modal-actions">
+              <button className="metadata-save-btn" type="submit">SAVE METADATA</button>
+              <button className="metadata-cancel-btn" type="button" onClick={() => setEditingMetaGame(null)}>CANCEL</button>
+            </div>
+          </form>
+        </div>
+      )}
     </section>
   );
 }
