@@ -9,6 +9,8 @@ import GameLibrary from "@/components/GameLibrary";
 import AchievementToast from "@/components/AchievementToast";
 import HudMilestones from "@/components/HudMilestones";
 import QuestRoulette from "@/components/QuestRoulette";
+import NetrunnerDossier from "@/components/NetrunnerDossier";
+import { calculateLibraryTelemetry } from "@/lib/library-telemetry";
 import { syncAndGetAchievements } from "@/lib/achievements";
 import { getCurrentPlayerId } from "@/lib/player";
 
@@ -47,7 +49,7 @@ async function PlayerSummary() {
   const [games, achievements] = await Promise.all([
     prisma.game.findMany({
       where: { userId: getCurrentPlayerId() },
-      select: { earnedXp: true, status: true },
+      select: { id: true, title: true, platform: true, genre: true, coverUrl: true, rating: true, earnedXp: true, status: true, lengthHours: true, hoursPlayed: true },
     }),
     getPageAchievements(getCurrentPlayerId()),
   ]);
@@ -66,6 +68,10 @@ async function PlayerSummary() {
   ).length;
   const flatlinedCount = games.filter((game) => game.status === "Flatlined").length;
   const progress = calculateLevelProgress(totalXp);
+  const telemetry = calculateLibraryTelemetry(games);
+  const trophies = games.filter((game) => game.status === "Completed" && game.rating === 5)
+    .sort((left, right) => right.earnedXp - left.earnedXp || left.title.localeCompare(right.title) || left.id - right.id)
+    .map((game) => ({ id: game.id, title: game.title, platform: game.platform, coverUrl: game.coverUrl ? resizeRawgImageUrl(game.coverUrl) : null, earnedXp: game.earnedXp }));
 
   return (
     <section className="player-summary" aria-label="Player stats">
@@ -119,7 +125,15 @@ async function PlayerSummary() {
           <p data-status="Flatlined"><strong>{flatlinedCount}</strong><span>Flatlined</span></p>
         </div>
       </div>
-      <HudMilestones achievements={achievements} />
+      <div className="hud-career-tools">
+        <HudMilestones achievements={achievements} />
+        <NetrunnerDossier data={{
+          level: progress.level, totalXp,
+          counts: { Backlog: backlogCount, Playing: playingCount, Completed: completedCount, Flatlined: flatlinedCount },
+          activeHours: telemetry.activeHours, completionRate: telemetry.completionRate, avgRating: telemetry.avgRating,
+          achievements, trophies,
+        }} />
+      </div>
     </section>
   );
 }

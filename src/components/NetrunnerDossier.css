@@ -1,0 +1,298 @@
+.hud-career-tools {
+	grid-column: 1 / -1;
+	display: flex;
+	min-width: 0;
+	align-items: center;
+	gap: 18px;
+	padding-top: 10px;
+	border-top: 1px solid #353944;
+}
+
+.hud-career-tools > .hud-achievements-bar {
+	flex: 1;
+	padding-top: 0;
+	border-top: 0;
+}
+
+button.dossier-trigger-button,
+.dossier-modal button {
+	padding: 10px 14px;
+	border: 1px solid #32616a;
+	border-radius: 2px;
+	color: #94f7ff;
+	background: #0d202a;
+	font-family: "Courier New", monospace;
+	font-size: 10px;
+	font-weight: 800;
+	line-height: 1.4;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	cursor: pointer;
+}
+
+button.dossier-trigger-button {
+	flex-shrink: 0;
+	min-height: 34px;
+	padding: 8px 12px;
+	white-space: nowrap;
+}
+
+button.dossier-trigger-button:hover,
+.dossier-modal button:hover:not(:disabled) {
+	border-color: #00f0ff;
+	color: #06090f;
+	background: #00f0ff;
+}
+
+button.dossier-trigger-button:focus-visible,
+.dossier-modal :is(button, input, select, summary):focus-visible {
+	outline: 2px solid #fcee0a;
+	outline-offset: 3px;
+}
+
+.dossier-modal-backdrop {
+	position: fixed;
+	z-index: 1600;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 24px;
+	background: #05080feF;
+}
+
+.dossier-modal {
+	width: min(1080px, 100%);
+	max-height: calc(100dvh - 48px);
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	padding: 22px;
+	border: 1px solid #00f0ff;
+	border-top: 3px solid #fcee0a;
+	border-radius: 3px;
+	color: #e8edf7;
+	background: #0b101b;
+	box-shadow: 0 0 24px #00f0ff18;
+}
+
+.dossier-modal-heading {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 16px;
+	margin-bottom: 18px;
+}
+
+.dossier-modal-heading p {
+	margin: 0 0 6px;
+	color: #00f0ff;
+	font-family: "Courier New", monospace;
+	font-size: 10px;
+	letter-spacing: 0.1em;
+}
+
+.dossier-modal-heading h2 {
+	margin: 0;
+	color: #e6fff9;
+	font-family: var(--font-terminal), "Courier New", monospace;
+	font-size: 34px;
+	font-weight: 400;
+	letter-spacing: 0.1em;
+	line-height: 1.1;
+	text-transform: uppercase;
+	text-shadow: 0 0 10px #00e5ff40;
+}
+
+.dossier-modal button.dossier-close-button {
+	flex: 0 0 34px;
+	width: 34px;
+	min-height: 34px;
+	padding: 5px;
+	font-size: 16px;
+}
+
+.dossier-card-preview {
+	min-width: 0;
+	background: #060a12;
+}
+
+.netrunner-id-card {
+	display: block;
+	width: 100%;
+	height: auto;
+	aspect-ratio: 1000 / 680;
+}
+
+.dossier-artwork-status {
+	margin: 10px 0 18px;
+	color: #8ca6b9;
+	font-family: "Courier New", monospace;
+	font-size: 10px;
+	line-height: 1.6;
+}
+
+.dossier-customize {
+	padding: 12px 14px;
+	border: 1px solid #2e3a52;
+	background: #0d1521;
+}
+
+.dossier-customize > summary {
+	color: #94f7ff;
+	font-family: "Courier New", monospace;
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 0.07em;
+	cursor: pointer;
+}
+
+.dossier-customize fieldset {
+	min-width: 0;
+	margin: 16px 0 0;
+	padding: 0;
+	border: 0;
+}
+
+.dossier-identity-fields,
+.dossier-showcase-fields {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) minmax(120px, 0.6fr);
+	gap: 12px;
+}
+
+.dossier-showcase-fields {
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	margin-top: 14px;
+}
+
+.dossier-customize label {
+	display: block;
+	min-width: 0;
+	color: #b9c9d8;
+	font-family: "Courier New", monospace;
+	font-size: 10px;
+	line-height: 1.5;
+}
+
+.dossier-customize :is(input, select) {
+	display: block;
+	width: 100%;
+	min-width: 0;
+	height: 40px;
+	margin-top: 6px;
+	padding: 8px 10px;
+	border: 1px solid #2e3a52;
+	border-radius: 2px;
+	color: #e8edf7;
+	background: #080e18;
+	color-scheme: dark;
+	font-family: "Courier New", monospace;
+	font-size: 12px;
+}
+
+.dossier-customize > p {
+	margin: 12px 0 0;
+	color: #8ca6b9;
+	font-size: 11px;
+	line-height: 1.6;
+}
+
+.dossier-export-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px;
+	margin-top: 18px;
+}
+
+.dossier-export-actions > button {
+	flex: 1;
+	min-height: 44px;
+}
+
+.dossier-modal button.dossier-download-button {
+	border-color: #fcee0a;
+	color: #fcee0a;
+	background: #242310;
+}
+
+.dossier-modal button.dossier-download-button:hover:not(:disabled) {
+	color: #080d16;
+	background: #fcee0a;
+}
+
+.dossier-modal button:disabled {
+	opacity: 0.45;
+	cursor: wait;
+}
+
+.dossier-feedback {
+	position: fixed;
+	z-index: 2100;
+	right: 24px;
+	bottom: 24px;
+	max-width: min(520px, calc(100vw - 32px));
+	padding: 14px 18px;
+	border: 1px solid #05ffa1;
+	color: #b6ffe4;
+	background: #0c211b;
+	font-family: "Courier New", monospace;
+	font-size: 11px;
+	font-weight: 700;
+	line-height: 1.6;
+	box-shadow: 0 0 12px #05ffa120;
+}
+
+.dossier-feedback[data-error="true"] {
+	border-color: #ff2a6d;
+	color: #ffb8cc;
+	background: #251019;
+}
+
+.dossier-sr-only {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
+@media (max-width: 700px) {
+	.hud-career-tools {
+		flex-direction: column;
+		align-items: stretch;
+		gap: 10px;
+	}
+
+	button.dossier-trigger-button {
+		align-self: flex-start;
+	}
+
+	.dossier-modal-backdrop {
+		padding: 12px;
+	}
+
+	.dossier-modal {
+		max-height: calc(100dvh - 24px);
+		padding: 14px;
+	}
+
+	.dossier-modal-heading h2 {
+		font-size: 28px;
+	}
+
+	.dossier-identity-fields,
+	.dossier-showcase-fields {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.dossier-export-actions {
+		flex-direction: column;
+	}
+
+	.dossier-feedback {
+		right: 16px;
+		bottom: 16px;
+	}
+}

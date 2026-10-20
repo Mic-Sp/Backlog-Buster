@@ -11,7 +11,7 @@ export type TelemetryGroup = {
 
 export type TelemetrySort = "hours" | "rating" | "games";
 
-export function calculateLibraryTelemetry(games: LibraryGame[]) {
+export function calculateLibraryTelemetry(games: Pick<LibraryGame, "status" | "lengthHours" | "hoursPlayed" | "rating" | "genre" | "platform">[]) {
   const genres = new Map<string, TelemetryGroup & { ratingSum: number }>();
   const platforms = new Map<string, TelemetryGroup & { ratingSum: number }>();
   const ratingCounts = [0, 0, 0, 0, 0];
