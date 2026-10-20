@@ -23,6 +23,7 @@ export default function NetrunnerIdCard({ data, identity, timestamp, artwork, ca
   ] as const;
   const outline = "22,2 998,2 998,658 978,678 2,678 2,22";
   const callsign = identity.callsign.trim() || "ANONYMOUS NETRUNNER";
+  const avatar = artwork[data.profile.avatarUrl || "/hud-logo.png"];
 
   return (
     <svg ref={cardRef} className="netrunner-id-card" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 680" width="1000" height="680" role="img" aria-labelledby={`${prefix}-title ${prefix}-description`}>
@@ -48,7 +49,7 @@ export default function NetrunnerIdCard({ data, identity, timestamp, artwork, ca
         <text x="964" y="65" textAnchor="end" fontSize="8" fill="#91a4b9">NC-R/T // CAREER VERIFIED</text>
 
         <rect x="32" y="100" width="114" height="114" fill="#111827" stroke={accent} />
-        {artwork["/hud-logo.png"] ? <image href={artwork["/hud-logo.png"]!} x="36" y="104" width="106" height="106" preserveAspectRatio="xMidYMid slice" /> : <text x="89" y="174" textAnchor="middle" fontSize="50" fontWeight="700" fill={accent}>BB</text>}
+        {avatar ? <image href={avatar} x="36" y="104" width="106" height="106" preserveAspectRatio="xMidYMid slice" /> : <text x="89" y="174" textAnchor="middle" fontSize="50" fontWeight="700" fill={accent}>BB</text>}
         <text x="168" y="122" fontSize="10" fill="#91a4b9" letterSpacing="2">OPERATOR // PERSONAL IDENTIFICATION</text>
         <text x="168" y="152" fontSize="28" fontWeight="700" fill="#f3fff9">{callsign.toUpperCase()}</text>
         <text x="168" y="175" fontSize="11" fill={accent}>LV {data.level} {getStreetCred(data.level).toUpperCase()}{" // "}{signature?.title.toUpperCase() ?? "NEW CONTRACTOR"}</text>

@@ -1,7 +1,9 @@
 import type { Achievement } from "@/lib/achievements";
+import type { PlayerProfile } from "@/lib/player-profile-types";
 
 export type DossierGame = { id: number; title: string; platform: string; coverUrl: string | null; earnedXp: number };
 export type DossierData = {
+  profile: PlayerProfile;
   level: number;
   totalXp: number;
   counts: { Backlog: number; Playing: number; Completed: number; Flatlined: number };
@@ -46,6 +48,13 @@ export function readDossierIdentity(value: unknown, trophies: DossierGame[]): Do
       return id;
     }),
   };
+}
+
+export function dossierIdentityFromProfile(profile: PlayerProfile, trophies: DossierGame[]): DossierIdentity {
+  return readDossierIdentity({
+    callsign: profile.operatorName, tagline: profile.tagline, accent: profile.neonAccent.toLowerCase(),
+    showcase: profile.featuredTrophyIds.length ? profile.featuredTrophyIds : undefined,
+  }, trophies);
 }
 
 export function dossierTitleLines(title: string, limit = 29): string[] {

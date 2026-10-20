@@ -13,6 +13,7 @@ import NetrunnerDossier from "@/components/NetrunnerDossier";
 import { calculateLibraryTelemetry } from "@/lib/library-telemetry";
 import { syncAndGetAchievements } from "@/lib/achievements";
 import { getCurrentPlayerId } from "@/lib/player";
+import { getCurrentPlayerProfile } from "@/lib/player-profile";
 
 // Share one sync promise per player during this render, without caching Server Actions.
 const getPageAchievements = cache((userId: string) => syncAndGetAchievements(userId));
@@ -46,12 +47,13 @@ function calculateLevelProgress(totalXp: number) {
 async function PlayerSummary() {
   await connection();
 
-  const [games, achievements] = await Promise.all([
+  const [games, achievements, profile] = await Promise.all([
     prisma.game.findMany({
       where: { userId: getCurrentPlayerId() },
       select: { id: true, title: true, platform: true, genre: true, coverUrl: true, rating: true, earnedXp: true, status: true, lengthHours: true, hoursPlayed: true },
     }),
     getPageAchievements(getCurrentPlayerId()),
+    getCurrentPlayerProfile(),
   ]);
   const badgeXp = await prisma.userAchievement.aggregate({
     where: { userId: getCurrentPlayerId() },
@@ -128,6 +130,7 @@ async function PlayerSummary() {
       <div className="hud-career-tools">
         <HudMilestones achievements={achievements} />
         <NetrunnerDossier data={{
+          profile,
           level: progress.level, totalXp,
           counts: { Backlog: backlogCount, Playing: playingCount, Completed: completedCount, Flatlined: flatlinedCount },
           activeHours: telemetry.activeHours, completionRate: telemetry.completionRate, avgRating: telemetry.avgRating,

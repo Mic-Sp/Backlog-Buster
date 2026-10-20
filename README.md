@@ -40,7 +40,26 @@ Push the Prisma schema to your PostgreSQL database:
 
 ```bash
 npx prisma db push
+npx prisma generate
 ```
+
+For an existing database created before Player profiles, run the additive backfill
+before `db push` so every game and achievement owner has a Player record:
+
+```bash
+npx prisma db execute --file prisma/backfill-player-profiles.sql
+npx prisma db push
+npx prisma generate
+```
+
+The backfill preserves the existing `userId` columns, links them to `Player.id`,
+and checks every game and achievement row before committing. It is safe to rerun.
+Restart the development server after generating the updated Prisma Client.
+
+Dossier identity settings autosave to the current Player profile in PostgreSQL.
+Featured trophies must belong to that player and be completed five-star games.
+Authentication fields are optional; ownership currently resolves to `default-player`
+in `src/lib/player.ts` until authenticated sessions are connected.
 
 ### 4. Run Development Server
 

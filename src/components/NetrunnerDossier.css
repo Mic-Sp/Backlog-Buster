@@ -197,6 +197,26 @@ button.dossier-trigger-button:focus-visible,
 	line-height: 1.6;
 }
 
+.dossier-profile-status {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 10px;
+	margin-top: 14px;
+	color: #94f7ff;
+	font-family: "Courier New", monospace;
+	font-size: 10px;
+	line-height: 1.5;
+}
+
+.dossier-profile-status[data-state="saved"] {
+	color: #8ff7c8;
+}
+
+.dossier-profile-status[data-state="error"] {
+	color: #ffb8cc;
+}
+
 .dossier-export-actions {
 	display: flex;
 	flex-wrap: wrap;

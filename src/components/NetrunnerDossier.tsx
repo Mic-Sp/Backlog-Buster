@@ -1,17 +1,25 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { startTransition, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import NetrunnerIdCard from "@/components/NetrunnerIdCard";
-import { defaultDossierIdentity, dossierAccents, readDossierIdentity, type DossierAccent, type DossierData, type DossierIdentity } from "@/lib/dossier";
+import { dossierAccents, dossierIdentityFromProfile, type DossierAccent, type DossierData, type DossierIdentity } from "@/lib/dossier";
+import { savePlayerProfile } from "@/app/profile-actions";
+import type { PlayerProfile } from "@/lib/player-profile-types";
 import { captureDossierPng, downloadDossier, loadDossierArtwork } from "@/lib/dossier-snapshot";
 import "./NetrunnerDossier.css";
 
-const identityStorageKey = "bb_dossier_profile_v1";
-
 export default function NetrunnerDossier({ data }: { data: DossierData }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [identity, setIdentity] = useState<DossierIdentity>(() => defaultDossierIdentity(data.trophies));
+  const [identity, setIdentity] = useState<DossierIdentity>(() => dossierIdentityFromProfile(data.profile, data.trophies));
+  const identityRef = useRef(identity);
+  const savedIdentityKey = useRef(JSON.stringify(identity));
+  const savedProfile = useRef<PlayerProfile>(data.profile);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveInFlight = useRef<Promise<boolean> | null>(null);
+  const [saveStatus, setSaveStatus] = useState<"saved" | "pending" | "saving" | "error">("saved");
+  const [closing, setClosing] = useState(false);
+  const closingRef = useRef(false);
   const [timestamp, setTimestamp] = useState("");
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
@@ -23,28 +31,81 @@ export default function NetrunnerDossier({ data }: { data: DossierData }) {
   const cardRef = useRef<SVGSVGElement>(null);
   const titleId = useId();
   const artworkKey = useMemo(() => JSON.stringify([...new Set([
-    "/hud-logo.png",
+    data.profile.avatarUrl || "/hud-logo.png",
     ...identity.showcase.flatMap((id) => {
       const cover = data.trophies.find((game) => game.id === id)?.coverUrl;
       return cover ? [cover] : [];
     }),
-  ])]), [identity.showcase, data.trophies]);
+  ])]), [identity.showcase, data.trophies, data.profile.avatarUrl]);
   const artworkReady = artworkState.key === artworkKey;
   const missingArtwork = artworkReady && Object.values(artworkState.images).some((image) => !image);
 
   function openDossier() {
-    let saved: unknown = null;
-    try { saved = JSON.parse(localStorage.getItem(identityStorageKey) ?? "null"); } catch { /* Storage is optional. */ }
-    setIdentity(readDossierIdentity(saved, data.trophies));
+    const profile = data.profile.updatedAt >= savedProfile.current.updatedAt ? data.profile : savedProfile.current;
+    const next = dossierIdentityFromProfile(profile, data.trophies);
+    identityRef.current = next;
+    savedIdentityKey.current = JSON.stringify(next);
+    setIdentity(next);
+    setSaveStatus("saved");
     setTimestamp(new Date().toISOString());
     setFeedback(null);
     setIsOpen(true);
   }
 
+  // Serialize saves and drain the newest draft if editing continues during a request.
+  // Revalidated props must not overwrite a newer draft that is still being typed.
+  const persistLatest = useCallback((): Promise<boolean> => {
+    if (saveInFlight.current) return saveInFlight.current;
+    const task = (async () => {
+      try {
+        while (JSON.stringify(identityRef.current) !== savedIdentityKey.current) {
+          const draft = identityRef.current;
+          const key = JSON.stringify(draft);
+          setSaveStatus("saving");
+          savedProfile.current = await savePlayerProfile({
+            operatorName: draft.callsign, tagline: draft.tagline,
+            neonAccent: draft.accent.toUpperCase() as PlayerProfile["neonAccent"],
+            featuredTrophyIds: draft.showcase,
+          });
+          savedIdentityKey.current = key;
+        }
+        setSaveStatus("saved");
+        return true;
+      } catch {
+        setSaveStatus("error");
+        return false;
+      }
+    })();
+    saveInFlight.current = task;
+    void task.then(() => { saveInFlight.current = null; });
+    return task;
+  }, []);
+
   function customize(next: DossierIdentity) {
+    identityRef.current = next;
     setIdentity(next);
-    try { localStorage.setItem(identityStorageKey, JSON.stringify(next)); } catch { /* Keep editing when storage is unavailable. */ }
+    setSaveStatus("pending");
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      saveTimer.current = null;
+      startTransition(async () => { await persistLatest(); });
+    }, 500);
   }
+
+  const closeDossier = useCallback(() => {
+    if (busyRef.current || closingRef.current) return;
+    closingRef.current = true;
+    setClosing(true);
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = null;
+    startTransition(async () => {
+      if (await persistLatest()) setIsOpen(false);
+      closingRef.current = false;
+      setClosing(false);
+    });
+  }, [persistLatest]);
+
+  useEffect(() => () => { if (saveTimer.current) clearTimeout(saveTimer.current); }, []);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -55,7 +116,7 @@ export default function NetrunnerDossier({ data }: { data: DossierData }) {
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         event.preventDefault();
-        if (!busyRef.current) setIsOpen(false);
+        closeDossier();
       }
       if (event.key !== "Tab") return;
       const controls = modalRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), select:not(:disabled), [tabindex="0"]');
@@ -74,7 +135,7 @@ export default function NetrunnerDossier({ data }: { data: DossierData }) {
       document.removeEventListener("keydown", onKeyDown);
       trigger?.focus();
     };
-  }, [isOpen]);
+  }, [isOpen, closeDossier]);
 
   useEffect(() => {
     if (!isOpen || busy) return;
@@ -141,11 +202,11 @@ export default function NetrunnerDossier({ data }: { data: DossierData }) {
     <>
       <button className="dossier-trigger-button" ref={triggerRef} type="button" aria-haspopup="dialog" onClick={openDossier}>🪪 NETRUNNER DOSSIER</button>
       {isOpen && createPortal(
-        <div className="dossier-modal-backdrop" onClick={(event) => { if (event.target === event.currentTarget && !busyRef.current) setIsOpen(false); }}>
-          <div className="dossier-modal" ref={modalRef} role="dialog" aria-modal="true" aria-labelledby={titleId} aria-busy={busy}>
+        <div className="dossier-modal-backdrop" onClick={(event) => { if (event.target === event.currentTarget) closeDossier(); }}>
+          <div className="dossier-modal" ref={modalRef} role="dialog" aria-modal="true" aria-labelledby={titleId} aria-busy={busy || closing}>
             <header className="dossier-modal-heading">
               <div><p>IDENTITY VERIFICATION // CAREER ARCHIVE</p><h2 id={titleId}>Netrunner Dossier</h2></div>
-              <button className="dossier-close-button" type="button" aria-label="Close Netrunner dossier" disabled={busy} onClick={() => setIsOpen(false)}>✕</button>
+              <button className="dossier-close-button" type="button" aria-label="Close Netrunner dossier" disabled={busy || closing} onClick={closeDossier}>✕</button>
             </header>
             <div className="dossier-card-preview" aria-label="Shareable ID card preview">
               <NetrunnerIdCard data={data} identity={identity} timestamp={timestamp} artwork={artworkState.images} cardRef={cardRef} />
@@ -154,7 +215,7 @@ export default function NetrunnerDossier({ data }: { data: DossierData }) {
 
             <details className="dossier-customize" open>
               <summary>⚙ PERSONALIZE IDENTITY</summary>
-              <fieldset disabled={busy}>
+              <fieldset disabled={busy || closing}>
                 <legend className="dossier-sr-only">Customize your shareable identity card</legend>
                 <div className="dossier-identity-fields">
                   <label>Operator name<input name="callsign" value={identity.callsign} maxLength={28} placeholder="ANONYMOUS NETRUNNER" onChange={(event) => customize({ ...identity, callsign: event.target.value })} /></label>
@@ -174,11 +235,15 @@ export default function NetrunnerDossier({ data }: { data: DossierData }) {
                   </label>)}
                 </div>
               </fieldset>
-              <p>Identity preferences stay in this browser. Showcase slots feature completed games rated five stars.</p>
+              <div className="dossier-profile-status" data-state={saveStatus}>
+                <span role={saveStatus === "error" ? "alert" : "status"}>{saveStatus === "saved" ? "✓ IDENTITY SAVED TO PLAYER PROFILE" : saveStatus === "error" ? "PROFILE SAVE FAILED // YOUR DRAFT IS STILL HERE" : "SYNCING PLAYER IDENTITY…"}</span>
+                {saveStatus === "error" && <button type="button" onClick={() => startTransition(async () => { await persistLatest(); })}>RETRY SAVE</button>}
+              </div>
+              <p>Changes save automatically to your player profile. Showcase slots feature completed games rated five stars.</p>
             </details>
             <div className="dossier-export-actions">
-              <button className="dossier-copy-button" type="button" disabled={busy || !artworkReady} onClick={() => void exportSnapshot("copy")}>📋 COPY DOSSIER TO CLIPBOARD</button>
-              <button className="dossier-download-button" type="button" disabled={busy || !artworkReady} onClick={() => void exportSnapshot("download")}>💾 DOWNLOAD ID SNAPSHOT</button>
+              <button className="dossier-copy-button" type="button" disabled={busy || closing || !artworkReady} onClick={() => void exportSnapshot("copy")}>📋 COPY DOSSIER TO CLIPBOARD</button>
+              <button className="dossier-download-button" type="button" disabled={busy || closing || !artworkReady} onClick={() => void exportSnapshot("download")}>💾 DOWNLOAD ID SNAPSHOT</button>
             </div>
             {busy && <p className="dossier-artwork-status" role="status">ENCODING ID SNAPSHOT…</p>}
           </div>

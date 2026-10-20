@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { syncAndGetAchievements } from "@/lib/achievements";
-import { getCurrentPlayerId } from "@/lib/player";
+import { ensurePlayerExists, getCurrentPlayerId } from "@/lib/player";
 import { resolveRawgPlaytime } from "@/lib/game-playtime";
 import { lookupRawgGame, type RawgGameInfo } from "@/lib/rawg";
 import { getBacklogRecommendations, getExternalRecommendations } from "@/lib/recommendations";
@@ -321,9 +321,11 @@ export async function createGame(formData: FormData) {
     10;
   const status = "Backlog";
 
+  const userId = getCurrentPlayerId();
+  await ensurePlayerExists(userId);
   await prisma.game.create({
     data: {
-      userId: getCurrentPlayerId(),
+      userId,
       title,
       platform: platform || lookup?.platforms[0] || "PC",
       status,
@@ -518,6 +520,7 @@ export async function bulkImportGames(payload: {
       };
     });
   }
+  await ensurePlayerExists(userId);
   const counts = await withDeckLock(userId, async (tx) => {
     const existing = await tx.game.findMany({ where: { userId }, select: { title: true, platform: true, pinnedOrder: true } });
     const pairKey = (game: { title: string; platform: string }) =>
