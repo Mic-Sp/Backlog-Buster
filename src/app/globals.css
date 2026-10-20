@@ -1796,6 +1796,21 @@ a.trailer-link-button:focus-visible {
 	gap: 10px;
 }
 
+.library-tabs button[data-view="all"] {
+	position: relative;
+	margin-left: auto;
+}
+
+.library-tabs button[data-view="all"]::before {
+	position: absolute;
+	top: 8px;
+	bottom: 8px;
+	left: -5px;
+	width: 1px;
+	background: #393e49;
+	content: "";
+}
+
 .library-tabs button span {
 	min-width: 20px;
 	padding: 3px 5px;

@@ -43,7 +43,7 @@ export type LibraryGame = {
 };
 
 const statuses = ["Backlog", "Playing", "Completed", "Flatlined"];
-const views = ["All", "Playing", "Backlog", "Completed", "Flatlined"] as const;
+const views = ["Backlog", "Playing", "Completed", "Flatlined", "All"] as const;
 type LibraryView = typeof views[number];
 type TimelineOrderState = { key: string; ids: number[]; pending: boolean };
 const sagaDragType = "application/x-backlogbuster-saga-game";
@@ -86,7 +86,7 @@ export default function GameLibrary({ games: serverGames, achievements = [], chi
   const [deckReturnNotice, setDeckReturnNotice] = useState<{ text: string; error: boolean } | null>(null);
   const [backlogReturnHover, setBacklogReturnHover] = useState(false);
   const [backlogReturnTarget, setBacklogReturnTarget] = useState<number | null>(null);
-  const [activeView, setActiveView] = useState<LibraryView>("All");
+  const [activeView, setActiveView] = useState<LibraryView>("Backlog");
   const [searchQuery, setSearchQuery] = useState("");
   const [platformFilter, setPlatformFilter] = useState("");
   const [genreFilter, setGenreFilter] = useState("");
@@ -288,10 +288,12 @@ export default function GameLibrary({ games: serverGames, achievements = [], chi
   const visibleTimelinePositions = useMemo(() => new Map(visibleGames.map((game, index) => [game.id, index])), [visibleGames]);
   const visibleBacklogIds = useMemo(() => visibleGames.filter((game) => game.pinnedOrder == null).map((game) => game.id), [visibleGames]);
   const visibleBacklogPositions = useMemo(() => new Map(visibleBacklogIds.map((id, index) => [id, index])), [visibleBacklogIds]);
-  const hasActiveFilters = activeView !== "All" || searchQuery !== "" || platformFilter !== "" || genreFilter !== "" || Boolean(selectedSaga) || sortBy !== "default";
+  const hasLibraryFilters = searchQuery !== "" || platformFilter !== "" || genreFilter !== "" || Boolean(selectedSaga) || sortBy !== "default";
+  const hasActiveFilters = activeView !== "Backlog" || hasLibraryFilters;
+  const showFilteredCount = activeView !== "All" || hasLibraryFilters;
 
   function clearFilters() {
-    setActiveView("All");
+    setActiveView("Backlog");
     setSearchQuery("");
     setPlatformFilter("");
     setGenreFilter("");
@@ -306,7 +308,8 @@ export default function GameLibrary({ games: serverGames, achievements = [], chi
     sagaFilterRef.current = key;
     setSagaNotice(null);
     if (!key) {
-      if (sortBy === "timeline-asc") setSortBy("default");
+      setActiveView("Backlog");
+      setSortBy("default");
       return;
     }
     setActiveView("All");
@@ -698,8 +701,8 @@ export default function GameLibrary({ games: serverGames, achievements = [], chi
         </div>
         <div className="collection-heading-actions">
           <p className="game-count" role="status">
-            <strong>{hasActiveFilters ? `${visibleGames.length} / ${games.length}` : String(games.length).padStart(2, "0")}</strong>
-            <span>{!hasActiveFilters && visibleGames.length === 1 ? "game" : "games"}</span>
+            <strong>{showFilteredCount ? `${visibleGames.length} / ${games.length}` : String(games.length).padStart(2, "0")}</strong>
+            <span>{!showFilteredCount && visibleGames.length === 1 ? "game" : "games"}</span>
           </p>
           {children}
           <TacticalAdvisor games={games} />
