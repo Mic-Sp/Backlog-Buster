@@ -10,7 +10,7 @@ import { buildTrailerUrl } from "@/lib/trailers";
 import DeckPinButton from "@/components/DeckPinButton";
 import AgentBriefing from "@/components/AgentBriefing";
 
-export default function TacticalAdvisor({ games }: { games: Pick<LibraryGame, "id" | "title" | "status" | "pinnedOrder" | "hoursPlayed">[] }) {
+export default function TacticalAdvisor({ games }: { games: Pick<LibraryGame, "id" | "title" | "status" | "pinnedOrder" | "hoursPlayed" | "lengthHours">[] }) {
   const [isOpen, setIsOpen] = useState(false);
   const [picks, setPicks] = useState<BacklogRecommendations | null>(null);
   const [error, setError] = useState("");
@@ -186,8 +186,8 @@ export default function TacticalAdvisor({ games }: { games: Pick<LibraryGame, "i
             ) : <div className="advisor-cover advisor-no-cover" role="img" aria-label={`${pick.game.title} cover art unavailable`}>NO COVER</div>}
             <div className="advisor-card-body">
               <h4>{pick.game.title}</h4>
-              <p className="advisor-metadata">{pick.game.platform} · {pick.game.genre?.trim() || "Uncategorized"} · {pick.game.lengthHours}h</p>
-              <p className="advisor-bounty">+{(pick.game.lengthHours * pick.game.difficulty * 10).toLocaleString("en-US")} POTENTIAL XP</p>
+              <p className="advisor-metadata">{pick.game.platform} · {pick.game.genre?.trim() || "Uncategorized"} · {savedGame?.lengthHours ?? pick.game.lengthHours}h</p>
+              <p className="advisor-bounty">+{((savedGame?.lengthHours ?? pick.game.lengthHours) * pick.game.difficulty * 10).toLocaleString("en-US")} POTENTIAL XP</p>
               <div className="advisor-reason"><span>TACTICAL ASSESSMENT</span><p>{pick.reason}</p></div>
               <div className="advisor-card-actions">
                 <button className="advisor-start-button" type="button" disabled={isFetching || isStarting || isAdding} onClick={() => startGig(pick.game.id)}>
@@ -196,7 +196,7 @@ export default function TacticalAdvisor({ games }: { games: Pick<LibraryGame, "i
                 <a className="trailer-link-button" href={buildTrailerUrl(pick.game.title, pick.game.releaseYear)} target="_blank" rel="noopener noreferrer">🎬 WATCH TRAILER ↗</a>
                 {savedGame && <DeckPinButton gameId={savedGame.id} pinnedOrder={savedGame.pinnedOrder} pinnedCount={pinnedCount} disabled={isFetching || isStarting || isAdding} />}
               </div>
-              <AgentBriefing game={{ ...pick.game, hoursPlayed: savedGame?.hoursPlayed }} />
+              <AgentBriefing game={{ ...pick.game, lengthHours: savedGame?.lengthHours ?? pick.game.lengthHours, hoursPlayed: savedGame?.hoursPlayed }} />
             </div>
           </>
         ) : <p className="advisor-empty">No matching backlog gig available.</p>}

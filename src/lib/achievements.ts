@@ -2,6 +2,8 @@ import "server-only";
 
 import { prisma } from "@/lib/prisma";
 import { getCurrentPlayerId } from "@/lib/player";
+import { buildSagaChains } from "@/lib/sagas";
+import { isReleasedYear } from "@/lib/game-release";
 
 export const achievementDefinitions = [
   { key: "first-blood", title: "First Blood", description: "Complete your first gig.", icon: "⚔", xpBonus: 100, target: 1 },
@@ -14,6 +16,7 @@ export const achievementDefinitions = [
   { key: "genre-specialist", title: "Genre Specialist", description: "Complete 3 gigs in the same genre.", icon: "🎯", xpBonus: 400, target: 3 },
   { key: "cyberware-critic", title: "Cyberware Critic", description: "Log a star rating on 5 completed gigs.", icon: "⭐", xpBonus: 350, target: 5 },
   { key: "second-heart", title: "Second Heart", description: "Revive a Flatlined gig and see it through to completion.", icon: "⚡", xpBonus: 400, target: 1 },
+  { key: "saga-completionist", title: "Saga Completionist", description: "Complete every game in a multi-game Saga Chain (minimum 2 games in the saga).", icon: "⛓️", xpBonus: 500, target: 1 },
 ] as const;
 
 export type Achievement = {
@@ -33,11 +36,16 @@ export async function syncAndGetAchievements(userId = getCurrentPlayerId()): Pro
   const [games, existing] = await Promise.all([
     prisma.game.findMany({
       where: { userId },
-      select: { status: true, wasFlatlined: true, lengthHours: true, hoursPlayed: true, difficulty: true, platform: true, genre: true, rating: true },
+      select: { id: true, title: true, franchise: true, releaseYear: true, status: true, wasFlatlined: true, lengthHours: true, hoursPlayed: true, difficulty: true, platform: true, genre: true, rating: true },
     }),
     prisma.userAchievement.findMany({ where: { userId } }),
   ]);
   const completed = games.filter((game) => game.status === "Completed");
+  const { chains } = buildSagaChains(games);
+  const currentYear = new Date().getFullYear();
+  const releasedIds = new Set(games.filter((game) => isReleasedYear(game.releaseYear, currentYear)).map((game) => game.id));
+  const completedSagaCount = chains.filter((chain) => chain.completed === chain.total &&
+    chain.gameIds.filter((id) => releasedIds.has(id)).length >= 2).length;
   const totalHours = games.reduce((sum, game) => {
     if (game.status === "Completed") return sum + Math.max(game.lengthHours, game.hoursPlayed);
     if (game.status === "Playing" || game.status === "Flatlined") return sum + game.hoursPlayed;
@@ -59,6 +67,7 @@ export async function syncAndGetAchievements(userId = getCurrentPlayerId()): Pro
     "genre-specialist": Math.max(0, ...genreCounts.values()),
     "cyberware-critic": completed.filter((game) => typeof game.rating === "number" && game.rating >= 1 && game.rating <= 5).length,
     "second-heart": completed.filter((game) => game.wasFlatlined).length,
+    "saga-completionist": completedSagaCount,
   };
   const owned = new Set(existing.map((achievement) => achievement.achievementKey));
   const newlyEligible = achievementDefinitions.filter((definition) =>

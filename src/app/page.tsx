@@ -165,6 +165,7 @@ async function SavedGames() {
     coverUrl: game.coverUrl ? resizeRawgImageUrl(game.coverUrl) : null,
     backupCoverUrl: game.coverUrl,
     genre: game.genre,
+    franchise: game.franchise,
     releaseYear: game.releaseYear,
   }));
 

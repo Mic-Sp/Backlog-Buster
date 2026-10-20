@@ -58,7 +58,7 @@ export default function TrophyRatingEditor({ game }: { game: LibraryGame }) {
       className="trophy-quick-rating"
       ref={formRef}
       aria-label={`Rate ${game.title}`}
-      key={`${game.id}-${game.status}-${game.lengthHours}-${game.difficulty}-${game.title}-${game.platform}-${game.genre ?? ""}-${game.releaseYear ?? ""}-${game.coverUrl ?? ""}-${game.hoursPlayed}-${game.notes ?? ""}-${game.rating ?? ""}`}
+      key={`${game.id}-${game.status}-${game.lengthHours}-${game.difficulty}-${game.title}-${game.platform}-${game.genre ?? ""}-${game.releaseYear ?? ""}-${game.coverUrl ?? ""}-${game.hoursPlayed}-${game.notes ?? ""}-${game.rating ?? ""}-${game.franchise ?? ""}`}
       action={saveRating}
     >
       <input type="hidden" name="id" value={game.id} />

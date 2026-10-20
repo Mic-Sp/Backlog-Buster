@@ -24,6 +24,7 @@ model Game {
   createdAt   DateTime @default(now())
   coverUrl    String?
   genre       String?
+  franchise   String?
   releaseYear Int?
 
   @@index([userId])

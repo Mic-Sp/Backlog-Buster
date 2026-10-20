@@ -1,0 +1,264 @@
+.saga-chains-drawer {
+	margin: 18px 0;
+	border: 1px solid #285461;
+	border-radius: 2px;
+	background: #0b101b;
+}
+
+.saga-chains-drawer > summary {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	flex-wrap: wrap;
+	gap: 8px 16px;
+	padding: 14px 16px;
+	color: #b4fff5;
+	font-family: var(--font-terminal), "Courier New", monospace;
+	font-size: 17px;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	cursor: pointer;
+}
+
+.saga-chains-drawer > summary::after {
+	content: "+";
+	color: #00f0ff;
+}
+
+.saga-chains-drawer[open] > summary::after {
+	content: "−";
+}
+
+.saga-chains-summary {
+	margin-left: auto;
+	color: #8ab0bc;
+	font-family: "Courier New", monospace;
+	font-size: 10px;
+	overflow-wrap: anywhere;
+}
+
+.saga-chains-body {
+	padding: 0 16px 16px;
+}
+
+.saga-filter-label {
+	display: grid;
+	max-width: 420px;
+	gap: 8px;
+	margin: 2px 0 14px;
+	color: #9cd5df;
+	font-family: "Courier New", monospace;
+	font-size: 10px;
+	font-weight: 700;
+	letter-spacing: 0.06em;
+}
+
+.saga-filter-label select {
+	width: 100%;
+	min-width: 0;
+	min-height: 40px;
+	padding: 8px 10px;
+	border: 1px solid #2e5262;
+	border-radius: 2px;
+	color: #e8edf7;
+	background: #0a0d12;
+	color-scheme: dark;
+	font: inherit;
+	font-size: 12px;
+}
+
+.saga-chains-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+	gap: 10px;
+}
+
+.saga-chains-grid > button.saga-chain-card {
+	display: grid;
+	min-width: 0;
+	gap: 10px;
+	padding: 14px;
+	border: 1px solid #2e5262;
+	border-radius: 2px;
+	color: #e8edf7;
+	background: #101925;
+	font-family: "Courier New", monospace;
+	text-align: left;
+	cursor: pointer;
+}
+
+.saga-chain-name {
+	font-size: 12px;
+	font-weight: 700;
+	overflow-wrap: anywhere;
+}
+
+.saga-chain-count {
+	color: #00f0ff;
+	font-size: 10px;
+}
+
+.saga-chain-track {
+	display: block;
+	height: 5px;
+	overflow: hidden;
+	border: 1px solid #285461;
+	background: #06090f;
+}
+
+.saga-chain-track > span {
+	display: block;
+	height: 100%;
+	background: #00f0ff;
+}
+
+.saga-chains-grid > button.saga-chain-card[data-complete="true"] {
+	border-color: #8f8526;
+}
+
+.saga-chain-card[data-complete="true"] .saga-chain-count {
+	color: #fcee0a;
+}
+
+.saga-chain-card[data-complete="true"] .saga-chain-track > span {
+	background: #fcee0a;
+}
+
+.saga-chain-hint,
+.saga-chains-hint {
+	color: #8ba4b5;
+	font-family: "Courier New", monospace;
+	font-size: 10px;
+	line-height: 1.6;
+}
+
+.saga-chains-hint {
+	margin: 14px 0 0;
+}
+
+button.saga-badge {
+	display: inline-flex;
+	flex-wrap: wrap;
+	align-self: flex-start;
+	align-items: center;
+	gap: 3px 6px;
+	max-width: 100%;
+	padding: 3px 7px;
+	border: 1px solid #32616a;
+	border-radius: 10px;
+	color: #94f7ff;
+	background: #0c252d;
+	font-family: "Courier New", monospace;
+	font-size: 9px;
+	font-weight: 700;
+	line-height: 1.5;
+	letter-spacing: 0.02em;
+	text-align: left;
+	text-transform: uppercase;
+	overflow-wrap: anywhere;
+	cursor: pointer;
+}
+
+.library-card-metadata > button.saga-badge {
+	display: flex;
+	width: fit-content;
+	margin-top: 8px;
+}
+
+button.saga-badge[data-layout="table"],
+button.saga-badge[data-layout="trophy"] {
+	min-width: 0;
+	flex-wrap: nowrap;
+	align-self: center;
+	gap: 4px;
+	height: 22px;
+	padding: 2px 6px;
+	line-height: 1;
+	white-space: nowrap;
+	overflow-wrap: normal;
+}
+
+.saga-badge-name {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.saga-badge-count,
+.saga-badge > [aria-hidden="true"] {
+	flex-shrink: 0;
+}
+
+.game-title-actions > button.saga-badge {
+	flex: 0 1 auto;
+	min-width: 64px;
+	max-width: 180px;
+}
+
+.trophy-badge > button.saga-badge {
+	max-width: 60%;
+	font-size: 8px;
+	letter-spacing: 0;
+}
+
+button.saga-badge:hover,
+.saga-chains-grid > button.saga-chain-card:hover,
+.saga-chains-grid > button.saga-chain-card[aria-pressed="true"] {
+	border-color: #00f0ff;
+	color: #e6fff9;
+	background: #11343d;
+}
+
+button.saga-badge[data-complete="true"],
+.saga-chains-grid > button.saga-chain-card[data-complete="true"] {
+	border-color: #fcee0a;
+	color: #fcee0a;
+	background: #211f0f;
+	box-shadow: 0 0 10px rgba(252, 238, 10, 0.16);
+}
+
+button.saga-badge[data-complete="true"]:hover,
+.saga-chains-grid > button.saga-chain-card[data-complete="true"]:hover,
+.saga-chains-grid > button.saga-chain-card[data-complete="true"][aria-pressed="true"] {
+	background: #302b0e;
+}
+
+.saga-chain-card[data-complete="true"] .saga-chain-track {
+	border-color: #a39816;
+	box-shadow: 0 0 6px rgba(252, 238, 10, 0.3);
+}
+
+.saga-cleared-tag {
+	display: inline-flex;
+	justify-self: start;
+	width: fit-content;
+	padding: 2px 5px;
+	border: 1px solid #8f8526;
+	border-radius: 2px;
+	color: #fcee0a;
+	background: #322b0b;
+	font-family: "Courier New", monospace;
+	font-size: 8px;
+	font-weight: 800;
+	line-height: 1.4;
+	white-space: nowrap;
+	text-shadow: 0 0 6px rgba(252, 238, 10, 0.3);
+}
+
+button.saga-badge:focus-visible,
+.saga-chains-grid > button.saga-chain-card:focus-visible,
+.saga-chains-drawer > summary:focus-visible,
+.saga-filter-label select:focus-visible {
+	outline: 2px solid #fcee0a;
+	outline-offset: 3px;
+}
+
+@media (max-width: 640px) {
+	.saga-chains-drawer > summary {
+		font-size: 15px;
+	}
+
+	.saga-chains-summary {
+		margin-left: 0;
+	}
+}

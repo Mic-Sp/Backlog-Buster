@@ -79,3 +79,42 @@
 .agent-briefing-readout p.agent-briefing-error {
 	color: #ffadbd;
 }
+
+.agent-briefing-readout > button.agent-apply-button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	min-height: 40px;
+	margin-top: 12px;
+	padding: 8px 12px;
+	border: 1px solid #fcee0a;
+	border-radius: 2px;
+	color: #fcee0a;
+	background: #24220d;
+	font-family: "Courier New", monospace;
+	font-size: 11px;
+	font-weight: 800;
+	line-height: 1.5;
+	letter-spacing: 0.04em;
+	cursor: pointer;
+}
+
+.agent-briefing-readout > button.agent-apply-button:hover:not(:disabled) {
+	color: #06090f;
+	background: #fcee0a;
+}
+
+.agent-briefing-readout > button.agent-apply-button:focus-visible {
+	outline: 2px solid #00f0ff;
+	outline-offset: 3px;
+}
+
+.agent-briefing-readout > button.agent-apply-button:disabled {
+	opacity: 0.65;
+	cursor: wait;
+}
+
+.agent-briefing-readout p.agent-briefing-saved {
+	color: #05ffa1;
+}

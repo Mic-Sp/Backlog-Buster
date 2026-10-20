@@ -268,7 +268,7 @@ export async function bulkImportGames(payload: {
     wasFlatlined: boolean;
     pinnedOrder: number | null;
     lengthHours: number; hoursPlayed: number; difficulty: number; earnedXp: number;
-    rating: number | null; notes: string | null; genre: string | null;
+    rating: number | null; notes: string | null; genre: string | null; franchise: string | null;
     releaseYear: number | null; coverUrl: string | null;
   };
   let records: ImportedGame[] = [];
@@ -297,7 +297,7 @@ export async function bulkImportGames(payload: {
           pinnedOrder: null,
           lengthHours: resolveRawgPlaytime(lookup?.playtime, lookup?.genre) ?? 10,
           hoursPlayed: 0, difficulty: 2, earnedXp: 0, rating: null, notes: null,
-          genre: lookup?.genre ?? null, releaseYear: lookup?.releaseYear ?? null,
+          genre: lookup?.genre ?? null, franchise: null, releaseYear: lookup?.releaseYear ?? null,
           coverUrl: lookup?.coverUrl ?? null,
         };
       }));
@@ -338,6 +338,7 @@ export async function bulkImportGames(payload: {
         earnedXp: calculateEarnedXp(status, lengthHours, difficulty),
         rating: game.rating == null ? null : integer(game.rating, "Rating", 1, 5, 1),
         notes: nullableText(game.notes, "notes", 1000), genre: nullableText(game.genre, "genre"),
+        franchise: nullableText(game.franchise, "franchise", 120),
         releaseYear: game.releaseYear == null ? null : integer(game.releaseYear, "Release year", 1800, 2100, 2000),
         coverUrl: coverUrl ? optionalHttpUrl(coverUrl) : null,
       };
@@ -384,6 +385,27 @@ export async function acceptQuest(gameId: number) {
   revalidatePath("/");
 }
 
+export async function applyPlaytimeEstimate(gameId: number, newHours: unknown) {
+  const hours = typeof newHours === "number" || typeof newHours === "string"
+    ? Math.round(Number(newHours)) : NaN;
+  if (!Number.isSafeInteger(gameId) || gameId < 1 ||
+    !Number.isInteger(hours) || hours < 1 || hours > 999) {
+    throw new Error("Please provide a valid game ID and a whole-hour estimate from 1 to 999.");
+  }
+  const userId = getCurrentPlayerId();
+  const game = await prisma.game.findUniqueOrThrow({
+    where: { id: gameId, userId },
+    select: { status: true, difficulty: true },
+  });
+  await prisma.game.update({
+    // Fail rather than calculate XP from a status/difficulty changed by another request.
+    where: { id: gameId, userId, status: game.status, difficulty: game.difficulty },
+    data: { lengthHours: hours, earnedXp: calculateEarnedXp(game.status, hours, game.difficulty) },
+  });
+  await syncAndGetAchievements();
+  revalidatePath("/");
+}
+
 export async function updateGame(formData: FormData) {
   const progress = readProgressFields(formData);
   const idValue = formData.get("id");
@@ -394,11 +416,12 @@ export async function updateGame(formData: FormData) {
     title?: string;
     platform?: string;
     genre?: string | null;
+    franchise?: string | null;
     releaseYear?: number | null;
     coverUrl?: string | null;
   } = {};
 
-  for (const name of ["title", "platform", "genre", "releaseYear", "coverUrl"]) {
+  for (const name of ["title", "platform", "genre", "franchise", "releaseYear", "coverUrl"]) {
     if (formData.has(name) && typeof formData.get(name) !== "string") {
       throw new Error("Please provide valid game metadata.");
     }
@@ -413,6 +436,11 @@ export async function updateGame(formData: FormData) {
     }
   }
   if (formData.has("genre")) metadata.genre = optionalText(formData, "genre") || null;
+  if (formData.has("franchise")) {
+    const franchise = optionalText(formData, "franchise");
+    if (franchise.length > 120) throw new Error("Franchise / Saga name must be at most 120 characters.");
+    metadata.franchise = franchise || null;
+  }
   if (formData.has("releaseYear")) metadata.releaseYear = optionalYear(optionalText(formData, "releaseYear"));
   if (formData.has("coverUrl")) metadata.coverUrl = optionalHttpUrl(optionalText(formData, "coverUrl"));
 

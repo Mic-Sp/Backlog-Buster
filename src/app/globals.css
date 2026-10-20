@@ -470,7 +470,7 @@ p {
 
 .game-row {
 	display: grid;
-	grid-template-columns: minmax(230px, 2fr) minmax(72px, 0.8fr) minmax(78px, 0.9fr) minmax(45px, 0.55fr) minmax(98px, 1.15fr) minmax(72px, 0.8fr) minmax(78px, 0.85fr) minmax(86px, 0.9fr) minmax(108px, 1.2fr);
+	grid-template-columns: minmax(300px, 3.4fr) minmax(72px, 0.8fr) minmax(78px, 0.9fr) minmax(45px, 0.55fr) minmax(98px, 1.15fr) minmax(72px, 0.8fr) minmax(78px, 0.85fr) minmax(86px, 0.9fr) minmax(108px, 1.2fr);
 	min-height: 80px;
 	align-items: center;
 	gap: 6px;
@@ -527,13 +527,16 @@ p {
 
 .game-title-stack {
 	display: flex;
+	flex: 1;
 	min-width: 0;
 	flex-direction: column;
 	gap: 6px;
 }
 
 .game-title-stack strong {
-	overflow-wrap: anywhere;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 .game-metadata {
@@ -766,7 +769,7 @@ button.start-gig-badge:focus-visible {
 	letter-spacing: 0.7px;
 }
 
-@media (max-width: 1023px) {
+@media (max-width: 1079px) {
 	.game-row-head {
 		display: none;
 	}
@@ -2154,7 +2157,9 @@ a.trailer-link-button:focus-visible {
 
 .trophy-card {
 	min-width: 0;
-	align-self: start;
+	align-self: stretch;
+	display: flex;
+	flex-direction: column;
 	overflow: hidden;
 	border: 1px solid #8f8526;
 	border-top: 3px solid #fcee0a;
@@ -2164,18 +2169,45 @@ a.trailer-link-button:focus-visible {
 }
 
 .trophy-badge {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	height: 38px;
+	flex-shrink: 0;
 	margin: 0;
-	padding: 12px;
+	padding: 8px 12px;
 	color: #fcee0a;
 	font-size: 9px;
 }
 
+.trophy-badge > span {
+	flex-shrink: 0;
+	white-space: nowrap;
+}
+
+.trophy-card > .trophy-cover {
+	flex-shrink: 0;
+}
+
 .trophy-card-body {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
 	padding: 16px;
+}
+
+.trophy-card-body > .trophy-record {
+	margin-bottom: 16px;
+}
+
+.trophy-card-body > .trophy-field-log {
+	margin-top: 0;
 }
 
 .trophy-revived-badge {
 	display: inline-block;
+	align-self: flex-start;
 	max-width: 100%;
 	margin: 0 0 12px;
 	padding: 5px 8px;
@@ -2198,7 +2230,7 @@ a.trailer-link-button:focus-visible {
 }
 
 .trophy-reward {
-	margin: 16px 0;
+	margin: auto 0 16px;
 	padding: 10px;
 	border: 1px solid #8f8526;
 	color: #fcee0a;
@@ -2214,7 +2246,9 @@ a.trailer-link-button:focus-visible {
 
 .trophy-rating {
 	display: inline-flex;
+	align-self: flex-start;
 	align-items: center;
+	min-height: 38px;
 	gap: 10px;
 	margin: 0 0 16px;
 	padding: 6px 10px;
@@ -2344,9 +2378,14 @@ button.complete-gig-button:focus-visible {
 
 .game-title-actions {
 	display: flex;
+	min-width: 0;
 	flex-wrap: nowrap;
 	align-items: center;
-	gap: 6px;
+	gap: 4px;
+}
+
+.game-title-actions > button:not(.saga-badge) {
+	flex-shrink: 0;
 }
 
 .game-title-actions button.start-gig-badge {
@@ -2360,6 +2399,16 @@ button.complete-gig-button:focus-visible {
 .game-title-actions button.edit-meta-btn {
 	padding-inline: 6px;
 	font-size: 9px;
+}
+
+@media (max-width: 400px) {
+	.game-title-actions button.start-gig-badge,
+	.game-title-actions button.edit-meta-btn {
+		padding-inline: 4px;
+		font-family: "Courier New", monospace;
+		font-size: 8px;
+		letter-spacing: 0;
+	}
 }
 
 .library-card-actions {

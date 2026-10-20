@@ -14,6 +14,8 @@ import UpNextDeck from "@/components/UpNextDeck";
 import { DECK_CAPACITY } from "@/lib/deck";
 import { isReleasedYear } from "@/lib/game-release";
 import AgentBriefing from "@/components/AgentBriefing";
+import SagaChains, { SagaBadge } from "@/components/SagaChains";
+import { buildSagaChains } from "@/lib/sagas";
 
 export type LibraryGame = {
   id: number;
@@ -31,6 +33,7 @@ export type LibraryGame = {
   coverUrl: string | null;
   backupCoverUrl?: string | null;
   genre: string | null;
+  franchise: string | null;
   releaseYear: number | null;
 };
 
@@ -66,6 +69,7 @@ export default function GameLibrary({ games, achievements = [], children }: { ga
   const [searchQuery, setSearchQuery] = useState("");
   const [platformFilter, setPlatformFilter] = useState("");
   const [genreFilter, setGenreFilter] = useState("");
+  const [sagaFilter, setSagaFilter] = useState("");
   const [sortBy, setSortBy] = useState("default");
   const [editingMetaGame, setEditingMetaGame] = useState<LibraryGame | null>(null);
   const metadataModalRef = useRef<HTMLFormElement>(null);
@@ -73,6 +77,8 @@ export default function GameLibrary({ games, achievements = [], children }: { ga
   const [sessionError, setSessionError] = useState<{ gameId: number; message: string } | null>(null);
   const pinnedCount = games.filter((game) => game.status === "Backlog" && game.pinnedOrder != null).length;
   const currentYear = new Date().getFullYear();
+  const { chains, byGameId } = useMemo(() => buildSagaChains(games), [games]);
+  const selectedSaga = chains.find((chain) => chain.key === sagaFilter);
 
   function logSession(gameId: number, addHours: number) {
     setSessionError(null);
@@ -138,6 +144,7 @@ export default function GameLibrary({ games, achievements = [], children }: { ga
       (activeView === "All" || game.status === activeView) &&
       (!platformFilter || game.platform.trim() === platformFilter) &&
       (!genreFilter || game.genre?.trim() === genreFilter) &&
+      (!selectedSaga || byGameId.get(game.id)?.key === selectedSaga.key) &&
       (!query || [game.title, game.genre, game.platform].some((value) => value?.toLowerCase().includes(query)))
     ));
     if (sortBy === "default") {
@@ -201,15 +208,31 @@ export default function GameLibrary({ games, achievements = [], children }: { ga
           return 0;
       }
     });
-  }, [games, activeView, searchQuery, platformFilter, genreFilter, sortBy]);
-  const hasActiveFilters = activeView !== "All" || searchQuery !== "" || platformFilter !== "" || genreFilter !== "" || sortBy !== "default";
+  }, [games, activeView, searchQuery, platformFilter, genreFilter, selectedSaga, byGameId, sortBy]);
+  const hasActiveFilters = activeView !== "All" || searchQuery !== "" || platformFilter !== "" || genreFilter !== "" || Boolean(selectedSaga) || sortBy !== "default";
 
   function clearFilters() {
     setActiveView("All");
     setSearchQuery("");
     setPlatformFilter("");
     setGenreFilter("");
+    setSagaFilter("");
     setSortBy("default");
+  }
+
+  function selectSaga(key: string) {
+    setSagaFilter(key);
+    if (!key) return;
+    setActiveView("All");
+    setSearchQuery("");
+    setPlatformFilter("");
+    setGenreFilter("");
+    setSortBy("year-asc");
+  }
+
+  function renderSagaBadge(game: LibraryGame, layout: "default" | "table" | "trophy" = "default") {
+    const saga = byGameId.get(game.id);
+    return saga ? <SagaBadge saga={saga} onSelect={selectSaga} layout={layout} /> : null;
   }
 
   function changeView(view: LibraryView) {
@@ -270,6 +293,10 @@ export default function GameLibrary({ games, achievements = [], children }: { ga
         <label>
           Genre
           <input name="genre" defaultValue={game.genre ?? ""} aria-label={`Genre for ${game.title}`} />
+        </label>
+        <label>
+          Franchise / Saga Name
+          <input name="franchise" defaultValue={game.franchise ?? ""} maxLength={120} placeholder="Auto-detect, or enter a custom saga name" aria-label={`Franchise / Saga Name for ${game.title}`} />
         </label>
         <label>
           Release year
@@ -354,6 +381,7 @@ export default function GameLibrary({ games, achievements = [], children }: { ga
       </div>
 
       <LibraryTelemetry games={games} />
+      <SagaChains chains={chains} selectedKey={selectedSaga?.key ?? ""} onSelect={selectSaga} />
 
       <div className="library-tabs" role="group" aria-label="Library view">
         {views.map((view) => (
@@ -474,7 +502,7 @@ export default function GameLibrary({ games, achievements = [], children }: { ga
                 action={updateGame}
                 className="spotlight-card"
                 data-status={game.status}
-                key={`${game.id}-${game.status}-${game.lengthHours}-${game.difficulty}-${game.title}-${game.platform}-${game.genre ?? ""}-${game.releaseYear ?? ""}-${game.coverUrl ?? ""}-${game.hoursPlayed}-${game.notes ?? ""}-${game.rating ?? ""}`}
+                key={`${game.id}-${game.status}-${game.lengthHours}-${game.difficulty}-${game.title}-${game.platform}-${game.genre ?? ""}-${game.releaseYear ?? ""}-${game.coverUrl ?? ""}-${game.hoursPlayed}-${game.notes ?? ""}-${game.rating ?? ""}-${game.franchise ?? ""}`}
               >
                 {renderCardCover(game, "spotlight-cover")}
                 <div className="spotlight-card-body">
@@ -485,6 +513,7 @@ export default function GameLibrary({ games, achievements = [], children }: { ga
                     {activeView === "Flatlined" && game.rating !== null && (
                       <> <span className="library-rating-badge" aria-label={`Rated ${game.rating} out of 5 stars`}>★ {game.rating}/5</span></>
                     )}
+                    {renderSagaBadge(game)}
                   </p>
                   <div className="gig-progress-block">
                     <div className="gig-progress-header">
@@ -520,25 +549,28 @@ export default function GameLibrary({ games, achievements = [], children }: { ga
         ) : activeView === "Completed" ? (
           <div className="trophy-grid">
             {visibleGames.map((game) => (
-              <article className="trophy-card" key={`${game.id}-${game.status}-${game.lengthHours}-${game.difficulty}-${game.title}-${game.platform}-${game.genre ?? ""}-${game.releaseYear ?? ""}-${game.coverUrl ?? ""}-${game.hoursPlayed}-${game.notes ?? ""}-${game.rating ?? ""}`}>
-                <p className="trophy-badge">🏆 GIG CLEARED</p>
+              <article className="trophy-card" key={`${game.id}-${game.status}-${game.lengthHours}-${game.difficulty}-${game.title}-${game.platform}-${game.genre ?? ""}-${game.releaseYear ?? ""}-${game.coverUrl ?? ""}-${game.hoursPlayed}-${game.notes ?? ""}-${game.rating ?? ""}-${game.franchise ?? ""}`}>
+                <div className="trophy-badge">
+                  <span>🏆 GIG CLEARED</span>
+                  {renderSagaBadge(game, "trophy")}
+                </div>
                 {renderCardCover(game, "trophy-cover")}
                 <div className="trophy-card-body">
                   <h3>{game.title}</h3>
                   {game.wasFlatlined && <p className="trophy-revived-badge">⚡ REVIVED FROM FLATLINE</p>}
                   <p className="library-card-metadata">{game.platform} · {game.genre?.trim() || "Unknown genre"} · {game.releaseYear ?? "Unknown year"}</p>
                   <p className="trophy-record">{game.hoursPlayed}h played · {game.lengthHours}h length · Tier {game.difficulty} / {difficultyLabels[game.difficulty]}</p>
-                  <p className="trophy-reward">+{game.earnedXp.toLocaleString()} XP</p>
-                  <TrophyRatingEditor game={game} />
                   {game.notes?.trim() && (
                     <div className="trophy-field-log">
                       <span>NETRUNNER FIELD LOG</span>
                       <p>{game.notes}</p>
                     </div>
                   )}
+                  <p className="trophy-reward">+{game.earnedXp.toLocaleString()} XP</p>
+                  <TrophyRatingEditor game={game} />
                   <details className="trophy-edit-drawer">
                     <summary>Manage Record</summary>
-                    <form action={updateGame} key={`${game.id}-${game.status}-${game.lengthHours}-${game.difficulty}-${game.title}-${game.platform}-${game.genre ?? ""}-${game.releaseYear ?? ""}-${game.coverUrl ?? ""}-${game.hoursPlayed}-${game.notes ?? ""}-${game.rating ?? ""}`}>
+                    <form action={updateGame} key={`${game.id}-${game.status}-${game.lengthHours}-${game.difficulty}-${game.title}-${game.platform}-${game.genre ?? ""}-${game.releaseYear ?? ""}-${game.coverUrl ?? ""}-${game.hoursPlayed}-${game.notes ?? ""}-${game.rating ?? ""}-${game.franchise ?? ""}`}>
                       {renderCardControls(game)}
                     </form>
                   </details>
@@ -564,7 +596,7 @@ export default function GameLibrary({ games, achievements = [], children }: { ga
                 action={updateGame}
                 className="game-row"
                 data-status={game.status}
-                key={`${game.id}-${game.status}-${game.lengthHours}-${game.difficulty}-${game.title}-${game.platform}-${game.genre ?? ""}-${game.releaseYear ?? ""}-${game.coverUrl ?? ""}-${game.hoursPlayed}-${game.notes ?? ""}-${game.rating ?? ""}`}
+                key={`${game.id}-${game.status}-${game.lengthHours}-${game.difficulty}-${game.title}-${game.platform}-${game.genre ?? ""}-${game.releaseYear ?? ""}-${game.coverUrl ?? ""}-${game.hoursPlayed}-${game.notes ?? ""}-${game.rating ?? ""}-${game.franchise ?? ""}`}
                 role="row"
               >
                 <input name="id" type="hidden" value={game.id} />
@@ -594,12 +626,13 @@ export default function GameLibrary({ games, achievements = [], children }: { ga
                       )}
                     </span>
                     <span className="game-title-stack">
-                      <strong>{game.title}</strong>
+                      <strong title={game.title}>{game.title}</strong>
                       <span className="game-title-actions">
                         {(game.status === "Backlog" || game.status === "Flatlined") && (
                           <button className="start-gig-badge" formAction={startGame} type="submit">{game.status === "Flatlined" ? "▶ REVIVE GIG" : "▶ START GIG"}</button>
                         )}
                         <button type="button" className="edit-meta-btn" onClick={() => setEditingMetaGame(game)}>⚙ EDIT META</button>
+                        {renderSagaBadge(game, "table")}
                       </span>
                     </span>
                   </span>
@@ -699,7 +732,7 @@ export default function GameLibrary({ games, achievements = [], children }: { ga
             ref={metadataModalRef}
             action={updateGame}
             onSubmit={() => setEditingMetaGame(null)}
-            key={`${editingMetaGame.id}-${editingMetaGame.status}-${editingMetaGame.lengthHours}-${editingMetaGame.difficulty}-${editingMetaGame.title}-${editingMetaGame.platform}-${editingMetaGame.genre ?? ""}-${editingMetaGame.releaseYear ?? ""}-${editingMetaGame.coverUrl ?? ""}-${editingMetaGame.hoursPlayed}-${editingMetaGame.notes ?? ""}-${editingMetaGame.rating ?? ""}`}
+            key={`${editingMetaGame.id}-${editingMetaGame.status}-${editingMetaGame.lengthHours}-${editingMetaGame.difficulty}-${editingMetaGame.title}-${editingMetaGame.platform}-${editingMetaGame.genre ?? ""}-${editingMetaGame.releaseYear ?? ""}-${editingMetaGame.coverUrl ?? ""}-${editingMetaGame.hoursPlayed}-${editingMetaGame.notes ?? ""}-${editingMetaGame.rating ?? ""}-${editingMetaGame.franchise ?? ""}`}
           >
             <p className="eyebrow">RECORD // METADATA EDITOR</p>
             <h2 id="metadata-modal-title">Edit Game Metadata</h2>
