@@ -147,6 +147,8 @@ async function SavedGames() {
     status: game.status,
     wasFlatlined: game.wasFlatlined,
     pinnedOrder: game.pinnedOrder,
+    backlogOrder: game.backlogOrder,
+    createdAt: game.createdAt.toISOString(),
     lengthHours: game.lengthHours,
     hoursPlayed: game.hoursPlayed,
     notes: game.notes,

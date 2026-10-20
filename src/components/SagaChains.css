@@ -397,6 +397,84 @@ button.saga-detect-order:disabled {
 	background: #111827;
 }
 
+.saga-timeline-ordinal.saga-timeline-control {
+	gap: 3px;
+	padding: 1px 3px;
+}
+
+.saga-timeline-control > button.timeline-swap-button {
+	display: inline-grid;
+	width: 14px;
+	height: 14px;
+	flex: 0 0 14px;
+	place-items: center;
+	padding: 0;
+	border: 0;
+	border-radius: 1px;
+	color: #00f0ff;
+	background: #123039;
+	font-family: "Courier New", monospace;
+	font-size: 8px;
+	font-weight: 700;
+	line-height: 1;
+	cursor: pointer;
+}
+
+.saga-timeline-control > button.timeline-swap-button:hover:not(:disabled) {
+	color: #06090f;
+	background: #00f0ff;
+}
+
+.saga-timeline-control > button.timeline-swap-button:focus-visible {
+	outline: 1px solid #fcee0a;
+	outline-offset: 1px;
+}
+
+.saga-timeline-control > button.timeline-swap-button:disabled {
+	opacity: 0.25;
+	cursor: default;
+}
+
+.game-table form.game-row[data-timeline-draggable="true"] {
+	cursor: grab;
+}
+
+.game-table form.game-row[data-timeline-dragging="true"] {
+	opacity: 0.5;
+	cursor: grabbing;
+}
+
+.game-table form.game-row[data-timeline-drop-target="true"] {
+	transition: none;
+	border-color: #00f0ff;
+	box-shadow: inset 0 0 0 1px #00f0ff, 0 0 8px rgba(0, 240, 255, 0.2);
+}
+
+.saga-row-drag-grip {
+	position: absolute;
+	top: 50%;
+	left: 1px;
+	transform: translateY(-50%);
+	color: #00f0ff;
+	font-family: monospace;
+	font-size: 10px;
+	line-height: 1;
+	opacity: 0;
+	cursor: grab;
+	user-select: none;
+}
+
+.game-row:hover .saga-row-drag-grip,
+.game-row:focus-within .saga-row-drag-grip {
+	opacity: 0.7;
+}
+
+@media (hover: none) {
+	.saga-row-drag-grip {
+		opacity: 0.7;
+	}
+}
+
 @media (max-width: 640px) {
 	.saga-chains-drawer > summary {
 		font-size: 15px;

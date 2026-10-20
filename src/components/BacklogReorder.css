@@ -1,0 +1,110 @@
+.backlog-priority-control {
+	display: inline-flex;
+	flex: 0 0 auto;
+	align-items: center;
+	gap: 2px;
+	padding: 1px 2px;
+	border: 1px solid #32616a;
+	border-radius: 2px;
+	color: #94f7ff;
+	background: #0c252d;
+	font-family: "Courier New", monospace;
+	font-size: 9px;
+	font-weight: 700;
+	line-height: 1;
+	white-space: nowrap;
+}
+
+.backlog-priority-control > button.backlog-swap-button {
+	display: inline-grid;
+	width: 14px;
+	height: 14px;
+	flex: 0 0 14px;
+	place-items: center;
+	padding: 0;
+	border: 0;
+	border-radius: 1px;
+	color: #00f0ff;
+	background: #123039;
+	font-family: "Courier New", monospace;
+	font-size: 8px;
+	line-height: 1;
+	cursor: pointer;
+}
+
+.backlog-priority-control > button.backlog-swap-button:hover:not(:disabled) {
+	color: #06090f;
+	background: #00f0ff;
+}
+
+.backlog-priority-control > button.backlog-swap-button:focus-visible {
+	outline: 1px solid #fcee0a;
+	outline-offset: 1px;
+}
+
+.backlog-priority-control > button.backlog-swap-button:disabled {
+	opacity: 0.25;
+	cursor: default;
+}
+
+.game-table form.game-row[data-backlog-draggable="true"] {
+	cursor: grab;
+}
+
+.game-row[data-backlog-priority="true"] .game-title-actions {
+	overflow-x: auto;
+	scrollbar-width: none;
+}
+
+.game-row[data-backlog-priority="true"] .game-title-actions::-webkit-scrollbar {
+	display: none;
+}
+
+.backlog-order-notice {
+	margin: 0 0 12px;
+	color: #b4fff5;
+	font-size: 12px;
+	line-height: 1.6;
+}
+
+.backlog-order-notice[data-error="true"] {
+	color: #ff8bad;
+}
+
+.backlog-return-zone[data-deck-return-active="true"] {
+	position: relative;
+	outline: 1px solid #32616a;
+	outline-offset: 2px;
+	box-shadow: inset 0 0 0 1px #32616a, 0 0 8px rgba(0, 240, 255, 0.15);
+}
+
+.backlog-return-zone[data-deck-return-active="true"]::before {
+	position: absolute;
+	z-index: 2;
+	top: 0;
+	right: 0;
+	left: 0;
+	display: block;
+	padding: 11px 14px;
+	border-bottom: 1px solid #00f0ff;
+	color: #94f7ff;
+	background: #0c252d;
+	font-family: "Courier New", monospace;
+	font-size: 10px;
+	font-weight: 700;
+	line-height: 1.4;
+	text-align: center;
+	pointer-events: none;
+	content: "[ ↓ DROP HERE TO RETURN GIG TO BACKLOG QUEUE ]";
+}
+
+.backlog-return-zone[data-deck-return-hover="true"] {
+	outline-color: #00f0ff;
+	box-shadow: inset 0 0 0 1px #00f0ff, 0 0 10px rgba(0, 240, 255, 0.22);
+}
+
+.game-table form.game-row[data-backlog-return-target="true"] {
+	transition: none;
+	border-top-color: #fcee0a;
+	box-shadow: inset 0 2px 0 #fcee0a;
+}

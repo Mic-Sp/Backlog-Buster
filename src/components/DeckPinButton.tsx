@@ -3,11 +3,13 @@
 import { useState, useTransition } from "react";
 import { toggleGamePin } from "@/app/actions";
 import { DECK_CAPACITY } from "@/lib/deck";
+import { isReleasedYear } from "@/lib/game-release";
 
-export default function DeckPinButton({ gameId, pinnedOrder, pinnedCount, unpinOnly = false, disabled = false, iconOnly = false }: {
+export default function DeckPinButton({ gameId, pinnedOrder, pinnedCount, releaseYear, unpinOnly = false, disabled = false, iconOnly = false }: {
   gameId: number;
   pinnedOrder: number | null;
   pinnedCount: number;
+  releaseYear: number | null | undefined;
   unpinOnly?: boolean;
   disabled?: boolean;
   iconOnly?: boolean;
@@ -16,12 +18,14 @@ export default function DeckPinButton({ gameId, pinnedOrder, pinnedCount, unpinO
   const [error, setError] = useState("");
   const pinned = pinnedOrder !== null;
   const full = !pinned && pinnedCount >= DECK_CAPACITY;
-  const title = full ? "Deck full (3/3). Unpin a gig to make room."
+  const unreleased = !pinned && !isReleasedYear(releaseYear);
+  const title = unreleased ? "Upcoming or undated gigs cannot be pinned. Set a valid release year first."
+    : full ? "Deck full (3/3). Unpin a gig to make room."
     : iconOnly ? (pinned ? "Pinned (Click to unpin)" : "Pin to Up Next Deck")
       : pinned ? `Remove this gig from deck slot ${pinnedOrder}` : "Stage this Backlog gig for later";
 
   function togglePin() {
-    if (isPending || full || disabled) return;
+    if (isPending || full || disabled || unreleased) return;
     setError("");
     startPinning(async () => {
       try {
@@ -43,7 +47,7 @@ export default function DeckPinButton({ gameId, pinnedOrder, pinnedCount, unpinO
         aria-label={iconOnly ? title : undefined}
         aria-pressed={pinned}
         aria-busy={isPending}
-        disabled={disabled || isPending || full}
+        disabled={disabled || isPending || full || unreleased}
         title={iconOnly && error ? error : title}
         onClick={togglePin}
       >

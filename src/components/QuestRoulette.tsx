@@ -244,7 +244,7 @@ export default function QuestRoulette({ games }: { games: QuestGame[] }) {
                       {isAccepting ? "ACCEPTING…" : "ACCEPT GIG"}
                     </button>
                     <button className="quest-button quest-reroll" type="button" disabled={busy} onClick={roll}>REROLL</button>
-                    <DeckPinButton gameId={winner.id} pinnedOrder={winner.pinnedOrder} pinnedCount={pinnedCount} disabled={busy} />
+                    <DeckPinButton gameId={winner.id} pinnedOrder={winner.pinnedOrder} pinnedCount={pinnedCount} releaseYear={winner.releaseYear} disabled={busy} />
                     <a className="trailer-link-button" href={buildTrailerUrl(winner.title, winner.releaseYear)} target="_blank" rel="noopener noreferrer">🎬 WATCH TRAILER ↗</a>
                   </div>
                 </>

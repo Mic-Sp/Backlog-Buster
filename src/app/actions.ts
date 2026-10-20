@@ -12,15 +12,17 @@ import { DECK_CAPACITY } from "@/lib/deck";
 import type { Prisma } from "@/generated/prisma/client";
 import { buildSagaChains, parseChronologicalOrder } from "@/lib/sagas";
 import { resolveSagaChronology } from "@/lib/saga-chronology";
+import { isReleasedYear } from "@/lib/game-release";
+import { getBacklogInsertionOrder } from "@/lib/backlog-order";
 
 const allowedStatuses = new Set(["Backlog", "Playing", "Completed", "Flatlined"]);
 
-async function withDeckLock<T>(userId: string, operation: (tx: Prisma.TransactionClient) => Promise<T>) {
+async function withDeckLock<T>(userId: string, operation: (tx: Prisma.TransactionClient) => Promise<T>, timeout = 5000) {
   return prisma.$transaction(async (tx) => {
     // Serialize changes across tabs and server instances, including an empty deck.
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`backlogbuster-deck:${userId}`}, 0))`;
     return operation(tx);
-  });
+  }, { timeout });
 }
 
 export async function toggleGamePin(gameId: number, shouldPin: boolean) {
@@ -30,10 +32,11 @@ export async function toggleGamePin(gameId: number, shouldPin: boolean) {
   const userId = getCurrentPlayerId();
   const result = await withDeckLock(userId, async (tx) => {
     const game = await tx.game.findUnique({
-      where: { id: gameId, userId }, select: { status: true, pinnedOrder: true },
+      where: { id: gameId, userId }, select: { status: true, pinnedOrder: true, releaseYear: true },
     });
     if (!game) return { error: "This gig is no longer available." };
     if (shouldPin && game.status !== "Backlog") return { error: "Only Backlog gigs can be pinned to your deck." };
+    if (shouldPin && !isReleasedYear(game.releaseYear)) return { error: "Only released gigs can be pinned to your deck. Set a valid release year first." };
     if (shouldPin && game.pinnedOrder !== null) return { pinnedOrder: game.pinnedOrder };
     let pinnedOrder: number | null = null;
     if (shouldPin) {
@@ -45,13 +48,142 @@ export async function toggleGamePin(gameId: number, shouldPin: boolean) {
       if (pinnedOrder === null) return { error: "Deck full (3/3). Unpin a gig to make room." };
     }
     await tx.game.update({
-      where: { id: gameId, userId, ...(shouldPin ? { status: "Backlog" } : {}) },
+      where: { id: gameId, userId, ...(shouldPin ? { status: "Backlog", releaseYear: game.releaseYear } : {}) },
       data: { pinnedOrder },
     });
     return { pinnedOrder };
   });
   revalidatePath("/");
   return result;
+}
+
+async function placeGameInDeck(gameId: number, targetSlot: number, swap: boolean) {
+  if (!Number.isSafeInteger(gameId) || gameId < 1 || gameId > 2147483647 || !Number.isInteger(targetSlot) || targetSlot < 1 || targetSlot > DECK_CAPACITY) {
+    throw new Error("Choose a valid game and deck slot.");
+  }
+  const userId = getCurrentPlayerId();
+  await withDeckLock(userId, async (tx) => {
+    const source = await tx.game.findUnique({
+      where: { id: gameId, userId },
+      select: { status: true, pinnedOrder: true, releaseYear: true },
+    });
+    if (!source || source.status !== "Backlog") throw new Error("Only your Backlog gigs can be placed on deck.");
+    if (!isReleasedYear(source.releaseYear)) throw new Error("Upcoming or undated gigs cannot be placed on deck.");
+    if (swap && (source.pinnedOrder == null || source.pinnedOrder < 1 || source.pinnedOrder > DECK_CAPACITY)) {
+      throw new Error("This game is no longer pinned to your deck.");
+    }
+    if (source.pinnedOrder === targetSlot) return;
+    const pinned = await tx.game.findMany({
+      where: { userId, status: "Backlog", pinnedOrder: { not: null } },
+      select: { id: true, pinnedOrder: true },
+    });
+    const target = pinned.find((game) => game.pinnedOrder === targetSlot);
+    if (target) await tx.game.update({
+      where: { id: target.id, userId, status: "Backlog", pinnedOrder: targetSlot },
+      data: { pinnedOrder: swap ? source.pinnedOrder : null },
+    });
+    await tx.game.update({
+      where: { id: gameId, userId, status: "Backlog", pinnedOrder: source.pinnedOrder, releaseYear: source.releaseYear },
+      data: { pinnedOrder: targetSlot },
+    });
+  });
+  revalidatePath("/");
+}
+
+export async function assignDeckSlot(gameId: number, targetSlot: number) {
+  await placeGameInDeck(gameId, targetSlot, false);
+}
+
+export async function swapDeckSlot(gameId: number, targetSlot: number) {
+  await placeGameInDeck(gameId, targetSlot, true);
+}
+
+export async function returnDeckGameToBacklog(gameId: number, beforeGameId: number | null = null) {
+  const validId = (id: unknown): id is number => typeof id === "number" && Number.isSafeInteger(id) && id > 0 && id <= 2147483647;
+  if (!validId(gameId) || (beforeGameId !== null && (!validId(beforeGameId) || beforeGameId === gameId))) {
+    throw new Error("Choose a valid deck gig and Backlog position.");
+  }
+  const userId = getCurrentPlayerId();
+  await withDeckLock(userId, async (tx) => {
+    const games = await tx.game.findMany({
+      where: { userId, status: "Backlog" },
+      select: { id: true, status: true, pinnedOrder: true, backlogOrder: true, createdAt: true },
+    });
+    const source = games.find((game) => game.id === gameId);
+    if (!source || source.pinnedOrder == null) throw new Error("This gig is no longer on your deck. Refresh and try again.");
+    const orderedIds = beforeGameId === null ? null : getBacklogInsertionOrder(games, gameId, beforeGameId);
+    await tx.game.update({
+      where: { id: gameId, userId, status: "Backlog", pinnedOrder: source.pinnedOrder },
+      data: { pinnedOrder: null },
+    });
+    if (orderedIds) {
+      for (const [index, id] of orderedIds.entries()) {
+        await tx.game.update({
+          where: { id, userId, status: "Backlog", pinnedOrder: null },
+          data: { backlogOrder: index + 1 },
+        });
+      }
+    }
+  }, 15000);
+  revalidatePath("/");
+}
+
+export async function reorderSagaTimeline(orderedGameIds: string[]) {
+  if (!Array.isArray(orderedGameIds) || orderedGameIds.length < 2 || orderedGameIds.length > 10000 ||
+    Array.from(orderedGameIds).some((id) => typeof id !== "string" || !/^[1-9]\d*$/.test(id) || !Number.isSafeInteger(Number(id)) || Number(id) > 2147483647)) {
+    throw new Error("Provide a complete saga sequence of valid game IDs.");
+  }
+  const ids = orderedGameIds.map(Number);
+  if (new Set(ids).size !== ids.length) throw new Error("A saga sequence cannot contain duplicate games.");
+  const userId = getCurrentPlayerId();
+  await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`backlogbuster-saga:${userId}`}, 0))`;
+    const games = await tx.game.findMany({
+      where: { userId }, select: { id: true, title: true, status: true, franchise: true },
+    });
+    const { byGameId } = buildSagaChains(games);
+    const saga = byGameId.get(ids[0]);
+    if (!saga || saga.total !== ids.length || ids.some((id) => byGameId.get(id)?.key !== saga.key)) {
+      throw new Error("Reorder every game in one of your sagas. The library may have changed; please refresh and try again.");
+    }
+    const byId = new Map(games.map((game) => [game.id, game]));
+    for (const [index, id] of ids.entries()) {
+      const game = byId.get(id)!;
+      await tx.game.update({
+        where: { id, userId, title: game.title, franchise: game.franchise },
+        data: { chronologicalOrder: index + 1 },
+      });
+    }
+  }, { timeout: 15000 });
+  revalidatePath("/");
+}
+
+export async function reorderBacklogGames(orderedGameIds: string[]) {
+  if (!Array.isArray(orderedGameIds) || orderedGameIds.length < 2 || orderedGameIds.length > 10000 ||
+    Array.from(orderedGameIds).some((id) => typeof id !== "string" || !/^[1-9]\d*$/.test(id) || !Number.isSafeInteger(Number(id)) || Number(id) > 2147483647)) {
+    throw new Error("Provide a complete Backlog priority sequence of valid game IDs.");
+  }
+  const ids = orderedGameIds.map(Number);
+  if (new Set(ids).size !== ids.length) throw new Error("A Backlog sequence cannot contain duplicate games.");
+  const userId = getCurrentPlayerId();
+  await prisma.$transaction(async (tx) => {
+    // Use the deck lock so pinning cannot change membership during a reorder.
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`backlogbuster-deck:${userId}`}, 0))`;
+    const games = await tx.game.findMany({
+      where: { userId, status: "Backlog", pinnedOrder: null }, select: { id: true },
+    });
+    const eligibleIds = new Set(games.map((game) => game.id));
+    if (games.length !== ids.length || ids.some((id) => !eligibleIds.has(id))) {
+      throw new Error("Reorder all of your unpinned Backlog games. The library may have changed; please refresh and try again.");
+    }
+    for (const [index, id] of ids.entries()) {
+      await tx.game.update({
+        where: { id, userId, status: "Backlog", pinnedOrder: null },
+        data: { backlogOrder: index + 1 },
+      });
+    }
+  }, { timeout: 15000 });
+  revalidatePath("/");
 }
 
 function calculateEarnedXp(
@@ -304,6 +436,7 @@ export async function bulkImportGames(payload: {
     userId: string; title: string; platform: string; status: string;
     wasFlatlined: boolean;
     pinnedOrder: number | null;
+    backlogOrder: number | null;
     lengthHours: number; hoursPlayed: number; difficulty: number; earnedXp: number;
     rating: number | null; notes: string | null; genre: string | null; franchise: string | null;
     releaseYear: number | null; chronologicalOrder: number | null; coverUrl: string | null;
@@ -332,6 +465,7 @@ export async function bulkImportGames(payload: {
           status: "Backlog",
           wasFlatlined: false,
           pinnedOrder: null,
+          backlogOrder: null,
           lengthHours: resolveRawgPlaytime(lookup?.playtime, lookup?.genre) ?? 10,
           hoursPlayed: 0, difficulty: 2, earnedXp: 0, rating: null, notes: null,
           genre: lookup?.genre ?? null, franchise: null, releaseYear: lookup?.releaseYear ?? null, chronologicalOrder: null,
@@ -365,19 +499,21 @@ export async function bulkImportGames(payload: {
       const lengthHours = integer(game.lengthHours, "Length hours", 1, 10000, 10);
       const pinnedOrder = game.pinnedOrder == null ? null : integer(game.pinnedOrder, "Deck slot", 1, DECK_CAPACITY, 1);
       const difficulty = integer(game.difficulty, "Difficulty", 1, 3, 2);
+      const releaseYear = game.releaseYear == null ? null : integer(game.releaseYear, "Release year", 1800, 2100, 2000);
       const coverUrl = nullableText(game.coverUrl, "cover URL");
       return {
         userId, title: text(game.title, "title", 120), platform: text(game.platform, "platform", 80),
         status, lengthHours, difficulty,
         wasFlatlined: status === "Flatlined" || game.wasFlatlined === true,
-        pinnedOrder: status === "Backlog" ? pinnedOrder : null,
+        pinnedOrder: status === "Backlog" && isReleasedYear(releaseYear) ? pinnedOrder : null,
+        backlogOrder: game.backlogOrder == null ? null : integer(game.backlogOrder, "Backlog priority", 1, 10000, 1),
         hoursPlayed: integer(game.hoursPlayed, "Hours played", 0, 10000, 0),
         earnedXp: calculateEarnedXp(status, lengthHours, difficulty),
         rating: game.rating == null ? null : integer(game.rating, "Rating", 1, 5, 1),
         notes: nullableText(game.notes, "notes", 1000), genre: nullableText(game.genre, "genre"),
         franchise: nullableText(game.franchise, "franchise", 120),
         chronologicalOrder: parseChronologicalOrder(game.chronologicalOrder),
-        releaseYear: game.releaseYear == null ? null : integer(game.releaseYear, "Release year", 1800, 2100, 2000),
+        releaseYear,
         coverUrl: coverUrl ? optionalHttpUrl(coverUrl) : null,
       };
     });
@@ -529,7 +665,7 @@ export async function updateGame(formData: FormData) {
     where: { id, userId: getCurrentPlayerId() },
     data: {
       status: statusValue,
-      ...(statusValue !== "Backlog" ? { pinnedOrder: null } : {}),
+      ...(statusValue !== "Backlog" || (metadata.releaseYear !== undefined && !isReleasedYear(metadata.releaseYear)) ? { pinnedOrder: null } : {}),
       lengthHours,
       difficulty,
       earnedXp: calculateEarnedXp(statusValue, lengthHours, difficulty),

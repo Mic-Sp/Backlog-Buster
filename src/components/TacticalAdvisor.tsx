@@ -194,7 +194,7 @@ export default function TacticalAdvisor({ games }: { games: Pick<LibraryGame, "i
                   {startingId === pick.game.id ? "ACCEPTING GIG…" : "▶ START GIG NOW"}
                 </button>
                 <a className="trailer-link-button" href={buildTrailerUrl(pick.game.title, pick.game.releaseYear)} target="_blank" rel="noopener noreferrer">🎬 WATCH TRAILER ↗</a>
-                {savedGame && <DeckPinButton gameId={savedGame.id} pinnedOrder={savedGame.pinnedOrder} pinnedCount={pinnedCount} disabled={isFetching || isStarting || isAdding} />}
+                {savedGame && <DeckPinButton gameId={savedGame.id} pinnedOrder={savedGame.pinnedOrder} pinnedCount={pinnedCount} releaseYear={pick.game.releaseYear} disabled={isFetching || isStarting || isAdding} />}
               </div>
               <AgentBriefing game={{ ...pick.game, lengthHours: savedGame?.lengthHours ?? pick.game.lengthHours, hoursPlayed: savedGame?.hoursPlayed }} />
             </div>

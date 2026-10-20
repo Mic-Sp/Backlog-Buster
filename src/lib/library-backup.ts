@@ -1,7 +1,7 @@
 import type { LibraryGame } from "@/components/GameLibrary";
 
 const fields = [
-  "title", "platform", "status", "wasFlatlined", "pinnedOrder", "lengthHours", "hoursPlayed", "difficulty",
+  "title", "platform", "status", "wasFlatlined", "pinnedOrder", "backlogOrder", "lengthHours", "hoursPlayed", "difficulty",
   "earnedXp", "rating", "notes", "genre", "franchise", "releaseYear", "chronologicalOrder", "coverUrl",
 ] as const;
 

@@ -10,16 +10,17 @@ type SagaOrderControlsProps = {
   onOrderChange: (order: SagaOrderMode) => void;
   onAutoDetect: () => void;
   isDetecting: boolean;
+  disabled?: boolean;
 };
 
-export function SagaOrderControls({ order, onOrderChange, onAutoDetect, isDetecting }: SagaOrderControlsProps) {
+export function SagaOrderControls({ order, onOrderChange, onAutoDetect, isDetecting, disabled = false }: SagaOrderControlsProps) {
   return (
     <div className="saga-order-controls">
       <div className="saga-order-toggle" role="group" aria-label="Saga order">
         <button type="button" aria-pressed={order === "release"} onClick={() => onOrderChange("release")}>RELEASE ORDER</button>
         <button type="button" aria-pressed={order === "timeline"} onClick={() => onOrderChange("timeline")}>TIMELINE ORDER</button>
       </div>
-      <button className="saga-detect-order" type="button" disabled={isDetecting} onClick={onAutoDetect} title="Resolve and save canon ranks for this saga, replacing any existing timeline ranks">
+      <button className="saga-detect-order" type="button" disabled={isDetecting || disabled} onClick={onAutoDetect} title="Resolve and save canon ranks for this saga, replacing any existing timeline ranks">
         {isDetecting ? "⏳ SCANNING CANON…" : "🤖 AUTO-DETECT CANON ORDER"}
       </button>
     </div>

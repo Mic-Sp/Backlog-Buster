@@ -1,0 +1,89 @@
+.deck-slot-heading {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	margin-bottom: 12px;
+}
+
+.deck-slot-heading > .deck-slot-badge {
+	margin: 0;
+}
+
+.deck-slot-controls {
+	display: inline-flex;
+	gap: 4px;
+}
+
+.deck-slot-controls > button {
+	display: grid;
+	width: 18px;
+	height: 18px;
+	place-items: center;
+	padding: 0;
+	border: 1px solid #32616a;
+	border-radius: 2px;
+	color: #00f0ff;
+	background: #0b101b;
+	font-size: 9px;
+	line-height: 1;
+	cursor: pointer;
+}
+
+.deck-slot-controls > button:hover:not(:disabled) {
+	color: #06090f;
+	background: #00f0ff;
+}
+
+.deck-slot-controls > button:focus-visible {
+	outline: 2px solid #fcee0a;
+	outline-offset: 2px;
+}
+
+.deck-slot-controls > button:disabled,
+.deck-card-actions > button:disabled {
+	opacity: 0.3;
+	cursor: default;
+}
+
+.deck-reorder-notice {
+	margin: 12px 0 0;
+	color: #b4fff5;
+	font-size: 12px;
+	line-height: 1.6;
+}
+
+.deck-reorder-notice[data-error="true"] {
+	color: #ff8bad;
+}
+
+.deck-card[draggable="true"],
+.deck-drag-grip {
+	cursor: grab;
+}
+
+.deck-drag-grip {
+	color: #71839b;
+	user-select: none;
+}
+
+.deck-grid > li[data-drop-active="true"] > .deck-card,
+.deck-grid > li[data-drop-active="true"] > .deck-empty-slot {
+	border-color: #00f0ff;
+	box-shadow: inset 0 0 0 1px #1a5360, 0 0 8px rgba(0, 240, 255, 0.18);
+}
+
+.deck-grid > li[data-drop-hover="true"] > .deck-card,
+.deck-grid > li[data-drop-hover="true"] > .deck-empty-slot {
+	border-color: #fcee0a;
+	background: #17232a;
+	box-shadow: inset 0 0 0 1px #fcee0a, 0 0 12px rgba(252, 238, 10, 0.25);
+}
+
+.deck-grid > li[data-drop-active="true"] .deck-empty-slot > span {
+	color: #94f7ff;
+}
+
+.deck-grid > li[data-drop-hover="true"] .deck-empty-slot > span {
+	color: #fcee0a;
+}
