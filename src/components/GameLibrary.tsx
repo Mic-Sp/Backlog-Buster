@@ -9,6 +9,8 @@ import LibraryTelemetry from "@/components/LibraryTelemetry";
 import TrophyRatingEditor from "@/components/TrophyRatingEditor";
 import TacticalAdvisor from "@/components/TacticalAdvisor";
 import { buildTrailerUrl } from "@/lib/trailers";
+import DeckPinButton from "@/components/DeckPinButton";
+import UpNextDeck from "@/components/UpNextDeck";
 
 export type LibraryGame = {
   id: number;
@@ -16,6 +18,7 @@ export type LibraryGame = {
   platform: string;
   status: string;
   wasFlatlined: boolean;
+  pinnedOrder: number | null;
   lengthHours: number;
   hoursPlayed: number;
   notes: string | null;
@@ -59,6 +62,7 @@ export default function GameLibrary({ games, achievements = [], children }: { ga
   const metadataModalRef = useRef<HTMLFormElement>(null);
   const [isLogging, startLogging] = useTransition();
   const [sessionError, setSessionError] = useState<{ gameId: number; message: string } | null>(null);
+  const pinnedCount = games.filter((game) => game.status === "Backlog" && game.pinnedOrder != null).length;
 
   function logSession(gameId: number, addHours: number) {
     setSessionError(null);
@@ -388,6 +392,7 @@ export default function GameLibrary({ games, achievements = [], children }: { ga
         )}
       </div>
 
+      {(activeView === "All" || activeView === "Backlog") && <UpNextDeck games={games} />}
       <div data-view={activeView.toLowerCase()} className={activeView === "Completed" ? "trophy-room" : undefined}>
         {activeView === "Completed" && (
           <>
@@ -525,23 +530,28 @@ export default function GameLibrary({ games, achievements = [], children }: { ga
                 <span className="game-name" role="cell">
                   <span className="mobile-label">Game</span>
                   <span className="game-identity">
-                    {game.coverUrl ? (
-                      <img
-                        alt={`${game.title} cover art`}
-                        className="game-cover"
-                        decoding="async"
-                        loading="lazy"
-                        src={game.coverUrl}
-                      />
-                    ) : (
-                      <div
-                        aria-label={`${game.title} cover art unavailable`}
-                        className="game-cover game-cover-placeholder"
-                        role="img"
-                      >
-                        <span>NO<br />COVER</span>
-                      </div>
-                    )}
+                    <span className="game-cover-wrap">
+                      {game.coverUrl ? (
+                        <img
+                          alt={`${game.title} cover art`}
+                          className="game-cover"
+                          decoding="async"
+                          loading="lazy"
+                          src={game.coverUrl}
+                        />
+                      ) : (
+                        <div
+                          aria-label={`${game.title} cover art unavailable`}
+                          className="game-cover game-cover-placeholder"
+                          role="img"
+                        >
+                          <span>NO<br />COVER</span>
+                        </div>
+                      )}
+                      {game.status === "Backlog" && (
+                        <DeckPinButton gameId={game.id} pinnedOrder={game.pinnedOrder} pinnedCount={pinnedCount} iconOnly />
+                      )}
+                    </span>
                     <span className="game-title-stack">
                       <strong>{game.title}</strong>
                       <span className="game-title-actions">
@@ -627,6 +637,7 @@ export default function GameLibrary({ games, achievements = [], children }: { ga
           </div>
         )}
       </div>
+      {activeView === "Playing" && <UpNextDeck games={games} />}
       {editingMetaGame && (
         <div className="metadata-modal-backdrop" onClick={(event) => {
           if (event.target === event.currentTarget) setEditingMetaGame(null);

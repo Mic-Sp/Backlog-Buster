@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { acceptQuest } from "@/app/actions";
 import { buildTrailerUrl } from "@/lib/trailers";
+import DeckPinButton from "@/components/DeckPinButton";
 
 type QuestGame = {
   id: number;
@@ -13,6 +14,7 @@ type QuestGame = {
   difficulty: number;
   coverUrl: string | null;
   releaseYear?: number | null;
+  pinnedOrder: number | null;
 };
 
 export default function QuestRoulette({ games }: { games: QuestGame[] }) {
@@ -48,6 +50,7 @@ export default function QuestRoulette({ games }: { games: QuestGame[] }) {
   const winner = matches.find((game) => game.id === winnerId);
   const isRolling = cyclingTitle !== null;
   const busy = isRolling || isAccepting;
+  const pinnedCount = games.filter((game) => game.pinnedOrder != null).length;
 
   useEffect(() => {
     if (!isOpen) return;
@@ -236,6 +239,7 @@ export default function QuestRoulette({ games }: { games: QuestGame[] }) {
                       {isAccepting ? "ACCEPTING…" : "ACCEPT GIG"}
                     </button>
                     <button className="quest-button quest-reroll" type="button" disabled={busy} onClick={roll}>REROLL</button>
+                    <DeckPinButton gameId={winner.id} pinnedOrder={winner.pinnedOrder} pinnedCount={pinnedCount} disabled={busy} />
                     <a className="trailer-link-button" href={buildTrailerUrl(winner.title, winner.releaseYear)} target="_blank" rel="noopener noreferrer">🎬 WATCH TRAILER ↗</a>
                   </div>
                 </>

@@ -470,7 +470,7 @@ p {
 
 .game-row {
 	display: grid;
-	grid-template-columns: minmax(170px, 2fr) minmax(72px, 0.8fr) minmax(78px, 0.9fr) minmax(45px, 0.55fr) minmax(98px, 1.15fr) minmax(72px, 0.8fr) minmax(78px, 0.85fr) minmax(86px, 0.9fr) minmax(108px, 1.2fr);
+	grid-template-columns: minmax(230px, 2fr) minmax(72px, 0.8fr) minmax(78px, 0.9fr) minmax(45px, 0.55fr) minmax(98px, 1.15fr) minmax(72px, 0.8fr) minmax(78px, 0.85fr) minmax(86px, 0.9fr) minmax(108px, 1.2fr);
 	min-height: 80px;
 	align-items: center;
 	gap: 6px;
@@ -728,7 +728,7 @@ button.start-gig-badge:focus-visible {
 	letter-spacing: 0.7px;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1023px) {
 	.game-row-head {
 		display: none;
 	}
@@ -754,7 +754,9 @@ button.start-gig-badge:focus-visible {
 		letter-spacing: 0.5px;
 		text-transform: uppercase;
 	}
+}
 
+@media (max-width: 900px) {
 	.player-summary {
 		grid-template-columns: 90px minmax(70px, 0.7fr) minmax(100px, 1fr) minmax(0, 1.7fr);
 	}
@@ -2300,13 +2302,22 @@ button.complete-gig-button:focus-visible {
 }
 .game-title-actions {
 	display: flex;
-	flex-wrap: wrap;
+	flex-wrap: nowrap;
 	align-items: center;
 	gap: 6px;
 }
 
 .game-title-actions button.start-gig-badge {
+	align-self: center;
 	margin-top: 0;
+	padding-inline: 6px;
+	font-size: 10px;
+	letter-spacing: 0.04em;
+}
+
+.game-title-actions button.edit-meta-btn {
+	padding-inline: 6px;
+	font-size: 9px;
 }
 
 .library-card-actions {
@@ -3125,4 +3136,265 @@ button.flatline-gig-button:focus-visible,
 button.revive-gig-button:focus-visible {
 	outline: 2px solid #fcee0a;
 	outline-offset: 3px;
+}
+
+.up-next-deck {
+	margin: 24px 0;
+	padding: 18px;
+	border: 1px solid #28515b;
+	border-top: 2px solid #00f0ff;
+	border-radius: 3px;
+	background: #0b101b;
+}
+
+.deck-heading {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	flex-wrap: wrap;
+	gap: 10px;
+	margin-bottom: 16px;
+}
+
+.deck-heading h3 {
+	margin: 0;
+	color: #e6fff9;
+	font-family: var(--font-terminal), "Courier New", monospace;
+	font-size: 26px;
+	font-weight: 400;
+	letter-spacing: 0.08em;
+	text-shadow: 0 0 8px rgba(0, 240, 255, 0.25);
+}
+
+.deck-heading > span,
+.deck-slot-badge {
+	color: #fcee0a;
+	font-family: "Courier New", monospace;
+	font-size: 10px;
+	font-weight: 700;
+	letter-spacing: 0.05em;
+}
+
+.deck-grid {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 12px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.deck-grid > li {
+	min-width: 0;
+}
+
+.deck-card,
+.deck-empty-slot {
+	min-width: 0;
+	height: 100%;
+	min-height: 190px;
+	padding: 14px;
+	border: 1px solid #28515b;
+	border-radius: 2px;
+	background: #111827;
+}
+
+.deck-card {
+	display: flex;
+	flex-direction: column;
+}
+
+.deck-slot-badge {
+	margin: 0 0 12px;
+}
+
+.deck-game-info {
+	display: grid;
+	grid-template-columns: 56px minmax(0, 1fr);
+	gap: 12px;
+	margin-bottom: 14px;
+}
+
+.deck-cover {
+	display: block;
+	width: 56px;
+	height: 76px;
+	border: 1px solid #2e3a52;
+	border-radius: 2px;
+	object-fit: cover;
+	background: #06090f;
+}
+
+.deck-no-cover {
+	display: grid;
+	place-items: center;
+	color: #8795a8;
+	font-size: 9px;
+	text-align: center;
+}
+
+.deck-game-info h4 {
+	margin: 0 0 7px;
+	color: #e8edf7;
+	font-size: 14px;
+	line-height: 1.4;
+	overflow-wrap: anywhere;
+}
+
+.deck-game-info p {
+	margin: 5px 0 0;
+	color: #a4b5ca;
+	font-size: 11px;
+	line-height: 1.6;
+	overflow-wrap: anywhere;
+}
+
+.deck-game-info strong {
+	color: #fcee0a;
+	font-size: 10px;
+}
+
+.deck-card-actions {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-top: auto;
+}
+
+button.deck-pin-button,
+button.deck-start-button {
+	min-height: 32px;
+	padding: 6px 9px;
+	border: 1px solid #00f0ff;
+	border-radius: 2px;
+	color: #00f0ff;
+	background: #10252c;
+	font-family: "Courier New", monospace;
+	font-size: 10px;
+	font-weight: 700;
+	line-height: 1.4;
+	letter-spacing: 0.04em;
+	white-space: nowrap;
+	cursor: pointer;
+}
+
+button.deck-pin-button[data-pinned="true"] {
+	border-color: #8f8526;
+	color: #fcee0a;
+	background: #25240e;
+}
+
+button.deck-pin-button:hover:not(:disabled),
+button.deck-start-button:hover {
+	border-color: #00f0ff;
+	color: #06090f;
+	background: #00f0ff;
+}
+
+button.deck-pin-button:disabled {
+	opacity: 0.45;
+	cursor: not-allowed;
+}
+
+button.deck-pin-button:focus-visible,
+button.deck-start-button:focus-visible {
+	outline: 2px solid #fcee0a;
+	outline-offset: 3px;
+}
+
+.deck-pin-error {
+	display: block;
+	flex-basis: 100%;
+	color: #ff8bad;
+	font-size: 11px;
+	line-height: 1.5;
+}
+
+.advisor-card-actions > button.deck-pin-button {
+	grid-column: 1 / -1;
+	width: 100%;
+	min-height: 36px;
+}
+
+.game-cover-wrap {
+	position: relative;
+	display: block;
+	flex: 0 0 48px;
+	width: 48px;
+	height: 64px;
+}
+
+.game-cover-wrap button.deck-pin-button[data-icon-only="true"] {
+	position: absolute;
+	top: 2px;
+	left: 2px;
+	z-index: 1;
+	display: grid;
+	place-items: center;
+	width: 24px;
+	height: 24px;
+	min-height: 24px;
+	padding: 0;
+	font-size: 13px;
+	line-height: 1;
+	background: #0b101b;
+	opacity: 0;
+	pointer-events: none;
+}
+
+.game-row:hover .game-cover-wrap button.deck-pin-button,
+.game-row:focus-within .game-cover-wrap button.deck-pin-button,
+.game-cover-wrap button.deck-pin-button[data-pinned="true"] {
+	opacity: 1;
+	pointer-events: auto;
+}
+
+.game-cover-wrap button.deck-pin-button[data-pinned="true"] {
+	border-color: #fcee0a;
+	background: #171709;
+	box-shadow: 0 0 6px rgba(252, 238, 10, 0.3);
+}
+
+@media (hover: none) {
+	.game-cover-wrap button.deck-pin-button[data-icon-only="true"] {
+		opacity: 1;
+		pointer-events: auto;
+	}
+}
+
+.deck-empty-slot {
+	display: flex;
+	flex-direction: column;
+	border-style: dashed;
+	background: #0b101b;
+}
+
+.deck-empty-slot > span {
+	margin: auto 0;
+	color: #71839b;
+	font-family: "Courier New", monospace;
+	font-size: 10px;
+	line-height: 1.8;
+	text-align: center;
+}
+
+@media (max-width: 900px) {
+	.deck-grid {
+		grid-template-columns: minmax(0, 1fr);
+	}
+	.deck-empty-slot {
+		min-height: 100px;
+	}
+}
+
+@media (max-width: 400px) {
+	.up-next-deck {
+		padding: 12px;
+	}
+
+	.deck-card,
+	.deck-empty-slot {
+		padding: 12px;
+	}
 }

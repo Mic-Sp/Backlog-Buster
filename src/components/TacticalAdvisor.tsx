@@ -7,8 +7,9 @@ import type { BacklogRecommendation, BacklogRecommendations, ExternalRecommendat
 import type { LibraryGame } from "@/components/GameLibrary";
 import { normalizeGameTitle } from "@/lib/game-title";
 import { buildTrailerUrl } from "@/lib/trailers";
+import DeckPinButton from "@/components/DeckPinButton";
 
-export default function TacticalAdvisor({ games }: { games: Pick<LibraryGame, "title" | "status">[] }) {
+export default function TacticalAdvisor({ games }: { games: Pick<LibraryGame, "id" | "title" | "status" | "pinnedOrder">[] }) {
   const [isOpen, setIsOpen] = useState(false);
   const [picks, setPicks] = useState<BacklogRecommendations | null>(null);
   const [error, setError] = useState("");
@@ -29,6 +30,7 @@ export default function TacticalAdvisor({ games }: { games: Pick<LibraryGame, "t
   const startingRef = useRef(false);
   const scoutRequestId = useRef(0);
   const backlogCount = useMemo(() => games.filter((game) => game.status === "Backlog").length, [games]);
+  const pinnedCount = games.filter((game) => game.status === "Backlog" && game.pinnedOrder != null).length;
   const ownedTitles = useMemo(() => new Set(games.map((game) => normalizeGameTitle(game.title))), [games]);
 
   function loadExternalPicks(override = false) {
@@ -169,6 +171,7 @@ export default function TacticalAdvisor({ games }: { games: Pick<LibraryGame, "t
   }, [isOpen]);
 
   function renderPick(pick: BacklogRecommendation | null, variant: "continuation" | "cleanser") {
+    const savedGame = games.find((game) => game.id === pick?.game.id && game.status === "Backlog");
     const heading = variant === "continuation" ? "🔗 DIRECT CONTINUATION // SEQUEL & AFFINITY" : "⚡ PALATE CLEANSER // PACING RESET";
     return (
       <article className="advisor-card" data-variant={variant}>
@@ -190,6 +193,7 @@ export default function TacticalAdvisor({ games }: { games: Pick<LibraryGame, "t
                   {startingId === pick.game.id ? "ACCEPTING GIG…" : "▶ START GIG NOW"}
                 </button>
                 <a className="trailer-link-button" href={buildTrailerUrl(pick.game.title, pick.game.releaseYear)} target="_blank" rel="noopener noreferrer">🎬 WATCH TRAILER ↗</a>
+                {savedGame && <DeckPinButton gameId={savedGame.id} pinnedOrder={savedGame.pinnedOrder} pinnedCount={pinnedCount} disabled={isFetching || isStarting || isAdding} />}
               </div>
             </div>
           </>

@@ -8,8 +8,49 @@ import { resolveRawgPlaytime } from "@/lib/game-playtime";
 import { lookupRawgGame, type RawgGameInfo } from "@/lib/rawg";
 import { getBacklogRecommendations, getExternalRecommendations } from "@/lib/recommendations";
 import { normalizeGameTitle } from "@/lib/game-title";
+import { DECK_CAPACITY } from "@/lib/deck";
+import type { Prisma } from "@/generated/prisma/client";
 
 const allowedStatuses = new Set(["Backlog", "Playing", "Completed", "Flatlined"]);
+
+async function withDeckLock<T>(userId: string, operation: (tx: Prisma.TransactionClient) => Promise<T>) {
+  return prisma.$transaction(async (tx) => {
+    // Serialize changes across tabs and server instances, including an empty deck.
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`backlogbuster-deck:${userId}`}, 0))`;
+    return operation(tx);
+  });
+}
+
+export async function toggleGamePin(gameId: number, shouldPin: boolean) {
+  if (!Number.isSafeInteger(gameId) || gameId < 1 || typeof shouldPin !== "boolean") {
+    throw new Error("Please provide a valid game and pin choice.");
+  }
+  const userId = getCurrentPlayerId();
+  const result = await withDeckLock(userId, async (tx) => {
+    const game = await tx.game.findUnique({
+      where: { id: gameId, userId }, select: { status: true, pinnedOrder: true },
+    });
+    if (!game) return { error: "This gig is no longer available." };
+    if (shouldPin && game.status !== "Backlog") return { error: "Only Backlog gigs can be pinned to your deck." };
+    if (shouldPin && game.pinnedOrder !== null) return { pinnedOrder: game.pinnedOrder };
+    let pinnedOrder: number | null = null;
+    if (shouldPin) {
+      const pinned = await tx.game.findMany({
+        where: { userId, pinnedOrder: { not: null } }, select: { pinnedOrder: true },
+      });
+      const used = new Set(pinned.map((entry) => entry.pinnedOrder));
+      pinnedOrder = Array.from({ length: DECK_CAPACITY }, (_, index) => index + 1).find((slot) => !used.has(slot)) ?? null;
+      if (pinnedOrder === null) return { error: "Deck full (3/3). Unpin a gig to make room." };
+    }
+    await tx.game.update({
+      where: { id: gameId, userId, ...(shouldPin ? { status: "Backlog" } : {}) },
+      data: { pinnedOrder },
+    });
+    return { pinnedOrder };
+  });
+  revalidatePath("/");
+  return result;
+}
 
 function calculateEarnedXp(
   status: string,
@@ -225,6 +266,7 @@ export async function bulkImportGames(payload: {
   type ImportedGame = {
     userId: string; title: string; platform: string; status: string;
     wasFlatlined: boolean;
+    pinnedOrder: number | null;
     lengthHours: number; hoursPlayed: number; difficulty: number; earnedXp: number;
     rating: number | null; notes: string | null; genre: string | null;
     releaseYear: number | null; coverUrl: string | null;
@@ -252,6 +294,7 @@ export async function bulkImportGames(payload: {
           platform: platform || defaultPlatform || lookup?.platforms[0] || "PC",
           status: "Backlog",
           wasFlatlined: false,
+          pinnedOrder: null,
           lengthHours: resolveRawgPlaytime(lookup?.playtime, lookup?.genre) ?? 10,
           hoursPlayed: 0, difficulty: 2, earnedXp: 0, rating: null, notes: null,
           genre: lookup?.genre ?? null, releaseYear: lookup?.releaseYear ?? null,
@@ -283,12 +326,14 @@ export async function bulkImportGames(payload: {
         throw new Error(`Game ${index + 1} has an invalid Flatlined history flag.`);
       }
       const lengthHours = integer(game.lengthHours, "Length hours", 1, 10000, 10);
+      const pinnedOrder = game.pinnedOrder == null ? null : integer(game.pinnedOrder, "Deck slot", 1, DECK_CAPACITY, 1);
       const difficulty = integer(game.difficulty, "Difficulty", 1, 3, 2);
       const coverUrl = nullableText(game.coverUrl, "cover URL");
       return {
         userId, title: text(game.title, "title", 120), platform: text(game.platform, "platform", 80),
         status, lengthHours, difficulty,
         wasFlatlined: status === "Flatlined" || game.wasFlatlined === true,
+        pinnedOrder: status === "Backlog" ? pinnedOrder : null,
         hoursPlayed: integer(game.hoursPlayed, "Hours played", 0, 10000, 0),
         earnedXp: calculateEarnedXp(status, lengthHours, difficulty),
         rating: game.rating == null ? null : integer(game.rating, "Rating", 1, 5, 1),
@@ -298,20 +343,32 @@ export async function bulkImportGames(payload: {
       };
     });
   }
-  const existing = await prisma.game.findMany({ where: { userId }, select: { title: true, platform: true } });
-  const pairKey = (game: { title: string; platform: string }) =>
-    JSON.stringify([game.title.trim().toLowerCase(), game.platform.trim().toLowerCase()]);
-  const seen = new Set(existing.map(pairKey));
-  const unique = records.filter((game) => {
-    const key = pairKey(game);
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
+  const counts = await withDeckLock(userId, async (tx) => {
+    const existing = await tx.game.findMany({ where: { userId }, select: { title: true, platform: true, pinnedOrder: true } });
+    const pairKey = (game: { title: string; platform: string }) =>
+      JSON.stringify([game.title.trim().toLowerCase(), game.platform.trim().toLowerCase()]);
+    const seen = new Set(existing.map(pairKey));
+    const unique = records.filter((game) => {
+      const key = pairKey(game);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    const used = new Set(existing.flatMap((game) => game.pinnedOrder === null ? [] : [game.pinnedOrder]));
+    // Restore priority only into free slots; every other imported gig remains in Backlog.
+    for (const game of [...unique].sort((left, right) => (left.pinnedOrder ?? Infinity) - (right.pinnedOrder ?? Infinity))) {
+      if (game.pinnedOrder === null) continue;
+      const slot = !used.has(game.pinnedOrder) ? game.pinnedOrder
+        : Array.from({ length: DECK_CAPACITY }, (_, index) => index + 1).find((value) => !used.has(value));
+      game.pinnedOrder = slot ?? null;
+      if (slot !== undefined) used.add(slot);
+    }
+    const result = unique.length ? await tx.game.createMany({ data: unique }) : { count: 0 };
+    return { importedCount: result.count, skippedCount: records.length - unique.length };
   });
-  const result = unique.length ? await prisma.game.createMany({ data: unique }) : { count: 0 };
   await syncAndGetAchievements();
   revalidatePath("/");
-  return { importedCount: result.count, skippedCount: records.length - unique.length };
+  return counts;
 }
 
 export async function acceptQuest(gameId: number) {
@@ -321,7 +378,7 @@ export async function acceptQuest(gameId: number) {
 
   await prisma.game.update({
     where: { id: gameId, userId: getCurrentPlayerId(), status: "Backlog" },
-    data: { status: "Playing", earnedXp: 0 },
+    data: { status: "Playing", earnedXp: 0, pinnedOrder: null },
   });
 
   revalidatePath("/");
@@ -404,6 +461,7 @@ export async function updateGame(formData: FormData) {
     where: { id, userId: getCurrentPlayerId() },
     data: {
       status: statusValue,
+      ...(statusValue !== "Backlog" ? { pinnedOrder: null } : {}),
       lengthHours,
       difficulty,
       earnedXp: calculateEarnedXp(statusValue, lengthHours, difficulty),
@@ -455,7 +513,7 @@ export async function startGame(formData: FormData) {
 
   await prisma.game.update({
     where: { id, userId: getCurrentPlayerId() },
-    data: { status: "Playing", lengthHours, difficulty, earnedXp: 0, ...progress },
+    data: { status: "Playing", lengthHours, difficulty, earnedXp: 0, pinnedOrder: null, ...progress },
   });
 
   await syncAndGetAchievements();
@@ -504,6 +562,7 @@ export async function completeGame(formData: FormData) {
     where: { id, userId: getCurrentPlayerId() },
     data: {
       status: "Completed",
+      pinnedOrder: null,
       lengthHours: finalLengthHours,
       difficulty,
       earnedXp: calculateEarnedXp("Completed", finalLengthHours, difficulty),
