@@ -2673,38 +2673,6 @@ textarea.field-log-textarea:focus-visible {
 	outline: 2px solid #00f0ff;
 	outline-offset: 3px;
 }
-.hud-achievements-bar {
-	grid-column: 1 / -1;
-	display: grid;
-	gap: 10px;
-	padding-top: 16px;
-	border-top: 1px solid #353944;
-}
-
-.hud-achievements-pills {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 8px;
-}
-
-.hud-achievement-pill {
-	display: inline-flex;
-	align-items: center;
-	gap: 6px;
-	padding: 6px 9px;
-	border: 1px solid #353f4c;
-	border-radius: 2px;
-	color: #8795a8;
-	background: #0b101b;
-	font-size: 10px;
-}
-
-.hud-achievement-pill[data-unlocked="true"] {
-	border-color: #8f8526;
-	color: #fcee0a;
-	background: #25240e;
-}
-
 .trophy-milestones-drawer {
 	margin-bottom: 24px;
 	padding: 16px;

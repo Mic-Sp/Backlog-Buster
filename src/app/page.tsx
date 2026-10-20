@@ -7,6 +7,7 @@ import { resizeRawgImageUrl } from "@/lib/rawg";
 import GameForm from "./GameForm";
 import GameLibrary from "@/components/GameLibrary";
 import AchievementToast from "@/components/AchievementToast";
+import HudMilestones from "@/components/HudMilestones";
 import QuestRoulette from "@/components/QuestRoulette";
 import { syncAndGetAchievements } from "@/lib/achievements";
 import { getCurrentPlayerId } from "@/lib/player";
@@ -118,17 +119,7 @@ async function PlayerSummary() {
           <p data-status="Flatlined"><strong>{flatlinedCount}</strong><span>Flatlined</span></p>
         </div>
       </div>
-      <div className="hud-achievements-bar" aria-label="Player achievements">
-        <span className="summary-label">Milestones {achievements.filter((achievement) => achievement.unlocked).length} / {achievements.length}</span>
-        <div className="hud-achievements-pills">
-          {achievements.map((achievement) => (
-            <span className="hud-achievement-pill" data-unlocked={achievement.unlocked} key={achievement.key} title={`${achievement.description} ${achievement.unlockedAt ? `Unlocked ${achievement.unlockedAt.slice(0, 10)} · +${achievement.xpAwarded} XP` : `${achievement.current} / ${achievement.target} · +${achievement.xpBonus} XP bonus`}`}>
-              <span aria-hidden="true">{achievement.icon}</span> {achievement.title}
-              <span className="quest-sr-only">{achievement.unlocked ? ", unlocked" : ", locked"}</span>
-            </span>
-          ))}
-        </div>
-      </div>
+      <HudMilestones achievements={achievements} />
     </section>
   );
 }

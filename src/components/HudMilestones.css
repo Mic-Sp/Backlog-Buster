@@ -1,0 +1,136 @@
+.hud-achievements-bar {
+	grid-column: 1 / -1;
+	display: flex;
+	min-width: 0;
+	align-items: center;
+	gap: 12px;
+	padding-top: 10px;
+	border-top: 1px solid #353944;
+}
+
+.hud-achievements-bar > .summary-label {
+	flex-shrink: 0;
+	margin: 0;
+	white-space: nowrap;
+}
+
+.hud-achievements-pills {
+	display: flex;
+	min-width: 0;
+	max-width: 100%;
+	flex-wrap: nowrap;
+	align-items: center;
+	gap: 6px;
+	overflow-x: auto;
+	overscroll-behavior-x: contain;
+	padding: 4px;
+	scrollbar-width: thin;
+	scrollbar-color: #44505d #0b101b;
+}
+
+.hud-achievements-pills > button.hud-achievement-pill {
+	display: grid;
+	width: 30px;
+	height: 30px;
+	flex: 0 0 30px;
+	place-items: center;
+	padding: 0;
+	border: 1px solid #384350;
+	border-radius: 4px;
+	color: #a7b4c4;
+	background: #0b101b;
+	cursor: help;
+}
+
+.hud-achievement-icon {
+	font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif;
+	font-size: 17px;
+	line-height: 1;
+}
+
+.hud-achievements-pills > button.hud-achievement-pill[data-unlocked="true"] {
+	border-color: #aa9c36;
+	color: #fcee0a;
+	background: #191e19;
+	box-shadow: 0 0 7px rgba(252, 238, 10, 0.16), inset 0 0 5px rgba(0, 240, 255, 0.08);
+}
+
+.hud-achievements-pills > button.hud-achievement-pill[data-unlocked="false"] {
+	opacity: 0.25;
+	filter: grayscale(1);
+}
+
+.hud-achievements-pills > button.hud-achievement-pill:hover,
+.hud-achievements-pills > button.hud-achievement-pill:focus-visible {
+	border-color: #00f0ff;
+	background: #11252d;
+}
+
+.hud-achievements-pills > button.hud-achievement-pill:focus-visible {
+	outline: 2px solid #00f0ff;
+	outline-offset: 2px;
+}
+
+.hud-milestone-tooltip {
+	position: fixed;
+	z-index: 1500;
+	width: min(320px, calc(100vw - 24px));
+	padding: 12px 14px;
+	border: 1px solid #397181;
+	border-radius: 3px;
+	color: #d6e2f1;
+	background: #0b101b;
+	box-shadow: 0 0 12px rgba(0, 240, 255, 0.12);
+	font-family: "Courier New", monospace;
+	font-size: 11px;
+	line-height: 1.6;
+	text-align: left;
+}
+
+.hud-milestone-tooltip-heading {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 12px;
+	color: #00f0ff;
+}
+
+.hud-milestone-tooltip-heading strong {
+	min-width: 0;
+	font-size: 12px;
+	overflow-wrap: anywhere;
+}
+
+.hud-milestone-tooltip-heading > span {
+	flex-shrink: 0;
+	color: #fcee0a;
+	font-weight: 700;
+	white-space: nowrap;
+}
+
+.hud-milestone-tooltip > p {
+	margin: 7px 0;
+}
+
+.hud-milestone-tooltip-status {
+	color: #8795a8;
+	font-size: 10px;
+	font-weight: 700;
+}
+
+.hud-milestone-tooltip[data-unlocked="true"] {
+	border-color: #aa9c36;
+}
+
+.hud-milestone-tooltip[data-unlocked="true"] .hud-milestone-tooltip-heading strong,
+.hud-milestone-tooltip[data-unlocked="true"] .hud-milestone-tooltip-status {
+	color: #fcee0a;
+}
+
+@media (max-width: 640px) {
+	.hud-achievements-bar {
+		flex-direction: column;
+		align-items: stretch;
+		gap: 4px;
+	}
+}
