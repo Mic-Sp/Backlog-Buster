@@ -5,6 +5,7 @@ import { getCurrentPlayerId } from "@/lib/player";
 import { lookupRawgGame, resizeRawgImageUrl } from "@/lib/rawg";
 import { resolveRawgPlaytime } from "@/lib/game-playtime";
 import { normalizeGameTitle } from "@/lib/game-title";
+import { isReleasedYear } from "@/lib/game-release";
 import { franchiseAffinities, genreNeighbors, generalDiscovery } from "@/lib/scout-catalog";
 
 type AdvisorGame = {
@@ -91,7 +92,8 @@ export async function getBacklogRecommendations(userId = getCurrentPlayerId()): 
   });
   const completed = games.filter((game) => game.status === "Completed").sort(compareHistory);
   const playing = games.filter((game) => game.status === "Playing");
-  const backlog = games.filter((game) => game.status === "Backlog").sort(compareCandidates);
+  const currentYear = new Date().getFullYear();
+  const backlog = games.filter((game) => game.status === "Backlog" && isReleasedYear(game.releaseYear, currentYear)).sort(compareCandidates);
   if (!backlog.length) return { continuationPick: null, palateCleanserPick: null };
 
   let continuationPick: BacklogRecommendation | null = null;
@@ -228,8 +230,10 @@ export async function getExternalRecommendations(userId = getCurrentPlayerId()):
 
   const selected: { title: string; reason: string; preferredPlatform: string }[] = [];
   const selectedTitles = new Set<string>();
+  // Keep a bounded reserve in case RAWG cannot confirm a candidate has been released.
+  const candidateLimit = 9;
   // Round-robin favorites so three cards needn't all come from the same completed gig.
-  for (let index = 0; selected.length < 3 && pools.some((pool) => index < pool.candidates.length); index++) {
+  for (let index = 0; selected.length < candidateLimit && pools.some((pool) => index < pool.candidates.length); index++) {
     for (const { seed, candidates } of pools) {
       const candidate = candidates[index];
       if (!candidate) continue;
@@ -239,21 +243,29 @@ export async function getExternalRecommendations(userId = getCurrentPlayerId()):
       const inspiration = seed.rating !== null ? `Recommended because you rated ${seed.title} ${seed.rating}★.`
         : `Recommended from your completed ${seed.title} (${seed.earnedXp.toLocaleString("en-US")} earned XP; unrated).`;
       selected.push({ title: candidate.title, reason: `${inspiration} ${candidate.basis}`, preferredPlatform: seed.platform });
-      if (selected.length === 3) break;
+      if (selected.length === candidateLimit) break;
     }
   }
 
-  return Promise.all(selected.map(async (candidate): Promise<ExternalRecommendation> => {
-    const lookup = await lookupRawgGame(candidate.title);
-    return {
-      title: candidate.title,
-      platform: lookup?.platforms.find((platform) => normalize(platform) === normalize(candidate.preferredPlatform)) ?? lookup?.platforms[0] ?? "PC",
-      genre: lookup?.genre ?? null,
-      releaseYear: lookup?.releaseYear ?? null,
-      coverUrl: lookup?.coverUrl ?? null,
-      lengthHours: resolveRawgPlaytime(lookup?.playtime, lookup?.genre) ?? 10,
-      difficulty: 2,
-      reason: `${candidate.reason}${lookup ? "" : " RAWG metadata is unavailable; playtime uses a 10h estimate."}`,
-    };
-  }));
+  const currentYear = new Date().getFullYear();
+  const recommendations: ExternalRecommendation[] = [];
+  // Enrich three at a time, trying replacements only if a release year is missing or upcoming.
+  for (let offset = 0; offset < selected.length && recommendations.length < 3; offset += 3) {
+    const batch = await Promise.all(selected.slice(offset, offset + 3).map(async (candidate): Promise<ExternalRecommendation | null> => {
+      const lookup = await lookupRawgGame(candidate.title);
+      if (!lookup || !isReleasedYear(lookup.releaseYear, currentYear)) return null;
+      return {
+        title: candidate.title,
+        platform: lookup.platforms.find((platform) => normalize(platform) === normalize(candidate.preferredPlatform)) ?? lookup.platforms[0] ?? "PC",
+        genre: lookup.genre,
+        releaseYear: lookup.releaseYear,
+        coverUrl: lookup.coverUrl,
+        lengthHours: resolveRawgPlaytime(lookup.playtime, lookup.genre) ?? 10,
+        difficulty: 2,
+        reason: candidate.reason,
+      };
+    }));
+    recommendations.push(...batch.filter((pick): pick is ExternalRecommendation => pick !== null));
+  }
+  return recommendations.slice(0, 3);
 }

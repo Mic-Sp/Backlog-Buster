@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { acceptQuest } from "@/app/actions";
 import { buildTrailerUrl } from "@/lib/trailers";
+import { isReleasedYear } from "@/lib/game-release";
 import DeckPinButton from "@/components/DeckPinButton";
 
 type QuestGame = {
@@ -37,9 +38,11 @@ export default function QuestRoulette({ games }: { games: QuestGame[] }) {
     if (timeoutRef.current !== null) clearTimeout(timeoutRef.current);
   }, []);
 
-  const genres = [...new Set(games.flatMap((game) => game.genre?.trim() ? [game.genre.trim()] : []))].sort();
-  const platforms = [...new Set(games.map((game) => game.platform.trim()).filter(Boolean))].sort();
-  const matches = games.filter((game) => (
+  const currentYear = new Date().getFullYear();
+  const releasedGames = games.filter((game) => isReleasedYear(game.releaseYear, currentYear));
+  const genres = [...new Set(releasedGames.flatMap((game) => game.genre?.trim() ? [game.genre.trim()] : []))].sort();
+  const platforms = [...new Set(releasedGames.map((game) => game.platform.trim()).filter(Boolean))].sort();
+  const matches = releasedGames.filter((game) => (
     (time === "all" ||
       (time === "quick" && game.lengthHours <= 15) ||
       (time === "standard" && game.lengthHours >= 16 && game.lengthHours <= 40) ||
@@ -206,9 +209,11 @@ export default function QuestRoulette({ games }: { games: QuestGame[] }) {
             <p className="quest-match-count">
               {games.length === 0
                 ? "No backlog gigs yet. Add a game to get started."
-                : matches.length === 0
-                  ? "No gigs match. Try changing your filters."
-                  : `${matches.length} ${matches.length === 1 ? "gig matches" : "gigs match"} your filters.`}
+                : releasedGames.length === 0
+                  ? `No released gigs available. Roulette requires a release year of ${currentYear} or earlier.`
+                  : matches.length === 0
+                    ? "No gigs match. Try changing your filters."
+                    : `${matches.length} ${matches.length === 1 ? "gig matches" : "gigs match"} your filters.`}
             </p>
 
             {!winner && (

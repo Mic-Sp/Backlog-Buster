@@ -543,6 +543,44 @@ p {
 	flex-wrap: wrap;
 }
 
+.row-game-metadata {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 4px;
+}
+
+.library-rating-badge {
+	display: inline-flex;
+	align-items: center;
+	padding: 2px 6px;
+	border: 1px solid #8f8526;
+	border-radius: 2px;
+	color: #fcee0a;
+	background: #25240e;
+	font-family: "Courier New", monospace;
+	font-size: 10px;
+	font-weight: 700;
+	line-height: 1.4;
+	white-space: nowrap;
+	text-shadow: 0 0 5px rgba(252, 238, 10, 0.25);
+}
+
+.unreleased-badge {
+	display: inline-flex;
+	align-items: center;
+	padding: 2px 6px;
+	border: 1px solid #80632f;
+	border-radius: 2px;
+	color: #ffd38a;
+	background: #211b10;
+	font-family: "Courier New", monospace;
+	font-size: 9px;
+	font-weight: 700;
+	line-height: 1.4;
+	white-space: nowrap;
+}
+
 .genre-badge {
 	max-width: 130px;
 	overflow: hidden;
@@ -2300,6 +2338,10 @@ button.complete-gig-button:focus-visible {
 	outline: 2px solid #05ffa1;
 	outline-offset: 4px;
 }
+.advisor-card-body > .agent-briefing {
+	margin-bottom: 0;
+}
+
 .game-title-actions {
 	display: flex;
 	flex-wrap: nowrap;

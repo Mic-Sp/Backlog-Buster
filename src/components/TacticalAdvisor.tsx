@@ -8,8 +8,9 @@ import type { LibraryGame } from "@/components/GameLibrary";
 import { normalizeGameTitle } from "@/lib/game-title";
 import { buildTrailerUrl } from "@/lib/trailers";
 import DeckPinButton from "@/components/DeckPinButton";
+import AgentBriefing from "@/components/AgentBriefing";
 
-export default function TacticalAdvisor({ games }: { games: Pick<LibraryGame, "id" | "title" | "status" | "pinnedOrder">[] }) {
+export default function TacticalAdvisor({ games }: { games: Pick<LibraryGame, "id" | "title" | "status" | "pinnedOrder" | "hoursPlayed">[] }) {
   const [isOpen, setIsOpen] = useState(false);
   const [picks, setPicks] = useState<BacklogRecommendations | null>(null);
   const [error, setError] = useState("");
@@ -195,6 +196,7 @@ export default function TacticalAdvisor({ games }: { games: Pick<LibraryGame, "i
                 <a className="trailer-link-button" href={buildTrailerUrl(pick.game.title, pick.game.releaseYear)} target="_blank" rel="noopener noreferrer">🎬 WATCH TRAILER ↗</a>
                 {savedGame && <DeckPinButton gameId={savedGame.id} pinnedOrder={savedGame.pinnedOrder} pinnedCount={pinnedCount} disabled={isFetching || isStarting || isAdding} />}
               </div>
+              <AgentBriefing game={{ ...pick.game, hoursPlayed: savedGame?.hoursPlayed }} />
             </div>
           </>
         ) : <p className="advisor-empty">No matching backlog gig available.</p>}
@@ -223,7 +225,7 @@ export default function TacticalAdvisor({ games }: { games: Pick<LibraryGame, "i
                   {renderPick(picks.continuationPick, "continuation")}
                   {renderPick(picks.palateCleanserPick, "cleanser")}
                 </div>
-              ) : <p className="advisor-empty" role="status">Your backlog is clear. Add or import a gig to give CORTEX something to analyze.</p>
+              ) : <p className="advisor-empty" role="status">No released backlog gigs are eligible. CORTEX requires a saved release year of this year or earlier.</p>
             )}
             {!isFetching && <button className="advisor-refresh" type="button" disabled={isStarting || isAdding} onClick={loadPicks}>{error ? "RETRY SCAN" : "REFRESH SCAN"}</button>}
             <section className="advisor-external-section" aria-labelledby="external-scout-title">
@@ -260,12 +262,13 @@ export default function TacticalAdvisor({ games }: { games: Pick<LibraryGame, "i
                                 </button>
                                 <a className="trailer-link-button" href={buildTrailerUrl(pick.title, pick.releaseYear)} target="_blank" rel="noopener noreferrer">🎬 WATCH TRAILER ↗</a>
                               </div>
+                              <AgentBriefing game={pick} />
                             </div>
                           </article>
                         );
                       })}
                     </div>
-                  ) : <p className="advisor-empty" role="status">No new affinity picks available. Complete and rate a gig 4–5 stars to guide scouting; games already in your library are excluded.</p>)}
+                  ) : <p className="advisor-empty" role="status">No new affinity picks with a confirmed release year of this year or earlier are available. Complete and rate a gig 4–5 stars to guide scouting; games already in your library are excluded.</p>)}
                   {!isScouting && <button className="advisor-refresh" type="button" disabled={isStarting || isAdding} onClick={() => loadExternalPicks()}>{externalError ? "RETRY EXTERNAL SCAN" : "RESCAN NEW CONTRACTS"}</button>}
                   <p className="advisor-scout-status" role="status" aria-live="polite">{addedTitles.size > 0 ? `${addedTitles.size} new contract${addedTitles.size === 1 ? "" : "s"} added to backlog.` : ""}</p>
                 </>

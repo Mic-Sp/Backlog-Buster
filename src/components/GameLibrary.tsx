@@ -11,6 +11,9 @@ import TacticalAdvisor from "@/components/TacticalAdvisor";
 import { buildTrailerUrl } from "@/lib/trailers";
 import DeckPinButton from "@/components/DeckPinButton";
 import UpNextDeck from "@/components/UpNextDeck";
+import { DECK_CAPACITY } from "@/lib/deck";
+import { isReleasedYear } from "@/lib/game-release";
+import AgentBriefing from "@/components/AgentBriefing";
 
 export type LibraryGame = {
   id: number;
@@ -52,6 +55,12 @@ function sortableXp(game: LibraryGame) {
   return game.status === "Flatlined" ? 0 : game.earnedXp || game.lengthHours * game.difficulty * 10;
 }
 
+function comparePinnedGames(left: LibraryGame, right: LibraryGame) {
+  const leftSlot = left.status === "Backlog" ? left.pinnedOrder ?? DECK_CAPACITY + 1 : DECK_CAPACITY + 1;
+  const rightSlot = right.status === "Backlog" ? right.pinnedOrder ?? DECK_CAPACITY + 1 : DECK_CAPACITY + 1;
+  return leftSlot - rightSlot;
+}
+
 export default function GameLibrary({ games, achievements = [], children }: { games: LibraryGame[]; achievements?: Achievement[]; children?: ReactNode }) {
   const [activeView, setActiveView] = useState<LibraryView>("All");
   const [searchQuery, setSearchQuery] = useState("");
@@ -63,6 +72,7 @@ export default function GameLibrary({ games, achievements = [], children }: { ga
   const [isLogging, startLogging] = useTransition();
   const [sessionError, setSessionError] = useState<{ gameId: number; message: string } | null>(null);
   const pinnedCount = games.filter((game) => game.status === "Backlog" && game.pinnedOrder != null).length;
+  const currentYear = new Date().getFullYear();
 
   function logSession(gameId: number, addHours: number) {
     setSessionError(null);
@@ -130,10 +140,20 @@ export default function GameLibrary({ games, achievements = [], children }: { ga
       (!genreFilter || game.genre?.trim() === genreFilter) &&
       (!query || [game.title, game.genre, game.platform].some((value) => value?.toLowerCase().includes(query)))
     ));
-    if (sortBy === "default") return filtered;
+    if (sortBy === "default") {
+      return activeView === "Backlog" ? [...filtered].sort(comparePinnedGames) : filtered;
+    }
 
     return [...filtered].sort((left, right) => {
       switch (sortBy) {
+        case "rating-desc":
+        case "rating-asc":
+          if (left.rating === null && right.rating === null) return 0;
+          if (left.rating === null) return 1;
+          if (right.rating === null) return -1;
+          return sortBy === "rating-desc" ? right.rating - left.rating : left.rating - right.rating;
+        case "pinned-first":
+          return comparePinnedGames(left, right);
         case "hours-asc":
           return left.lengthHours - right.lengthHours;
         case "hours-desc":
@@ -190,6 +210,14 @@ export default function GameLibrary({ games, achievements = [], children }: { ga
     setPlatformFilter("");
     setGenreFilter("");
     setSortBy("default");
+  }
+
+  function changeView(view: LibraryView) {
+    setActiveView(view);
+    if ((view === "Backlog" && sortBy.startsWith("rating-")) ||
+      (view !== "All" && view !== "Backlog" && sortBy === "pinned-first")) {
+      setSortBy("default");
+    }
   }
 
   function toggleColumnSort(column: SortColumn) {
@@ -334,7 +362,7 @@ export default function GameLibrary({ games, achievements = [], children }: { ga
             type="button"
             data-view={view.toLowerCase()}
             aria-pressed={activeView === view}
-            onClick={() => setActiveView(view)}
+            onClick={() => changeView(view)}
           >
             {view.toUpperCase()} <span>{viewCounts[view]}</span>
           </button>
@@ -369,6 +397,13 @@ export default function GameLibrary({ games, achievements = [], children }: { ga
           <span>Sort</span>
           <select className="library-filter-select" aria-label="Sort games" value={sortBy} onChange={(event) => setSortBy(event.target.value)}>
             <option value="default">Default order</option>
+            {activeView !== "Backlog" && (
+              <>
+                <option value="rating-desc">Highest rated</option>
+                <option value="rating-asc">Lowest rated</option>
+              </>
+            )}
+            {(activeView === "All" || activeView === "Backlog") && <option value="pinned-first">Pinned first</option>}
             <option value="hours-asc">Hours: shortest first</option>
             <option value="hours-desc">Hours: longest first</option>
             <option value="xp-desc">XP: highest first</option>
@@ -445,7 +480,12 @@ export default function GameLibrary({ games, achievements = [], children }: { ga
                 <div className="spotlight-card-body">
                   <p className="spotlight-badge">{game.status === "Flatlined" ? "💀 FLATLINED // SHELVED" : "LIVE GIG // IN PROGRESS"}</p>
                   <h3>{game.title}</h3>
-                  <p className="library-card-metadata">{game.platform} · {game.genre?.trim() || "Unknown genre"} · {game.releaseYear ?? "Unknown year"}</p>
+                  <p className="library-card-metadata">
+                    {game.platform} · {game.genre?.trim() || "Unknown genre"} · {game.releaseYear ?? "Unknown year"}
+                    {activeView === "Flatlined" && game.rating !== null && (
+                      <> <span className="library-rating-badge" aria-label={`Rated ${game.rating} out of 5 stars`}>★ {game.rating}/5</span></>
+                    )}
+                  </p>
                   <div className="gig-progress-block">
                     <div className="gig-progress-header">
                       <span>{game.status === "Flatlined" ? "ARCHIVED GIG PROGRESS" : "ACTIVE GIG PROGRESS"}</span>
@@ -466,6 +506,7 @@ export default function GameLibrary({ games, achievements = [], children }: { ga
                     <span>{game.status === "Flatlined" ? "Shelved Gig // No Game XP" : "Potential XP Bounty"}</span>
                     <strong>{(game.status === "Flatlined" ? 0 : game.lengthHours * game.difficulty * 10).toLocaleString()} XP</strong>
                   </div>
+                  {game.status === "Playing" && <AgentBriefing game={game} />}
                   {renderCardControls(game)}
                   {game.status === "Playing" && (
                     <button type="submit" formAction={completeGame} className="complete-gig-button">
@@ -569,7 +610,15 @@ export default function GameLibrary({ games, achievements = [], children }: { ga
                 </span>
                 <span className="genre-cell" role="cell">
                   <span className="mobile-label">Genre</span>
-                  {game.genre?.trim() || "—"}
+                  <span className="row-game-metadata">
+                    <span>{game.genre?.trim() || "—"}</span>
+                    {activeView === "All" && game.rating !== null && (
+                      <span className="library-rating-badge" aria-label={`Rated ${game.rating} out of 5 stars`}>★ {game.rating}/5</span>
+                    )}
+                    {game.status === "Backlog" && !isReleasedYear(game.releaseYear, currentYear) && (
+                      <span className="unreleased-badge" title="Excluded from Cortex and Roulette until a release year of this year or earlier is saved.">⏳ UNRELEASED</span>
+                    )}
+                  </span>
                 </span>
                 <span role="cell">
                   <span className="mobile-label">Year</span>
