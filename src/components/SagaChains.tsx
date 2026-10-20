@@ -1,9 +1,30 @@
 "use client";
 
-import type { SagaChain } from "@/lib/sagas";
+import type { SagaChain, SagaOrderMode } from "@/lib/sagas";
 import "./SagaChains.css";
 
 type SagaSelection = { onSelect: (key: string) => void };
+
+type SagaOrderControlsProps = {
+  order: SagaOrderMode | null;
+  onOrderChange: (order: SagaOrderMode) => void;
+  onAutoDetect: () => void;
+  isDetecting: boolean;
+};
+
+export function SagaOrderControls({ order, onOrderChange, onAutoDetect, isDetecting }: SagaOrderControlsProps) {
+  return (
+    <div className="saga-order-controls">
+      <div className="saga-order-toggle" role="group" aria-label="Saga order">
+        <button type="button" aria-pressed={order === "release"} onClick={() => onOrderChange("release")}>RELEASE ORDER</button>
+        <button type="button" aria-pressed={order === "timeline"} onClick={() => onOrderChange("timeline")}>TIMELINE ORDER</button>
+      </div>
+      <button className="saga-detect-order" type="button" disabled={isDetecting} onClick={onAutoDetect} title="Resolve and save canon ranks for this saga, replacing any existing timeline ranks">
+        {isDetecting ? "⏳ SCANNING CANON…" : "🤖 AUTO-DETECT CANON ORDER"}
+      </button>
+    </div>
+  );
+}
 
 export function SagaBadge({ saga, onSelect, layout = "default" }: { saga: SagaChain; layout?: "default" | "table" | "trophy" } & SagaSelection) {
   const cleared = saga.total >= 2 && saga.completed === saga.total;
@@ -21,7 +42,7 @@ export function SagaBadge({ saga, onSelect, layout = "default" }: { saga: SagaCh
   );
 }
 
-export default function SagaChains({ chains, selectedKey, onSelect }: { chains: SagaChain[]; selectedKey: string } & SagaSelection) {
+export default function SagaChains({ chains, selectedKey, onSelect, ...orderControls }: { chains: SagaChain[]; selectedKey: string } & SagaSelection & SagaOrderControlsProps) {
   const selected = chains.find((chain) => chain.key === selectedKey);
   return (
     <details className="saga-chains-drawer">
@@ -37,6 +58,7 @@ export default function SagaChains({ chains, selectedKey, onSelect }: { chains: 
             {chains.map((chain) => <option key={chain.key} value={chain.key}>{chain.name}{" // "}{chain.completed}/{chain.total} cleared</option>)}
           </select>
         </label>
+        {selected && <SagaOrderControls {...orderControls} />}
         {chains.length ? (
           <div className="saga-chains-grid">
             {chains.map((chain) => {
@@ -52,7 +74,7 @@ export default function SagaChains({ chains, selectedKey, onSelect }: { chains: 
             })}
           </div>
         ) : <p className="saga-chains-hint">No multi-game sagas detected yet. Use Edit Metadata → Franchise / Saga Name to connect games across different titles.</p>}
-        {chains.length > 0 && <p className="saga-chains-hint">Progress covers your full library. Select a saga to see all its games in release order. Edit Metadata lets you override automatic grouping.</p>}
+        {chains.length > 0 && <p className="saga-chains-hint">Progress covers your full library. Select a saga to switch between release and timeline order. Edit Metadata lets you override grouping and timeline ranks.</p>}
       </div>
     </details>
   );

@@ -25,6 +25,7 @@ model Game {
   coverUrl    String?
   genre       String?
   franchise   String?
+  chronologicalOrder Int?
   releaseYear Int?
 
   @@index([userId])

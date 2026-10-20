@@ -157,6 +157,7 @@ async function SavedGames() {
     backupCoverUrl: game.coverUrl,
     genre: game.genre,
     franchise: game.franchise,
+    chronologicalOrder: game.chronologicalOrder,
     releaseYear: game.releaseYear,
   }));
 

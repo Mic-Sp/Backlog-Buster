@@ -2,7 +2,7 @@ import type { LibraryGame } from "@/components/GameLibrary";
 
 const fields = [
   "title", "platform", "status", "wasFlatlined", "pinnedOrder", "lengthHours", "hoursPlayed", "difficulty",
-  "earnedXp", "rating", "notes", "genre", "franchise", "releaseYear", "coverUrl",
+  "earnedXp", "rating", "notes", "genre", "franchise", "releaseYear", "chronologicalOrder", "coverUrl",
 ] as const;
 
 export function serializeLibraryBackup(games: LibraryGame[], format: "json" | "csv") {

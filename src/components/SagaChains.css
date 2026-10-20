@@ -253,6 +253,150 @@ button.saga-badge:focus-visible,
 	outline-offset: 3px;
 }
 
+.saga-order-controls {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+}
+
+.saga-chains-body > .saga-order-controls {
+	margin-bottom: 14px;
+}
+
+.saga-order-toggle {
+	display: inline-flex;
+	max-width: 100%;
+	border: 1px solid #2e5262;
+	border-radius: 2px;
+	background: #080d16;
+}
+
+.saga-order-toggle > button,
+button.saga-detect-order {
+	min-height: 32px;
+	padding: 7px 10px;
+	border: 0;
+	color: #9ab1c4;
+	background: transparent;
+	font-family: "Courier New", monospace;
+	font-size: 10px;
+	font-weight: 700;
+	line-height: 1.4;
+	white-space: nowrap;
+	cursor: pointer;
+}
+
+.saga-order-toggle > button + button {
+	border-left: 1px solid #2e5262;
+}
+
+.saga-order-toggle > button[aria-pressed="true"] {
+	color: #00f0ff;
+	background: #0c2a32;
+}
+
+button.saga-detect-order {
+	border: 1px solid #8f8526;
+	border-radius: 2px;
+	color: #fcee0a;
+	background: #211f0f;
+}
+
+.saga-order-toggle > button:hover,
+button.saga-detect-order:hover:not(:disabled) {
+	color: #e6fff9;
+	background: #17333c;
+}
+
+.saga-order-toggle > button:focus-visible,
+button.saga-detect-order:focus-visible {
+	outline: 2px solid #00f0ff;
+	outline-offset: 3px;
+}
+
+button.saga-detect-order:disabled {
+	opacity: 0.6;
+	cursor: wait;
+}
+
+.saga-timeline-panel {
+	margin: 16px 0;
+	padding: 16px;
+	border: 1px solid #285461;
+	border-left: 3px solid #00f0ff;
+	border-radius: 2px;
+	background: #0b101b;
+}
+
+.saga-timeline-heading {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 14px;
+}
+
+.saga-timeline-heading h3 {
+	margin: 6px 0 0;
+	color: #e6fff9;
+	font-family: var(--font-terminal), "Courier New", monospace;
+	font-size: 22px;
+	letter-spacing: 0.04em;
+	overflow-wrap: anywhere;
+}
+
+.saga-order-notice {
+	margin: 12px 0 0;
+	color: #b4fff5;
+	font-size: 12px;
+	line-height: 1.6;
+}
+
+.saga-order-notice[data-error="true"] {
+	color: #ff8bad;
+}
+
+.game-title-heading {
+	display: flex;
+	min-width: 0;
+	align-items: center;
+	gap: 6px;
+}
+
+.game-title-heading > strong {
+	min-width: 0;
+}
+
+.saga-timeline-ordinal {
+	display: inline-flex;
+	flex-shrink: 0;
+	align-items: center;
+	min-height: 19px;
+	margin-left: 8px;
+	padding: 1px 5px;
+	border: 1px solid #32616a;
+	border-radius: 3px;
+	color: #94f7ff;
+	background: #0c252d;
+	font-family: "Courier New", monospace;
+	font-size: 9px;
+	font-weight: 700;
+	line-height: 1.4;
+	vertical-align: middle;
+	white-space: nowrap;
+}
+
+.game-title-heading > .saga-timeline-ordinal {
+	margin-left: 0;
+}
+
+.saga-timeline-ordinal[data-assigned="false"] {
+	border-color: #2e3a52;
+	color: #8795a8;
+	background: #111827;
+}
+
 @media (max-width: 640px) {
 	.saga-chains-drawer > summary {
 		font-size: 15px;

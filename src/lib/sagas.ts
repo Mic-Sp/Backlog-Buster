@@ -13,6 +13,33 @@ export type SagaChain = {
   gameIds: number[];
 };
 
+export type SagaOrderMode = "release" | "timeline";
+
+export function parseChronologicalOrder(value: unknown): number | null {
+  if (value == null || (typeof value === "string" && value.trim() === "")) return null;
+  const rank = typeof value === "string" && /^\d+$/.test(value.trim()) ? Number(value) : value;
+  if (typeof rank !== "number" || !Number.isSafeInteger(rank) || rank < 1 || rank > 10000) {
+    throw new Error("Timeline order must be a whole number from 1 to 10000, or blank.");
+  }
+  return rank;
+}
+
+export function compareSagaGames(
+  left: { id: number; title: string; releaseYear: number | null; chronologicalOrder?: number | null },
+  right: { id: number; title: string; releaseYear: number | null; chronologicalOrder?: number | null },
+  mode: SagaOrderMode,
+) {
+  if (mode === "timeline") {
+    const leftRank = left.chronologicalOrder ?? Infinity;
+    const rightRank = right.chronologicalOrder ?? Infinity;
+    if (leftRank !== rightRank) return leftRank - rightRank;
+  }
+  const leftYear = left.releaseYear ?? Infinity;
+  const rightYear = right.releaseYear ?? Infinity;
+  if (leftYear !== rightYear) return leftYear - rightYear;
+  return left.title.localeCompare(right.title) || left.id - right.id;
+}
+
 const knownSeries: [RegExp, string][] = [
   [/^(?:the )?legend of zelda\b|^zelda\b/, "Legend of Zelda"],
   [/^final fantasy\b/, "Final Fantasy"],

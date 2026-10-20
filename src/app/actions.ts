@@ -10,6 +10,8 @@ import { getBacklogRecommendations, getExternalRecommendations } from "@/lib/rec
 import { normalizeGameTitle } from "@/lib/game-title";
 import { DECK_CAPACITY } from "@/lib/deck";
 import type { Prisma } from "@/generated/prisma/client";
+import { buildSagaChains, parseChronologicalOrder } from "@/lib/sagas";
+import { resolveSagaChronology } from "@/lib/saga-chronology";
 
 const allowedStatuses = new Set(["Backlog", "Playing", "Completed", "Flatlined"]);
 
@@ -218,6 +220,41 @@ export async function fetchExternalScout() {
   return getExternalRecommendations(getCurrentPlayerId());
 }
 
+export async function autoDetectSagaOrder(sagaKey: string) {
+  if (typeof sagaKey !== "string" || !sagaKey.trim() || sagaKey.length > 240) {
+    return { updatedCount: 0, error: "Choose a valid saga to scan." };
+  }
+  const userId = getCurrentPlayerId();
+  const games = await prisma.game.findMany({
+    where: { userId },
+    select: { id: true, title: true, status: true, franchise: true, chronologicalOrder: true },
+  });
+  const chain = buildSagaChains(games).chains.find((saga) => saga.key === sagaKey);
+  if (!chain) return { updatedCount: 0, error: "This saga is no longer available. Refresh your library and try again." };
+  const ids = new Set(chain.gameIds);
+  const members = games.filter((game) => ids.has(game.id));
+  let order: Record<string, number> | null;
+  try {
+    order = await resolveSagaChronology(chain.name, members.map((game) => game.title));
+  } catch (error) {
+    return { updatedCount: 0, error: error instanceof Error ? error.message : "Canon scan failed. Existing timeline ranks were kept." };
+  }
+  if (!order) return { updatedCount: 0, message: "No reliable shared canon timeline was found. Existing ranks were kept; unassigned games use release order." };
+  try {
+    // No network calls inside the transaction. Snapshot guards prevent overwriting
+    // metadata or manual ranks edited in another tab while Gemini was responding.
+    await prisma.$transaction(members.map((game) => prisma.game.update({
+      where: { id: game.id, userId, title: game.title, franchise: game.franchise, chronologicalOrder: game.chronologicalOrder },
+      data: { chronologicalOrder: order[game.title] },
+      select: { id: true },
+    })));
+  } catch {
+    return { updatedCount: 0, error: "Your saga changed during the scan. No ranks were saved; please try again." };
+  }
+  revalidatePath("/");
+  return { updatedCount: members.length, message: `Canon order saved for ${members.length} games. You can adjust individual ranks in Edit Metadata.` };
+}
+
 export async function addExternalScoutGame(formData: FormData) {
   const title = formData.get("title");
   if (typeof title !== "string" || !title.trim() || title.trim().length > 120) {
@@ -269,7 +306,7 @@ export async function bulkImportGames(payload: {
     pinnedOrder: number | null;
     lengthHours: number; hoursPlayed: number; difficulty: number; earnedXp: number;
     rating: number | null; notes: string | null; genre: string | null; franchise: string | null;
-    releaseYear: number | null; coverUrl: string | null;
+    releaseYear: number | null; chronologicalOrder: number | null; coverUrl: string | null;
   };
   let records: ImportedGame[] = [];
   if (payload.mode === "titles") {
@@ -297,7 +334,7 @@ export async function bulkImportGames(payload: {
           pinnedOrder: null,
           lengthHours: resolveRawgPlaytime(lookup?.playtime, lookup?.genre) ?? 10,
           hoursPlayed: 0, difficulty: 2, earnedXp: 0, rating: null, notes: null,
-          genre: lookup?.genre ?? null, franchise: null, releaseYear: lookup?.releaseYear ?? null,
+          genre: lookup?.genre ?? null, franchise: null, releaseYear: lookup?.releaseYear ?? null, chronologicalOrder: null,
           coverUrl: lookup?.coverUrl ?? null,
         };
       }));
@@ -339,6 +376,7 @@ export async function bulkImportGames(payload: {
         rating: game.rating == null ? null : integer(game.rating, "Rating", 1, 5, 1),
         notes: nullableText(game.notes, "notes", 1000), genre: nullableText(game.genre, "genre"),
         franchise: nullableText(game.franchise, "franchise", 120),
+        chronologicalOrder: parseChronologicalOrder(game.chronologicalOrder),
         releaseYear: game.releaseYear == null ? null : integer(game.releaseYear, "Release year", 1800, 2100, 2000),
         coverUrl: coverUrl ? optionalHttpUrl(coverUrl) : null,
       };
@@ -417,11 +455,12 @@ export async function updateGame(formData: FormData) {
     platform?: string;
     genre?: string | null;
     franchise?: string | null;
+    chronologicalOrder?: number | null;
     releaseYear?: number | null;
     coverUrl?: string | null;
   } = {};
 
-  for (const name of ["title", "platform", "genre", "franchise", "releaseYear", "coverUrl"]) {
+  for (const name of ["title", "platform", "genre", "franchise", "releaseYear", "coverUrl", "chronologicalOrder"]) {
     if (formData.has(name) && typeof formData.get(name) !== "string") {
       throw new Error("Please provide valid game metadata.");
     }
@@ -442,6 +481,7 @@ export async function updateGame(formData: FormData) {
     metadata.franchise = franchise || null;
   }
   if (formData.has("releaseYear")) metadata.releaseYear = optionalYear(optionalText(formData, "releaseYear"));
+  if (formData.has("chronologicalOrder")) metadata.chronologicalOrder = parseChronologicalOrder(formData.get("chronologicalOrder"));
   if (formData.has("coverUrl")) metadata.coverUrl = optionalHttpUrl(optionalText(formData, "coverUrl"));
 
   if (
