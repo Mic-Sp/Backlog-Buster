@@ -1,6 +1,7 @@
 "use server";
 
-import { safeAction, InputError } from "@/lib/action-result";
+import { guardedRequest } from "@/lib/api-resilience";
+import { safeAction, InputError, RateLimitError } from "@/lib/action-result";
 import { validateGameForm } from "@/lib/form-validation";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
@@ -368,19 +369,21 @@ export async function searchGameInfo(title: string) {
     const cleanTitle = title.trim();
     return cleanTitle === "" || cleanTitle.length > 120
       ? null
-      : lookupRawgGame(cleanTitle);
+      : guardedRequest(await getCurrentPlayerId(), "metadata", cleanTitle.toLowerCase(), () => lookupRawgGame(cleanTitle, true));
   });
 }
 
 export async function fetchBacklogAdvisor() {
   return safeAction(async () => {
-    return getBacklogRecommendations(await getCurrentPlayerId());
+    const playerId = await getCurrentPlayerId();
+    return guardedRequest(playerId, "advisor", "backlog", () => getBacklogRecommendations(playerId));
   });
 }
 
 export async function fetchExternalScout() {
   return safeAction(async () => {
-    return getExternalRecommendations(await getCurrentPlayerId());
+    const playerId = await getCurrentPlayerId();
+    return guardedRequest(playerId, "scout", "external", () => getExternalRecommendations(playerId));
   });
 }
 
@@ -400,8 +403,9 @@ export async function autoDetectSagaOrder(sagaKey: string) {
     const members = games.filter((game) => ids.has(game.id));
     let order: Record<string, number> | null;
     try {
-      order = await resolveSagaChronology(chain.name, members.map((game) => game.title));
+      order = await guardedRequest(userId, "chronology", sagaKey, () => resolveSagaChronology(chain.name, members.map((game) => game.title)));
     } catch (error) {
+      if (error instanceof RateLimitError) throw error;
       return { updatedCount: 0, error: error instanceof Error ? error.message : "Canon scan failed. Existing timeline ranks were kept." };
     }
     if (!order) return { updatedCount: 0, message: "No reliable shared canon timeline was found. Existing ranks were kept; unassigned games use release order." };

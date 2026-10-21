@@ -1,10 +1,17 @@
 export class InputError extends Error {}
-export type ActionError = { error: string };
-export class ActionFailure extends Error {}
+export type ActionError = { error: string; status?: number; retryAfterSeconds?: number };
+export class RateLimitError extends Error {
+  constructor(public retryAfterSeconds: number) {
+    super(`NEURAL LINK OVERLOADED // CORTEX COOLING DOWN — RETRY IN ${retryAfterSeconds}s`);
+  }
+}
+export class ActionFailure extends Error {
+  constructor(message: string, public retryAfterSeconds?: number) { super(message); }
+}
 
 export function unwrapActionResult<T>(result: T): Exclude<T, ActionError> {
   if (result && typeof result === "object" && "error" in result && typeof result.error === "string" && result.error) {
-    throw new ActionFailure(result.error);
+    throw new ActionFailure(result.error, "retryAfterSeconds" in result && typeof result.retryAfterSeconds === "number" ? result.retryAfterSeconds : undefined);
   }
   return result as Exclude<T, ActionError>;
 }
@@ -21,6 +28,6 @@ export async function safeAction<T>(operation: () => Promise<T>): Promise<Succes
     const result = await operation();
     return (result === undefined ? { success: true } : result) as Success<T>;
   } catch (error) {
-    return { error: actionErrorMessage(error) };
+    return error instanceof RateLimitError ? { error: error.message, status: 429, retryAfterSeconds: error.retryAfterSeconds } : { error: actionErrorMessage(error) };
   }
 }

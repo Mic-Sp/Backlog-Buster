@@ -1,5 +1,6 @@
 "use client";
 
+import useCooldown from "@/components/useCooldown";
 import { unwrapActionResult } from "@/lib/action-result";
 
 import { useEffect, useId, useRef, useState, useTransition } from "react";
@@ -17,6 +18,7 @@ type BriefingGame = {
 };
 
 export default function AgentBriefing({ game }: { game: BriefingGame }) {
+  const cooldown = useCooldown();
   const [isLoading, setIsLoading] = useState(false);
   const [briefing, setBriefing] = useState("");
   const [error, setError] = useState("");
@@ -32,7 +34,7 @@ export default function AgentBriefing({ game }: { game: BriefingGame }) {
   useEffect(() => () => requestRef.current?.abort(), []);
 
   async function audit() {
-    if (requestRef.current || isApplying) return;
+    if (requestRef.current || isApplying || cooldown.seconds > 0) return;
     if (!game.title.trim()) { setError("Please input a valid title."); return; }
     const controller = new AbortController();
     requestRef.current = controller;
@@ -45,11 +47,12 @@ export default function AgentBriefing({ game }: { game: BriefingGame }) {
       const response = await fetch("/api/ai-briefing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        signal: controller.signal,
+        signal: AbortSignal.any([controller.signal, AbortSignal.timeout(45000)]),
         body: JSON.stringify({ title: game.title.trim(), platform: game.platform.trim() || "PC", genre: game.genre?.trim() || null, year: game.releaseYear, lengthHours: game.lengthHours, hoursPlayed: game.hoursPlayed ?? null }),
       });
       const result = await response.json();
       if (controller.signal.aborted) return;
+      if (response.status === 429 || result?.retryAfterSeconds) cooldown.start(result?.retryAfterSeconds ?? (Number(response.headers.get("Retry-After")) || 10));
       if (!response.ok || typeof result?.briefing !== "string" || !result.briefing.trim()) {
         setError(typeof result?.error === "string" ? result.error : "No briefing received. Please try again.");
         return;
@@ -79,8 +82,8 @@ export default function AgentBriefing({ game }: { game: BriefingGame }) {
 
   return (
     <div className="agent-briefing">
-      <button type="button" className="agent-audit-button" disabled={isLoading || isApplying} onClick={audit} aria-controls={readoutId} aria-expanded={isLoading || Boolean(briefing || error)}>
-        {isLoading ? "🤖 AUDITING PLAYTIME…" : "🤖 AGENT PLAYTIME AUDIT"}
+      <button type="button" className="agent-audit-button" disabled={isLoading || isApplying || cooldown.seconds > 0} onClick={audit} aria-controls={readoutId} aria-expanded={isLoading || Boolean(briefing || error)}>
+        {cooldown.seconds > 0 ? cooldown.label : isLoading ? "🤖 AUDITING PLAYTIME…" : "🤖 AGENT PLAYTIME AUDIT"}
       </button>
       <div id={readoutId} className="agent-briefing-readout" hidden={!isLoading && !briefing && !error} aria-live="polite" aria-atomic="true" aria-busy={isLoading}>
         <span className="agent-briefing-eyebrow">AGENT // PLAYTIME &amp; GIG BRIEFING</span>

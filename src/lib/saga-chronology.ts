@@ -1,4 +1,6 @@
 import "server-only";
+import { resilientFetch } from "@/lib/api-resilience";
+import { RateLimitError } from "@/lib/action-result";
 
 const systemPrompt = `You are Cortex, a deterministic video game timeline archivist.
 Task: Assign strict in-universe chronological story ranks (1, 2, 3... N) to the provided game titles based on the primary calendar year/era of the main protagonist's campaign.
@@ -60,7 +62,7 @@ async function requestSagaChronology(sagaName: string, titles: string[], model: 
 
   let response: Response;
   try {
-    response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+    response = await resilientFetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
       cache: "no-store",
@@ -87,7 +89,8 @@ async function requestSagaChronology(sagaName: string, titles: string[], model: 
         },
       }),
     });
-  } catch {
+  } catch (error) {
+    if (error instanceof RateLimitError) throw error;
     throw new Error("Canon scan could not reach Gemini or timed out. Existing ranks were kept; unassigned games use release order.");
   }
   if (!response.ok) {

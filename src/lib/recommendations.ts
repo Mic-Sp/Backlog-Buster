@@ -254,7 +254,7 @@ export async function getExternalRecommendations(userId?: string): Promise<Exter
   // Enrich three at a time, trying replacements only if a release year is missing or upcoming.
   for (let offset = 0; offset < selected.length && recommendations.length < 3; offset += 3) {
     const batch = await Promise.all(selected.slice(offset, offset + 3).map(async (candidate): Promise<ExternalRecommendation | null> => {
-      const lookup = await lookupRawgGame(candidate.title);
+      const lookup = await lookupRawgGame(candidate.title, true);
       if (!lookup || !isReleasedYear(lookup.releaseYear, currentYear)) return null;
       return {
         title: candidate.title,

@@ -1,5 +1,6 @@
 "use client";
 
+import useCooldown from "@/components/useCooldown";
 import { unwrapActionResult } from "@/lib/action-result";
 
 import SafeForm, { SafeActionButton } from "@/components/SafeForm";
@@ -77,6 +78,8 @@ function comparePinnedGames(left: LibraryGame, right: LibraryGame) {
 }
 
 export default function GameLibrary({ games: serverGames, achievements = [], children }: { games: LibraryGame[]; achievements?: Achievement[]; children?: ReactNode }) {
+  const sagaCooldown = useCooldown();
+  const sagaScanRef = useRef(false);
   const [games, returnToBacklogOptimistically] = useOptimistic<LibraryGame[], { gameId: number; orderedIds: number[] | null }>(serverGames, (current, move) => {
     const ranks = new Map(move.orderedIds?.map((id, index) => [id, index + 1]));
     return current.map((game) => game.id === move.gameId || ranks.has(game.id) ? {
@@ -328,23 +331,25 @@ export default function GameLibrary({ games: serverGames, achievements = [], chi
   }
 
   function detectSagaOrder() {
-    if (!selectedSaga || timelineBusy || reorderInFlightRef.current) return;
+    if (!selectedSaga || timelineBusy || reorderInFlightRef.current || sagaScanRef.current || sagaCooldown.seconds > 0) return;
     const key = selectedSaga.key;
     setSagaNotice(null);
+    sagaScanRef.current = true;
     startDetectingSaga(async () => {
       try {
         const result = await autoDetectSagaOrder(key);
+        if ("retryAfterSeconds" in result) sagaCooldown.start(result.retryAfterSeconds);
         if (sagaFilterRef.current !== key) return;
         setSagaNotice({ key, text: result.error ?? result.message ?? "Canon scan complete.", error: Boolean(result.error) });
         if ("updatedCount" in result && result.updatedCount > 0) setSortBy("timeline-asc");
       } catch {
         if (sagaFilterRef.current === key) setSagaNotice({ key, text: "Canon scan failed. Existing ranks were kept; unassigned games use release order.", error: true });
-      }
+      } finally { sagaScanRef.current = false; }
     });
   }
 
   const sagaOrder: SagaOrderMode | null = sortBy === "timeline-asc" ? "timeline" : sortBy === "year-asc" ? "release" : null;
-  const sagaOrderControls = { order: sagaOrder, onOrderChange: changeSagaOrder, onAutoDetect: detectSagaOrder, isDetecting: isDetectingSaga, disabled: isReorderingTimeline };
+  const sagaOrderControls = { order: sagaOrder, onOrderChange: changeSagaOrder, onAutoDetect: detectSagaOrder, isDetecting: isDetectingSaga, cooldownSeconds: sagaCooldown.seconds, disabled: isReorderingTimeline };
 
   function persistVisibleTimeline(orderedVisibleIds: number[]) {
     if (!selectedSaga || !inTimelineView || timelineBusy || reorderInFlightRef.current) return;

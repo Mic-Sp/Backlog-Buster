@@ -1,6 +1,7 @@
 "use client";
 
-import { unwrapActionResult } from "@/lib/action-result";
+import useCooldown from "@/components/useCooldown";
+import { actionErrorMessage, ActionFailure, unwrapActionResult } from "@/lib/action-result";
 
 import SafeForm from "@/components/SafeForm";
 
@@ -11,12 +12,15 @@ import { createGame, searchGameInfo } from "./actions";
 const defaultPlatforms = ["PC", "Switch", "PS5", "Retro"];
 
 export default function GameForm() {
+  const cooldown = useCooldown();
+  const searchingRef = useRef(false);
   const formRef = useRef<HTMLFormElement>(null);
   const [platformOptions, setPlatformOptions] = useState(defaultPlatforms);
   const [lookupMessage, setLookupMessage] = useState("");
   const [isSearching, startSearch] = useTransition();
 
   function searchForGame() {
+    if (searchingRef.current || cooldown.seconds > 0) return;
     const form = formRef.current;
     const titleField = form?.elements.namedItem("title");
     const title = titleField instanceof HTMLInputElement
@@ -28,6 +32,7 @@ export default function GameForm() {
       return;
     }
 
+    searchingRef.current = true;
     startSearch(async () => {
       try {
         const gameInfo = unwrapActionResult(await searchGameInfo(title));
@@ -82,9 +87,10 @@ export default function GameForm() {
           ]);
         }
         setLookupMessage("Game info found. Review or edit the suggestions.");
-      } catch {
-        setLookupMessage("Lookup unavailable. You can still add the game manually.");
-      }
+      } catch (error) {
+        if (error instanceof ActionFailure) cooldown.start(error.retryAfterSeconds);
+        setLookupMessage(actionErrorMessage(error, "Lookup unavailable.") + " You can still add the game manually.");
+      } finally { searchingRef.current = false; }
     });
   }
 
@@ -102,11 +108,11 @@ export default function GameForm() {
           />
           <button
             className="search-button"
-            disabled={isSearching}
+            disabled={isSearching || cooldown.seconds > 0}
             onClick={searchForGame}
             type="button"
           >
-            {isSearching ? "Searching..." : "Search Game Info"}
+            {cooldown.seconds > 0 ? cooldown.label : isSearching ? "Searching..." : "Search Game Info"}
           </button>
         </div>
         <span className="lookup-message" aria-live="polite">{lookupMessage}</span>

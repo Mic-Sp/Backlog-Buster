@@ -1,6 +1,7 @@
 "use client";
 
-import { unwrapActionResult } from "@/lib/action-result";
+import useCooldown from "@/components/useCooldown";
+import { actionErrorMessage, ActionFailure, unwrapActionResult } from "@/lib/action-result";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
@@ -13,6 +14,10 @@ import DeckPinButton from "@/components/DeckPinButton";
 import AgentBriefing from "@/components/AgentBriefing";
 
 export default function TacticalAdvisor({ games }: { games: Pick<LibraryGame, "id" | "title" | "status" | "pinnedOrder" | "hoursPlayed" | "lengthHours">[] }) {
+  const advisorCooldown = useCooldown();
+  const scoutCooldown = useCooldown();
+  const advisorFlight = useRef(false);
+  const scoutFlight = useRef(false);
   const [isOpen, setIsOpen] = useState(false);
   const [picks, setPicks] = useState<BacklogRecommendations | null>(null);
   const [error, setError] = useState("");
@@ -37,10 +42,12 @@ export default function TacticalAdvisor({ games }: { games: Pick<LibraryGame, "i
   const ownedTitles = useMemo(() => new Set(games.map((game) => normalizeGameTitle(game.title))), [games]);
 
   function loadExternalPicks(override = false) {
+    if (scoutFlight.current || scoutCooldown.seconds > 0) return;
     if (backlogCount > 5 && !scoutOverride && !override) {
       setScoutUnlocked(false);
       return;
     }
+    scoutFlight.current = true;
     const request = ++scoutRequestId.current;
     setExternalPicks(null);
     setExternalError("");
@@ -48,9 +55,10 @@ export default function TacticalAdvisor({ games }: { games: Pick<LibraryGame, "i
       try {
         const result = unwrapActionResult(await fetchExternalScout());
         if (request === scoutRequestId.current) setExternalPicks(result);
-      } catch {
-        if (request === scoutRequestId.current) setExternalError("External scouting failed. Retry the scan to reconnect.");
-      }
+      } catch (error) {
+        if (error instanceof ActionFailure) scoutCooldown.start(error.retryAfterSeconds);
+        if (request === scoutRequestId.current) setExternalError(actionErrorMessage(error, "External scouting failed. Retry the scan to reconnect."));
+      } finally { scoutFlight.current = false; }
     });
   }
 
@@ -92,6 +100,8 @@ export default function TacticalAdvisor({ games }: { games: Pick<LibraryGame, "i
   }
 
   function loadPicks() {
+    if (advisorFlight.current || advisorCooldown.seconds > 0) return;
+    advisorFlight.current = true;
     const request = ++requestId.current;
     setPicks(null);
     setError("");
@@ -99,9 +109,10 @@ export default function TacticalAdvisor({ games }: { games: Pick<LibraryGame, "i
       try {
         const result = unwrapActionResult(await fetchBacklogAdvisor());
         if (request === requestId.current) setPicks(result);
-      } catch {
-        if (request === requestId.current) setError("CORTEX could not scan your backlog. Please retry.");
-      }
+      } catch (error) {
+        if (error instanceof ActionFailure) advisorCooldown.start(error.retryAfterSeconds);
+        if (request === requestId.current) setError(actionErrorMessage(error, "CORTEX could not scan your backlog. Please retry."));
+      } finally { advisorFlight.current = false; }
     });
   }
 
@@ -208,7 +219,7 @@ export default function TacticalAdvisor({ games }: { games: Pick<LibraryGame, "i
 
   return (
     <>
-      <button className="advisor-trigger-button" type="button" ref={triggerRef} aria-haspopup="dialog" aria-expanded={isOpen} onClick={openAdvisor}>
+      <button className="advisor-trigger-button" type="button" ref={triggerRef} aria-haspopup="dialog" aria-expanded={isOpen} onClick={openAdvisor} disabled={isFetching || isScouting}>
         🧠 CORTEX // ADVISE NEXT GIG
       </button>
       {isOpen && createPortal(
@@ -229,14 +240,14 @@ export default function TacticalAdvisor({ games }: { games: Pick<LibraryGame, "i
                 </div>
               ) : <p className="advisor-empty" role="status">No released backlog gigs are eligible. CORTEX requires a saved release year of this year or earlier.</p>
             )}
-            {!isFetching && <button className="advisor-refresh" type="button" disabled={isStarting || isAdding} onClick={loadPicks}>{error ? "RETRY SCAN" : "REFRESH SCAN"}</button>}
+            {!isFetching && <button className="advisor-refresh" type="button" disabled={isStarting || isAdding || advisorCooldown.seconds > 0} onClick={loadPicks}>{advisorCooldown.seconds > 0 ? advisorCooldown.label : error ? "RETRY SCAN" : "REFRESH SCAN"}</button>}
             <section className="advisor-external-section" aria-labelledby="external-scout-title">
               <h3 id="external-scout-title">02 // EXTERNAL SCOUT (NEW CONTRACTS)</h3>
               <p className="advisor-intro">Curated affinity picks from your completed favorites, enriched with RAWG metadata.</p>
               {!scoutUnlocked ? (
                 <div className="advisor-scout-locked">
                   <p>🔒 EXTERNAL SCOUTING STANDBY // Backlog at {backlogCount} gigs (Target: &lt;= 5 gigs)</p>
-                  <button type="button" disabled={isStarting || isAdding} onClick={() => { setScoutOverride(true); setScoutUnlocked(true); loadExternalPicks(true); }}>⚡ OVERRIDE LOCK &amp; SCAN</button>
+                  <button type="button" disabled={isStarting || isAdding || scoutCooldown.seconds > 0 || isScouting} onClick={() => { setScoutOverride(true); setScoutUnlocked(true); loadExternalPicks(true); }}>⚡ OVERRIDE LOCK &amp; SCAN</button>
                 </div>
               ) : (
                 <>
@@ -271,7 +282,7 @@ export default function TacticalAdvisor({ games }: { games: Pick<LibraryGame, "i
                       })}
                     </div>
                   ) : <p className="advisor-empty" role="status">No new affinity picks with a confirmed release year of this year or earlier are available. Complete and rate a gig 4–5 stars to guide scouting; games already in your library are excluded.</p>)}
-                  {!isScouting && <button className="advisor-refresh" type="button" disabled={isStarting || isAdding} onClick={() => loadExternalPicks()}>{externalError ? "RETRY EXTERNAL SCAN" : "RESCAN NEW CONTRACTS"}</button>}
+                  {!isScouting && <button className="advisor-refresh" type="button" disabled={isStarting || isAdding || scoutCooldown.seconds > 0} onClick={() => loadExternalPicks()}>{scoutCooldown.seconds > 0 ? scoutCooldown.label : externalError ? "RETRY EXTERNAL SCAN" : "RESCAN NEW CONTRACTS"}</button>}
                   <p className="advisor-scout-status" role="status" aria-live="polite">{addedTitles.size > 0 ? `${addedTitles.size} new contract${addedTitles.size === 1 ? "" : "s"} added to backlog.` : ""}</p>
                 </>
               )}

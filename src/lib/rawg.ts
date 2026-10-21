@@ -1,4 +1,6 @@
 import "server-only";
+import { resilientFetch } from "@/lib/api-resilience";
+import { RateLimitError } from "@/lib/action-result";
 
 export type RawgGameInfo = {
   coverUrl: string | null;
@@ -66,7 +68,7 @@ function safeHttpUrl(value: unknown): string | null {
   }
 }
 
-export async function lookupRawgGame(title: string): Promise<RawgGameInfo | null> {
+export async function lookupRawgGame(title: string, reportRateLimit = false): Promise<RawgGameInfo | null> {
   const apiKey = process.env.RAWG_API_KEY;
 
   if (!apiKey || title.trim() === "") {
@@ -79,7 +81,7 @@ export async function lookupRawgGame(title: string): Promise<RawgGameInfo | null
       search: title,
       page_size: "1",
     });
-    const response = await fetch(`https://api.rawg.io/api/games?${query}`, {
+    const response = await resilientFetch(`https://api.rawg.io/api/games?${query}`, {
       cache: "no-store",
       signal: AbortSignal.timeout(5000),
     });
@@ -121,7 +123,8 @@ export async function lookupRawgGame(title: string): Promise<RawgGameInfo | null
           : [];
       }),
     };
-  } catch {
+  } catch (error) {
+    if (reportRateLimit && error instanceof RateLimitError) throw error;
     return null;
   }
 }
