@@ -1,5 +1,7 @@
 "use client";
 
+import { unwrapActionResult } from "@/lib/action-result";
+
 import { useEffect, useRef, useState, useTransition } from "react";
 import { acceptQuest } from "@/app/actions";
 import { buildTrailerUrl } from "@/lib/trailers";
@@ -133,7 +135,7 @@ export default function QuestRoulette({ games }: { games: QuestGame[] }) {
     setMessage("");
     startAccepting(async () => {
       try {
-        await acceptQuest(selected.id);
+        unwrapActionResult(await acceptQuest(selected.id));
         setWinnerId(null);
         setMessage(`${selected.title} accepted. Now Playing. XP is awarded on completion.`);
       } catch {

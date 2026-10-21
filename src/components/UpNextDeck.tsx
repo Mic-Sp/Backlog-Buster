@@ -1,5 +1,9 @@
 "use client";
 
+import { unwrapActionResult } from "@/lib/action-result";
+
+import SafeForm from "@/components/SafeForm";
+
 import { useEffect, useOptimistic, useRef, useState, useTransition, type DragEvent } from "react";
 import { assignDeckSlot, startGame, swapDeckSlot } from "@/app/actions";
 import type { LibraryGame } from "@/components/GameLibrary";
@@ -62,8 +66,8 @@ export default function UpNextDeck({ games, draggedGame, onDragGameChange, onDra
     startSwapping(async () => {
       moveOptimistically({ id: game.id, slot, source });
       try {
-        if (source === "deck") await swapDeckSlot(game.id, slot);
-        else await assignDeckSlot(game.id, slot);
+        if (source === "deck") unwrapActionResult(await swapDeckSlot(game.id, slot));
+        else unwrapActionResult(await assignDeckSlot(game.id, slot));
         setNotice({ text: `${game.title} ${source === "deck" ? "moved" : "pinned"} to Slot ${String(slot).padStart(2, "0")}.`, error: false });
       } catch {
         setNotice({ text: "Could not save your deck order. The previous slots have been restored; refresh and try again.", error: true });
@@ -117,7 +121,7 @@ export default function UpNextDeck({ games, draggedGame, onDragGameChange, onDra
               onDrop={(event) => dropIntoSlot(event, slot)}
             >
               {game ? (
-                <form
+                <SafeForm
                   action={startGame}
                   className="deck-card"
                   data-deck-game-id={game.id}
@@ -158,7 +162,7 @@ export default function UpNextDeck({ games, draggedGame, onDragGameChange, onDra
                     <button className="deck-start-button" type="submit" disabled={busy}>▶ START GIG</button>
                     <DeckPinButton gameId={game.id} pinnedOrder={game.pinnedOrder} pinnedCount={pinned.length} releaseYear={game.releaseYear} unpinOnly disabled={busy} />
                   </div>
-                </form>
+                </SafeForm>
               ) : (
                 <div className="deck-empty-slot">
                   <p className="deck-slot-badge">SLOT {String(slot).padStart(2, "0")}</p>

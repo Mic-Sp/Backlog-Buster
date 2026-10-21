@@ -1,5 +1,7 @@
 "use client";
 
+import { unwrapActionResult } from "@/lib/action-result";
+
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { acceptQuest, addExternalScoutGame, fetchBacklogAdvisor, fetchExternalScout } from "@/app/actions";
@@ -44,7 +46,7 @@ export default function TacticalAdvisor({ games }: { games: Pick<LibraryGame, "i
     setExternalError("");
     startScouting(async () => {
       try {
-        const result = await fetchExternalScout();
+        const result = unwrapActionResult(await fetchExternalScout());
         if (request === scoutRequestId.current) setExternalPicks(result);
       } catch {
         if (request === scoutRequestId.current) setExternalError("External scouting failed. Retry the scan to reconnect.");
@@ -78,7 +80,7 @@ export default function TacticalAdvisor({ games }: { games: Pick<LibraryGame, "i
     })) formData.set(name, String(value));
     startAdding(async () => {
       try {
-        await addExternalScoutGame(formData);
+        unwrapActionResult(await addExternalScoutGame(formData));
         setAddedTitles((current) => new Set([...current, key]));
       } catch {
         setExternalError(`Could not add ${pick.title}. Please try again.`);
@@ -95,7 +97,7 @@ export default function TacticalAdvisor({ games }: { games: Pick<LibraryGame, "i
     setError("");
     startFetching(async () => {
       try {
-        const result = await fetchBacklogAdvisor();
+        const result = unwrapActionResult(await fetchBacklogAdvisor());
         if (request === requestId.current) setPicks(result);
       } catch {
         if (request === requestId.current) setError("CORTEX could not scan your backlog. Please retry.");
@@ -117,7 +119,7 @@ export default function TacticalAdvisor({ games }: { games: Pick<LibraryGame, "i
     setError("");
     startStarting(async () => {
       try {
-        await acceptQuest(gameId);
+        unwrapActionResult(await acceptQuest(gameId));
         requestId.current++;
         scoutRequestId.current++;
         setIsOpen(false);

@@ -1,5 +1,7 @@
 "use client";
 
+import { unwrapActionResult } from "@/lib/action-result";
+
 import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { applyPlaytimeEstimate } from "@/app/actions";
 import "./AgentBriefing.css";
@@ -31,6 +33,7 @@ export default function AgentBriefing({ game }: { game: BriefingGame }) {
 
   async function audit() {
     if (requestRef.current || isApplying) return;
+    if (!game.title.trim()) { setError("Please input a valid title."); return; }
     const controller = new AbortController();
     requestRef.current = controller;
     setIsLoading(true);
@@ -43,7 +46,7 @@ export default function AgentBriefing({ game }: { game: BriefingGame }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         signal: controller.signal,
-        body: JSON.stringify({ title: game.title, platform: game.platform, genre: game.genre, year: game.releaseYear, lengthHours: game.lengthHours, hoursPlayed: game.hoursPlayed ?? null }),
+        body: JSON.stringify({ title: game.title.trim(), platform: game.platform.trim() || "PC", genre: game.genre?.trim() || null, year: game.releaseYear, lengthHours: game.lengthHours, hoursPlayed: game.hoursPlayed ?? null }),
       });
       const result = await response.json();
       if (controller.signal.aborted) return;
@@ -66,7 +69,7 @@ export default function AgentBriefing({ game }: { game: BriefingGame }) {
     setApplyError("");
     startApplying(async () => {
       try {
-        await applyPlaytimeEstimate(gameId, suggestedHours);
+        unwrapActionResult(await applyPlaytimeEstimate(gameId, suggestedHours));
         setAppliedHours(suggestedHours);
       } catch {
         setApplyError("Could not save the estimate. The game may have changed; refresh or try again.");

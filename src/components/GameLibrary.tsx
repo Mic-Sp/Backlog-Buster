@@ -1,5 +1,9 @@
 "use client";
 
+import { unwrapActionResult } from "@/lib/action-result";
+
+import SafeForm, { SafeActionButton } from "@/components/SafeForm";
+
 import { useEffect, useMemo, useOptimistic, useRef, useState, useTransition, type DragEvent, type ReactNode } from "react";
 import { autoDetectSagaOrder, completeGame, deleteGame, flatlineGame, logPlaySession, reorderBacklogGames, reorderSagaTimeline, returnDeckGameToBacklog, startGame, updateGame } from "@/app/actions";
 import type { Achievement } from "@/lib/achievements";
@@ -152,7 +156,7 @@ export default function GameLibrary({ games: serverGames, achievements = [], chi
     setSessionError(null);
     startLogging(async () => {
       try {
-        await logPlaySession(gameId, addHours);
+        unwrapActionResult(await logPlaySession(gameId, addHours));
       } catch {
         setSessionError({ gameId, message: "Could not log this session. Please try again." });
       }
@@ -332,7 +336,7 @@ export default function GameLibrary({ games: serverGames, achievements = [], chi
         const result = await autoDetectSagaOrder(key);
         if (sagaFilterRef.current !== key) return;
         setSagaNotice({ key, text: result.error ?? result.message ?? "Canon scan complete.", error: Boolean(result.error) });
-        if (result.updatedCount > 0) setSortBy("timeline-asc");
+        if ("updatedCount" in result && result.updatedCount > 0) setSortBy("timeline-asc");
       } catch {
         if (sagaFilterRef.current === key) setSagaNotice({ key, text: "Canon scan failed. Existing ranks were kept; unassigned games use release order.", error: true });
       }
@@ -355,7 +359,7 @@ export default function GameLibrary({ games: serverGames, achievements = [], chi
     startReorderingTimeline(async () => {
       setOptimisticTimeline({ key, ids: orderedIds, pending: true });
       try {
-        await reorderSagaTimeline(orderedIds.map(String));
+        unwrapActionResult(await reorderSagaTimeline(orderedIds.map(String)));
         if (sagaFilterRef.current === key) setSagaNotice({ key, text: "Timeline order saved.", error: false });
       } catch {
         if (sagaFilterRef.current === key) setSagaNotice({ key, text: "Could not save timeline order. Your previous order has been restored; refresh and try again.", error: true });
@@ -387,7 +391,7 @@ export default function GameLibrary({ games: serverGames, achievements = [], chi
     startReorderingBacklog(async () => {
       setOptimisticBacklog(orderedIds);
       try {
-        await reorderBacklogGames(orderedIds.map(String));
+        unwrapActionResult(await reorderBacklogGames(orderedIds.map(String)));
         setBacklogNotice({ text: "Backlog priority saved.", error: false });
       } catch {
         setBacklogNotice({ text: "Could not save Backlog priority. Your previous order has been restored; refresh and try again.", error: true });
@@ -472,7 +476,7 @@ export default function GameLibrary({ games: serverGames, achievements = [], chi
     startReturningDeck(async () => {
       returnToBacklogOptimistically({ gameId: source.id, orderedIds });
       try {
-        await returnDeckGameToBacklog(source.id, beforeGameId);
+        unwrapActionResult(await returnDeckGameToBacklog(source.id, beforeGameId));
         setDeckReturnNotice({ text: `${source.title} returned to Backlog${beforeGameId === null ? "." : " at the selected priority position."}`, error: false });
       } catch {
         setDeckReturnNotice({ text: "Could not return this gig to Backlog. Its deck slot and previous queue order have been restored; refresh and try again.", error: true });
@@ -614,7 +618,7 @@ export default function GameLibrary({ games: serverGames, achievements = [], chi
         </label>
         <label>
           Platform
-          <input name="platform" defaultValue={game.platform} maxLength={80} required aria-label={`Platform for ${game.title}`} />
+          <input name="platform" defaultValue={game.platform} maxLength={80} aria-label={`Platform for ${game.title}`} />
         </label>
         <label>
           Genre
@@ -676,12 +680,12 @@ export default function GameLibrary({ games: serverGames, achievements = [], chi
         </label>
         <div className="library-card-actions">
           <button className="status-save" type="submit">Save</button>
-          <button className="delete-button" formAction={deleteGame} formNoValidate type="submit">Delete</button>
+          <SafeActionButton className="delete-button" formAction={deleteGame} formNoValidate type="submit">Delete</SafeActionButton>
           {game.status === "Playing" && (
-            <button className="flatline-gig-button" formAction={flatlineGame} type="submit">💀 FLATLINE GIG</button>
+            <SafeActionButton className="flatline-gig-button" formAction={flatlineGame} type="submit">💀 FLATLINE GIG</SafeActionButton>
           )}
           {game.status === "Flatlined" && (
-            <button className="revive-gig-button" formAction={startGame} type="submit">▶ REVIVE GIG</button>
+            <SafeActionButton className="revive-gig-button" formAction={startGame} type="submit">▶ REVIVE GIG</SafeActionButton>
           )}
           {game.status === "Playing" && (
             <a className="trailer-link-button" href={buildTrailerUrl(game.title, game.releaseYear)} target="_blank" rel="noopener noreferrer">🎬 WATCH TRAILER ↗</a>
@@ -847,7 +851,7 @@ export default function GameLibrary({ games: serverGames, achievements = [], chi
         ) : activeView === "Playing" || activeView === "Flatlined" ? (
           <div className="playing-spotlight-grid">
             {visibleGames.map((game) => (
-              <form
+              <SafeForm
                 action={updateGame}
                 className="spotlight-card"
                 data-status={game.status}
@@ -887,12 +891,12 @@ export default function GameLibrary({ games: serverGames, achievements = [], chi
                   {game.status === "Playing" && <AgentBriefing game={game} />}
                   {renderCardControls(game)}
                   {game.status === "Playing" && (
-                    <button type="submit" formAction={completeGame} className="complete-gig-button">
+                    <SafeActionButton type="submit" formAction={completeGame} className="complete-gig-button">
                       🏆 COMPLETE GIG (+{Math.max(game.lengthHours, game.hoursPlayed) * game.difficulty * 10} XP)
-                    </button>
+                    </SafeActionButton>
                   )}
                 </div>
-              </form>
+              </SafeForm>
             ))}
           </div>
         ) : activeView === "Completed" ? (
@@ -919,9 +923,9 @@ export default function GameLibrary({ games: serverGames, achievements = [], chi
                   <TrophyRatingEditor game={game} />
                   <details className="trophy-edit-drawer">
                     <summary>Manage Record</summary>
-                    <form action={updateGame} key={`${game.id}-${game.status}-${game.lengthHours}-${game.difficulty}-${game.title}-${game.platform}-${game.genre ?? ""}-${game.releaseYear ?? ""}-${game.coverUrl ?? ""}-${game.hoursPlayed}-${game.notes ?? ""}-${game.rating ?? ""}-${game.franchise ?? ""}-${game.chronologicalOrder ?? ""}`}>
+                    <SafeForm action={updateGame} key={`${game.id}-${game.status}-${game.lengthHours}-${game.difficulty}-${game.title}-${game.platform}-${game.genre ?? ""}-${game.releaseYear ?? ""}-${game.coverUrl ?? ""}-${game.hoursPlayed}-${game.notes ?? ""}-${game.rating ?? ""}-${game.franchise ?? ""}-${game.chronologicalOrder ?? ""}`}>
                       {renderCardControls(game)}
-                    </form>
+                    </SafeForm>
                   </details>
                 </div>
               </article>
@@ -941,7 +945,7 @@ export default function GameLibrary({ games: serverGames, achievements = [], chi
               <span role="columnheader">Actions</span>
             </div>
             {visibleGames.map((game) => (
-              <form
+              <SafeForm
                 action={updateGame}
                 className="game-row"
                 data-status={game.status}
@@ -1005,7 +1009,7 @@ export default function GameLibrary({ games: serverGames, achievements = [], chi
                       <span className="game-title-heading"><strong title={game.title}>{game.title}</strong>{renderTimelinePill(game)}</span>
                       <span className="game-title-actions">
                         {(game.status === "Backlog" || game.status === "Flatlined") && (
-                          <button className="start-gig-badge" formAction={startGame} type="submit">{game.status === "Flatlined" ? "▶ REVIVE GIG" : "▶ START GIG"}</button>
+                          <SafeActionButton className="start-gig-badge" formAction={startGame} type="submit">{game.status === "Flatlined" ? "▶ REVIVE GIG" : "▶ START GIG"}</SafeActionButton>
                         )}
                         <button type="button" className="edit-meta-btn" onClick={() => setEditingMetaGame(game)}>⚙ EDIT META</button>
                         {renderBacklogPriorityPill(game)}
@@ -1082,16 +1086,16 @@ export default function GameLibrary({ games: serverGames, achievements = [], chi
                 </span>
                 <span className="row-actions" role="cell">
                   <button className="status-save" type="submit">Save</button>
-                  <button
+                  <SafeActionButton
                     className="delete-button"
                     formAction={deleteGame}
                     formNoValidate
                     type="submit"
                   >
                     Delete
-                  </button>
+                  </SafeActionButton>
                 </span>
-              </form>
+              </SafeForm>
             ))}
           </div>
         )}
@@ -1101,14 +1105,14 @@ export default function GameLibrary({ games: serverGames, achievements = [], chi
         <div className="metadata-modal-backdrop" onClick={(event) => {
           if (event.target === event.currentTarget) setEditingMetaGame(null);
         }}>
-          <form
+          <SafeForm
             className="metadata-modal"
             role="dialog"
             aria-modal="true"
             aria-labelledby="metadata-modal-title"
             ref={metadataModalRef}
             action={updateGame}
-            onSubmit={() => setEditingMetaGame(null)}
+            onSuccess={() => setEditingMetaGame(null)}
             key={`${editingMetaGame.id}-${editingMetaGame.status}-${editingMetaGame.lengthHours}-${editingMetaGame.difficulty}-${editingMetaGame.title}-${editingMetaGame.platform}-${editingMetaGame.genre ?? ""}-${editingMetaGame.releaseYear ?? ""}-${editingMetaGame.coverUrl ?? ""}-${editingMetaGame.hoursPlayed}-${editingMetaGame.notes ?? ""}-${editingMetaGame.rating ?? ""}-${editingMetaGame.franchise ?? ""}-${editingMetaGame.chronologicalOrder ?? ""}`}
           >
             <p className="eyebrow">RECORD // METADATA EDITOR</p>
@@ -1122,7 +1126,7 @@ export default function GameLibrary({ games: serverGames, achievements = [], chi
               <button className="metadata-save-btn" type="submit">SAVE METADATA</button>
               <button className="metadata-cancel-btn" type="button" onClick={() => setEditingMetaGame(null)}>CANCEL</button>
             </div>
-          </form>
+          </SafeForm>
         </div>
       )}
     </section>

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { actionErrorMessage } from "@/lib/action-result";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { readCredentials, registerPlayer } from "@/lib/auth-accounts";
@@ -13,7 +14,7 @@ export async function authenticate(mode: "login" | "register", _previous: AuthSt
   if (mode !== "login" && mode !== "register") return { error: "Choose login or register." };
   let input;
   try { input = readCredentials(formData, mode === "register"); }
-  catch (error) { return { mode, error: error instanceof Error ? error.message : "Check your account details." }; }
+  catch (error) { return { mode, error: actionErrorMessage(error, "Check your account details.") }; }
   try {
     if (!await consumeAuthAttempt(input.email)) return { mode, error: "Too many account attempts. Try again in 15 minutes." };
     let playerId: string;
@@ -41,7 +42,9 @@ export async function authenticate(mode: "login" | "register", _previous: AuthSt
 }
 
 export async function logout() {
-  await destroyPlayerSession();
-  revalidatePath("/", "layout");
+  try {
+    await destroyPlayerSession();
+    revalidatePath("/", "layout");
+  } catch { return { error: "Could not log out. Please try again." }; }
   redirect("/");
 }

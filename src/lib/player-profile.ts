@@ -1,4 +1,5 @@
 import "server-only";
+import { InputError } from "@/lib/action-result";
 
 import { prisma } from "@/lib/prisma";
 import { getCurrentPlayerId } from "@/lib/player";
@@ -35,7 +36,7 @@ export async function getCurrentPlayerProfile(): Promise<PlayerProfile> {
 }
 
 export function validatePlayerProfile(input: unknown): PlayerProfileInput {
-  if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error("Invalid player profile.");
+  if (!input || typeof input !== "object" || Array.isArray(input)) throw new InputError("Invalid player profile.");
   const value = input as Record<string, unknown>;
   if (typeof value.operatorName !== "string" || value.operatorName.trim().length > 28 ||
       typeof value.tagline !== "string" || value.tagline.trim().length > 64 ||
@@ -43,25 +44,25 @@ export function validatePlayerProfile(input: unknown): PlayerProfileInput {
       !Array.isArray(value.featuredTrophyIds) || value.featuredTrophyIds.length > 3 ||
       value.featuredTrophyIds.some((id: unknown) => id !== null &&
         (typeof id !== "number" || !Number.isSafeInteger(id) || id < 1 || id > 2147483647))) {
-    throw new Error("Please provide a valid operator name, tagline, accent, and up to three trophies.");
+    throw new InputError("Please provide a valid operator name, tagline, accent, and up to three trophies.");
   }
   const ids = value.featuredTrophyIds as (number | null)[];
   const selected = ids.filter((id) => id !== null);
-  if (new Set(selected).size !== selected.length) throw new Error("Choose a different trophy for each showcase slot.");
+  if (new Set(selected).size !== selected.length) throw new InputError("Choose a different trophy for each showcase slot.");
   const profile: PlayerProfileInput = {
     operatorName: value.operatorName.trim() || "ANONYMOUS NETRUNNER",
-    tagline: value.tagline.trim(),
+    tagline: value.tagline.trim() || "One more gig. One more legend.",
     neonAccent: value.neonAccent as PlayerProfile["neonAccent"],
     featuredTrophyIds: Array.from({ length: 3 }, (_, index) => ids[index] ?? null),
   };
   if (Object.hasOwn(value, "avatarUrl")) {
-    if (value.avatarUrl !== null && typeof value.avatarUrl !== "string") throw new Error("Invalid avatar URL.");
+    if (value.avatarUrl !== null && typeof value.avatarUrl !== "string") throw new InputError("Invalid avatar URL.");
     const url = typeof value.avatarUrl === "string" ? value.avatarUrl.trim() : "";
-    if (url.length > 2048) throw new Error("Avatar URL is too long.");
+    if (url.length > 2048) throw new InputError("Avatar URL is too long.");
     if (url) {
       let parsed: URL;
-      try { parsed = new URL(url); } catch { throw new Error("Use an HTTP or HTTPS avatar URL."); }
-      if (!["http:", "https:"].includes(parsed.protocol) || parsed.username || parsed.password) throw new Error("Use an HTTP or HTTPS avatar URL.");
+      try { parsed = new URL(url); } catch { throw new InputError("Use an HTTP or HTTPS avatar URL."); }
+      if (!["http:", "https:"].includes(parsed.protocol) || parsed.username || parsed.password) throw new InputError("Use an HTTP or HTTPS avatar URL.");
     }
     profile.avatarUrl = url || null;
   }

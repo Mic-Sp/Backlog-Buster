@@ -39,7 +39,7 @@ export function readDossierIdentity(value: unknown, trophies: DossierGame[]): Do
   const selections = Array.isArray(saved.showcase) ? saved.showcase : defaults.showcase;
   return {
     callsign: typeof saved.callsign === "string" ? saved.callsign.trim().slice(0, 28) || defaults.callsign : defaults.callsign,
-    tagline: typeof saved.tagline === "string" ? saved.tagline.trim().slice(0, 64) : defaults.tagline,
+    tagline: typeof saved.tagline === "string" ? saved.tagline.trim().slice(0, 64) || defaults.tagline : defaults.tagline,
     accent: typeof saved.accent === "string" && Object.hasOwn(dossierAccents, saved.accent) ? saved.accent as DossierAccent : defaults.accent,
     showcase: Array.from({ length: 3 }, (_, index) => {
       const id: unknown = selections[index];

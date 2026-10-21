@@ -1,5 +1,7 @@
 "use client";
 
+import { actionErrorMessage, unwrapActionResult } from "@/lib/action-result";
+
 import { startTransition, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import NetrunnerIdCard from "@/components/NetrunnerIdCard";
@@ -18,6 +20,7 @@ export default function NetrunnerDossier({ data }: { data: DossierData }) {
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saveInFlight = useRef<Promise<boolean> | null>(null);
   const [saveStatus, setSaveStatus] = useState<"saved" | "pending" | "saving" | "error">("saved");
+  const [saveError, setSaveError] = useState("");
   const [closing, setClosing] = useState(false);
   const closingRef = useRef(false);
   const [timestamp, setTimestamp] = useState("");
@@ -62,16 +65,17 @@ export default function NetrunnerDossier({ data }: { data: DossierData }) {
           const draft = identityRef.current;
           const key = JSON.stringify(draft);
           setSaveStatus("saving");
-          savedProfile.current = await savePlayerProfile({
+          savedProfile.current = unwrapActionResult(await savePlayerProfile({
             operatorName: draft.callsign, tagline: draft.tagline,
             neonAccent: draft.accent.toUpperCase() as PlayerProfile["neonAccent"],
             featuredTrophyIds: draft.showcase,
-          });
+          }));
           savedIdentityKey.current = key;
         }
         setSaveStatus("saved");
         return true;
-      } catch {
+      } catch (cause) {
+        setSaveError(actionErrorMessage(cause, "Profile save failed. Your draft is still here."));
         setSaveStatus("error");
         return false;
       }
@@ -236,7 +240,7 @@ export default function NetrunnerDossier({ data }: { data: DossierData }) {
                 </div>
               </fieldset>
               <div className="dossier-profile-status" data-state={saveStatus}>
-                <span role={saveStatus === "error" ? "alert" : "status"}>{saveStatus === "saved" ? "✓ IDENTITY SAVED TO PLAYER PROFILE" : saveStatus === "error" ? "PROFILE SAVE FAILED // YOUR DRAFT IS STILL HERE" : "SYNCING PLAYER IDENTITY…"}</span>
+                <span role={saveStatus === "error" ? "alert" : "status"}>{saveStatus === "saved" ? "✓ IDENTITY SAVED TO PLAYER PROFILE" : saveStatus === "error" ? saveError : "SYNCING PLAYER IDENTITY…"}</span>
                 {saveStatus === "error" && <button type="button" onClick={() => startTransition(async () => { await persistLatest(); })}>RETRY SAVE</button>}
               </div>
               <p>Changes save automatically to your player profile. Showcase slots feature completed games rated five stars.</p>

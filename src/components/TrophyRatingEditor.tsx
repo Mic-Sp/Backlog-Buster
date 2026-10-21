@@ -1,5 +1,7 @@
 "use client";
 
+import { unwrapActionResult } from "@/lib/action-result";
+
 import { useEffect, useRef, useState, useTransition } from "react";
 import { updateGame } from "@/app/actions";
 import type { LibraryGame } from "@/components/GameLibrary";
@@ -25,7 +27,7 @@ export default function TrophyRatingEditor({ game }: { game: LibraryGame }) {
     setError("");
     startSaving(async () => {
       try {
-        await updateGame(formData);
+        unwrapActionResult(await updateGame(formData));
         setIsEditing(false);
       } catch {
         setError("Could not save your rating. Please try again.");

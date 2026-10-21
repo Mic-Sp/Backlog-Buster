@@ -1,5 +1,7 @@
 "use client";
 
+import { unwrapActionResult } from "@/lib/action-result";
+
 import { useEffect, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { bulkImportGames } from "@/app/actions";
@@ -89,7 +91,7 @@ export default function LibraryDataVault({ games }: { games: LibraryGame[] }) {
     setError("");
     startImporting(async () => {
       try {
-        const result = await bulkImportGames({ mode, content: mode === "titles" ? titles : json, defaultPlatform });
+        const result = unwrapActionResult(await bulkImportGames({ mode, content: mode === "titles" ? titles : json, defaultPlatform }));
         setMessage(`Imported ${result.importedCount} games (${result.skippedCount} duplicates skipped)`);
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : "Import failed. Please try again.");

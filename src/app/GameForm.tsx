@@ -1,5 +1,9 @@
 "use client";
 
+import { unwrapActionResult } from "@/lib/action-result";
+
+import SafeForm from "@/components/SafeForm";
+
 import { useRef, useState, useTransition } from "react";
 import { resolveRawgPlaytime } from "@/lib/game-playtime";
 import { createGame, searchGameInfo } from "./actions";
@@ -20,13 +24,13 @@ export default function GameForm() {
       : "";
 
     if (!title) {
-      setLookupMessage("Enter a title to search. You can still add it manually.");
+      setLookupMessage("Please input a valid title.");
       return;
     }
 
     startSearch(async () => {
       try {
-        const gameInfo = await searchGameInfo(title);
+        const gameInfo = unwrapActionResult(await searchGameInfo(title));
         const currentForm = formRef.current;
 
         if (!gameInfo) {
@@ -85,7 +89,7 @@ export default function GameForm() {
   }
 
   return (
-    <form action={createGame} className="game-form" ref={formRef}>
+    <SafeForm action={createGame} className="game-form" ref={formRef}>
       <label className="field field-title">
         <span>Game title</span>
         <div className="title-search-row">
@@ -180,6 +184,6 @@ export default function GameForm() {
       <button className="add-button" type="submit">
         <span aria-hidden="true">+</span> Add game
       </button>
-    </form>
+    </SafeForm>
   );
 }

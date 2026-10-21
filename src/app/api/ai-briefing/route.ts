@@ -20,7 +20,7 @@ function escapeData(value: string) {
   return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-export async function POST(request: Request) {
+async function audit(request: Request) {
   if (!await getCurrentPlayer()) return json({ error: "Sign in to use the AI briefing." }, 401);
   let body: unknown;
   try {
@@ -35,6 +35,7 @@ export async function POST(request: Request) {
   const title = typeof body.title === "string" ? body.title.trim() : "";
   const platform = typeof body.platform === "string" ? body.platform.trim() : "";
   const genre = typeof body.genre === "string" ? body.genre.trim() : null;
+  if (!title) return json({ error: "Please input a valid title." }, 400);
   const year = body.year === "" || body.year == null ? null : body.year;
   const lengthHours = body.lengthHours;
   const hoursPlayed = body.hoursPlayed == null ? null : body.hoursPlayed;
@@ -103,4 +104,9 @@ export async function POST(request: Request) {
     }
     return json({ error: "Could not reach the AI service. Please try again." }, 502);
   }
+}
+
+export async function POST(request: Request) {
+  try { return await audit(request); }
+  catch { return json({ error: "The audit service is unavailable. Please try again shortly." }, 503); }
 }

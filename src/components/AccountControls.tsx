@@ -3,6 +3,7 @@
 import { useActionState, useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal, useFormStatus } from "react-dom";
 import { authenticate, logout } from "@/app/auth-actions";
+import SafeForm from "@/components/SafeForm";
 import type { CurrentPlayer } from "@/lib/player";
 import "./AccountControls.css";
 
@@ -14,12 +15,14 @@ function LogoutButton() {
 function AuthPanel({ localArchive = false, onClose }: { localArchive?: boolean; onClose?: () => void }) {
   const [mode, setMode] = useState<"login" | "register">(localArchive ? "register" : "login");
   const [passwordVisible, setPasswordVisible] = useState(false);
+  const [clientError, setClientError] = useState("");
   const [state, action, pending] = useActionState(authenticate.bind(null, mode), {});
   const pendingRef = useRef(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const emailRef = useRef<HTMLInputElement>(null);
   const titleId = useId(), errorId = useId(), passwordId = useId();
   function switchMode(next: "login" | "register") {
+    setClientError("");
     setPasswordVisible(false);
     setMode(next);
   }
@@ -41,7 +44,7 @@ function AuthPanel({ localArchive = false, onClose }: { localArchive?: boolean; 
     return () => { document.body.style.overflow = overflow; document.removeEventListener("keydown", onKey); previousFocus?.focus(); };
   }, [onClose]);
   useEffect(() => { emailRef.current?.focus(); }, [mode]);
-  const error = state.mode === mode ? state.error : undefined;
+  const error = clientError || (state.mode === mode ? state.error : undefined);
   const panel = <div className="auth-panel" ref={panelRef} role={onClose ? "dialog" : undefined} aria-modal={onClose ? true : undefined} aria-labelledby={titleId} aria-busy={pending}>
     <header className="auth-heading">
       <div><p>ICE GATEWAY // OPERATOR AUTHENTICATION</p><h2 id={titleId}>{localArchive ? "Claim Your Archive" : "Netrunner Access"}</h2></div>
@@ -52,7 +55,23 @@ function AuthPanel({ localArchive = false, onClose }: { localArchive?: boolean; 
       <button type="button" aria-pressed={mode === "login"} disabled={pending} onClick={() => switchMode("login")}>LOGIN</button>
       <button type="button" aria-pressed={mode === "register"} disabled={pending} onClick={() => switchMode("register")}>{localArchive ? "REGISTER // CLAIM ARCHIVE" : "REGISTER // NEW ARCHIVE"}</button>
     </div>
-    <form action={action} key={mode} onSubmit={() => setPasswordVisible(false)}>
+    <form action={action} key={mode} onInvalidCapture={(event) => {
+      const field = event.target;
+      if (field instanceof HTMLInputElement) setClientError(field.name === "email" ? "Enter a valid email address." : field.name === "password" ? "Use a password of 8–128 characters." : `Enter a valid ${field.name === "handle" ? "handle" : "operator name"} or leave it empty.`);
+    }} onSubmit={(event) => {
+      setPasswordVisible(false);
+      setClientError("");
+      const data = new FormData(event.currentTarget);
+      if (!String(data.get("email") ?? "").trim()) { event.preventDefault(); setClientError("Enter a valid email address."); return; }
+      if (!String(data.get("password") ?? "").trim()) { event.preventDefault(); setClientError("Please enter a password."); return; }
+      for (const name of ["email", "handle", "operatorName"]) {
+        const field = event.currentTarget.elements.namedItem(name);
+        if (field instanceof HTMLInputElement) {
+          if (name !== "email" && field.value !== "" && !field.value.trim()) { event.preventDefault(); setClientError(`Enter a valid ${name === "handle" ? "handle" : "operator name"} or leave it empty.`); return; }
+          field.value = field.value.trim();
+        }
+      }
+    }}>
       <fieldset disabled={pending}>
         <legend className="auth-sr-only">{mode === "register" ? "Register account" : "Log in"}</legend>
         <label>Email<input ref={emailRef} type="email" name="email" autoComplete="username" maxLength={254} required spellCheck={false} autoCapitalize="none" aria-describedby={error ? errorId : undefined} /></label>
@@ -91,7 +110,7 @@ export default function AccountControls({ player }: { player: CurrentPlayer }) {
   return <div className="account-controls">
     {player.isLocal ? <button className="account-claim-button" type="button" aria-haspopup="dialog" onClick={() => setIsOpen(true)}>⚡ CLAIM NETRUNNER ACCOUNT // SIGN IN</button> : <>
       <p className="account-operator"><span>CONNECTED //</span> {player.operatorName}{player.handle && <small>@{player.handle}</small>}</p>
-      <form action={logout}><LogoutButton /></form>
+      <SafeForm action={logout}><LogoutButton /></SafeForm>
     </>}
     {isOpen && createPortal(<AuthPanel localArchive={player.isLocal} onClose={close} />, document.body)}
   </div>;

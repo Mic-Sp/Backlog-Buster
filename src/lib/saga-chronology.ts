@@ -23,7 +23,11 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 export async function resolveSagaChronology(sagaName: string, gameTitles: string[]): Promise<Record<string, number>> {
-  const titles = [...new Set(gameTitles)].sort();
+  if (typeof sagaName !== "string" || !Array.isArray(gameTitles) || gameTitles.some((title) => typeof title !== "string" || !title.trim())) {
+    throw new Error("Please input a valid title and saga name.");
+  }
+  sagaName = sagaName.trim();
+  const titles = [...new Set(gameTitles.map((title) => title.trim()))].sort();
   if (!sagaName.trim() || sagaName.length > 120 || titles.length < 2 || titles.length > 100 ||
     titles.some((title) => typeof title !== "string" || !title.trim() || title.length > 120)) {
     throw new Error("Choose a saga with 2–100 distinct titles; use manual timeline ranks for larger sagas.");

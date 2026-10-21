@@ -1,0 +1,10 @@
+.form-action-error {
+	grid-column: 1 / -1;
+	width: 100%;
+	margin: 10px 0 0;
+	padding: 10px 12px;
+	border: 1px solid #ff2a6d;
+	background: #251019;
+	color: #ffb8cc;
+	font: 12px/1.6 "Courier New", monospace;
+}
