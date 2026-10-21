@@ -1,0 +1,28 @@
+.security-modal-backdrop { position: fixed; inset: 0; z-index: 1900; display: flex; align-items: center; justify-content: center; padding: 20px; background: #05080fef; }
+.security-modal { width: min(640px, 100%); max-height: calc(100dvh - 40px); overflow-y: auto; overscroll-behavior: contain; padding: 24px; border: 1px solid #00f0ff; border-top: 3px solid #fcee0a; color: #e8edf7; background: #0b101b; font-family: "Courier New", monospace; }
+.security-modal-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.security-modal-heading p { margin: 0 0 8px; color: #94f7ff; font-size: 10px; letter-spacing: .08em; }
+.security-modal-heading h2 { margin: 0; font: 400 30px/1.1 var(--font-terminal), "Courier New", monospace; letter-spacing: .08em; color: #e6fff9; }
+.security-account-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 22px 0 14px; }
+.security-account-summary > div { min-width: 0; padding: 12px; border: 1px solid #2e3a52; background: #080e18; }
+.security-account-summary dt { color: #8295aa; font-size: 10px; line-height: 1.5; }
+.security-account-summary dd { margin: 6px 0 0; color: #94f7ff; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.security-modal button { min-height: 36px; padding: 8px 12px; border: 1px solid #32616a; border-radius: 2px; color: #94f7ff; background: #0d202a; font: 700 10px/1.4 "Courier New", monospace; cursor: pointer; }
+.security-modal button:hover:not(:disabled) { background: #00f0ff; color: #06090f; }
+.security-modal button:disabled { opacity: .45; cursor: wait; }
+.security-modal fieldset { min-width: 0; padding: 0; margin: 0; border: 0; }
+.security-update-form { margin-top: 24px; padding-top: 18px; border-top: 1px solid #2e3a52; }
+.security-update-form legend { color: #fcee0a; font-size: 11px; letter-spacing: .08em; }
+.security-update-form label { display: block; margin-top: 16px; color: #c4d4e3; font-size: 12px; }
+.security-update-form label span, .security-hint { color: #8295aa; font-size: 11px; line-height: 1.6; }
+.security-update-form input { display: block; width: 100%; min-width: 0; margin-top: 6px; padding: 11px 12px; border: 1px solid #2e3a52; border-radius: 2px; color: #e8edf7; background: #080e18; font: 14px/1.4 "Courier New", monospace; }
+.security-password-field { position: relative; }
+.security-password-field input { padding-right: 52px; }
+.security-modal button.security-eye-toggle { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); display: grid; place-items: center; min-height: 32px; height: 32px; width: 32px; padding: 0; border-color: #2e3a52; background: #111b29; }
+.security-modal button.security-eye-toggle[aria-pressed="true"] { color: #06090f; background: #00f0ff; border-color: #00f0ff; }
+.security-modal button.security-save-button { width: 100%; min-height: 44px; margin-top: 10px; border-color: #fcee0a; color: #fcee0a; background: #29270d; }
+.security-modal button.security-save-button:hover:not(:disabled) { background: #fcee0a; color: #06090f; }
+.security-error { padding: 10px 12px; border: 1px solid #ff2a6d; color: #ffb8cc; background: #251019; font-size: 12px; line-height: 1.6; }
+.security-confirmation { padding: 10px 12px; border: 1px solid #05ffa1; color: #a2ffdb; background: #0c211b; font-size: 12px; line-height: 1.6; }
+.security-modal :is(input, button):focus-visible { outline: 2px solid #fcee0a; outline-offset: 3px; }
+@media (max-width: 600px) { .security-modal-backdrop { padding: 12px; } .security-modal { padding: 18px; max-height: calc(100dvh - 24px); } .security-account-summary { grid-template-columns: 1fr; } }

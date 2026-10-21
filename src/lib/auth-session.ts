@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createHmac, randomBytes } from "node:crypto";
+import type { Prisma } from "@/generated/prisma/client";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { sessionTokenHash, signSessionToken, verifySessionToken } from "@/lib/auth-crypto";
@@ -34,21 +35,34 @@ export async function readSessionHash(): Promise<string | null> {
   return verifySessionToken(value, await getSessionSigningKey());
 }
 
-export async function createPlayerSession(userId: string) {
+export async function createPlayerSession(userId: string, beforeCreate?: (tx: Prisma.TransactionClient) => Promise<void>) {
   const secret = await getSessionSigningKey();
   const previous = await readSessionHash();
   const token = randomBytes(32).toString("base64url");
   const expiresAt = new Date(Date.now() + sessionSeconds * 1000);
-  await prisma.$transaction([
-    prisma.playerSession.deleteMany({ where: { OR: [
-      { expiresAt: { lte: new Date() } }, ...(previous ? [{ tokenHash: previous }] : []),
-    ] } }),
-    prisma.playerSession.create({ data: { userId, tokenHash: sessionTokenHash(token), expiresAt } }),
-  ]);
+  if (beforeCreate) {
+    // Credential updates and session rotation commit or roll back together.
+    await prisma.$transaction(async tx => {
+      await beforeCreate(tx);
+      await tx.playerSession.deleteMany({ where: { OR: [
+        { expiresAt: { lte: new Date() } }, ...(previous ? [{ tokenHash: previous }] : []),
+      ] } });
+      await tx.playerSession.create({ data: { userId, tokenHash: sessionTokenHash(token), expiresAt } });
+    }, { timeout: 15000 });
+  } else {
+    await prisma.$transaction([
+      prisma.playerSession.deleteMany({ where: { OR: [
+        { expiresAt: { lte: new Date() } }, ...(previous ? [{ tokenHash: previous }] : []),
+      ] } }),
+      prisma.playerSession.create({ data: { userId, tokenHash: sessionTokenHash(token), expiresAt } }),
+    ]);
+  }
+
   (await cookies()).set(sessionCookieName, signSessionToken(token, secret), {
     httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax",
     path: "/", maxAge: sessionSeconds, expires: expiresAt, priority: "high",
   });
+  return { expiresAt };
 }
 
 export async function destroyPlayerSession() {

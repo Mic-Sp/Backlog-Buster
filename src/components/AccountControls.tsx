@@ -3,6 +3,7 @@
 import { useActionState, useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal, useFormStatus } from "react-dom";
 import { authenticate, logout } from "@/app/auth-actions";
+import AccountSecurity from "@/components/AccountSecurity";
 import SafeForm from "@/components/SafeForm";
 import type { CurrentPlayer } from "@/lib/player";
 import "./AccountControls.css";
@@ -76,15 +77,15 @@ function AuthPanel({ localArchive = false, onClose }: { localArchive?: boolean; 
         <legend className="auth-sr-only">{mode === "register" ? "Register account" : "Log in"}</legend>
         <label>Email<input ref={emailRef} type="email" name="email" autoComplete="username" maxLength={254} required spellCheck={false} autoCapitalize="none" aria-describedby={error ? errorId : undefined} /></label>
         <label htmlFor={passwordId}>Password</label>
-        <div className="auth-password-field">
-          <input id={passwordId} type={passwordVisible ? "text" : "password"} name="password" autoComplete={mode === "register" ? "new-password" : "current-password"} minLength={8} maxLength={128} required aria-describedby={error ? errorId : undefined} />
-          <button className="auth-password-toggle" type="button" aria-label={passwordVisible ? "Hide password" : "Show password"} aria-pressed={passwordVisible} aria-controls={passwordId} title={passwordVisible ? "Hide password" : "Show password"} onClick={() => setPasswordVisible((visible) => !visible)}>
+        <div className={mode === "register" ? "auth-password-field" : undefined}>
+          <input id={passwordId} type={mode === "register" && passwordVisible ? "text" : "password"} name="password" autoComplete={mode === "register" ? "new-password" : "current-password"} minLength={8} maxLength={128} required aria-describedby={error ? errorId : undefined} />
+          {mode === "register" && <button className="auth-password-toggle" type="button" aria-label={passwordVisible ? "Hide password" : "Show password"} aria-pressed={passwordVisible} aria-controls={passwordId} title={passwordVisible ? "Hide password" : "Show password"} onClick={() => setPasswordVisible((visible) => !visible)}>
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
               <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
               <circle cx="12" cy="12" r="3" />
               {passwordVisible && <path d="m3 3 18 18" />}
             </svg>
-          </button>
+          </button>}
         </div>
         <p className="auth-hint">8–128 characters. Passwords are salted and hashed on the server.</p>
         {mode === "register" && <>
@@ -110,6 +111,7 @@ export default function AccountControls({ player }: { player: CurrentPlayer }) {
   return <div className="account-controls">
     {player.isLocal ? <button className="account-claim-button" type="button" aria-haspopup="dialog" onClick={() => setIsOpen(true)}>⚡ CLAIM NETRUNNER ACCOUNT // SIGN IN</button> : <>
       <p className="account-operator"><span>CONNECTED //</span> {player.operatorName}{player.handle && <small>@{player.handle}</small>}</p>
+      <AccountSecurity />
       <SafeForm action={logout}><LogoutButton /></SafeForm>
     </>}
     {isOpen && createPortal(<AuthPanel localArchive={player.isLocal} onClose={close} />, document.body)}

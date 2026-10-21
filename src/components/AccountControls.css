@@ -29,9 +29,9 @@
 	color: #e6fff9;
 }
 
-.account-operator { margin: 0; color: #e6fff9; font-size: 12px; }
-.account-operator span,
-.account-operator small { color: #94f7ff; font-size: 10px; }
+.account-operator { margin: 0 auto 0 0; color: #e6fff9; font-size: 18px; font-weight: 700; line-height: 1.6; overflow-wrap: anywhere; }
+.account-operator span { color: #94f7ff; font-size: 13px; }
+.account-operator small { color: #94f7ff; font-size: 16px; }
 .account-operator small { margin-left: 10px; }
 .account-controls form { margin: 0; }
 .auth-gate { width: min(560px, 100%); margin: 32px auto; }
