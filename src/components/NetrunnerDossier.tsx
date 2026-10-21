@@ -22,6 +22,10 @@ export default function NetrunnerDossier({ data }: { data: DossierData }) {
   const saveInFlight = useRef<Promise<boolean> | null>(null);
   const [saveStatus, setSaveStatus] = useState<"saved" | "pending" | "saving" | "error">("saved");
   const [saveError, setSaveError] = useState("");
+  const [publicHandle, setPublicHandle] = useState(data.profile.handle ?? "");
+  const [handlePrompt, setHandlePrompt] = useState("");
+  const customizeRef = useRef<HTMLDetailsElement>(null);
+  const handleInputRef = useRef<HTMLInputElement>(null);
   const [closing, setClosing] = useState(false);
   const closingRef = useRef(false);
   const [timestamp, setTimestamp] = useState("");
@@ -55,6 +59,8 @@ export default function NetrunnerDossier({ data }: { data: DossierData }) {
     savedIdentityKey.current = JSON.stringify(next);
     setIdentity(next);
     setSaveStatus("saved");
+    setPublicHandle(profile.handle ?? "");
+    setHandlePrompt("");
     setTimestamp(new Date().toISOString());
     setFeedback(null);
     setIsOpen(true);
@@ -75,6 +81,8 @@ export default function NetrunnerDossier({ data }: { data: DossierData }) {
             neonAccent: draft.accent.toUpperCase() as PlayerProfile["neonAccent"],
             featuredTrophyIds: draft.showcase,
           }));
+          setPublicHandle(savedProfile.current.handle ?? "");
+          if (savedProfile.current.handle) setHandlePrompt("");
           savedIdentityKey.current = key;
           if (JSON.stringify(identityRef.current) === key) {
             const normalized = { ...draft, avatarUrl: savedProfile.current.avatarUrl, callsign: savedProfile.current.operatorName, handle: savedProfile.current.handle ?? "", tagline: savedProfile.current.tagline };
@@ -133,7 +141,7 @@ export default function NetrunnerDossier({ data }: { data: DossierData }) {
         closeDossier();
       }
       if (event.key !== "Tab") return;
-      const controls = modalRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), select:not(:disabled), [tabindex="0"]');
+      const controls = modalRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), [tabindex="0"]');
       const first = controls?.[0];
       const last = controls?.[controls.length - 1];
       if (!first) return;
@@ -184,6 +192,25 @@ export default function NetrunnerDossier({ data }: { data: DossierData }) {
     return () => window.clearTimeout(timer);
   }, [feedback]);
 
+  async function copyPublicLink() {
+    if (busyRef.current || closingRef.current) return;
+    if (!publicHandle) {
+      setHandlePrompt("Claim and save a unique handle first to activate your public dossier link.");
+      if (customizeRef.current) customizeRef.current.open = true;
+      handleInputRef.current?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "center" });
+      handleInputRef.current?.focus({ preventScroll: true });
+      return;
+    }
+    busyRef.current = true;
+    setBusy(true);
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/dossier/${encodeURIComponent(publicHandle)}`);
+      setFeedback({ text: "PUBLIC DOSSIER LINK COPIED // READY FOR TRANSMISSION", error: false });
+    } catch {
+      setFeedback({ text: "CLIPBOARD ACCESS FAILED // COPY THE PUBLIC LINK SHOWN BELOW", error: true });
+    } finally { busyRef.current = false; setBusy(false); }
+  }
+
   async function exportSnapshot(action: "copy" | "download") {
     if (!cardRef.current || !artworkReady || busyRef.current) return;
     if (action === "copy" && (!window.isSecureContext || !navigator.clipboard?.write || typeof ClipboardItem === "undefined")) {
@@ -227,7 +254,7 @@ export default function NetrunnerDossier({ data }: { data: DossierData }) {
             </div>
             <p className="dossier-artwork-status" role="status">{!artworkReady ? "SYNCING PORTRAIT & TROPHY ARTWORK…" : missingArtwork ? "Some artwork is offline. The snapshot includes the offline tiles shown above." : "SNAPSHOT READY // HIGH-RESOLUTION PNG"}</p>
 
-            <details className="dossier-customize" open>
+            <details className="dossier-customize" ref={customizeRef} open>
               <summary>⚙ PERSONALIZE IDENTITY</summary>
               <fieldset disabled={busy || closing || saveStatus === "saving"}>
                 <legend className="dossier-sr-only">Customize your shareable identity card</legend>
@@ -243,7 +270,7 @@ export default function NetrunnerDossier({ data }: { data: DossierData }) {
                 </div>
                 <div className="dossier-identity-fields">
                   <label>Operator name<input name="callsign" value={identity.callsign} maxLength={28} placeholder="ANONYMOUS NETRUNNER" onChange={(event) => customize({ ...identity, callsign: event.target.value })} /></label>
-                  <label>Handle <span>(optional)</span><input name="handle" value={identity.handle} maxLength={32} autoComplete="off" autoCapitalize="none" spellCheck={false} placeholder="night-city-runner" aria-describedby={`${titleId}-handle-help`} onChange={(event) => customize({ ...identity, handle: event.target.value })} /><small id={`${titleId}-handle-help`}>3–32 lowercase letters, numbers or hyphens.</small></label>
+                  <label>Handle <span>(optional)</span><input ref={handleInputRef} name="handle" value={identity.handle} maxLength={32} autoComplete="off" autoCapitalize="none" spellCheck={false} placeholder="night-city-runner" aria-describedby={`${titleId}-handle-help`} onChange={(event) => customize({ ...identity, handle: event.target.value })} /><small id={`${titleId}-handle-help`}>3–32 lowercase letters, numbers or hyphens.</small>{handlePrompt && <span className="dossier-handle-prompt" role="alert">{handlePrompt}</span>}</label>
                   <label>Personal tagline<input name="tagline" value={identity.tagline} maxLength={64} onChange={(event) => customize({ ...identity, tagline: event.target.value })} /></label>
                   <label>Neon accent<select aria-label="Neon accent" value={identity.accent} onChange={(event) => customize({ ...identity, accent: event.target.value as DossierAccent })}>{Object.keys(dossierAccents).map((accent) => <option key={accent} value={accent}>{accent.toUpperCase()}</option>)}</select></label>
                 </div>
@@ -267,7 +294,9 @@ export default function NetrunnerDossier({ data }: { data: DossierData }) {
               </div>
               <p>Identity preferences are saved to your operator’s cloud archive and follow your account across browsers. Showcase slots feature completed games rated five stars.</p>
             </details>
+            {publicHandle && <div className="dossier-share-preview"><span>PUBLIC ARCHIVE // <code>/dossier/{publicHandle}</code></span><a className="dossier-public-open" href={`/dossier/${encodeURIComponent(publicHandle)}`} target="_blank" rel="noopener noreferrer">↗ OPEN PUBLIC PAGE</a></div>}
             <div className="dossier-export-actions">
+              <button className="dossier-share-button" type="button" disabled={busy || closing || saveStatus === "saving"} onClick={() => void copyPublicLink()}>🔗 COPY PUBLIC DOSSIER LINK</button>
               <button className="dossier-copy-button" type="button" disabled={busy || closing || !artworkReady} onClick={() => void exportSnapshot("copy")}>📋 COPY DOSSIER TO CLIPBOARD</button>
               <button className="dossier-download-button" type="button" disabled={busy || closing || !artworkReady} onClick={() => void exportSnapshot("download")}>💾 DOWNLOAD ID SNAPSHOT</button>
             </div>

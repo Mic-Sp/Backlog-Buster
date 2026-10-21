@@ -1,3 +1,4 @@
+import { calculateLevelProgress } from "@/lib/player-level";
 import { cache, Suspense } from "react";
 import Link from "next/link";
 import OperatorAvatar from "@/components/OperatorAvatar";
@@ -26,24 +27,6 @@ const statusPriority: Record<string, number> = {
   Flatlined: 3,
 };
 
-function calculateLevelProgress(totalXp: number) {
-  let level = 1;
-  let xpForNextLevel = 500;
-  let xpTowardNextLevel = totalXp;
-
-  while (xpTowardNextLevel >= xpForNextLevel) {
-    xpTowardNextLevel -= xpForNextLevel;
-    level += 1;
-    xpForNextLevel = Math.round(xpForNextLevel * 1.5);
-  }
-
-  return {
-    level,
-    xpForNextLevel,
-    xpTowardNextLevel,
-    progressPercent: Math.round((xpTowardNextLevel / xpForNextLevel) * 100),
-  };
-}
 
 async function PlayerSummary({ player }: { player: CurrentPlayer }) {
   await connection();

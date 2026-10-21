@@ -14,6 +14,8 @@ export type DossierData = {
   trophies: DossierGame[];
 };
 
+export type DossierCardData = Omit<DossierData, "profile">;
+
 export const dossierAccents = { cyan: "#00f0ff", gold: "#fcee0a", magenta: "#ff2a6d" } as const;
 export type DossierAccent = keyof typeof dossierAccents;
 export type DossierIdentity = { avatarUrl: string | null; handle: string; callsign: string; tagline: string; accent: DossierAccent; showcase: (number | null)[] };
@@ -52,7 +54,7 @@ export function readDossierIdentity(value: unknown, trophies: DossierGame[]): Do
   };
 }
 
-export function dossierIdentityFromProfile(profile: PlayerProfile, trophies: DossierGame[]): DossierIdentity {
+export function dossierIdentityFromProfile(profile: Pick<PlayerProfile, "operatorName" | "handle" | "tagline" | "neonAccent" | "avatarUrl" | "featuredTrophyIds">, trophies: DossierGame[]): DossierIdentity {
   return readDossierIdentity({
     avatarUrl: profile.avatarUrl, handle: profile.handle, callsign: profile.operatorName, tagline: profile.tagline, accent: profile.neonAccent.toLowerCase(),
     showcase: profile.featuredTrophyIds.length ? profile.featuredTrophyIds : undefined,

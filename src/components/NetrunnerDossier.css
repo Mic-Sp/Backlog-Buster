@@ -384,3 +384,19 @@ button.dossier-trigger-button:focus-visible,
   font-size: 11px;
   line-height: 1.5;
 }
+
+.dossier-share-preview {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 18px;
+  color: #8ca6b9;
+  font: 10px/1.6 "Courier New", monospace;
+  overflow-wrap: anywhere;
+}
+.dossier-share-preview code { color: #94f7ff; }
+a.dossier-public-open { color: #94f7ff; border: 1px solid #32616a; padding: 7px 10px; background: #0d202a; text-decoration: none; font-weight: 700; }
+a.dossier-public-open:hover { background: #00f0ff; color: #06090f; }
+.dossier-handle-prompt { display: block; margin-top: 8px; color: #fcee0a; font-size: 11px; line-height: 1.6; }

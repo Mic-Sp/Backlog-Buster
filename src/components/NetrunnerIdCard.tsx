@@ -1,13 +1,13 @@
 "use client";
 
 import { useId, type Ref } from "react";
-import { dossierAccents, dossierTitleLines, getStreetCred, type DossierData, type DossierIdentity } from "@/lib/dossier";
+import { dossierAccents, dossierTitleLines, getStreetCred, type DossierCardData, type DossierIdentity } from "@/lib/dossier";
 import OperatorEmblem from "@/components/OperatorEmblem";
 import { customAvatarUrl, DEFAULT_AVATAR_URL, resolveAvatarPreset } from "@/lib/operator-avatar";
 import DossierMilestoneGlyph from "@/components/DossierMilestoneGlyph";
 
 export default function NetrunnerIdCard({ data, identity, timestamp, artwork, cardRef, artworkLoading = false }: {
-  data: DossierData;
+  data: DossierCardData;
   identity: DossierIdentity;
   timestamp: string;
   artwork: Record<string, string | null>;
@@ -31,7 +31,7 @@ export default function NetrunnerIdCard({ data, identity, timestamp, artwork, ca
 
   return (
     <svg ref={cardRef} className="netrunner-id-card" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 680" width="1000" height="680" role="img" aria-labelledby={`${prefix}-title ${prefix}-description`}>
-      <title id={`${prefix}-title`}>{callsign}{" // Netrunner ID Card"}</title>
+      <title id={`${prefix}-title`}>{`${callsign} // Netrunner ID Card`}</title>
       <desc id={`${prefix}-description`}>Level {data.level}, {data.totalXp.toLocaleString("en-US")} lifetime XP. {stats.map((stat) => `${data.counts[stat.status]} ${stat.status}`).join(", ")}. {unlocked.length} of {data.achievements.length} milestones unlocked. {data.activeHours} active hours logged.</desc>
       <defs>
         <linearGradient id={`${prefix}-cover-shade`} x1="0" y1="0" x2="0" y2="1">
@@ -57,7 +57,7 @@ export default function NetrunnerIdCard({ data, identity, timestamp, artwork, ca
 
         <rect x="32" y="100" width="114" height="114" fill="#111827" stroke={accent} />
         {preset && preset !== "bb" ? <OperatorEmblem preset={preset} accent={accent} x="36" y="104" width="106" height="106" /> : avatar ? <image href={avatar} x="36" y="104" width="106" height="106" preserveAspectRatio="xMidYMid slice" /> : <OperatorEmblem preset="bb" accent={accent} x="36" y="104" width="106" height="106" />}
-        <text x="168" y="122" fontSize="10" fill="#91a4b9" letterSpacing="2">OPERATOR // PERSONAL IDENTIFICATION</text>
+        <text x="168" y="122" fontSize="10" fill="#91a4b9" letterSpacing="2">{identity.handle ? `OPERATOR // @${identity.handle}` : "OPERATOR // PERSONAL IDENTIFICATION"}</text>
         <text x="168" y="152" fontSize="28" fontWeight="700" fill="#f3fff9">{callsign.toUpperCase()}</text>
         <text x="168" y="175" fontSize="11" fill={accent}>LV {data.level} {getStreetCred(data.level).toUpperCase()}{" // "}{signature?.title.toUpperCase() ?? "NEW CONTRACTOR"}</text>
         <text x="168" y="199" fontSize="11" fill="#c3cfdf">{identity.tagline}</text>
@@ -85,7 +85,7 @@ export default function NetrunnerIdCard({ data, identity, timestamp, artwork, ca
         <text x="968" y="378" fontSize="11" textAnchor="end" fill="#fcee0a">{unlocked.length} / {data.achievements.length} UNLOCKED</text>
         {unlocked.map((achievement, index) => (
           <g key={achievement.key} transform={`translate(${32 + index * 42} 390)`}>
-            <title>{achievement.title}{" // +"}{achievement.xpAwarded} XP</title>
+            <title>{`${achievement.title} // +${achievement.xpAwarded} XP`}</title>
             <rect width="32" height="32" rx="3" fill="#1c231b" stroke="#b5a934" />
             <rect x="2" y="2" width="28" height="28" rx="2" fill="none" stroke="#4a5230" />
             <DossierMilestoneGlyph achievementKey={achievement.key} />
