@@ -100,6 +100,7 @@ export default function GameLibrary({ games: serverGames, achievements = [], chi
   const [sagaFilter, setSagaFilter] = useState("");
   const sagaFilterRef = useRef("");
   const [sortBy, setSortBy] = useState("default");
+  const [revealedGameId, setRevealedGameId] = useState<number | null>(null);
   const [isDetectingSaga, startDetectingSaga] = useTransition();
   const [sagaNotice, setSagaNotice] = useState<{ key: string; text: string; error: boolean } | null>(null);
   const [isReorderingTimeline, startReorderingTimeline] = useTransition();
@@ -308,6 +309,44 @@ export default function GameLibrary({ games: serverGames, achievements = [], chi
     sagaFilterRef.current = "";
     setSagaNotice(null);
     setSortBy("default");
+  }
+
+  useEffect(() => {
+    function showAddedGame(event: Event) {
+      const id: unknown = (event as CustomEvent<unknown>).detail;
+      if (typeof id !== "number" || !Number.isSafeInteger(id) || id < 1) return;
+      setActiveView("Backlog");
+      setSearchQuery("");
+      setPlatformFilter("");
+      setGenreFilter("");
+      setSagaFilter("");
+      sagaFilterRef.current = "";
+      setSagaNotice(null);
+      setSortBy("default");
+      setRevealedGameId(id);
+    }
+    window.addEventListener("backlogbuster:game-added", showAddedGame);
+    return () => window.removeEventListener("backlogbuster:game-added", showAddedGame);
+  }, []);
+
+  useEffect(() => {
+    if (revealedGameId === null || !visibleGames.some(game => game.id === revealedGameId)) return;
+    // Wait for the refreshed library and its selected view to commit before scrolling.
+    const frame = requestAnimationFrame(() => {
+      const row = collectionRef.current?.querySelector<HTMLElement>(`[data-reorder-row-id="${revealedGameId}"], .spotlight-card[data-game-id="${revealedGameId}"]`);
+      if (!row) return;
+      row.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth", block: "center" });
+      setRevealedGameId(null);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [revealedGameId, visibleGames]);
+
+  async function startGameAndShowPlaying(data: FormData) {
+    const result = unwrapActionResult(await startGame(data));
+    clearFilters();
+    setActiveView("Playing");
+    setRevealedGameId(Number(data.get("id")));
+    return result;
   }
 
   function selectSaga(key: string) {
@@ -813,7 +852,7 @@ export default function GameLibrary({ games: serverGames, achievements = [], chi
         </section>
       )}
 
-      {(activeView === "All" || activeView === "Backlog") && <UpNextDeck games={games} draggedGame={deckDraggedGame} onDragGameChange={changeDeckDrag} onDragPointerDown={rememberDragOrigin} onGameDragStart={startLibraryDrag} disabled={rowReorderBusy} />}
+      {(activeView === "All" || activeView === "Backlog") && <UpNextDeck startAction={startGameAndShowPlaying} games={games} draggedGame={deckDraggedGame} onDragGameChange={changeDeckDrag} onDragPointerDown={rememberDragOrigin} onGameDragStart={startLibraryDrag} disabled={rowReorderBusy} />}
       <div data-view={activeView.toLowerCase()} className={activeView === "Completed" ? "trophy-room" : undefined}>
         {activeView === "Completed" && (
           <>
@@ -859,6 +898,7 @@ export default function GameLibrary({ games: serverGames, achievements = [], chi
               <SafeForm
                 action={updateGame}
                 className="spotlight-card"
+                data-game-id={game.id}
                 data-status={game.status}
                 key={`${game.id}-${game.status}-${game.lengthHours}-${game.difficulty}-${game.title}-${game.platform}-${game.genre ?? ""}-${game.releaseYear ?? ""}-${game.coverUrl ?? ""}-${game.hoursPlayed}-${game.notes ?? ""}-${game.rating ?? ""}-${game.franchise ?? ""}-${game.chronologicalOrder ?? ""}`}
               >
@@ -1014,7 +1054,7 @@ export default function GameLibrary({ games: serverGames, achievements = [], chi
                       <span className="game-title-heading"><strong title={game.title}>{game.title}</strong>{renderTimelinePill(game)}</span>
                       <span className="game-title-actions">
                         {(game.status === "Backlog" || game.status === "Flatlined") && (
-                          <SafeActionButton className="start-gig-badge" formAction={startGame} type="submit">{game.status === "Flatlined" ? "▶ REVIVE GIG" : "▶ START GIG"}</SafeActionButton>
+                          <SafeActionButton className="start-gig-badge" formAction={startGameAndShowPlaying} type="submit">{game.status === "Flatlined" ? "▶ REVIVE GIG" : "▶ START GIG"}</SafeActionButton>
                         )}
                         <button type="button" className="edit-meta-btn" onClick={() => setEditingMetaGame(game)}>⚙ EDIT META</button>
                         {renderBacklogPriorityPill(game)}
@@ -1105,7 +1145,7 @@ export default function GameLibrary({ games: serverGames, achievements = [], chi
           </div>
         )}
       </div>
-      {activeView === "Playing" && <UpNextDeck games={games} draggedGame={deckDraggedGame} onDragGameChange={changeDeckDrag} onDragPointerDown={rememberDragOrigin} onGameDragStart={startLibraryDrag} disabled={rowReorderBusy} />}
+      {activeView === "Playing" && <UpNextDeck startAction={startGameAndShowPlaying} games={games} draggedGame={deckDraggedGame} onDragGameChange={changeDeckDrag} onDragPointerDown={rememberDragOrigin} onGameDragStart={startLibraryDrag} disabled={rowReorderBusy} />}
       {editingMetaGame && (
         <div className="metadata-modal-backdrop" onClick={(event) => {
           if (event.target === event.currentTarget) setEditingMetaGame(null);

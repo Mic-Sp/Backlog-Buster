@@ -30,7 +30,7 @@ test("all game actions return structured errors for invalid inputs and infrastru
   let lookups = 0; const created = [], updated = [];
   const prisma = {
     game: {
-      create: async ({ data }) => created.push(data),
+      create: async ({ data }) => { created.push(data); return { ...data, id: created.length }; },
       findUniqueOrThrow: async () => ({ status: "Playing", hoursPlayed: 3 }),
       update: async ({ data }) => updated.push(data),
       delete: async () => { throw new Error("private database connection detail"); },
@@ -50,7 +50,7 @@ test("all game actions return structured errors for invalid inputs and infrastru
   const base = { title: "  Alan Wake  ", platform: "  ", lengthHours: "  ", difficulty: "  ", genre: "  ", franchise: "  ", coverUrl: "  ", releaseYear: "  " };
   assert.deepEqual(await actions.createGame(form({ ...base, title: "   " })), { error: "Please input a valid title." });
   assert.equal(lookups, 0); assert.equal(created.length, 0);
-  assert.deepEqual(await actions.createGame(form(base)), { success: true });
+  assert.deepEqual(await actions.createGame(form(base)), { success: true, gameId: 1 });
   assert.equal(created[0].title, "Alan Wake"); assert.equal(created[0].platform, "PC"); assert.equal(created[0].lengthHours, 10); assert.equal(created[0].difficulty, 1);
   for (const key of ["genre", "franchise", "coverUrl", "releaseYear"]) assert.equal(created[0][key], null);
   const metadata = { ...base, id: " 42 ", status: " Playing ", lengthHours: "20", difficulty: "2", hoursPlayed: " ", rating: " ", notes: " " };
@@ -76,4 +76,27 @@ test("AI route returns inline JSON errors for blank titles and failed authentica
   const response = await route.POST(makeRequest()); assert.equal(response.status, 400); assert.deepEqual(await response.json(), { error: "Please input a valid title." });
   const unavailable = loader({ "@/lib/player": { getCurrentPlayer: async () => { throw new Error("private database connection detail"); } } })("src/app/api/ai-briefing/route.ts");
   const failure = await unavailable.POST(makeRequest()); assert.equal(failure.status, 503); assert(!(await failure.text()).includes("private database"));
+});
+
+test("starting a pinned gig atomically advances only its owner's remaining deck and rolls back on failure", async () => {
+  const initial = [1,2,3].map(id=>({id,userId:'owner',status:'Backlog',pinnedOrder:id,lengthHours:10,difficulty:1}));
+  initial.push({id:4,userId:'owner',status:'Backlog',pinnedOrder:null},{id:5,userId:'other',status:'Backlog',pinnedOrder:1});
+  let games=structuredClone(initial), fail=false, synced=0, refreshed=0, locked=0;
+  const tx={$executeRaw:async(_sql,key)=>{assert.equal(key,'backlogbuster-deck:owner');locked++;},game:{
+    findUniqueOrThrow:async({where})=>{assert.equal(where.userId,'owner');const game=games.find(g=>g.id===where.id&&g.userId===where.userId);if(!game)throw Error('Missing game');return{pinnedOrder:game.pinnedOrder};},
+    findMany:async({where,orderBy})=>{assert.deepEqual(where,{userId:'owner',status:'Backlog',pinnedOrder:{not:null}});assert.deepEqual(orderBy,[{pinnedOrder:'asc'},{id:'asc'}]);return games.filter(g=>g.userId==='owner'&&g.status==='Backlog'&&g.pinnedOrder!==null).sort((a,b)=>a.pinnedOrder-b.pinnedOrder).map(g=>({id:g.id}));},
+    update:async({where,data})=>{assert.equal(where.userId,'owner');const game=games.find(g=>g.id===where.id&&g.userId===where.userId);assert(game);Object.assign(game,data);if(fail&&data.pinnedOrder===1)throw Error('Database failed');return game;},
+  }};
+  const actions=loader({'next/cache':{revalidatePath:()=>refreshed++},'@/lib/prisma':{prisma:{$transaction:async work=>{const before=structuredClone(games);try{return await work(tx);}catch(error){games=before;throw error;}}}},'@/lib/player':{getCurrentPlayerId:async()=> 'owner'},'@/lib/achievements':{syncAndGetAchievements:async()=>synced++},'@/lib/rawg':{},'@/lib/recommendations':{}})('src/app/actions.ts');
+  for(const id of [1,2,3]){
+    games=structuredClone(initial);
+    assert.deepEqual(await actions.startGame(form({id:String(id),lengthHours:'22',difficulty:'2',userId:'other'})),{success:true});
+    const started=games.find(g=>g.id===id);assert.equal(started.status,'Playing');assert.equal(started.pinnedOrder,null);assert.equal(started.lengthHours,22);
+    const remaining=games.filter(g=>g.userId==='owner'&&g.pinnedOrder!==null).sort((a,b)=>a.pinnedOrder-b.pinnedOrder);
+    assert.deepEqual(remaining.map(g=>g.id),[1,2,3].filter(other=>other!==id));assert.deepEqual(remaining.map(g=>g.pinnedOrder),[1,2]);assert.deepEqual(games.find(g=>g.id===5),initial[4]);
+  }
+  games=structuredClone(initial);fail=true;
+  assert.equal(typeof(await actions.startGame(form({id:'1',lengthHours:'22',difficulty:'2'}))).error,'string');assert.deepEqual(games,initial);assert.equal(synced,3);assert.equal(refreshed,3);fail=false;
+  assert.equal(typeof(await actions.startGame(form({id:'5',lengthHours:'10',difficulty:'1'}))).error,'string');assert.deepEqual(games,initial);
+  assert.deepEqual(await actions.startGame(form({id:'4',lengthHours:'10',difficulty:'1'})),{success:true});assert.deepEqual(games.slice(0,3),initial.slice(0,3));assert.equal(locked,6);
 });

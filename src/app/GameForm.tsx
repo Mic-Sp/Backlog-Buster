@@ -19,6 +19,13 @@ export default function GameForm() {
   const [lookupMessage, setLookupMessage] = useState("");
   const [isSearching, startSearch] = useTransition();
 
+  async function addGame(data: FormData) {
+    const result = unwrapActionResult(await createGame(data));
+    window.dispatchEvent(new CustomEvent("backlogbuster:game-added", { detail: result.gameId }));
+    setLookupMessage("");
+    return result;
+  }
+
   function searchForGame() {
     if (searchingRef.current || cooldown.seconds > 0) return;
     const form = formRef.current;
@@ -95,7 +102,7 @@ export default function GameForm() {
   }
 
   return (
-    <SafeForm action={createGame} className="game-form" ref={formRef}>
+    <SafeForm action={addGame} className="game-form" ref={formRef}>
       <label className="field field-title">
         <span>Game title</span>
         <div className="title-search-row">

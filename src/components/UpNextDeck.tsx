@@ -12,13 +12,14 @@ import { DECK_CAPACITY, DECK_DRAG_TYPE, readDeckDrag, type DeckDragGame } from "
 import { isReleasedYear } from "@/lib/game-release";
 import "./DeckReorder.css";
 
-export default function UpNextDeck({ games, draggedGame, onDragGameChange, onDragPointerDown, onGameDragStart, disabled = false }: {
+export default function UpNextDeck({ games, draggedGame, onDragGameChange, onDragPointerDown, onGameDragStart, disabled = false, startAction = startGame }: {
   games: LibraryGame[];
   draggedGame: DeckDragGame | null;
   onDragGameChange: (game: DeckDragGame | null) => void;
   onDragPointerDown: (game: DeckDragGame, fromControl: boolean) => void;
   onGameDragStart: (event: DragEvent<HTMLFormElement>, game: DeckDragGame) => void;
   disabled?: boolean;
+  startAction?: (data: FormData) => Promise<unknown>;
 }) {
   const [isSwapping, startSwapping] = useTransition();
   const swappingRef = useRef(false);
@@ -122,7 +123,7 @@ export default function UpNextDeck({ games, draggedGame, onDragGameChange, onDra
             >
               {game ? (
                 <SafeForm
-                  action={startGame}
+                  action={startAction}
                   className="deck-card"
                   data-deck-game-id={game.id}
                   aria-busy={busy}

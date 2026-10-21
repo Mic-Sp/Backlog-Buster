@@ -344,7 +344,7 @@ export async function createGame(formData: FormData) {
     const status = "Backlog";
 
     await ensurePlayerExists(userId);
-    await prisma.game.create({
+    const game = await prisma.game.create({
       data: {
         userId,
         title,
@@ -359,6 +359,7 @@ export async function createGame(formData: FormData) {
     });
 
     revalidatePath("/");
+    return { success: true, gameId: game.id };
   });
 }
 
@@ -772,9 +773,22 @@ export async function startGame(formData: FormData) {
       throw new InputError("Please provide valid game details.");
     }
 
-    await prisma.game.update({
-      where: { id, userId: await getCurrentPlayerId() },
-      data: { status: "Playing", lengthHours, difficulty, earnedXp: 0, pinnedOrder: null, ...progress },
+    const userId = await getCurrentPlayerId();
+    await withDeckLock(userId, async tx => {
+      const game = await tx.game.findUniqueOrThrow({ where: { id, userId }, select: { pinnedOrder: true } });
+      await tx.game.update({
+        where: { id, userId },
+        data: { status: "Playing", lengthHours, difficulty, earnedXp: 0, pinnedOrder: null, ...progress },
+      });
+      if (game.pinnedOrder !== null) {
+        const remaining = await tx.game.findMany({
+          where: { userId, status: "Backlog", pinnedOrder: { not: null } },
+          orderBy: [{ pinnedOrder: "asc" }, { id: "asc" }], select: { id: true },
+        });
+        for (const [index, entry] of remaining.entries()) {
+          await tx.game.update({ where: { id: entry.id, userId, status: "Backlog" }, data: { pinnedOrder: index + 1 } });
+        }
+      }
     });
 
     await syncAndGetAchievements();
