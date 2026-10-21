@@ -52,6 +52,38 @@ export async function updateAccountCredentials(formData: FormData) {
 }
 
 
+export async function resetOperatorLibrary(formData: FormData) {
+  return safeAction(async () => {
+    const { player, tokenHash } = await getCredentialSession();
+    if (!(formData instanceof FormData)) throw new InputError("Confirm your password and type RESET LIBRARY.");
+    const phrase = formData.get("confirmation");
+    const password = formData.get("currentPassword");
+    if (typeof phrase !== "string" || phrase.trim().toUpperCase() !== "RESET LIBRARY") throw new InputError("Type RESET LIBRARY to confirm the library reset.");
+    if (typeof password !== "string" || !password.trim()) throw new InputError("Enter your current password to authorize the library reset.");
+    const retryAfter = await consumeCredentialAttempt(player.id);
+    if (retryAfter) throw new RateLimitError(retryAfter);
+    if (password.length < 8 || password.length > 128 || !await verifyPassword(password, player.passwordHash)) throw new InputError("Current password is incorrect.");
+    try {
+      await prisma.$transaction(async tx => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended('backlogbuster-account-registration', 0))`;
+        const active = await tx.playerSession.findUnique({ where: { tokenHash, userId: player.id, expiresAt: { gt: new Date() } }, select: { tokenHash: true } });
+        if (!active) throw new InputError("Your session expired. Sign in again before resetting this archive.");
+        // Lock the owner and reject credentials changed since password verification.
+        // Everything else on the profile, including every device session, is retained.
+        await tx.player.update({ where: { id: player.id, passwordHash: player.passwordHash, email: player.email! }, data: { featuredTrophyIds: [] }, select: { id: true } });
+        await tx.game.deleteMany({ where: { userId: player.id } });
+        await tx.userAchievement.deleteMany({ where: { userId: player.id } });
+      }, { timeout: 15000 });
+    } catch (error) {
+      if (error && typeof error === "object" && "code" in error && error.code === "P2025") throw new InputError("Your account changed. Reopen the security gateway and verify again.");
+      throw error;
+    }
+    revalidatePath("/", "layout");
+    if (player.handle) revalidatePath(`/dossier/${encodeURIComponent(player.handle)}`);
+    return { success: true, message: "ARCHIVE RESET COMPLETE // TELEMETRY RESTORED TO LEVEL 1" };
+  });
+}
+
 export async function wipeOperatorAccount(formData: FormData) {
   return safeAction(async () => {
     const { player, tokenHash } = await getCredentialSession();

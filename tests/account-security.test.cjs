@@ -100,3 +100,27 @@ test('account wipe requires intent and password, shares rate limits, cascades on
   const result=await wipeOperatorAccount(form(data));assert.equal(result.redirectTo,'/access?archive=wiped');assert.equal(result.message,'OPERATOR ARCHIVE WIPED // CONNECTION TERMINATED');assert.equal(clears,1);assert.equal(deletes,1);assert.deepEqual(db.players,['other-id']);for(const table of ['games','achievements','sessions'])assert.deepEqual(db[table],[{userId:'other-id'}]);assert.deepEqual(revalidated,['/','/dossier/owner']);
   const schema=fs.readFileSync(path.resolve(__dirname,'../prisma/schema.prisma'),'utf8');assert.equal((schema.match(/@relation\(fields: \[userId\], references: \[id\], onDelete: Cascade\)/g)||[]).length,3);
 });
+
+test('library reset verifies identity and intent, rolls back failures and preserves profiles/sessions/other players', async () => {
+  let signedIn=true, correct=false, cooldown=0, revoked=false, changed=false, failing=false, verifies=0, transactions=0;
+  const owner={id:'owner-id',email:'owner@example.test',passwordHash:'hash',handle:'owner',operatorName:'Neo',tagline:'Still here',avatarUrl:'preset:skull',neonAccent:'GOLD',featuredTrophyIds:[1,2]};
+  const db={players:[structuredClone(owner),{id:'other-id',featuredTrophyIds:[3]}],games:[{userId:'owner-id',pinnedOrder:1,backlogOrder:2},{userId:'other-id'}],achievements:[{userId:'owner-id'},{userId:'other-id'}],sessions:[{userId:'owner-id'},{userId:'other-id'}]};
+  const before=structuredClone(db), paths=[];
+  const scopedDelete=table=>async({where})=>{assert.deepEqual(where,{userId:'owner-id'});db[table]=db[table].filter(row=>row.userId!==where.userId);if(failing && table==='achievements')throw Error('database unavailable');};
+  const tx={$executeRaw:async()=>{},playerSession:{findUnique:async({where})=>{assert.equal(where.userId,'owner-id');assert.equal(where.tokenHash,'live');return revoked?null:{tokenHash:'live'};}},player:{update:async({where,data})=>{assert.deepEqual(where,{id:owner.id,passwordHash:owner.passwordHash,email:owner.email});assert.deepEqual(data,{featuredTrophyIds:[]});if(changed)throw{code:'P2025'};Object.assign(db.players[0],data);}},game:{deleteMany:scopedDelete('games')},userAchievement:{deleteMany:scopedDelete('achievements')}};
+  let load;
+  load=loader({'next/cache':{revalidatePath:path=>paths.push(path)},'@/lib/prisma':{prisma:{$transaction:async work=>{transactions++;const snapshot=structuredClone(db);try{return await work(tx);}catch(error){Object.assign(db,snapshot);throw error;}}}},'@/lib/account-security':{getCredentialSession:async()=>{if(!signedIn)throw new(load('src/lib/action-result.ts').InputError)('Sign in first.');return{player:{...owner},tokenHash:'live'};},consumeCredentialAttempt:async id=>{assert.equal(id,'owner-id');return cooldown;}},'@/lib/auth-crypto':{verifyPassword:async password=>{verifies++;assert.equal(password,' exact password ');return correct;}},'@/lib/auth-session':{clearPlayerSessionCookie:()=>assert.fail('Reset must not clear a session'),createPlayerSession:()=>assert.fail('Reset must not rotate a session')}});
+  const {resetOperatorLibrary}=load('src/app/security-actions.ts');
+  const input={currentPassword:' exact password ',confirmation:' reset library ',userId:'other-id'};
+  signedIn=false;assert.match((await resetOperatorLibrary(form(input))).error,/Sign in/);signedIn=true;
+  assert.match((await resetOperatorLibrary(form({...input,confirmation:'WIPE ARCHIVE'}))).error,/Type RESET LIBRARY/);
+  assert.match((await resetOperatorLibrary(form({...input,currentPassword:'  '}))).error,/current password/);assert.equal(verifies,0);
+  assert.equal((await resetOperatorLibrary(form(input))).error,'Current password is incorrect.');assert.equal(transactions,0);
+  cooldown=10;const limited=await resetOperatorLibrary(form(input));assert.equal(limited.status,429);assert.equal(limited.retryAfterSeconds,10);assert.equal(verifies,1);cooldown=0;correct=true;
+  revoked=true;assert.match((await resetOperatorLibrary(form(input))).error,/session expired/);revoked=false;
+  changed=true;assert.match((await resetOperatorLibrary(form(input))).error,/account changed/);changed=false;
+  failing=true;assert.match((await resetOperatorLibrary(form(input))).error,/Could not save/);failing=false;
+  assert.deepEqual(db,before);assert.deepEqual(paths,[]);
+  const result=await resetOperatorLibrary(form(input));assert.equal(result.message,'ARCHIVE RESET COMPLETE // TELEMETRY RESTORED TO LEVEL 1');assert.equal(result.success,true);assert(!('redirectTo' in result));
+  assert.deepEqual(db.players,[{...owner,featuredTrophyIds:[]},before.players[1]]);assert.deepEqual(db.sessions,before.sessions);assert.deepEqual(db.games,[{userId:'other-id'}]);assert.deepEqual(db.achievements,[{userId:'other-id'}]);assert.deepEqual(paths,['/','/dossier/owner']);
+});

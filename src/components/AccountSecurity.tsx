@@ -2,7 +2,7 @@
 
 import { startTransition, useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal, useFormStatus } from "react-dom";
-import { getAccountSecuritySummary, updateAccountCredentials, wipeOperatorAccount } from "@/app/security-actions";
+import { getAccountSecuritySummary, updateAccountCredentials, resetOperatorLibrary, wipeOperatorAccount } from "@/app/security-actions";
 import { logout } from "@/app/auth-actions";
 import { ActionFailure, actionErrorMessage, unwrapActionResult } from "@/lib/action-result";
 import type { AccountSecuritySummary } from "@/lib/account-security";
@@ -31,7 +31,7 @@ function SecurityPanel({ onClose }: { onClose: () => void }) {
   const [summary, setSummary] = useState<AccountSecuritySummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [dangerOpen, setDangerOpen] = useState(false);
+  const [dangerOpen, setDangerOpen] = useState<"reset" | "wipe" | null>(null);
   const [wipePassword, setWipePassword] = useState("");
   const [wipePhrase, setWipePhrase] = useState("");
   const [wipeVisible, setWipeVisible] = useState(false);
@@ -79,27 +79,33 @@ function SecurityPanel({ onClose }: { onClose: () => void }) {
   }, [onClose]);
 
   const locked = saving || deleting;
-  const canWipe = wipePassword.length >= 8 && wipePassword.length <= 128 && Boolean(wipePassword.trim()) && wipePhrase.trim().toUpperCase() === "WIPE ARCHIVE";
+  const dangerPhrase = dangerOpen === "reset" ? "RESET LIBRARY" : "WIPE ARCHIVE";
+  const canWipe = wipePassword.length >= 8 && wipePassword.length <= 128 && Boolean(wipePassword.trim()) && wipePhrase.trim().toUpperCase() === dangerPhrase;
 
-  function cancelWipe() {
+  function setDangerMode(mode: "reset" | "wipe" | null) {
     if (busyRef.current) return;
-    setDangerOpen(false); setWipePassword(""); setWipePhrase(""); setWipeVisible(false); setWipeError("");
+    setDangerOpen(mode); setConfirmation(""); setWipePassword(""); setWipePhrase(""); setWipeVisible(false); setWipeError("");
   }
 
   function submitWipe(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault(); setWipeVisible(false); hidePasswords();
     if (!canWipe || busyRef.current || cooldown.seconds > 0) return;
     const form = new FormData(); form.set("currentPassword", wipePassword); form.set("confirmation", wipePhrase);
-    busyRef.current = true; setDeleting(true); setWipeError("");
+    busyRef.current = true; setDeleting(true); setWipeError(""); setConfirmation("");
     startTransition(async () => {
       try {
-        const result = unwrapActionResult(await wipeOperatorAccount(form));
+        if (dangerOpen === "reset") {
+          const result = unwrapActionResult(await resetOperatorLibrary(form));
+          setDangerOpen(null); setConfirmation(result.message);
+        } else {
+          const result = unwrapActionResult(await wipeOperatorAccount(form));
+          // A full navigation also drops private in-memory account/library state.
+          window.location.replace(result.redirectTo);
+        }
         setWipePassword(""); setWipePhrase(""); setCurrentPassword(""); setNewPassword("");
-        // A full navigation also drops private in-memory account/library state.
-        window.location.replace(result.redirectTo);
       } catch (cause) {
         if (cause instanceof ActionFailure) cooldown.start(cause.retryAfterSeconds);
-        setWipeError(actionErrorMessage(cause, "Account termination failed. Please try again."));
+        setWipeError(actionErrorMessage(cause, dangerOpen === "reset" ? "Library reset failed. Please try again." : "Account termination failed. Please try again."));
       } finally { busyRef.current = false; setDeleting(false); }
     });
   }
@@ -160,18 +166,28 @@ function SecurityPanel({ onClose }: { onClose: () => void }) {
       {confirmation && <p className="security-confirmation" role="status">{confirmation}</p>}
       {summary && <section className="security-danger-zone" aria-labelledby={`${titleId}-danger`}>
         <h3 id={`${titleId}-danger`}>⚠ DANGER ZONE // ARCHIVE TERMINATION</h3>
-        <p>Permanently deletes this operator profile, all games in your library, custom priority orders, and unlocked achievements. This action cannot be undone.</p>
-        {!dangerOpen ? <button className="security-wipe-reveal" type="button" disabled={locked} aria-expanded={false} aria-controls={`${titleId}-wipe-confirm`} onClick={() => setDangerOpen(true)}>🗑 WIPE OPERATOR ACCOUNT</button> : <form id={`${titleId}-wipe-confirm`} aria-label="Confirm account wipe" onSubmit={submitWipe} onInvalidCapture={() => { setWipeVisible(false); setWipeError("Enter your current password and type WIPE ARCHIVE."); }}>
-          <fieldset disabled={locked || cooldown.seconds > 0}>
-            <PasswordField label="Current Password" name="currentPassword" value={wipePassword} onChange={setWipePassword} visible={wipeVisible} onToggle={() => setWipeVisible(value => !value)} required autoFocus />
-            <label>Type WIPE ARCHIVE to confirm<input name="confirmation" type="text" value={wipePhrase} onChange={event => setWipePhrase(event.target.value)} autoComplete="off" spellCheck={false} maxLength={80} required /></label>
-          </fieldset>
-          {wipeError && <p className="security-error" role="alert">{wipeError}</p>}
-          <div className="security-wipe-actions">
-            <button type="button" disabled={locked} onClick={cancelWipe}>CANCEL</button>
-            <button className="security-wipe-confirm" type="submit" disabled={locked || cooldown.seconds > 0 || !canWipe}>{deleting ? "TERMINATING ARCHIVE…" : cooldown.seconds > 0 ? cooldown.label : "⚠ PERMANENTLY WIPE ACCOUNT"}</button>
-          </div>
-        </form>}
+        {(["reset", "wipe"] as const).map(mode => {
+          const isReset = mode === "reset";
+          const phrase = isReset ? "RESET LIBRARY" : "WIPE ARCHIVE";
+          const expanded = dangerOpen === mode;
+          return <div className={`security-danger-option security-${mode}-option`} key={mode}>
+            <button className={isReset ? "security-reset-reveal" : "security-wipe-reveal"} type="button" disabled={locked} aria-expanded={expanded} aria-controls={`${titleId}-${mode}-confirm`} onClick={() => setDangerMode(expanded ? null : mode)}>
+              {isReset ? "🔄 RESET LIBRARY & TELEMETRY (KEEP ACCOUNT)" : "🗑 WIPE OPERATOR ACCOUNT"}
+            </button>
+            <p>{isReset ? "Clears all games, custom priority orders, Featured Trophy selections, and unlocked achievements, resetting your operator back to Level 1 with 0 XP. Your login credentials, handle, avatar, tagline, and neon theme will be kept." : "Permanently deletes this operator profile, all games in your library, custom priority orders, and unlocked achievements. This action cannot be undone."}</p>
+            {expanded && <form id={`${titleId}-${mode}-confirm`} aria-label={isReset ? "Confirm library reset" : "Confirm account wipe"} onSubmit={submitWipe} onInvalidCapture={() => { setWipeVisible(false); setWipeError(`Enter your current password and type ${phrase}.`); }}>
+              <fieldset disabled={locked || cooldown.seconds > 0}>
+                <PasswordField label="Current Password" name="currentPassword" value={wipePassword} onChange={setWipePassword} visible={wipeVisible} onToggle={() => setWipeVisible(value => !value)} required autoFocus />
+                <label>Type {phrase} to confirm<input name="confirmation" type="text" value={wipePhrase} onChange={event => setWipePhrase(event.target.value)} autoComplete="off" spellCheck={false} maxLength={80} required /></label>
+              </fieldset>
+              {wipeError && <p className="security-error" role="alert">{wipeError}</p>}
+              <div className="security-wipe-actions">
+                <button type="button" disabled={locked} onClick={() => setDangerMode(null)}>CANCEL</button>
+                <button className={isReset ? "security-reset-confirm" : "security-wipe-confirm"} type="submit" disabled={locked || cooldown.seconds > 0 || !canWipe}>{deleting ? isReset ? "RESETTING LIBRARY…" : "TERMINATING ARCHIVE…" : cooldown.seconds > 0 ? cooldown.label : isReset ? "🔄 CONFIRM LIBRARY RESET" : "⚠ PERMANENTLY WIPE ACCOUNT"}</button>
+              </div>
+            </form>}
+          </div>;
+        })}
       </section>}
     </div>
   </div>;

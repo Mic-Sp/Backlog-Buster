@@ -28,11 +28,17 @@
 @media (max-width: 600px) { .security-modal-backdrop { padding: 12px; } .security-modal { padding: 18px; max-height: calc(100dvh - 24px); } .security-account-summary { grid-template-columns: 1fr; } }
 .security-danger-zone { margin-top: 28px; padding: 18px; border: 1px solid #ff2a6d; background: #1c0d16; }
 .security-danger-zone h3 { margin: 0; color: #ff8bad; font: 700 12px/1.6 "Courier New", monospace; letter-spacing: .06em; }
-.security-danger-zone > p { color: #e0b2c0; font-size: 12px; line-height: 1.7; }
+.security-danger-option { margin-top: 18px; padding: 14px; border: 1px solid #713047; background: #190e16; }
+.security-danger-option > p { color: #e0b2c0; font-size: 12px; line-height: 1.7; }
+.security-reset-option { border-color: #857127; background: #211d0e; }
+.security-danger-zone .security-reset-option > p, .security-danger-zone .security-reset-option label { color: #e3d7a8; }
+.security-danger-zone .security-reset-option input { border-color: #857127; }
+.security-modal :is(button.security-reset-reveal, button.security-reset-confirm) { border-color: #fcee0a; background: #302b10; color: #fcee0a; }
+.security-modal :is(button.security-reset-reveal, button.security-reset-confirm):hover:not(:disabled) { background: #fcee0a; color: #080a0e; }
 .security-danger-zone label { display: block; margin-top: 14px; color: #edc3cf; font-size: 12px; }
 .security-danger-zone input { display: block; width: 100%; margin-top: 6px; padding: 11px 12px; border: 1px solid #713047; border-radius: 2px; background: #0b101b; color: #e8edf7; font: 14px/1.4 "Courier New", monospace; }
 .security-danger-zone .security-password-field input { padding-right: 52px; }
 .security-modal :is(button.security-wipe-reveal, button.security-wipe-confirm) { border-color: #ff2a6d; background: #321020; color: #ffb8cc; }
 .security-modal :is(button.security-wipe-reveal, button.security-wipe-confirm):hover:not(:disabled) { background: #ff2a6d; color: #080a0e; }
 .security-wipe-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
-.security-wipe-actions .security-wipe-confirm { flex: 1; }
+.security-wipe-actions :is(.security-wipe-confirm, .security-reset-confirm) { flex: 1; }
