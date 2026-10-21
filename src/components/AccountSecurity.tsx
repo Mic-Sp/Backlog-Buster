@@ -2,7 +2,7 @@
 
 import { startTransition, useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal, useFormStatus } from "react-dom";
-import { getAccountSecuritySummary, updateAccountCredentials } from "@/app/security-actions";
+import { getAccountSecuritySummary, updateAccountCredentials, wipeOperatorAccount } from "@/app/security-actions";
 import { logout } from "@/app/auth-actions";
 import { ActionFailure, actionErrorMessage, unwrapActionResult } from "@/lib/action-result";
 import type { AccountSecuritySummary } from "@/lib/account-security";
@@ -15,12 +15,12 @@ function DeviceLogout() {
   return <button type="submit" disabled={pending}>{pending ? "DISCONNECTING…" : "LOG OUT OF THIS DEVICE"}</button>;
 }
 
-function PasswordField({ label, name, value, onChange, visible, onToggle, required = false }: {
-  label: string; name: string; value: string; onChange: (value: string) => void; visible: boolean; onToggle: () => void; required?: boolean;
+function PasswordField({ label, name, value, onChange, visible, onToggle, required = false, autoFocus = false }: {
+  label: string; name: string; value: string; onChange: (value: string) => void; visible: boolean; onToggle: () => void; required?: boolean; autoFocus?: boolean;
 }) {
   const id = useId();
   return <div className="security-password-control"><label htmlFor={id}>{label}</label><div className="security-password-field">
-    <input id={id} name={name} type={visible ? "text" : "password"} value={value} onChange={event => onChange(event.target.value)} required={required} minLength={8} maxLength={128} autoComplete={required ? "current-password" : "new-password"} />
+    <input autoFocus={autoFocus} id={id} name={name} type={visible ? "text" : "password"} value={value} onChange={event => onChange(event.target.value)} required={required} minLength={8} maxLength={128} autoComplete={required ? "current-password" : "new-password"} />
     <button type="button" className="security-eye-toggle" aria-label={`${visible ? "Hide" : "Show"} ${label.toLowerCase()}`} aria-pressed={visible} aria-controls={id} onClick={onToggle}>
       <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" /><circle cx="12" cy="12" r="3" />{visible && <path d="m3 3 18 18" />}</svg>
     </button>
@@ -31,6 +31,12 @@ function SecurityPanel({ onClose }: { onClose: () => void }) {
   const [summary, setSummary] = useState<AccountSecuritySummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [dangerOpen, setDangerOpen] = useState(false);
+  const [wipePassword, setWipePassword] = useState("");
+  const [wipePhrase, setWipePhrase] = useState("");
+  const [wipeVisible, setWipeVisible] = useState(false);
+  const [wipeError, setWipeError] = useState("");
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");
   const [confirmation, setConfirmation] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
@@ -72,6 +78,32 @@ function SecurityPanel({ onClose }: { onClose: () => void }) {
     return () => { document.body.style.overflow = overflow; document.removeEventListener("keydown", onKey); previousFocus?.focus(); };
   }, [onClose]);
 
+  const locked = saving || deleting;
+  const canWipe = wipePassword.length >= 8 && wipePassword.length <= 128 && Boolean(wipePassword.trim()) && wipePhrase.trim().toUpperCase() === "WIPE ARCHIVE";
+
+  function cancelWipe() {
+    if (busyRef.current) return;
+    setDangerOpen(false); setWipePassword(""); setWipePhrase(""); setWipeVisible(false); setWipeError("");
+  }
+
+  function submitWipe(event: React.SubmitEvent<HTMLFormElement>) {
+    event.preventDefault(); setWipeVisible(false); hidePasswords();
+    if (!canWipe || busyRef.current || cooldown.seconds > 0) return;
+    const form = new FormData(); form.set("currentPassword", wipePassword); form.set("confirmation", wipePhrase);
+    busyRef.current = true; setDeleting(true); setWipeError("");
+    startTransition(async () => {
+      try {
+        const result = unwrapActionResult(await wipeOperatorAccount(form));
+        setWipePassword(""); setWipePhrase(""); setCurrentPassword(""); setNewPassword("");
+        // A full navigation also drops private in-memory account/library state.
+        window.location.replace(result.redirectTo);
+      } catch (cause) {
+        if (cause instanceof ActionFailure) cooldown.start(cause.retryAfterSeconds);
+        setWipeError(actionErrorMessage(cause, "Account termination failed. Please try again."));
+      } finally { busyRef.current = false; setDeleting(false); }
+    });
+  }
+
   function hidePasswords() { setCurrentVisible(false); setNewVisible(false); }
   function submit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault(); hidePasswords();
@@ -96,8 +128,8 @@ function SecurityPanel({ onClose }: { onClose: () => void }) {
   }
 
   return <div className="security-modal-backdrop" onClick={event => { if (event.target === event.currentTarget && !busyRef.current) onClose(); }}>
-    <div className="security-modal" ref={panelRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={titleId} aria-busy={loading || saving}>
-      <header className="security-modal-heading"><div><p>ACCOUNT SECURITY // OPERATOR CREDENTIALS</p><h2 id={titleId}>ICE SECURITY GATEWAY // OPERATOR CREDENTIALS</h2></div><button type="button" aria-label="Close account security" disabled={saving} onClick={onClose}>✕</button></header>
+    <div className="security-modal" ref={panelRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={titleId} aria-busy={loading || locked}>
+      <header className="security-modal-heading"><div><p>ACCOUNT SECURITY // OPERATOR CREDENTIALS</p><h2 id={titleId}>ICE SECURITY GATEWAY // OPERATOR CREDENTIALS</h2></div><button type="button" aria-label="Close account security" disabled={locked} onClick={onClose}>✕</button></header>
       {loading && <p role="status">VERIFYING SECURE SESSION…</p>}
       {summary && <>
         <dl className="security-account-summary">
@@ -106,7 +138,7 @@ function SecurityPanel({ onClose }: { onClose: () => void }) {
           <div><dt>Account Created Date</dt><dd>{new Date(summary.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}</dd></div>
           <div><dt>Active Session Status</dt><dd>● ACTIVE // Expires {new Date(summary.sessionExpiresAt).toLocaleDateString("en-US")}</dd></div>
         </dl>
-        <SafeForm action={logout} className="security-device-logout"><fieldset disabled={saving}><DeviceLogout /></fieldset></SafeForm>
+        <SafeForm action={logout} className="security-device-logout"><fieldset disabled={locked}><DeviceLogout /></fieldset></SafeForm>
         <form className="security-update-form" onSubmit={submit} onInvalidCapture={event => {
           hidePasswords();
           const input = event.target;
@@ -114,7 +146,7 @@ function SecurityPanel({ onClose }: { onClose: () => void }) {
             : input instanceof HTMLInputElement && input.name === "currentPassword" ? !input.value.trim() ? "Enter your current password to authorize changes." : "Current password is incorrect."
             : "New passwords must contain 8–128 characters and cannot be only spaces.");
         }}>
-          <fieldset disabled={saving || cooldown.seconds > 0}>
+          <fieldset disabled={locked || cooldown.seconds > 0}>
             <legend>UPDATE EMAIL &amp; PASSWORD</legend>
             <PasswordField label="Current Password" name="currentPassword" value={currentPassword} onChange={setCurrentPassword} visible={currentVisible} onToggle={() => setCurrentVisible(value => !value)} required />
             <label>New Email <span>(optional)</span><input type="email" name="newEmail" value={newEmail} onChange={event => setNewEmail(event.target.value)} autoComplete="email" maxLength={254} spellCheck={false} autoCapitalize="none" /></label>
@@ -126,6 +158,21 @@ function SecurityPanel({ onClose }: { onClose: () => void }) {
       </>}
       {error && <p className="security-error" role="alert">{error}</p>}
       {confirmation && <p className="security-confirmation" role="status">{confirmation}</p>}
+      {summary && <section className="security-danger-zone" aria-labelledby={`${titleId}-danger`}>
+        <h3 id={`${titleId}-danger`}>⚠ DANGER ZONE // ARCHIVE TERMINATION</h3>
+        <p>Permanently deletes this operator profile, all games in your library, custom priority orders, and unlocked achievements. This action cannot be undone.</p>
+        {!dangerOpen ? <button className="security-wipe-reveal" type="button" disabled={locked} aria-expanded={false} aria-controls={`${titleId}-wipe-confirm`} onClick={() => setDangerOpen(true)}>🗑 WIPE OPERATOR ACCOUNT</button> : <form id={`${titleId}-wipe-confirm`} aria-label="Confirm account wipe" onSubmit={submitWipe} onInvalidCapture={() => { setWipeVisible(false); setWipeError("Enter your current password and type WIPE ARCHIVE."); }}>
+          <fieldset disabled={locked || cooldown.seconds > 0}>
+            <PasswordField label="Current Password" name="currentPassword" value={wipePassword} onChange={setWipePassword} visible={wipeVisible} onToggle={() => setWipeVisible(value => !value)} required autoFocus />
+            <label>Type WIPE ARCHIVE to confirm<input name="confirmation" type="text" value={wipePhrase} onChange={event => setWipePhrase(event.target.value)} autoComplete="off" spellCheck={false} maxLength={80} required /></label>
+          </fieldset>
+          {wipeError && <p className="security-error" role="alert">{wipeError}</p>}
+          <div className="security-wipe-actions">
+            <button type="button" disabled={locked} onClick={cancelWipe}>CANCEL</button>
+            <button className="security-wipe-confirm" type="submit" disabled={locked || cooldown.seconds > 0 || !canWipe}>{deleting ? "TERMINATING ARCHIVE…" : cooldown.seconds > 0 ? cooldown.label : "⚠ PERMANENTLY WIPE ACCOUNT"}</button>
+          </div>
+        </form>}
+      </section>}
     </div>
   </div>;
 }

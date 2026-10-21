@@ -68,6 +68,10 @@ export async function createPlayerSession(userId: string, beforeCreate?: (tx: Pr
 export async function destroyPlayerSession() {
   const tokenHash = await readSessionHash();
   if (tokenHash) await prisma.playerSession.deleteMany({ where: { tokenHash } });
+  await clearPlayerSessionCookie();
+}
+
+export async function clearPlayerSessionCookie() {
   (await cookies()).set(sessionCookieName, "", {
     httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: 0,
   });

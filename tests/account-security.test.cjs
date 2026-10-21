@@ -67,3 +67,36 @@ test('session helper commits credential changes with rotation and sets only a si
   fail=true;await assert.rejects(auth.createPlayerSession('owner-id',async t=>{await t.player.update();}));assert.equal(cookieWrites,0);assert.equal(email,'old@example.com');assert(sessions.has(previous));
   fail=false;const refreshed=await auth.createPlayerSession('owner-id',async t=>{await t.player.update();});assert(refreshed.expiresAt instanceof Date);assert.equal(email,'new@example.com');assert.equal(cookieWrites,1);assert(!sessions.has(previous));const next=crypto.verifySessionToken(jar,await auth.getSessionSigningKey());assert(sessions.has(next));assert.equal(sessions.size,1);
 });
+
+
+test('account wipe requires intent and password, shares rate limits, cascades only the authenticated owner and clears the cookie', async () => {
+  let signedIn = true, correct = false, cooldown = 0, revoked = false, changed = false, failing = false;
+  let checks = 0, clears = 0, deletes = 0;
+  const revalidated = [];
+  const db = { players: ['owner-id', 'other-id'], games: [{userId:'owner-id',pinnedOrder:1,backlogOrder:2},{userId:'other-id'}], achievements: [{userId:'owner-id'},{userId:'other-id'}], sessions: [{userId:'owner-id'},{userId:'owner-id'},{userId:'other-id'}] };
+  const tx = { $executeRaw: async () => {}, playerSession: { findUnique: async ({where}) => { assert.equal(where.userId,'owner-id'); assert.equal(where.tokenHash,'active-hash'); return revoked ? null : {tokenHash:'active-hash'}; } }, player: { delete: async ({where}) => {
+    assert.equal(where.id,'owner-id'); assert.equal(where.passwordHash,'secret-hash'); assert.equal(where.email,'owner@example.test');
+    if(changed)throw {code:'P2025'};
+    db.players=db.players.filter(id=>id!==where.id);
+    for(const table of ['games','achievements','sessions'])db[table]=db[table].filter(row=>row.userId!==where.id);
+    if(failing)throw Error('private database failure');
+    deletes++;
+  } } };
+  let load;
+  load = loader({'next/cache':{revalidatePath:path=>revalidated.push(path)},'@/lib/prisma':{prisma:{$transaction:async work=>{const before=structuredClone(db);try{return await work(tx);}catch(error){Object.assign(db,before);throw error;}}}},'@/lib/account-security':{
+    getCredentialSession:async()=>{if(!signedIn)throw new (load('src/lib/action-result.ts').InputError)('Sign in to manage your account security.');return{tokenHash:'active-hash',player:{id:'owner-id',passwordHash:'secret-hash',email:'owner@example.test',handle:'owner'}};},
+    consumeCredentialAttempt:async id=>{assert.equal(id,'owner-id');return cooldown;},
+  },'@/lib/auth-crypto':{verifyPassword:async password=>{checks++;assert.equal(password,' exact password ');return correct;}},'@/lib/auth-session':{clearPlayerSessionCookie:async()=>{clears++;}}});
+  const {wipeOperatorAccount} = load('src/app/security-actions.ts');
+  const data = {currentPassword:' exact password ',confirmation:' wipe archive ',userId:'other-id'};
+  assert.match((await wipeOperatorAccount(form({...data,confirmation:'no'}))).error,/Type WIPE ARCHIVE/);assert.equal(checks,0);
+  assert.match((await wipeOperatorAccount(form({...data,currentPassword:' '}))).error,/current password/);assert.equal(checks,0);
+  signedIn=false;assert.match((await wipeOperatorAccount(form(data))).error,/Sign in/);signedIn=true;
+  assert.equal((await wipeOperatorAccount(form(data))).error,'Current password is incorrect.');assert.equal(deletes,0);assert.equal(clears,0);
+  cooldown=20;const blocked=await wipeOperatorAccount(form(data));assert.equal(blocked.status,429);assert.equal(blocked.retryAfterSeconds,20);assert.equal(checks,1);cooldown=0;correct=true;
+  revoked=true;assert.match((await wipeOperatorAccount(form(data))).error,/session expired/);revoked=false;
+  changed=true;assert.match((await wipeOperatorAccount(form(data))).error,/account changed/);changed=false;
+  failing=true;assert.match((await wipeOperatorAccount(form(data))).error,/Could not save/);assert.equal(db.players.length,2);assert.equal(db.games.length,2);assert.equal(clears,0);failing=false;
+  const result=await wipeOperatorAccount(form(data));assert.equal(result.redirectTo,'/access?archive=wiped');assert.equal(result.message,'OPERATOR ARCHIVE WIPED // CONNECTION TERMINATED');assert.equal(clears,1);assert.equal(deletes,1);assert.deepEqual(db.players,['other-id']);for(const table of ['games','achievements','sessions'])assert.deepEqual(db[table],[{userId:'other-id'}]);assert.deepEqual(revalidated,['/','/dossier/owner']);
+  const schema=fs.readFileSync(path.resolve(__dirname,'../prisma/schema.prisma'),'utf8');assert.equal((schema.match(/@relation\(fields: \[userId\], references: \[id\], onDelete: Cascade\)/g)||[]).length,3);
+});

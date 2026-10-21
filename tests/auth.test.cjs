@@ -129,7 +129,7 @@ test("claimed archives require a valid session, and private sessions return only
   const player = load("src/lib/player.ts", {
     "server-only": {}, react: { cache: (fn) => fn }, "@/lib/auth-session": { readSessionHash: async () => tokenHash },
     "@/lib/prisma": { prisma: {
-      player: { upsert: async () => local },
+      player: { findUnique: async () => local },
       playerSession: { findUnique: async ({ where, select }) => {
         assert(where.expiresAt.gt instanceof Date);
         assert.deepEqual(where.player, { email: { not: null }, passwordHash: { not: null } });
@@ -142,6 +142,8 @@ test("claimed archives require a valid session, and private sessions return only
   local = { ...local, email: "claimed@example.com", passwordHash: "hashed" };
   assert.equal(await player.getCurrentPlayer(), null);
   await assert.rejects(() => player.getCurrentPlayerId(), /Sign in/);
+  local = null;
+  assert.equal(await player.getCurrentPlayer(), null, "Deleted local profiles are never recreated by a public visit");
   tokenHash = "expired-or-revoked-token";
   await assert.rejects(() => player.getCurrentPlayerId(), /Sign in/);
   session = { player: { id: "private-player", operatorName: "Private", handle: "private" } };

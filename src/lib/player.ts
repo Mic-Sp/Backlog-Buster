@@ -18,10 +18,11 @@ export const getCurrentPlayer = cache(async (): Promise<CurrentPlayer | null> =>
     });
     if (session) return { ...session.player, isLocal: false };
   }
-  const local = await prisma.player.upsert({ where: { id: "default-player" }, create: { id: "default-player" }, update: {},
+  // A deleted local archive must stay deleted; only explicit registration may recreate it.
+  const local = await prisma.player.findUnique({ where: { id: "default-player" },
     select: { id: true, operatorName: true, handle: true, email: true, passwordHash: true },
   });
-  if (local.email !== null || local.passwordHash !== null) return null;
+  if (!local || local.email !== null || local.passwordHash !== null) return null;
   return { id: local.id, operatorName: local.operatorName, handle: local.handle, isLocal: true };
 });
 

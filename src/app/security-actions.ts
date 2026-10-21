@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { InputError, RateLimitError, safeAction } from "@/lib/action-result";
 import { consumeCredentialAttempt, credentialSummary, getCredentialSession, readCredentialChanges } from "@/lib/account-security";
 import { hashPassword, verifyPassword } from "@/lib/auth-crypto";
-import { createPlayerSession } from "@/lib/auth-session";
+import { prisma } from "@/lib/prisma";
+import { createPlayerSession, clearPlayerSessionCookie } from "@/lib/auth-session";
 
 export async function getAccountSecuritySummary() {
   return safeAction(async () => {
@@ -47,5 +48,36 @@ export async function updateAccountCredentials(formData: FormData) {
       }
       throw error;
     }
+  });
+}
+
+
+export async function wipeOperatorAccount(formData: FormData) {
+  return safeAction(async () => {
+    const { player, tokenHash } = await getCredentialSession();
+    if (!(formData instanceof FormData)) throw new InputError("Confirm your password and type WIPE ARCHIVE.");
+    const phrase = formData.get("confirmation");
+    const password = formData.get("currentPassword");
+    if (typeof phrase !== "string" || phrase.trim().toUpperCase() !== "WIPE ARCHIVE") throw new InputError("Type WIPE ARCHIVE to confirm account termination.");
+    if (typeof password !== "string" || !password.trim()) throw new InputError("Enter your current password to authorize account termination.");
+    const retryAfter = await consumeCredentialAttempt(player.id);
+    if (retryAfter) throw new RateLimitError(retryAfter);
+    if (password.length < 8 || password.length > 128 || !await verifyPassword(password, player.passwordHash)) throw new InputError("Current password is incorrect.");
+    try {
+      await prisma.$transaction(async tx => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended('backlogbuster-account-registration', 0))`;
+        const active = await tx.playerSession.findUnique({ where: { tokenHash, userId: player.id, expiresAt: { gt: new Date() } }, select: { tokenHash: true } });
+        if (!active) throw new InputError("Your session expired. Sign in again before terminating this archive.");
+        // Database cascades remove this player's games, achievements and every device session.
+        await tx.player.delete({ where: { id: player.id, passwordHash: player.passwordHash, email: player.email! }, select: { id: true } });
+      }, { timeout: 15000 });
+    } catch (error) {
+      if (error && typeof error === "object" && "code" in error && error.code === "P2025") throw new InputError("Your account changed. Reopen the security gateway and verify again.");
+      throw error;
+    }
+    await clearPlayerSessionCookie();
+    revalidatePath("/", "layout");
+    if (player.handle) revalidatePath(`/dossier/${encodeURIComponent(player.handle)}`);
+    return { success: true, redirectTo: "/access?archive=wiped", message: "OPERATOR ARCHIVE WIPED // CONNECTION TERMINATED" };
   });
 }

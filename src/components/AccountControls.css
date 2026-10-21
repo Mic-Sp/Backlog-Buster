@@ -90,3 +90,4 @@
 	.auth-panel { padding: 18px; max-height: calc(100dvh - 24px); }
 	.auth-heading h2 { font-size: 30px; }
 }
+.archive-termination-notice { width: min(560px, 100%); margin: 24px auto; padding: 14px; border: 1px solid #ff2a6d; background: #1c0d16; color: #ffb8cc; font: 700 12px/1.6 "Courier New", monospace; }
