@@ -44,7 +44,7 @@ test('profile saves use authenticated ownership, reject claimed handles and fore
     },
     game: { findMany: async ({ where }) => { assert.equal(where.userId, 'current-player'); assert.equal(where.status, 'Completed'); assert.equal(where.rating, 5); return eligible ? [{ id: 7 }] : []; } },
   };
-  const load = loader({ 'next/cache': { revalidatePath: p => { assert.equal(p, '/'); refreshes++; } }, '@/lib/player': { getCurrentPlayerId: async () => 'current-player' }, '@/lib/prisma': { prisma: { $transaction: work => work(tx), player: { upsert: async ({where}) => { assert.equal(where.id, 'current-player'); return row; } } } } });
+  const load = loader({ 'next/cache': { revalidatePath: p => { assert.equal(p, '/'); refreshes++; } }, '@/lib/player': { getCurrentPlayerId: async () => 'current-player', getAuthenticatedPlayerId: async () => 'current-player' }, '@/lib/prisma': { prisma: { $transaction: work => work(tx), player: { upsert: async ({where}) => { assert.equal(where.id, 'current-player'); return row; } } } } });
   const { savePlayerProfile } = load('src/app/profile-actions.ts');
   const saved = await savePlayerProfile({ ...input, id: 'victim', avatarUrl: 'preset:kitsune' });
   assert.equal(saved.avatarUrl, 'preset:kitsune'); assert.equal(saved.id, 'current-player'); assert.equal(saved.operatorName, 'Ghost'); assert.equal(saved.handle, 'night-runner'); assert.equal(saved.neonAccent, 'GOLD'); assert.equal(refreshes, 1); assert.equal(writes, 1); assert.equal(locks, 1);

@@ -3,14 +3,14 @@
 import { safeAction, InputError } from "@/lib/action-result";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { getCurrentPlayerId } from "@/lib/player";
+import { getAuthenticatedPlayerId } from "@/lib/player";
 import { publicProfileSelect, serializePlayerProfile, validatePlayerProfile } from "@/lib/player-profile";
 import type { PlayerProfileInput } from "@/lib/player-profile-types";
 
 export async function savePlayerProfile(input: PlayerProfileInput) {
   return safeAction(async () => {
     const data = validatePlayerProfile(input);
-    const id = await getCurrentPlayerId();
+    const id = await getAuthenticatedPlayerId();
     let profile;
     try {
       profile = await prisma.$transaction(async (tx) => {

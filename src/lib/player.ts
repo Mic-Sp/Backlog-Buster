@@ -32,6 +32,18 @@ export async function getCurrentPlayerId(): Promise<string> {
   return player.id;
 }
 
+// Mutations must never inherit the read-only, unclaimed local-profile fallback.
+export async function getAuthenticatedPlayerId(): Promise<string> {
+  const tokenHash = await readSessionHash();
+  if (!tokenHash) throw new AuthenticationRequiredError();
+  const session = await prisma.playerSession.findUnique({
+    where: { tokenHash, expiresAt: { gt: new Date() }, player: { email: { not: null }, passwordHash: { not: null } } },
+    select: { userId: true },
+  });
+  if (!session) throw new AuthenticationRequiredError();
+  return session.userId;
+}
+
 export async function ensurePlayerExists(id?: string) {
   id ??= await getCurrentPlayerId();
   return prisma.player.upsert({ where: { id }, create: { id }, update: {}, select: { id: true } });

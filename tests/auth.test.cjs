@@ -133,12 +133,14 @@ test("claimed archives require a valid session, and private sessions return only
       playerSession: { findUnique: async ({ where, select }) => {
         assert(where.expiresAt.gt instanceof Date);
         assert.deepEqual(where.player, { email: { not: null }, passwordHash: { not: null } });
+        if (select.userId) return session ? { userId: session.player.id } : null;
         assert.deepEqual(select, { player: { select: { id: true, operatorName: true, handle: true } } });
         return session;
       } },
     } },
   });
   assert.equal(await player.getCurrentPlayerId(), "default-player");
+  await assert.rejects(() => player.getAuthenticatedPlayerId(), /Sign in/, "Unclaimed local profiles cannot authorize mutations");
   local = { ...local, email: "claimed@example.com", passwordHash: "hashed" };
   assert.equal(await player.getCurrentPlayer(), null);
   await assert.rejects(() => player.getCurrentPlayerId(), /Sign in/);
@@ -146,9 +148,13 @@ test("claimed archives require a valid session, and private sessions return only
   assert.equal(await player.getCurrentPlayer(), null, "Deleted local profiles are never recreated by a public visit");
   tokenHash = "expired-or-revoked-token";
   await assert.rejects(() => player.getCurrentPlayerId(), /Sign in/);
+  await assert.rejects(() => player.getAuthenticatedPlayerId(), /Sign in/);
   session = { player: { id: "private-player", operatorName: "Private", handle: "private" } };
   assert.deepEqual(await player.getCurrentPlayer(), { ...session.player, isLocal: false });
   assert.equal(await player.getCurrentPlayerId(), "private-player");
+  assert.equal(await player.getAuthenticatedPlayerId(), "private-player");
+  session = null;
+  await assert.rejects(() => player.getAuthenticatedPlayerId(), /Sign in/, "Revoked sessions are checked afresh");
 });
 
 test("production sessions use protected cookies, rotate tokens, and revoke on logout", async () => {

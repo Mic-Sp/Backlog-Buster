@@ -64,7 +64,7 @@ test('outbound retries, deduplication, provider cooldowns, route responses and s
     const blocked = await route.POST(request()); assert.equal(blocked.status, 429); assert.equal(calls, 2);
     // A rate-limited canon scan cannot enter the transaction or overwrite saved ranks.
     let writes = 0;
-    const sagaLoad = loader({ 'next/cache': { revalidatePath() {} }, '@/lib/player': { getCurrentPlayerId: async () => 'saga-fixture' },
+    const sagaLoad = loader({ 'next/cache': { revalidatePath() {} }, '@/lib/player': { getAuthenticatedPlayerId: async () => 'saga-fixture' },
       '@/lib/prisma': { prisma: { game: { findMany: async () => [1, 2].map(id => ({ id, title: `Game ${id}`, status: 'Backlog', franchise: 'Test Saga', chronologicalOrder: id })) }, $transaction: async () => { writes++; } } },
       '@/lib/achievements': {}, '@/lib/recommendations': {}, '@/lib/rawg': {},
       '@/lib/saga-chronology': { resolveSagaChronology: async () => { throw new SagaLimit(20); } },

@@ -24,7 +24,7 @@ function escapeData(value: string) {
 
 async function audit(request: Request) {
   const player = await getCurrentPlayer();
-  if (!player) return json({ error: "Sign in to use the AI briefing." }, 401);
+  if (!player || player.isLocal) return json({ error: "Sign in to use the AI briefing." }, 401);
   let body: unknown;
   try {
     const text = await request.text();

@@ -38,7 +38,7 @@ test("all game actions return structured errors for invalid inputs and infrastru
     $transaction: async () => { throw new Error("private database connection detail"); },
   };
   const scoped = loader({ "server-only": {}, "next/cache": { revalidatePath() {} }, "@/lib/prisma": { prisma },
-    "@/lib/player": { getCurrentPlayerId: async () => "fixture-player", ensurePlayerExists: async () => {} },
+    "@/lib/player": { getAuthenticatedPlayerId: async () => "fixture-player", ensurePlayerExists: async () => {} },
     "@/lib/achievements": { syncAndGetAchievements: async () => [] }, "@/lib/rawg": { lookupRawgGame: async (title) => { assert(title.trim()); lookups++; return null; } },
     "@/lib/recommendations": { getBacklogRecommendations: async () => { throw new Error("private database connection detail"); }, getExternalRecommendations: async () => { throw new Error("private database connection detail"); } },
   });
@@ -87,7 +87,7 @@ test("starting a pinned gig atomically advances only its owner's remaining deck 
     findMany:async({where,orderBy})=>{assert.deepEqual(where,{userId:'owner',status:'Backlog',pinnedOrder:{not:null}});assert.deepEqual(orderBy,[{pinnedOrder:'asc'},{id:'asc'}]);return games.filter(g=>g.userId==='owner'&&g.status==='Backlog'&&g.pinnedOrder!==null).sort((a,b)=>a.pinnedOrder-b.pinnedOrder).map(g=>({id:g.id}));},
     update:async({where,data})=>{assert.equal(where.userId,'owner');const game=games.find(g=>g.id===where.id&&g.userId===where.userId);assert(game);Object.assign(game,data);if(fail&&data.pinnedOrder===1)throw Error('Database failed');return game;},
   }};
-  const actions=loader({'next/cache':{revalidatePath:()=>refreshed++},'@/lib/prisma':{prisma:{$transaction:async work=>{const before=structuredClone(games);try{return await work(tx);}catch(error){games=before;throw error;}}}},'@/lib/player':{getCurrentPlayerId:async()=> 'owner'},'@/lib/achievements':{syncAndGetAchievements:async()=>synced++},'@/lib/rawg':{},'@/lib/recommendations':{}})('src/app/actions.ts');
+  const actions=loader({'next/cache':{revalidatePath:()=>refreshed++},'@/lib/prisma':{prisma:{$transaction:async work=>{const before=structuredClone(games);try{return await work(tx);}catch(error){games=before;throw error;}}}},'@/lib/player':{getAuthenticatedPlayerId:async()=> 'owner'},'@/lib/achievements':{syncAndGetAchievements:async()=>synced++},'@/lib/rawg':{},'@/lib/recommendations':{}})('src/app/actions.ts');
   for(const id of [1,2,3]){
     games=structuredClone(initial);
     assert.deepEqual(await actions.startGame(form({id:String(id),lengthHours:'22',difficulty:'2',userId:'other'})),{success:true});
