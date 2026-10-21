@@ -6,6 +6,7 @@ import { connection } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { resizeRawgImageUrl } from "@/lib/rawg";
 import GameForm from "./GameForm";
+import MemberCount from "@/components/MemberCount";
 import GameLibrary from "@/components/GameLibrary";
 import AchievementToast from "@/components/AchievementToast";
 import HudMilestones from "@/components/HudMilestones";
@@ -175,7 +176,7 @@ async function SavedGames({ userId }: { userId: string }) {
 async function PlayerWorkspace() {
   await connection();
   const player = await getCurrentPlayer();
-  if (!player) return <main className="page-shell"><AccountGate /></main>;
+  if (!player) return <main className="page-shell"><AccountGate /><MemberCount /></main>;
   return (
     <main className="page-shell" key={`${player.id}-${player.isLocal}`}>
       <Suspense
@@ -213,6 +214,7 @@ async function PlayerWorkspace() {
         <SavedGames userId={player.id} />
       </Suspense>
 
+      <MemberCount />
       <footer className="page-footer">
         <span>BACKLOG BUSTER</span>
         <span>YOUR PACE. YOUR PLAYTHROUGH.</span>
