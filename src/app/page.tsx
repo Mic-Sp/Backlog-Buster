@@ -12,8 +12,9 @@ import QuestRoulette from "@/components/QuestRoulette";
 import NetrunnerDossier from "@/components/NetrunnerDossier";
 import { calculateLibraryTelemetry } from "@/lib/library-telemetry";
 import { syncAndGetAchievements } from "@/lib/achievements";
-import { getCurrentPlayerId } from "@/lib/player";
+import { getCurrentPlayer, type CurrentPlayer } from "@/lib/player";
 import { getCurrentPlayerProfile } from "@/lib/player-profile";
+import AccountControls, { AccountGate } from "@/components/AccountControls";
 
 // Share one sync promise per player during this render, without caching Server Actions.
 const getPageAchievements = cache((userId: string) => syncAndGetAchievements(userId));
@@ -44,19 +45,19 @@ function calculateLevelProgress(totalXp: number) {
   };
 }
 
-async function PlayerSummary() {
+async function PlayerSummary({ player }: { player: CurrentPlayer }) {
   await connection();
 
   const [games, achievements, profile] = await Promise.all([
     prisma.game.findMany({
-      where: { userId: getCurrentPlayerId() },
+      where: { userId: player.id },
       select: { id: true, title: true, platform: true, genre: true, coverUrl: true, rating: true, earnedXp: true, status: true, lengthHours: true, hoursPlayed: true },
     }),
-    getPageAchievements(getCurrentPlayerId()),
+    getPageAchievements(player.id),
     getCurrentPlayerProfile(),
   ]);
   const badgeXp = await prisma.userAchievement.aggregate({
-    where: { userId: getCurrentPlayerId() },
+    where: { userId: player.id },
     _sum: { xpAwarded: true },
   });
   const totalXp = Math.round(
@@ -77,7 +78,7 @@ async function PlayerSummary() {
 
   return (
     <section className="player-summary" aria-label="Player stats">
-      <AchievementToast achievements={achievements} level={progress.level} totalXp={totalXp} />
+      <AchievementToast playerId={player.id} achievements={achievements} level={progress.level} totalXp={totalXp} />
       <Link className="hud-brand" href="/" aria-label="Backlog Buster home">
         <span className="wordmark-icon">
           <Image className="hud-brand-logo" src="/hud-logo.png" alt="Backlog Buster logo" width={190} height={189} sizes="72px" loading="eager" />
@@ -127,6 +128,7 @@ async function PlayerSummary() {
           <p data-status="Flatlined"><strong>{flatlinedCount}</strong><span>Flatlined</span></p>
         </div>
       </div>
+      <AccountControls player={player} key={`${player.id}-${player.isLocal}`} />
       <div className="hud-career-tools">
         <HudMilestones achievements={achievements} />
         <NetrunnerDossier data={{
@@ -141,15 +143,15 @@ async function PlayerSummary() {
   );
 }
 
-async function SavedGames() {
+async function SavedGames({ userId }: { userId: string }) {
   await connection();
 
   const [games, achievements] = await Promise.all([
     prisma.game.findMany({
-      where: { userId: getCurrentPlayerId() },
+      where: { userId },
       orderBy: { createdAt: "desc" },
     }),
-    getPageAchievements(getCurrentPlayerId()),
+    getPageAchievements(userId),
   ]);
   games.sort((left, right) => {
     const priorityDifference =
@@ -187,9 +189,12 @@ async function SavedGames() {
   );
 }
 
-export default function Home() {
+async function PlayerWorkspace() {
+  await connection();
+  const player = await getCurrentPlayer();
+  if (!player) return <main className="page-shell"><AccountGate /></main>;
   return (
-    <main className="page-shell">
+    <main className="page-shell" key={`${player.id}-${player.isLocal}`}>
       <Suspense
         fallback={
           <section className="player-summary summary-loading" aria-label="Player stats">
@@ -197,7 +202,7 @@ export default function Home() {
           </section>
         }
       >
-        <PlayerSummary />
+        <PlayerSummary player={player} />
       </Suspense>
 
       <section className="add-section" aria-labelledby="add-title">
@@ -222,7 +227,7 @@ export default function Home() {
           </section>
         }
       >
-        <SavedGames />
+        <SavedGames userId={player.id} />
       </Suspense>
 
       <footer className="page-footer">
@@ -231,4 +236,8 @@ export default function Home() {
       </footer>
     </main>
   );
+}
+
+export default function Home() {
+  return <Suspense fallback={<main className="page-shell"><p className="loading-state">VERIFYING OPERATOR SESSION…</p></main>}><PlayerWorkspace /></Suspense>;
 }

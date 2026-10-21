@@ -8,7 +8,7 @@ import type { PlayerProfileInput } from "@/lib/player-profile-types";
 
 export async function savePlayerProfile(input: PlayerProfileInput) {
   const data = validatePlayerProfile(input);
-  const id = getCurrentPlayerId();
+  const id = await getCurrentPlayerId();
   const profile = await prisma.$transaction(async (tx) => {
     const selected = data.featuredTrophyIds.filter((gameId): gameId is number => gameId !== null);
     if (selected.length) {

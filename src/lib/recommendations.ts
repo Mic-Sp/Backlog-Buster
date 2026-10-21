@@ -82,7 +82,8 @@ function compareCandidates(left: AdvisorGame, right: AdvisorGame) {
   return left.lengthHours - right.lengthHours || left.title.localeCompare(right.title) || left.id - right.id;
 }
 
-export async function getBacklogRecommendations(userId = getCurrentPlayerId()): Promise<BacklogRecommendations> {
+export async function getBacklogRecommendations(userId?: string): Promise<BacklogRecommendations> {
+  userId ??= await getCurrentPlayerId();
   const games = await prisma.game.findMany({
     where: { userId },
     select: {
@@ -193,7 +194,8 @@ export async function getBacklogRecommendations(userId = getCurrentPlayerId()): 
   return { continuationPick, palateCleanserPick: recommendation(cleanser, reason) };
 }
 
-export async function getExternalRecommendations(userId = getCurrentPlayerId()): Promise<ExternalRecommendation[]> {
+export async function getExternalRecommendations(userId?: string): Promise<ExternalRecommendation[]> {
+  userId ??= await getCurrentPlayerId();
   const games = await prisma.game.findMany({
     where: { userId },
     select: { title: true, platform: true, genre: true, status: true, rating: true, earnedXp: true },

@@ -32,7 +32,8 @@ export type Achievement = {
   xpAwarded: number;
 };
 
-export async function syncAndGetAchievements(userId = getCurrentPlayerId()): Promise<Achievement[]> {
+export async function syncAndGetAchievements(userId?: string): Promise<Achievement[]> {
+  userId ??= await getCurrentPlayerId();
   const [games, existing] = await Promise.all([
     prisma.game.findMany({
       where: { userId },

@@ -58,8 +58,34 @@ Restart the development server after generating the updated Prisma Client.
 
 Dossier identity settings autosave to the current Player profile in PostgreSQL.
 Featured trophies must belong to that player and be completed five-star games.
-Authentication fields are optional; ownership currently resolves to `default-player`
-in `src/lib/player.ts` until authenticated sessions are connected.
+
+### Accounts and Sessions
+
+Use **CLAIM NETRUNNER ACCOUNT // SIGN IN** in the player HUD to register or log in.
+The first registration upgrades the unclaimed `default-player` row in place,
+preserving its games, achievements, XP, and profile. Later registrations create
+independent empty libraries. Anonymous access is available only while the local
+profile has no credentials; after claiming it, logging out shows the sign-in screen.
+
+- Passwords use Node's salted `scrypt` (`N=131072`, `r=8`, `p=1`), following the
+  [OWASP password storage guidance](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#scrypt).
+  Registration and login accept 8–128 characters; passwords are never trimmed or stored as plaintext.
+- Sessions last seven days and use HMAC-signed, HTTP-only, SameSite=Lax cookies.
+  Only the session token hash is stored in `PlayerSession`. Logging out revokes the
+  database session, preventing replay. Production cookies use `Secure` and the
+  `__Host-` prefix, so production must be served over HTTPS.
+- Without an externally supplied `AUTH_SECRET`, a cryptographically random signing
+  key is generated once in the server-only `AuthSecret` table and shared by app
+  instances. No additional environment configuration is required. An optional
+  `AUTH_SECRET` must contain at least 32 bytes and be consistent across instances;
+  changing it invalidates existing cookies.
+- Email and handles are normalized to lowercase. Signup claims and duplicate
+  checks are serialized in a database transaction. Persistent throttles allow ten
+  attempts per email per fifteen minutes and sixty attempts globally per minute.
+- `getCurrentPlayer()` and `getCurrentPlayerId()` resolve ownership on the server
+  from the active session. Game actions, dossier saves, recommendations, and
+  achievement calculations never accept a browser-supplied owner ID. Browser
+  achievement/level notification history is scoped to each account.
 
 ### 4. Run Development Server
 
@@ -77,3 +103,4 @@ Visit [http://localhost:3000](http://localhost:3000) to view the application.
 | `npm run build` | Builds the production bundle |
 | `npm run start` | Runs the production build |
 | `npm run lint` | Runs ESLint |
+| `npm run test:auth` | Runs isolated authentication and archive-claim regression tests (no database required) |

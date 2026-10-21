@@ -29,7 +29,7 @@ export async function toggleGamePin(gameId: number, shouldPin: boolean) {
   if (!Number.isSafeInteger(gameId) || gameId < 1 || typeof shouldPin !== "boolean") {
     throw new Error("Please provide a valid game and pin choice.");
   }
-  const userId = getCurrentPlayerId();
+  const userId = await getCurrentPlayerId();
   const result = await withDeckLock(userId, async (tx) => {
     const game = await tx.game.findUnique({
       where: { id: gameId, userId }, select: { status: true, pinnedOrder: true, releaseYear: true },
@@ -61,7 +61,7 @@ async function placeGameInDeck(gameId: number, targetSlot: number, swap: boolean
   if (!Number.isSafeInteger(gameId) || gameId < 1 || gameId > 2147483647 || !Number.isInteger(targetSlot) || targetSlot < 1 || targetSlot > DECK_CAPACITY) {
     throw new Error("Choose a valid game and deck slot.");
   }
-  const userId = getCurrentPlayerId();
+  const userId = await getCurrentPlayerId();
   await withDeckLock(userId, async (tx) => {
     const source = await tx.game.findUnique({
       where: { id: gameId, userId },
@@ -103,7 +103,7 @@ export async function returnDeckGameToBacklog(gameId: number, beforeGameId: numb
   if (!validId(gameId) || (beforeGameId !== null && (!validId(beforeGameId) || beforeGameId === gameId))) {
     throw new Error("Choose a valid deck gig and Backlog position.");
   }
-  const userId = getCurrentPlayerId();
+  const userId = await getCurrentPlayerId();
   await withDeckLock(userId, async (tx) => {
     const games = await tx.game.findMany({
       where: { userId, status: "Backlog" },
@@ -135,7 +135,7 @@ export async function reorderSagaTimeline(orderedGameIds: string[]) {
   }
   const ids = orderedGameIds.map(Number);
   if (new Set(ids).size !== ids.length) throw new Error("A saga sequence cannot contain duplicate games.");
-  const userId = getCurrentPlayerId();
+  const userId = await getCurrentPlayerId();
   await prisma.$transaction(async (tx) => {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`backlogbuster-saga:${userId}`}, 0))`;
     const games = await tx.game.findMany({
@@ -165,7 +165,7 @@ export async function reorderBacklogGames(orderedGameIds: string[]) {
   }
   const ids = orderedGameIds.map(Number);
   if (new Set(ids).size !== ids.length) throw new Error("A Backlog sequence cannot contain duplicate games.");
-  const userId = getCurrentPlayerId();
+  const userId = await getCurrentPlayerId();
   await prisma.$transaction(async (tx) => {
     // Use the deck lock so pinning cannot change membership during a reorder.
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`backlogbuster-deck:${userId}`}, 0))`;
@@ -311,6 +311,7 @@ export async function createGame(formData: FormData) {
     throw new Error("Please provide valid game details.");
   }
 
+  const userId = await getCurrentPlayerId();
   const lookup = submittedLengthHours === null ||
     Object.values(manualMetadata).some((value) => value === "")
     ? await lookupRawgGame(title)
@@ -321,7 +322,6 @@ export async function createGame(formData: FormData) {
     10;
   const status = "Backlog";
 
-  const userId = getCurrentPlayerId();
   await ensurePlayerExists(userId);
   await prisma.game.create({
     data: {
@@ -340,6 +340,7 @@ export async function createGame(formData: FormData) {
 }
 
 export async function searchGameInfo(title: string): Promise<RawgGameInfo | null> {
+  await getCurrentPlayerId();
   const cleanTitle = title.trim();
   return cleanTitle === "" || cleanTitle.length > 120
     ? null
@@ -347,18 +348,18 @@ export async function searchGameInfo(title: string): Promise<RawgGameInfo | null
 }
 
 export async function fetchBacklogAdvisor() {
-  return getBacklogRecommendations(getCurrentPlayerId());
+  return getBacklogRecommendations(await getCurrentPlayerId());
 }
 
 export async function fetchExternalScout() {
-  return getExternalRecommendations(getCurrentPlayerId());
+  return getExternalRecommendations(await getCurrentPlayerId());
 }
 
 export async function autoDetectSagaOrder(sagaKey: string) {
   if (typeof sagaKey !== "string" || !sagaKey.trim() || sagaKey.length > 240) {
     return { updatedCount: 0, error: "Choose a valid saga to scan." };
   }
-  const userId = getCurrentPlayerId();
+  const userId = await getCurrentPlayerId();
   const games = await prisma.game.findMany({
     where: { userId },
     select: { id: true, title: true, status: true, franchise: true, chronologicalOrder: true },
@@ -395,7 +396,7 @@ export async function addExternalScoutGame(formData: FormData) {
     throw new Error("Please provide a valid game title.");
   }
   const existing = await prisma.game.findMany({
-    where: { userId: getCurrentPlayerId() }, select: { title: true },
+    where: { userId: await getCurrentPlayerId() }, select: { title: true },
   });
   if (existing.some((game) => normalizeGameTitle(game.title) === normalizeGameTitle(title))) {
     revalidatePath("/");
@@ -413,7 +414,7 @@ export async function bulkImportGames(payload: {
     typeof payload.content !== "string" || new TextEncoder().encode(payload.content).length > 500000) {
     throw new Error("Provide a title list or JSON backup under 500 KB.");
   }
-  const userId = getCurrentPlayerId();
+  const userId = await getCurrentPlayerId();
   function text(value: unknown, field: string, limit?: number): string {
     if (typeof value !== "string" || !value.trim() || (limit && value.trim().length > limit)) {
       throw new Error(`Invalid ${field}${limit ? ` (1–${limit} characters)` : ""}.`);
@@ -555,7 +556,7 @@ export async function acceptQuest(gameId: number) {
   }
 
   await prisma.game.update({
-    where: { id: gameId, userId: getCurrentPlayerId(), status: "Backlog" },
+    where: { id: gameId, userId: await getCurrentPlayerId(), status: "Backlog" },
     data: { status: "Playing", earnedXp: 0, pinnedOrder: null },
   });
 
@@ -569,7 +570,7 @@ export async function applyPlaytimeEstimate(gameId: number, newHours: unknown) {
     !Number.isInteger(hours) || hours < 1 || hours > 999) {
     throw new Error("Please provide a valid game ID and a whole-hour estimate from 1 to 999.");
   }
-  const userId = getCurrentPlayerId();
+  const userId = await getCurrentPlayerId();
   const game = await prisma.game.findUniqueOrThrow({
     where: { id: gameId, userId },
     select: { status: true, difficulty: true },
@@ -651,7 +652,7 @@ export async function updateGame(formData: FormData) {
   }
 
   const existing = await prisma.game.findUniqueOrThrow({
-    where: { id, userId: getCurrentPlayerId() },
+    where: { id, userId: await getCurrentPlayerId() },
     select: { status: true, hoursPlayed: true },
   });
   if (statusValue === "Backlog") {
@@ -665,7 +666,7 @@ export async function updateGame(formData: FormData) {
   }
 
   await prisma.game.update({
-    where: { id, userId: getCurrentPlayerId() },
+    where: { id, userId: await getCurrentPlayerId() },
     data: {
       status: statusValue,
       ...(statusValue !== "Backlog" || (metadata.releaseYear !== undefined && !isReleasedYear(metadata.releaseYear)) ? { pinnedOrder: null } : {}),
@@ -719,7 +720,7 @@ export async function startGame(formData: FormData) {
   }
 
   await prisma.game.update({
-    where: { id, userId: getCurrentPlayerId() },
+    where: { id, userId: await getCurrentPlayerId() },
     data: { status: "Playing", lengthHours, difficulty, earnedXp: 0, pinnedOrder: null, ...progress },
   });
 
@@ -759,14 +760,14 @@ export async function completeGame(formData: FormData) {
   }
 
   const recordedHours = progress.hoursPlayed ?? (await prisma.game.findUniqueOrThrow({
-    where: { id, userId: getCurrentPlayerId() },
+    where: { id, userId: await getCurrentPlayerId() },
     select: { hoursPlayed: true },
   })).hoursPlayed;
   const hoursPlayed = recordedHours === 0 ? lengthHours : recordedHours;
   const finalLengthHours = Math.max(lengthHours, hoursPlayed);
 
   await prisma.game.update({
-    where: { id, userId: getCurrentPlayerId() },
+    where: { id, userId: await getCurrentPlayerId() },
     data: {
       status: "Completed",
       pinnedOrder: null,
@@ -792,7 +793,7 @@ export async function logPlaySession(gameId: number, addHours: number) {
   const updated = await prisma.$queryRaw<Array<{ id: number }>>`
     UPDATE "Game"
     SET "hoursPlayed" = LEAST(10000, GREATEST(0, "hoursPlayed" + ${addHours}))
-    WHERE "id" = ${gameId} AND "userId" = ${getCurrentPlayerId()}
+    WHERE "id" = ${gameId} AND "userId" = ${await getCurrentPlayerId()}
     RETURNING "id"
   `;
   if (updated.length === 0) throw new Error("Game not found.");
@@ -815,7 +816,7 @@ export async function deleteGame(formData: FormData) {
 
   // Capture earned milestones before removing a game that contributed to them.
   await syncAndGetAchievements();
-  await prisma.game.delete({ where: { id, userId: getCurrentPlayerId() } });
+  await prisma.game.delete({ where: { id, userId: await getCurrentPlayerId() } });
 
   revalidatePath("/");
 }

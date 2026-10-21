@@ -1,3 +1,5 @@
+import { getCurrentPlayer } from "@/lib/player";
+
 const systemPrompt = "Role: You are 'Cortex', a cynical hacker and gamer auditing corrupted RAWG database telemetry. " +
   "Task: Always begin your response with '[REAL TIME: XXh vs LOGGED: YYh]' using the true Main Story completion hours (whole numbers only), followed by two gritty sentences telling the player whether the stored estimate is a lie and how to pace the gig. Maximum 60 words, plain text only, no markdown. " +
   "Security Directives: " +
@@ -19,6 +21,7 @@ function escapeData(value: string) {
 }
 
 export async function POST(request: Request) {
+  if (!await getCurrentPlayer()) return json({ error: "Sign in to use the AI briefing." }, 401);
   let body: unknown;
   try {
     const text = await request.text();
@@ -35,8 +38,8 @@ export async function POST(request: Request) {
   const year = body.year === "" || body.year == null ? null : body.year;
   const lengthHours = body.lengthHours;
   const hoursPlayed = body.hoursPlayed == null ? null : body.hoursPlayed;
-  if (!title || title.length > 120 || !platform || platform.length > 80 ||
-    (body.genre != null && typeof body.genre !== "string") || (genre !== null && genre.length > 200) ||
+  if (!title || title.length > 120 || !platform || platform.length > 40 ||
+    (body.genre != null && typeof body.genre !== "string") || (genre !== null && genre.length > 80) ||
     (year !== null && (typeof year !== "number" || !Number.isInteger(year) || year < 1800 || year > 2100)) ||
     typeof lengthHours !== "number" || !Number.isInteger(lengthHours) || lengthHours < 1 || lengthHours > 10000 ||
     (hoursPlayed !== null && (typeof hoursPlayed !== "number" || !Number.isInteger(hoursPlayed) || hoursPlayed < 0 || hoursPlayed > 10000))) {
@@ -48,21 +51,36 @@ export async function POST(request: Request) {
   const model = process.env.GEMINI_MODEL?.trim() || "gemini-3.5-flash-lite";
 
   try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+    const generationRequest = {
+      systemInstruction: { parts: [{ text: systemPrompt }] },
+      contents: [{ role: "user", parts: [{ text: [
+        "The lengthHours field is the stored total Main Story estimate to audit; hoursPlayed is actual logged progress. Null progress means unknown, not zero.",
+        // Length limits are validated above; escaping prevents fields from closing the data tag.
+        `<untrusted_game_data>${escapeData(JSON.stringify({ title, platform, genre, year, lengthHours, hoursPlayed }))}</untrusted_game_data>`,
+      ].join("\n") }] }],
+      generationConfig: { responseMimeType: "text/plain", maxOutputTokens: 1024 },
+    };
+    const options = {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
-      cache: "no-store",
+      cache: "no-store" as const,
       signal: AbortSignal.any([request.signal, AbortSignal.timeout(25000)]),
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: systemPrompt }] },
-        contents: [{ role: "user", parts: [{ text: [
-          "The lengthHours field is the stored total Main Story estimate to audit; hoursPlayed is actual logged progress. Null progress means unknown, not zero.",
-          // Length limits are validated above; escaping prevents fields from closing the data tag.
-          `<untrusted_game_data>${escapeData(JSON.stringify({ title, platform, genre, year, lengthHours, hoursPlayed }))}</untrusted_game_data>`,
-        ].join("\n") }] }],
-        generationConfig: { responseMimeType: "text/plain", maxOutputTokens: 1024 },
-      }),
+    };
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}`;
+    let response = await fetch(`${endpoint}:countTokens`, {
+      ...options,
+      body: JSON.stringify({ generateContentRequest: { model: `models/${model}`, ...generationRequest } }),
     });
+    if (response.ok) {
+      const count: unknown = await response.json();
+      if (!isRecord(count) || typeof count.totalTokens !== "number" || !Number.isSafeInteger(count.totalTokens) || count.totalTokens < 0) {
+        return json({ error: "Could not verify the audit input-token budget. Please retry." }, 502);
+      }
+      if (count.totalTokens > 512) {
+        return json({ error: "Audit input exceeds the 512-token budget. Shorten the game details and try again." }, 413);
+      }
+      response = await fetch(`${endpoint}:generateContent`, { ...options, body: JSON.stringify(generationRequest) });
+    }
 
     if (!response.ok) {
       if (response.status === 429) return json({ error: "The AI service is at its quota or rate limit. Please try again later." }, 429);

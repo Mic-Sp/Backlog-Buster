@@ -84,28 +84,31 @@ type ToastItem = {
   reward: string;
 };
 
-function readDismissedAchievements(): Set<string> {
+function readDismissedAchievements(key: string): Set<string> {
   try {
-    const stored: unknown = JSON.parse(sessionStorage.getItem(storageKey) ?? "[]");
+    const stored: unknown = JSON.parse(sessionStorage.getItem(key) ?? "[]");
     return new Set(Array.isArray(stored) ? stored.filter((key): key is string => typeof key === "string") : []);
   } catch {
     return new Set();
   }
 }
 
-function storeDismissedAchievements(keys: Set<string>) {
+function storeDismissedAchievements(keys: Set<string>, key: string) {
   try {
-    sessionStorage.setItem(storageKey, JSON.stringify([...keys]));
+    sessionStorage.setItem(key, JSON.stringify([...keys]));
   } catch {
     // Notifications still work in memory when browser storage is unavailable.
   }
 }
 
-export default function AchievementToast({ achievements, level, totalXp }: {
+export default function AchievementToast({ achievements, level, totalXp, playerId = "default-player" }: {
   achievements: Achievement[];
   level: number;
   totalXp: number;
+  playerId?: string;
 }) {
+  const achievementStorageKey = playerId === "default-player" ? storageKey : `${storageKey}:${playerId}`;
+  const knownLevelStorageKey = playerId === "default-player" ? levelStorageKey : `${levelStorageKey}:${playerId}`;
   const [mounted, setMounted] = useState(false);
   const [soundMuted, setSoundMuted] = useState(false);
   const [toastQueue, setToastQueue] = useState<ToastItem[]>([]);
@@ -129,7 +132,7 @@ export default function AchievementToast({ achievements, level, totalXp }: {
   }, []);
 
   useEffect(() => {
-    for (const key of readDismissedAchievements()) dismissedKeys.current.add(key);
+    for (const key of readDismissedAchievements(achievementStorageKey)) dismissedKeys.current.add(key);
 
     if (!initialized.current) {
       const now = Date.now();
@@ -143,7 +146,7 @@ export default function AchievementToast({ achievements, level, totalXp }: {
         }
       }
       initialized.current = true;
-      if (historicalKeysAdded) storeDismissedAchievements(dismissedKeys.current);
+      if (historicalKeysAdded) storeDismissedAchievements(dismissedKeys.current, achievementStorageKey);
     }
 
     const eligible = achievements.filter((achievement) =>
@@ -169,12 +172,12 @@ export default function AchievementToast({ achievements, level, totalXp }: {
         }))] : queue;
       });
     }
-  }, [achievements]);
+  }, [achievements, achievementStorageKey]);
 
   useEffect(() => {
     let previousLevel = knownLevel.current;
     try {
-      const stored = sessionStorage.getItem(levelStorageKey);
+      const stored = sessionStorage.getItem(knownLevelStorageKey);
       const parsed = stored === null ? null : Number(stored);
       if (parsed !== null && Number.isSafeInteger(parsed) && parsed >= 1) previousLevel = parsed;
     } catch {
@@ -182,7 +185,7 @@ export default function AchievementToast({ achievements, level, totalXp }: {
     }
     knownLevel.current = level;
     try {
-      sessionStorage.setItem(levelStorageKey, String(level));
+      sessionStorage.setItem(knownLevelStorageKey, String(level));
     } catch {
       // Level changes still notify while this component remains mounted.
     }
@@ -198,18 +201,18 @@ export default function AchievementToast({ achievements, level, totalXp }: {
       reward: `${totalXp.toLocaleString("en-US")} TOTAL XP`,
     };
     setToastQueue((queue) => queue.some((item) => item.key === toast.key) ? queue : [...queue, toast]);
-  }, [level, totalXp]);
+  }, [level, totalXp, knownLevelStorageKey]);
 
   const dismissToast = useCallback((toast: ToastItem) => {
     if (toast.variant === "achievement") {
-      const stored = readDismissedAchievements();
+      const stored = readDismissedAchievements(achievementStorageKey);
       for (const dismissed of dismissedKeys.current) stored.add(dismissed);
       stored.add(toast.key);
       dismissedKeys.current.add(toast.key);
-      storeDismissedAchievements(stored);
+      storeDismissedAchievements(stored, achievementStorageKey);
     }
     setToastQueue((queue) => queue.filter((item) => item.key !== toast.key));
-  }, []);
+  }, [achievementStorageKey]);
 
   useEffect(() => {
     if (!mounted || !activeToast) return;

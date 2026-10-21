@@ -27,7 +27,7 @@ export function serializePlayerProfile(profile: {
 }
 
 export async function getCurrentPlayerProfile(): Promise<PlayerProfile> {
-  const id = getCurrentPlayerId();
+  const id = await getCurrentPlayerId();
   const profile = await prisma.player.upsert({
     where: { id }, create: { id }, update: {}, select: publicProfileSelect,
   });

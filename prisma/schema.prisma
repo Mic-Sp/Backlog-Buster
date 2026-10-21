@@ -21,6 +21,32 @@ model Player {
   updatedAt         DateTime          @updatedAt
   games             Game[]
   userAchievements  UserAchievement[]
+  sessions          PlayerSession[]
+}
+
+model PlayerSession {
+  tokenHash String   @id
+  userId    String
+  player    Player   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// Server-only application key, generated once when no AUTH_SECRET is supplied.
+model AuthSecret {
+  id    String @id
+  value String
+}
+
+model AuthRateLimit {
+  key      String   @id
+  attempts Int      @default(1)
+  resetsAt DateTime
+
+  @@index([resetsAt])
 }
 
 model Game {
