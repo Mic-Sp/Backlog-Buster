@@ -4,23 +4,25 @@ import { unwrapActionResult } from "@/lib/action-result";
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
-import { bulkImportGames } from "@/app/actions";
+import { bulkImportGames, exportLibraryBackup } from "@/app/actions";
 import type { LibraryGame } from "@/components/GameLibrary";
-import { serializeLibraryBackup } from "@/lib/library-backup";
+import { MAX_IMPORT_BYTES } from "@/lib/library-import";
 
 export default function LibraryDataVault({ games }: { games: LibraryGame[] }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [mode, setMode] = useState<"titles" | "json">("titles");
+  const [mode, setMode] = useState<"titles" | "json" | "csv">("titles");
   const [titles, setTitles] = useState("");
   const [json, setJson] = useState("");
   const [defaultPlatform, setDefaultPlatform] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [isReading, setIsReading] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const requestInFlight = useRef(false);
   const [isImporting, startImporting] = useTransition();
   const triggerRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
-  const busy = isImporting || isReading;
+  const busy = isImporting || isReading || isExporting;
 
   useEffect(() => {
     if (!isOpen) return;
@@ -64,38 +66,40 @@ export default function LibraryDataVault({ games }: { games: LibraryGame[] }) {
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [isOpen, busy]);
 
-  function exportBackup(format: "json" | "csv") {
-    setError("");
+  async function exportBackup(format: "json" | "csv") {
+    if (busy || requestInFlight.current) return;
+    requestInFlight.current = true; setIsExporting(true);
+    setError(""); setMessage("");
     try {
-      const blob = new Blob([serializeLibraryBackup(games, format)], {
+      const backup = unwrapActionResult(await exportLibraryBackup(format));
+      const blob = new Blob([backup.content], {
         type: format === "json" ? "application/json;charset=utf-8" : "text/csv;charset=utf-8",
       });
-      const date = new Date();
-      const stamp = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `backlog-buster-backup-${stamp}.${format}`;
+      link.download = backup.filename;
       document.body.appendChild(link);
       link.click();
       link.remove();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
-    } catch {
-      setError("Could not create the backup. Please try again.");
-    }
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not create the backup. Please try again.");
+    } finally { requestInFlight.current = false; setIsExporting(false); }
   }
 
   function importGames() {
-    if (busy) return;
+    if (busy || requestInFlight.current) return;
+    requestInFlight.current = true;
     setMessage("");
     setError("");
     startImporting(async () => {
       try {
         const result = unwrapActionResult(await bulkImportGames({ mode, content: mode === "titles" ? titles : json, defaultPlatform }));
-        setMessage(`Imported ${result.importedCount} games (${result.skippedCount} duplicates skipped)`);
+        setMessage(`Imported ${result.importedCount} games (${result.duplicateCount} duplicates skipped, ${result.invalidCount} invalid/blank rows skipped)`);
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : "Import failed. Please try again.");
-      }
+      } finally { requestInFlight.current = false; }
     });
   }
 
@@ -115,49 +119,49 @@ export default function LibraryDataVault({ games }: { games: LibraryGame[] }) {
             </header>
             <section className="vault-section" aria-labelledby="vault-export-title">
               <h3 id="vault-export-title">01 // EXPORT BACKUP</h3>
-              <p>Download all {games.length} games, including ratings, progress, and field logs.</p>
+              <p>Download your signed-in operator’s full library, including ratings, progress, and field logs ({games.length} games currently shown). A live session is required for import and export.</p>
               <div className="vault-actions">
-                <button type="button" onClick={() => exportBackup("json")}>⬇ EXPORT JSON</button>
-                <button type="button" onClick={() => exportBackup("csv")}>⬇ EXPORT CSV</button>
+                <button type="button" disabled={busy} onClick={() => exportBackup("json")}>⬇ EXPORT JSON</button>
+                <button type="button" disabled={busy} onClick={() => exportBackup("csv")}>⬇ EXPORT CSV</button>
               </div>
             </section>
             <section className="vault-section" aria-labelledby="vault-import-title">
               <h3 id="vault-import-title">02 // BULK IMPORT</h3>
               <div className="vault-tabs" role="group" aria-label="Import format">
-                {(["titles", "json"] as const).map((value) => (
+                {(["titles", "json", "csv"] as const).map((value) => (
                   <button key={value} type="button" disabled={busy} aria-pressed={mode === value} onClick={() => { setMode(value); setMessage(""); setError(""); }}>
-                    {value === "titles" ? "Quick Title List" : "Restore JSON Backup"}
+                    {value === "titles" ? "Quick Title List" : value === "json" ? "Restore JSON Backup" : "Restore CSV Backup"}
                   </button>
                 ))}
               </div>
               {mode === "titles" ? (
                 <>
-                  <p>One Title or Title | Platform per line. Only the first 25 titles are imported per batch; metadata is fetched automatically.</p>
+                  <p>One Title or Title | Platform per line. Maximum 25 rows per batch; metadata is fetched automatically.</p>
                   <label className="vault-field">Default Platform (optional)
                     <input value={defaultPlatform} onChange={(event) => setDefaultPlatform(event.target.value)} maxLength={80} placeholder="PC, Switch, PS5…" disabled={busy} />
                   </label>
                   <label className="vault-field">Game titles
-                    <textarea rows={6} value={titles} onChange={(event) => setTitles(event.target.value)} placeholder={"Cyberpunk 2077 | PC\nHades | Switch"} disabled={busy} />
+                    <textarea rows={6} maxLength={MAX_IMPORT_BYTES} value={titles} onChange={(event) => setTitles(event.target.value)} placeholder={"Cyberpunk 2077 | PC\nHades | Switch"} disabled={busy} />
                   </label>
                 </>
               ) : (
                 <>
-                  <p>Choose or paste a JSON array of up to 200 games (500 KB maximum). Existing title/platform pairs are skipped.</p>
-                  <label className="vault-field">JSON backup file
-                    <input type="file" accept=".json,application/json" disabled={busy} onChange={async (event) => {
+                  <p>Restore up to 200 games (500 KB maximum). Duplicate title/platform pairs in your own library and invalid/blank rows are skipped. Ownership and XP fields are never trusted.</p>
+                  <label className="vault-field">{mode.toUpperCase()} backup file
+                    <input type="file" accept={mode === "json" ? ".json,application/json" : ".csv,text/csv"} disabled={busy} onChange={async (event) => {
                       const file = event.currentTarget.files?.[0];
                       event.currentTarget.value = "";
                       if (!file) return;
                       setError(""); setMessage("");
-                      if (file.size > 500000) { setError("Choose a JSON backup under 500 KB."); return; }
+                      if (file.size > MAX_IMPORT_BYTES) { setError("Choose a backup under 500 KB."); return; }
                       setIsReading(true);
                       try { setJson(await file.text()); }
                       catch { setError("Could not read the selected backup."); }
                       finally { setIsReading(false); }
                     }} />
                   </label>
-                  <label className="vault-field">JSON backup contents
-                    <textarea rows={6} value={json} onChange={(event) => setJson(event.target.value)} placeholder='[{"title":"Hades","platform":"PC"}]' spellCheck={false} disabled={busy} />
+                  <label className="vault-field">{mode.toUpperCase()} backup contents
+                    <textarea rows={6} maxLength={MAX_IMPORT_BYTES} value={json} onChange={(event) => setJson(event.target.value)} placeholder={mode === "json" ? '[{"title":"Hades","platform":"PC"}]' : "title,platform\nHades,PC"} spellCheck={false} disabled={busy} />
                   </label>
                 </>
               )}

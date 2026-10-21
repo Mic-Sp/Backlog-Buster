@@ -1,5 +1,7 @@
 "use server";
 
+import { getLibraryExport, importLibraryGames } from "@/lib/library-vault";
+import type { LibraryImportPayload } from "@/lib/library-import";
 import { guardedRequest } from "@/lib/api-resilience";
 import { safeAction, InputError, RateLimitError } from "@/lib/action-result";
 import { validateGameForm } from "@/lib/form-validation";
@@ -444,149 +446,14 @@ export async function addExternalScoutGame(formData: FormData) {
   });
 }
 
-export async function bulkImportGames(payload: {
-  mode: "titles" | "json";
-  content: string;
-  defaultPlatform?: string;
-}) {
+export async function exportLibraryBackup(format: "json" | "csv") {
+  return safeAction(() => getLibraryExport(format));
+}
+
+export async function bulkImportGames(payload: LibraryImportPayload) {
   return safeAction(async () => {
-    if (!payload || !["titles", "json"].includes(payload.mode) ||
-      typeof payload.content !== "string" || new TextEncoder().encode(payload.content).length > 500000) {
-      throw new InputError("Provide a title list or JSON backup under 500 KB.");
-    }
-    const userId = await getCurrentPlayerId();
-    function text(value: unknown, field: string, limit?: number): string {
-      if (field === "title" && (typeof value !== "string" || !value.trim())) throw new InputError("Please input a valid title.");
-      if (typeof value !== "string" || !value.trim() || (limit && value.trim().length > limit)) {
-        throw new InputError(`Invalid ${field}${limit ? ` (1–${limit} characters)` : ""}.`);
-      }
-      return value.trim();
-    }
-    function nullableText(value: unknown, field: string, limit?: number): string | null {
-      if (value == null || value === "") return null;
-      if (typeof value !== "string" || (limit && value.trim().length > limit)) {
-        throw new InputError(`Invalid ${field}${limit ? ` (maximum ${limit} characters)` : ""}.`);
-      }
-      return value.trim() || null;
-    }
-    function integer(value: unknown, field: string, min: number, max: number, fallback: number): number {
-      if (value === undefined || (typeof value === "string" && !value.trim())) return fallback;
-      if (typeof value !== "number" || !Number.isSafeInteger(value) || value < min || value > max) {
-        throw new InputError(`${field} must be a whole number from ${min} to ${max}.`);
-      }
-      return value;
-    }
-    type ImportedGame = {
-      userId: string; title: string; platform: string; status: string;
-      wasFlatlined: boolean;
-      pinnedOrder: number | null;
-      backlogOrder: number | null;
-      lengthHours: number; hoursPlayed: number; difficulty: number; earnedXp: number;
-      rating: number | null; notes: string | null; genre: string | null; franchise: string | null;
-      releaseYear: number | null; chronologicalOrder: number | null; coverUrl: string | null;
-    };
-    let records: ImportedGame[] = [];
-    if (payload.mode === "titles") {
-      if (payload.defaultPlatform !== undefined && typeof payload.defaultPlatform !== "string") {
-        throw new InputError("Invalid default platform.");
-      }
-      const defaultPlatform = payload.defaultPlatform?.trim()
-        ? text(payload.defaultPlatform, "default platform", 80) : "";
-      const lines = payload.content.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).slice(0, 25);
-      if (!lines.length) throw new InputError("Enter at least one game title.");
-      const titles = lines.map((line) => {
-        const [title, platform, ...extra] = line.split("|");
-        if (extra.length) throw new InputError("Use Title or Title | Platform on each line.");
-        return { title: text(title, "title", 120), platform: platform?.trim() ? text(platform, "platform", 80) : "" };
-      });
-      // Resolve a small group at a time rather than issuing 25 RAWG requests together.
-      for (let index = 0; index < titles.length; index += 5) {
-        const group = await Promise.all(titles.slice(index, index + 5).map(async ({ title, platform }) => {
-          const lookup = await lookupRawgGame(title);
-          return {
-            userId, title,
-            platform: platform || defaultPlatform || lookup?.platforms[0] || "PC",
-            status: "Backlog",
-            wasFlatlined: false,
-            pinnedOrder: null,
-            backlogOrder: null,
-            lengthHours: resolveRawgPlaytime(lookup?.playtime, lookup?.genre) ?? 10,
-            hoursPlayed: 0, difficulty: 2, earnedXp: 0, rating: null, notes: null,
-            genre: lookup?.genre ?? null, franchise: null, releaseYear: lookup?.releaseYear ?? null, chronologicalOrder: null,
-            coverUrl: lookup?.coverUrl ?? null,
-          };
-        }));
-        records.push(...group);
-      }
-    } else {
-      let parsed: unknown;
-      try {
-        parsed = JSON.parse(payload.content);
-      } catch {
-        throw new InputError("Invalid JSON. Choose a JSON backup containing an array of games.");
-      }
-      if (!Array.isArray(parsed) || parsed.length === 0 || parsed.length > 200) {
-        throw new InputError("A JSON import must contain between 1 and 200 games.");
-      }
-      records = parsed.map((value: unknown, index) => {
-        if (!value || typeof value !== "object" || Array.isArray(value)) {
-          throw new InputError(`Game ${index + 1} must be an object.`);
-        }
-        const game = value as Record<string, unknown>;
-        const status = typeof game.status === "string" ? game.status.trim() || "Backlog" : game.status ?? "Backlog";
-        if (typeof status !== "string" || !allowedStatuses.has(status)) {
-          throw new InputError(`Game ${index + 1} has an invalid status.`);
-        }
-        if (game.wasFlatlined !== undefined && typeof game.wasFlatlined !== "boolean") {
-          throw new InputError(`Game ${index + 1} has an invalid Flatlined history flag.`);
-        }
-        const lengthHours = integer(game.lengthHours, "Length hours", 1, 10000, 10);
-        const pinnedOrder = game.pinnedOrder == null ? null : integer(game.pinnedOrder, "Deck slot", 1, DECK_CAPACITY, 1);
-        const difficulty = integer(game.difficulty, "Difficulty", 1, 3, 2);
-        const releaseYear = game.releaseYear == null || (typeof game.releaseYear === "string" && !game.releaseYear.trim()) ? null : integer(game.releaseYear, "Release year", 1800, 2100, 2000);
-        const coverUrl = nullableText(game.coverUrl, "cover URL");
-        return {
-          userId, title: text(game.title, "title", 120), platform: game.platform == null || (typeof game.platform === "string" && !game.platform.trim()) ? "PC" : text(game.platform, "platform", 80),
-          status, lengthHours, difficulty,
-          wasFlatlined: status === "Flatlined" || game.wasFlatlined === true,
-          pinnedOrder: status === "Backlog" && isReleasedYear(releaseYear) ? pinnedOrder : null,
-          backlogOrder: game.backlogOrder == null ? null : integer(game.backlogOrder, "Backlog priority", 1, 10000, 1),
-          hoursPlayed: integer(game.hoursPlayed, "Hours played", 0, 10000, 0),
-          earnedXp: calculateEarnedXp(status, lengthHours, difficulty),
-          rating: game.rating == null || (typeof game.rating === "string" && !game.rating.trim()) ? null : integer(game.rating, "Rating", 1, 5, 1),
-          notes: nullableText(game.notes, "notes", 1000), genre: nullableText(game.genre, "genre", 80),
-          franchise: nullableText(game.franchise, "franchise", 120),
-          chronologicalOrder: parseChronologicalOrder(game.chronologicalOrder),
-          releaseYear,
-          coverUrl: coverUrl ? optionalHttpUrl(coverUrl) : null,
-        };
-      });
-    }
-    await ensurePlayerExists(userId);
-    const counts = await withDeckLock(userId, async (tx) => {
-      const existing = await tx.game.findMany({ where: { userId }, select: { title: true, platform: true, pinnedOrder: true } });
-      const pairKey = (game: { title: string; platform: string }) =>
-        JSON.stringify([game.title.trim().toLowerCase(), game.platform.trim().toLowerCase()]);
-      const seen = new Set(existing.map(pairKey));
-      const unique = records.filter((game) => {
-        const key = pairKey(game);
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
-      const used = new Set(existing.flatMap((game) => game.pinnedOrder === null ? [] : [game.pinnedOrder]));
-      // Restore priority only into free slots; every other imported gig remains in Backlog.
-      for (const game of [...unique].sort((left, right) => (left.pinnedOrder ?? Infinity) - (right.pinnedOrder ?? Infinity))) {
-        if (game.pinnedOrder === null) continue;
-        const slot = !used.has(game.pinnedOrder) ? game.pinnedOrder
-          : Array.from({ length: DECK_CAPACITY }, (_, index) => index + 1).find((value) => !used.has(value));
-        game.pinnedOrder = slot ?? null;
-        if (slot !== undefined) used.add(slot);
-      }
-      const result = unique.length ? await tx.game.createMany({ data: unique }) : { count: 0 };
-      return { importedCount: result.count, skippedCount: records.length - unique.length };
-    });
-    await syncAndGetAchievements();
+    const { userId, counts } = await importLibraryGames(payload);
+    await syncAndGetAchievements(userId);
     revalidatePath("/");
     return counts;
   });
