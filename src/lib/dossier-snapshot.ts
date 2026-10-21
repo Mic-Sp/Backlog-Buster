@@ -4,14 +4,24 @@
 export async function loadDossierArtwork(url: string, signal: AbortSignal): Promise<string | null> {
   let objectUrl: string | null = null;
   try {
-    const response = await fetch(url, { signal, mode: "cors", credentials: "omit" });
+    const response = url === "/hud-logo.png"
+      ? await fetch(url, { signal, credentials: "same-origin" })
+      : await fetch("/api/dossier-artwork", {
+        method: "POST", signal, credentials: "same-origin",
+        headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }),
+      });
     if (!response.ok) return null;
     const blob = await response.blob();
     if (!/^image\/(png|jpeg|webp|avif|gif)$/.test(blob.type) || blob.size > 8 * 1024 * 1024) return null;
     objectUrl = URL.createObjectURL(blob);
     const image = new Image();
     image.src = objectUrl;
-    await image.decode();
+    await new Promise<void>((resolve, reject) => {
+      const abort = () => reject(new Error("Artwork loading cancelled."));
+      if (signal.aborted) { abort(); return; }
+      signal.addEventListener("abort", abort, { once: true });
+      void image.decode().then(resolve, reject).finally(() => signal.removeEventListener("abort", abort));
+    });
     if (!image.naturalWidth || !image.naturalHeight || image.naturalWidth * image.naturalHeight > 25000000) return null;
     const canvas = document.createElement("canvas");
     const scale = Math.min(1, 640 / Math.max(image.naturalWidth, image.naturalHeight));

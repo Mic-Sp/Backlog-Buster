@@ -4,6 +4,8 @@ import { actionErrorMessage, unwrapActionResult } from "@/lib/action-result";
 
 import { startTransition, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import OperatorAvatar from "@/components/OperatorAvatar";
+import { avatarPresets, customAvatarUrl, DEFAULT_AVATAR_URL, resolveAvatarPreset } from "@/lib/operator-avatar";
 import NetrunnerIdCard from "@/components/NetrunnerIdCard";
 import { dossierAccents, dossierIdentityFromProfile, type DossierAccent, type DossierData, type DossierIdentity } from "@/lib/dossier";
 import { savePlayerProfile } from "@/app/profile-actions";
@@ -17,7 +19,6 @@ export default function NetrunnerDossier({ data }: { data: DossierData }) {
   const identityRef = useRef(identity);
   const savedIdentityKey = useRef(JSON.stringify(identity));
   const savedProfile = useRef<PlayerProfile>(data.profile);
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saveInFlight = useRef<Promise<boolean> | null>(null);
   const [saveStatus, setSaveStatus] = useState<"saved" | "pending" | "saving" | "error">("saved");
   const [saveError, setSaveError] = useState("");
@@ -34,14 +35,18 @@ export default function NetrunnerDossier({ data }: { data: DossierData }) {
   const cardRef = useRef<SVGSVGElement>(null);
   const titleId = useId();
   const artworkKey = useMemo(() => JSON.stringify([...new Set([
-    data.profile.avatarUrl || "/hud-logo.png",
+    DEFAULT_AVATAR_URL,
+    ...(customAvatarUrl(identity.avatarUrl) ? [customAvatarUrl(identity.avatarUrl)!] : []),
     ...identity.showcase.flatMap((id) => {
       const cover = data.trophies.find((game) => game.id === id)?.coverUrl;
       return cover ? [cover] : [];
     }),
-  ])]), [identity.showcase, data.trophies, data.profile.avatarUrl]);
+  ])]), [identity.showcase, data.trophies, identity.avatarUrl]);
   const artworkReady = artworkState.key === artworkKey;
-  const missingArtwork = artworkReady && Object.values(artworkState.images).some((image) => !image);
+  const missingArtwork = artworkReady && identity.showcase.some(id => {
+    const game = data.trophies.find(trophy => trophy.id === id);
+    return game && (!game.coverUrl || !artworkState.images[game.coverUrl]);
+  });
 
   function openDossier() {
     const profile = data.profile.updatedAt >= savedProfile.current.updatedAt ? data.profile : savedProfile.current;
@@ -66,11 +71,17 @@ export default function NetrunnerDossier({ data }: { data: DossierData }) {
           const key = JSON.stringify(draft);
           setSaveStatus("saving");
           savedProfile.current = unwrapActionResult(await savePlayerProfile({
-            operatorName: draft.callsign, tagline: draft.tagline,
+            operatorName: draft.callsign, handle: draft.handle, tagline: draft.tagline, avatarUrl: draft.avatarUrl,
             neonAccent: draft.accent.toUpperCase() as PlayerProfile["neonAccent"],
             featuredTrophyIds: draft.showcase,
           }));
           savedIdentityKey.current = key;
+          if (JSON.stringify(identityRef.current) === key) {
+            const normalized = { ...draft, avatarUrl: savedProfile.current.avatarUrl, callsign: savedProfile.current.operatorName, handle: savedProfile.current.handle ?? "", tagline: savedProfile.current.tagline };
+            identityRef.current = normalized;
+            savedIdentityKey.current = JSON.stringify(normalized);
+            setIdentity(normalized);
+          }
         }
         setSaveStatus("saved");
         return true;
@@ -85,31 +96,30 @@ export default function NetrunnerDossier({ data }: { data: DossierData }) {
     return task;
   }, []);
 
+  function saveIdentity() {
+    if (saveInFlight.current) return;
+    // Urgent feedback must render before the Server Action transition completes.
+    setSaveStatus("saving");
+    startTransition(async () => { await persistLatest(); });
+  }
+
   function customize(next: DossierIdentity) {
     identityRef.current = next;
     setIdentity(next);
     setSaveStatus("pending");
-    if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => {
-      saveTimer.current = null;
-      startTransition(async () => { await persistLatest(); });
-    }, 500);
+    setSaveError("");
   }
 
   const closeDossier = useCallback(() => {
     if (busyRef.current || closingRef.current) return;
     closingRef.current = true;
     setClosing(true);
-    if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = null;
     startTransition(async () => {
       if (await persistLatest()) setIsOpen(false);
       closingRef.current = false;
       setClosing(false);
     });
   }, [persistLatest]);
-
-  useEffect(() => () => { if (saveTimer.current) clearTimeout(saveTimer.current); }, []);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -213,16 +223,27 @@ export default function NetrunnerDossier({ data }: { data: DossierData }) {
               <button className="dossier-close-button" type="button" aria-label="Close Netrunner dossier" disabled={busy || closing} onClick={closeDossier}>✕</button>
             </header>
             <div className="dossier-card-preview" aria-label="Shareable ID card preview">
-              <NetrunnerIdCard data={data} identity={identity} timestamp={timestamp} artwork={artworkState.images} cardRef={cardRef} />
+              <NetrunnerIdCard data={data} identity={identity} timestamp={timestamp} artwork={artworkState.images} artworkLoading={!artworkReady} cardRef={cardRef} />
             </div>
             <p className="dossier-artwork-status" role="status">{!artworkReady ? "SYNCING PORTRAIT & TROPHY ARTWORK…" : missingArtwork ? "Some artwork is offline. The snapshot includes the offline tiles shown above." : "SNAPSHOT READY // HIGH-RESOLUTION PNG"}</p>
 
             <details className="dossier-customize" open>
               <summary>⚙ PERSONALIZE IDENTITY</summary>
-              <fieldset disabled={busy || closing}>
+              <fieldset disabled={busy || closing || saveStatus === "saving"}>
                 <legend className="dossier-sr-only">Customize your shareable identity card</legend>
+                <div className="dossier-avatar-controls">
+                  <p className="dossier-avatar-label">Operator Avatar</p>
+                  <div className="dossier-avatar-presets" role="group" aria-label="Operator Avatar">
+                    {avatarPresets.map((preset) => <button key={preset.id} className="dossier-avatar-preset" type="button" title={preset.title} aria-label={preset.title} aria-pressed={resolveAvatarPreset(identity.avatarUrl) === preset.id} onClick={() => customize({ ...identity, avatarUrl: preset.id === "bb" ? null : `preset:${preset.id}` })}>
+                      <OperatorAvatar avatarUrl={preset.id === "bb" ? null : `preset:${preset.id}`} alt={preset.title} />
+                    </button>)}
+                  </div>
+                  <label>Custom Avatar Image URL <span>(optional)</span><input name="avatarUrl" type="text" inputMode="url" autoComplete="url" maxLength={2048} placeholder="https://example.com/avatar.png" value={resolveAvatarPreset(identity.avatarUrl) ? "" : identity.avatarUrl ?? ""} onChange={(event) => customize({ ...identity, avatarUrl: event.target.value })} /></label>
+                  <p className="dossier-avatar-help">Choose an emblem or paste an HTTP/HTTPS image URL. Unavailable images use the default BB emblem.</p>
+                </div>
                 <div className="dossier-identity-fields">
                   <label>Operator name<input name="callsign" value={identity.callsign} maxLength={28} placeholder="ANONYMOUS NETRUNNER" onChange={(event) => customize({ ...identity, callsign: event.target.value })} /></label>
+                  <label>Handle <span>(optional)</span><input name="handle" value={identity.handle} maxLength={32} autoComplete="off" autoCapitalize="none" spellCheck={false} placeholder="night-city-runner" aria-describedby={`${titleId}-handle-help`} onChange={(event) => customize({ ...identity, handle: event.target.value })} /><small id={`${titleId}-handle-help`}>3–32 lowercase letters, numbers or hyphens.</small></label>
                   <label>Personal tagline<input name="tagline" value={identity.tagline} maxLength={64} onChange={(event) => customize({ ...identity, tagline: event.target.value })} /></label>
                   <label>Neon accent<select aria-label="Neon accent" value={identity.accent} onChange={(event) => customize({ ...identity, accent: event.target.value as DossierAccent })}>{Object.keys(dossierAccents).map((accent) => <option key={accent} value={accent}>{accent.toUpperCase()}</option>)}</select></label>
                 </div>
@@ -239,11 +260,12 @@ export default function NetrunnerDossier({ data }: { data: DossierData }) {
                   </label>)}
                 </div>
               </fieldset>
+              <button className="dossier-save-identity" type="button" disabled={busy || closing || saveStatus === "saving"} onClick={saveIdentity}>{saveStatus === "saving" ? "SAVING IDENTITY…" : "💾 SAVE IDENTITY TO ARCHIVE"}</button>
               <div className="dossier-profile-status" data-state={saveStatus}>
-                <span role={saveStatus === "error" ? "alert" : "status"}>{saveStatus === "saved" ? "✓ IDENTITY SAVED TO PLAYER PROFILE" : saveStatus === "error" ? saveError : "SYNCING PLAYER IDENTITY…"}</span>
-                {saveStatus === "error" && <button type="button" onClick={() => startTransition(async () => { await persistLatest(); })}>RETRY SAVE</button>}
+                <span role={saveStatus === "error" ? "alert" : "status"}>{saveStatus === "saved" ? "✓ IDENTITY SAVED TO OPERATOR CLOUD ARCHIVE" : saveStatus === "error" ? saveError : saveStatus === "pending" ? "UNSAVED IDENTITY CHANGES" : "SYNCING PLAYER IDENTITY…"}</span>
+                {saveStatus === "error" && <button type="button" onClick={saveIdentity}>RETRY SAVE</button>}
               </div>
-              <p>Changes save automatically to your player profile. Showcase slots feature completed games rated five stars.</p>
+              <p>Identity preferences are saved to your operator’s cloud archive and follow your account across browsers. Showcase slots feature completed games rated five stars.</p>
             </details>
             <div className="dossier-export-actions">
               <button className="dossier-copy-button" type="button" disabled={busy || closing || !artworkReady} onClick={() => void exportSnapshot("copy")}>📋 COPY DOSSIER TO CLIPBOARD</button>

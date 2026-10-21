@@ -2,6 +2,7 @@
 export type PlayerProfile = {
   id: string;
   operatorName: string;
+  handle: string | null;
   tagline: string;
   neonAccent: "CYAN" | "GOLD" | "MAGENTA";
   avatarUrl: string | null;
@@ -10,6 +11,7 @@ export type PlayerProfile = {
 };
 
 export type PlayerProfileInput = {
+  handle?: string | null;
   operatorName: string;
   tagline: string;
   neonAccent: PlayerProfile["neonAccent"];

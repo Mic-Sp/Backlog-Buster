@@ -1,4 +1,5 @@
 import "server-only";
+import { isAvatarPreset } from "@/lib/operator-avatar";
 import { InputError } from "@/lib/action-result";
 
 import { prisma } from "@/lib/prisma";
@@ -6,17 +7,18 @@ import { getCurrentPlayerId } from "@/lib/player";
 import type { PlayerProfile, PlayerProfileInput } from "@/lib/player-profile-types";
 
 export const publicProfileSelect = {
-  id: true, operatorName: true, tagline: true, neonAccent: true,
+  id: true, operatorName: true, handle: true, tagline: true, neonAccent: true,
   avatarUrl: true, featuredTrophyIds: true, updatedAt: true,
 } as const;
 
 export function serializePlayerProfile(profile: {
-  id: string; operatorName: string; tagline: string; neonAccent: string;
+  id: string; operatorName: string; handle: string | null; tagline: string; neonAccent: string;
   avatarUrl: string | null; featuredTrophyIds: unknown; updatedAt: Date;
 }): PlayerProfile {
   return {
     id: profile.id,
     operatorName: profile.operatorName,
+    handle: profile.handle,
     tagline: profile.tagline,
     neonAccent: profile.neonAccent === "GOLD" || profile.neonAccent === "MAGENTA" ? profile.neonAccent : "CYAN",
     avatarUrl: profile.avatarUrl,
@@ -55,11 +57,17 @@ export function validatePlayerProfile(input: unknown): PlayerProfileInput {
     neonAccent: value.neonAccent as PlayerProfile["neonAccent"],
     featuredTrophyIds: Array.from({ length: 3 }, (_, index) => ids[index] ?? null),
   };
+  if (Object.hasOwn(value, "handle")) {
+    if (value.handle !== null && typeof value.handle !== "string") throw new InputError("Enter a valid handle or leave it empty.");
+    const handle = typeof value.handle === "string" ? value.handle.trim().toLowerCase() : "";
+    if (handle && !/^[a-z0-9-]{3,32}$/.test(handle)) throw new InputError("Handles use 3–32 lowercase letters, numbers or hyphens.");
+    profile.handle = handle || null;
+  }
   if (Object.hasOwn(value, "avatarUrl")) {
     if (value.avatarUrl !== null && typeof value.avatarUrl !== "string") throw new InputError("Invalid avatar URL.");
     const url = typeof value.avatarUrl === "string" ? value.avatarUrl.trim() : "";
     if (url.length > 2048) throw new InputError("Avatar URL is too long.");
-    if (url) {
+    if (url && !isAvatarPreset(url)) {
       let parsed: URL;
       try { parsed = new URL(url); } catch { throw new InputError("Use an HTTP or HTTPS avatar URL."); }
       if (!["http:", "https:"].includes(parsed.protocol) || parsed.username || parsed.password) throw new InputError("Use an HTTP or HTTPS avatar URL.");

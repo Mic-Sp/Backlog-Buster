@@ -2,14 +2,17 @@
 
 import { useId, type Ref } from "react";
 import { dossierAccents, dossierTitleLines, getStreetCred, type DossierData, type DossierIdentity } from "@/lib/dossier";
+import OperatorEmblem from "@/components/OperatorEmblem";
+import { customAvatarUrl, DEFAULT_AVATAR_URL, resolveAvatarPreset } from "@/lib/operator-avatar";
 import DossierMilestoneGlyph from "@/components/DossierMilestoneGlyph";
 
-export default function NetrunnerIdCard({ data, identity, timestamp, artwork, cardRef }: {
+export default function NetrunnerIdCard({ data, identity, timestamp, artwork, cardRef, artworkLoading = false }: {
   data: DossierData;
   identity: DossierIdentity;
   timestamp: string;
   artwork: Record<string, string | null>;
   cardRef: Ref<SVGSVGElement>;
+  artworkLoading?: boolean;
 }) {
   const prefix = useId().replace(/[^a-zA-Z0-9_-]/g, "");
   const accent = dossierAccents[identity.accent];
@@ -23,13 +26,17 @@ export default function NetrunnerIdCard({ data, identity, timestamp, artwork, ca
   ] as const;
   const outline = "22,2 998,2 998,658 978,678 2,678 2,22";
   const callsign = identity.callsign.trim() || "ANONYMOUS NETRUNNER";
-  const avatar = artwork[data.profile.avatarUrl || "/hud-logo.png"];
+  const preset = resolveAvatarPreset(identity.avatarUrl);
+  const avatar = artwork[customAvatarUrl(identity.avatarUrl) ?? DEFAULT_AVATAR_URL] || artwork[DEFAULT_AVATAR_URL];
 
   return (
     <svg ref={cardRef} className="netrunner-id-card" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 680" width="1000" height="680" role="img" aria-labelledby={`${prefix}-title ${prefix}-description`}>
       <title id={`${prefix}-title`}>{callsign}{" // Netrunner ID Card"}</title>
       <desc id={`${prefix}-description`}>Level {data.level}, {data.totalXp.toLocaleString("en-US")} lifetime XP. {stats.map((stat) => `${data.counts[stat.status]} ${stat.status}`).join(", ")}. {unlocked.length} of {data.achievements.length} milestones unlocked. {data.activeHours} active hours logged.</desc>
       <defs>
+        <linearGradient id={`${prefix}-cover-shade`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#080d16" stopOpacity="0.05" /><stop offset="1" stopColor="#080d16" stopOpacity="0.65" />
+        </linearGradient>
         <linearGradient id={`${prefix}-holo`} x1="0" y1="0" x2="1" y2="1">
           <stop offset="0" stopColor={accent} /><stop offset="0.5" stopColor="#fcee0a" /><stop offset="1" stopColor="#ff2a6d" />
         </linearGradient>
@@ -49,7 +56,7 @@ export default function NetrunnerIdCard({ data, identity, timestamp, artwork, ca
         <text x="964" y="65" textAnchor="end" fontSize="8" fill="#91a4b9">NC-R/T // CAREER VERIFIED</text>
 
         <rect x="32" y="100" width="114" height="114" fill="#111827" stroke={accent} />
-        {avatar ? <image href={avatar} x="36" y="104" width="106" height="106" preserveAspectRatio="xMidYMid slice" /> : <text x="89" y="174" textAnchor="middle" fontSize="50" fontWeight="700" fill={accent}>BB</text>}
+        {preset && preset !== "bb" ? <OperatorEmblem preset={preset} accent={accent} x="36" y="104" width="106" height="106" /> : avatar ? <image href={avatar} x="36" y="104" width="106" height="106" preserveAspectRatio="xMidYMid slice" /> : <OperatorEmblem preset="bb" accent={accent} x="36" y="104" width="106" height="106" />}
         <text x="168" y="122" fontSize="10" fill="#91a4b9" letterSpacing="2">OPERATOR // PERSONAL IDENTIFICATION</text>
         <text x="168" y="152" fontSize="28" fontWeight="700" fill="#f3fff9">{callsign.toUpperCase()}</text>
         <text x="168" y="175" fontSize="11" fill={accent}>LV {data.level} {getStreetCred(data.level).toUpperCase()}{" // "}{signature?.title.toUpperCase() ?? "NEW CONTRACTOR"}</text>
@@ -95,9 +102,12 @@ export default function NetrunnerIdCard({ data, identity, timestamp, artwork, ca
             <g key={index}>
               <rect x={x} y="452" width="308" height="166" fill="#101925" stroke={game ? "#8d8432" : "#2e3a52"} strokeDasharray={game ? undefined : "4 4"} />
               {game ? <>
-                {cover ? <image href={cover} x={x} y="452" width="308" height="86" preserveAspectRatio="xMidYMid slice" clipPath={`url(#${prefix}-cover-${index})`} /> : <>
+                {cover ? <>
+                  <image href={cover} x={x} y="452" width="308" height="86" preserveAspectRatio="xMidYMid slice" clipPath={`url(#${prefix}-cover-${index})`} />
+                  <rect x={x} y="452" width="308" height="86" fill={`url(#${prefix}-cover-shade)`} />
+                </> : <>
                   <rect x={x + 1} y="453" width="306" height="84" fill="#172333" />
-                  <text x={x + 154} y="500" textAnchor="middle" fontSize="11" fill="#91a4b9">{game.coverUrl ? "ARTWORK OFFLINE" : "NO COVER ON FILE"}</text>
+                  <text x={x + 154} y="500" textAnchor="middle" fontSize="11" fill="#91a4b9">{game.coverUrl ? artworkLoading ? "SYNCING ARTWORK…" : "ARTWORK OFFLINE" : "NO COVER ON FILE"}</text>
                 </>}
                 <text x={x + 12} y="559" fontSize="14" fontWeight="700" fill="#f5f7e8">{dossierTitleLines(game.title).map((line, lineIndex) => <tspan key={lineIndex} x={x + 12} dy={lineIndex === 0 ? 0 : 18}>{line}</tspan>)}</text>
                 <text x={x + 12} y="602" fontSize="16" fill="#fcee0a">★★★★★</text>

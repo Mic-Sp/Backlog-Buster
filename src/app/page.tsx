@@ -1,6 +1,6 @@
 import { cache, Suspense } from "react";
 import Link from "next/link";
-import Image from "next/image";
+import OperatorAvatar from "@/components/OperatorAvatar";
 import { connection } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { resizeRawgImageUrl } from "@/lib/rawg";
@@ -81,7 +81,7 @@ async function PlayerSummary({ player }: { player: CurrentPlayer }) {
       <AchievementToast playerId={player.id} achievements={achievements} level={progress.level} totalXp={totalXp} />
       <Link className="hud-brand" href="/" aria-label="Backlog Buster home">
         <span className="wordmark-icon">
-          <Image className="hud-brand-logo" src="/hud-logo.png" alt="Backlog Buster logo" width={190} height={189} sizes="72px" loading="eager" />
+          <OperatorAvatar className="hud-brand-logo" avatarUrl={profile.avatarUrl} alt={`${profile.operatorName} operator avatar`} />
         </span>
       </Link>
 
@@ -128,7 +128,7 @@ async function PlayerSummary({ player }: { player: CurrentPlayer }) {
           <p data-status="Flatlined"><strong>{flatlinedCount}</strong><span>Flatlined</span></p>
         </div>
       </div>
-      <AccountControls player={player} key={`${player.id}-${player.isLocal}`} />
+      <AccountControls player={{ ...player, operatorName: profile.operatorName, handle: profile.handle }} key={`${player.id}-${player.isLocal}`} />
       <div className="hud-career-tools">
         <HudMilestones achievements={achievements} />
         <NetrunnerDossier data={{

@@ -156,7 +156,7 @@ button.dossier-trigger-button:focus-visible,
 .dossier-identity-fields,
 .dossier-showcase-fields {
 	display: grid;
-	grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) minmax(120px, 0.6fr);
+	grid-template-columns: repeat(2, minmax(0, 1fr));
 	gap: 12px;
 }
 
@@ -315,4 +315,72 @@ button.dossier-trigger-button:focus-visible,
 		right: 16px;
 		bottom: 16px;
 	}
+}
+
+.dossier-customize label small {
+  display: block;
+  margin-top: 5px;
+  color: #8ca6b9;
+  font-size: 10px;
+}
+
+.dossier-modal button.dossier-save-identity {
+  margin-top: 16px;
+  min-height: 40px;
+  border-color: #05ffa1;
+  color: #a2ffdb;
+  background: #0c211b;
+}
+
+.dossier-modal button.dossier-save-identity:hover:not(:disabled) {
+  color: #06090f;
+  background: #05ffa1;
+}
+
+.dossier-avatar-controls {
+  margin-bottom: 18px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid #2e3a52;
+}
+
+.dossier-avatar-label {
+  margin: 0 0 10px;
+  color: #94f7ff;
+  font: 700 11px "Courier New", monospace;
+  text-transform: uppercase;
+}
+
+.dossier-avatar-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.dossier-modal button.dossier-avatar-preset {
+  width: 64px;
+  height: 64px;
+  padding: 3px;
+  background: #080e18;
+  border: 1px solid #2e3a52;
+}
+
+.dossier-modal button.dossier-avatar-preset[aria-pressed="true"] {
+  border-color: #fcee0a;
+  box-shadow: 0 0 8px #fcee0a30;
+}
+
+.dossier-avatar-preset > :is(img, svg),
+.wordmark-icon > :is(img, svg) {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.dossier-avatar-help {
+  margin: 6px 0 0;
+  color: #8ca6b9;
+  font-size: 11px;
+  line-height: 1.5;
 }

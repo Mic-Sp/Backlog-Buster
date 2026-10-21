@@ -16,7 +16,7 @@ export type DossierData = {
 
 export const dossierAccents = { cyan: "#00f0ff", gold: "#fcee0a", magenta: "#ff2a6d" } as const;
 export type DossierAccent = keyof typeof dossierAccents;
-export type DossierIdentity = { callsign: string; tagline: string; accent: DossierAccent; showcase: (number | null)[] };
+export type DossierIdentity = { avatarUrl: string | null; handle: string; callsign: string; tagline: string; accent: DossierAccent; showcase: (number | null)[] };
 
 export function getStreetCred(level: number) {
   if (level >= 15) return "Night City Legend";
@@ -27,7 +27,7 @@ export function getStreetCred(level: number) {
 }
 
 export function defaultDossierIdentity(trophies: DossierGame[]): DossierIdentity {
-  return { callsign: "ANONYMOUS NETRUNNER", tagline: "One more gig. One more legend.", accent: "cyan", showcase: Array.from({ length: 3 }, (_, index) => trophies[index]?.id ?? null) };
+  return { avatarUrl: null, handle: "", callsign: "ANONYMOUS NETRUNNER", tagline: "One more gig. One more legend.", accent: "cyan", showcase: Array.from({ length: 3 }, (_, index) => trophies[index]?.id ?? null) };
 }
 
 export function readDossierIdentity(value: unknown, trophies: DossierGame[]): DossierIdentity {
@@ -38,6 +38,8 @@ export function readDossierIdentity(value: unknown, trophies: DossierGame[]): Do
   const used = new Set<number>();
   const selections = Array.isArray(saved.showcase) ? saved.showcase : defaults.showcase;
   return {
+    avatarUrl: typeof saved.avatarUrl === "string" ? saved.avatarUrl.trim() || null : null,
+    handle: typeof saved.handle === "string" ? saved.handle.trim().toLowerCase() : "",
     callsign: typeof saved.callsign === "string" ? saved.callsign.trim().slice(0, 28) || defaults.callsign : defaults.callsign,
     tagline: typeof saved.tagline === "string" ? saved.tagline.trim().slice(0, 64) || defaults.tagline : defaults.tagline,
     accent: typeof saved.accent === "string" && Object.hasOwn(dossierAccents, saved.accent) ? saved.accent as DossierAccent : defaults.accent,
@@ -52,7 +54,7 @@ export function readDossierIdentity(value: unknown, trophies: DossierGame[]): Do
 
 export function dossierIdentityFromProfile(profile: PlayerProfile, trophies: DossierGame[]): DossierIdentity {
   return readDossierIdentity({
-    callsign: profile.operatorName, tagline: profile.tagline, accent: profile.neonAccent.toLowerCase(),
+    avatarUrl: profile.avatarUrl, handle: profile.handle, callsign: profile.operatorName, tagline: profile.tagline, accent: profile.neonAccent.toLowerCase(),
     showcase: profile.featuredTrophyIds.length ? profile.featuredTrophyIds : undefined,
   }, trophies);
 }
