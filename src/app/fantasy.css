@@ -14,9 +14,23 @@
   --fairy: #78d8f9;
 }
 :root[data-layout-mode="fantasy"] body {
+  position: relative;
+  isolation: isolate;
+  min-height: 100vh;
   color: var(--ink);
-  background: radial-gradient(ellipse at 50% 0%, #496461 0%, #192e36 55%, #101d29 100%);
+  background: radial-gradient(ellipse at 24% 0%, #365551 0%, #183333 55%, #101e24 100%);
   font-family: Georgia, "Times New Roman", serif;
+}
+/* Fill the viewport and keep the artwork visible throughout long journals.
+   Keep the image translucent without fading text or controls. */
+:root[data-layout-mode="fantasy"] body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: url("/fantasy-background.png") left center / 100% 100% no-repeat;
+  opacity: .6;
+  pointer-events: none;
 }
 :root[data-layout-mode="fantasy"] .workspace-shell {
   display: flex;
@@ -29,7 +43,7 @@
   border: 8px double #b7a366;
   border-radius: 28px 8px 28px 8px;
   outline: 2px solid #152b32;
-  background: linear-gradient(90deg, #ffffff04, transparent 20%, #ffffff06 80%, transparent), #233e47;
+  background: linear-gradient(90deg, #ffffff04, transparent 20%, #ffffff06 80%, transparent), #233e47d9;
   box-shadow: inset 0 0 0 3px #0d222b, 0 18px 45px #050d1466;
 }
 :root[data-layout-mode="fantasy"] .workspace-shell::before,
@@ -248,8 +262,11 @@
 :root[data-layout-mode="fantasy"] .search-button,
 :root[data-layout-mode="fantasy"] .add-button { color: #f2e2af; background: #355943; border-color: #8b9251; }
 :root[data-layout-mode="fantasy"] .page-footer { order: 9; color: #c3c9b0; border-color: #6f805f; font-size: 10px; padding: 14px 0 0; }
-:root[data-layout-mode="fantasy"] .member-count { order: 8; background: transparent; border-color: #9a9567; color: #ccd3b7; }
-:root[data-layout-mode="fantasy"] .member-count strong { color: #efdb9d; }
+:root[data-layout-mode="fantasy"] .member-count { order: 8; background: linear-gradient(#f2e5c3, #ddcca0); border: 3px ridge #b99b52; color: #4c5435; font-family: Georgia, serif; box-shadow: inset 0 1px #fff6d9; }
+:root[data-layout-mode="fantasy"] .member-count strong { color: #285741; }
+:root[data-layout-mode="fantasy"] .member-count-crest { flex-shrink: 0; color: #b28a27; filter: drop-shadow(0 1px #fff3bc); pointer-events: none; }
+:root[data-layout-mode="fantasy"] .auth-gate-eyebrow { color: #e1ca86; font-family: Georgia, serif; letter-spacing: .06em; }
+:root[data-layout-mode="fantasy"] .auth-heading p { color: #766035; font-family: Georgia, serif; }
 :root[data-layout-mode="fantasy"] .workspace-shell:is([data-fantasy-pane="items"], [data-fantasy-pane="chronicle"]) .player-summary > :not(.account-controls, .fantasy-decoration) { display: none; }
 :root[data-layout-mode="fantasy"] .workspace-shell:is([data-fantasy-pane="items"], [data-fantasy-pane="chronicle"]) .player-summary { padding: 12px 18px; }
 :root[data-layout-mode="fantasy"] .workspace-shell:is([data-fantasy-pane="items"], [data-fantasy-pane="chronicle"]) .account-controls { border: none; padding: 0; }

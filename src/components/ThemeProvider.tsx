@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { createUIAudio, type UISound } from "@/lib/ui-audio";
 import HalloweenDecorations from "@/components/HalloweenDecorations";
+import FloatingFairies from "@/components/FloatingFairies";
 import { savePreferredLayoutMode } from "@/app/profile-actions";
 import { actionErrorMessage, unwrapActionResult } from "@/lib/action-result";
 
@@ -144,6 +145,7 @@ export default function ThemeProvider({ children, player: initialPlayer = null }
   return <ThemePlayerContext.Provider value={setWorkspacePlayer}><ThemeContext.Provider value={{ layoutMode, cyberpunkTheme: halloween ? "halloween" : "default", toggleLayout, layoutSaveError, halloween, muted, toggle, toggleMuted, playSfx: audio.play }}>
     {children}
     {layoutMode === "cyberpunk" && halloween && <HalloweenDecorations />}
+    {layoutMode === "fantasy" && <FloatingFairies />}
   </ThemeContext.Provider></ThemePlayerContext.Provider>;
 }
 

@@ -1,0 +1,39 @@
+.floating-fairies,
+.floating-fairies * { pointer-events: none; }
+.floating-fairies { position: fixed; inset: 0; z-index: 30; overflow: hidden; }
+/* Narrow screens keep a 16px lane inside the workspace's 24px outer margin.
+   Clip each lane independently so even a drifting wing stays outside the UI. */
+.floating-fairy-lane { position: absolute; top: 0; bottom: 0; width: clamp(16px, calc((100vw - 1280px) / 2 - 8px), 96px); overflow: hidden; }
+.floating-fairy-lane[data-side="left"] { left: 0; }
+.floating-fairy-lane[data-side="right"] { right: 0; }
+.floating-fairy {
+  position: absolute;
+  bottom: -36px;
+  left: var(--fairy-x);
+  width: 28px;
+  max-width: 75%;
+  aspect-ratio: 1;
+  opacity: 0;
+  --fairy-sway: 8px;
+  --fairy-flutter: .9s;
+  animation: floating-fairy-rise var(--fairy-duration) var(--fairy-delay) linear infinite;
+}
+.floating-fairy-sprite { display: block; width: 100%; height: 100%; animation: floating-fairy-bob 3.7s var(--fairy-delay) ease-in-out infinite; }
+.floating-fairy-wing-left,
+.floating-fairy-wing-right { transform-box: fill-box; animation: floating-fairy-flutter var(--fairy-flutter) var(--fairy-delay) ease-in-out infinite alternate; }
+.floating-fairy-wing-left { transform-origin: right center; }
+.floating-fairy-wing-right { transform-origin: left center; animation-direction: alternate-reverse; }
+@keyframes floating-fairy-rise {
+  0% { transform: translate3d(-50%, 0, 0); opacity: 0; }
+  15% { opacity: .65; }
+  30% { transform: translate3d(calc(-50% + var(--fairy-sway)), -30dvh, 0); opacity: .9; }
+  60% { transform: translate3d(calc(-50% - var(--fairy-sway)), -60dvh, 0); opacity: .6; }
+  80% { transform: translate3d(calc(-50% + var(--fairy-sway)), -80dvh, 0); opacity: .85; }
+  100% { transform: translate3d(-50%, calc(-100dvh - 72px), 0); opacity: 0; }
+}
+@keyframes floating-fairy-bob { 0%, 100% { transform: translateY(2px); } 50% { transform: translateY(-3px); } }
+@keyframes floating-fairy-flutter { from { transform: scaleX(.65) rotate(-5deg); } to { transform: scaleX(1) rotate(5deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .floating-fairies * { animation: none; }
+  .floating-fairy { top: var(--fairy-rest-y); bottom: auto; transform: translateX(-50%); opacity: .45; }
+}

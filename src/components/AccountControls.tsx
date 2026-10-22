@@ -59,18 +59,18 @@ function AuthPanel({ localArchive = false, onClose }: { localArchive?: boolean; 
   const error = clientError || (state.mode === mode ? state.error : undefined);
   const panel = <div className="auth-panel" ref={panelRef} role={onClose ? "dialog" : undefined} aria-modal={onClose ? true : undefined} aria-labelledby={titleId} aria-busy={pending}>
     <header className="auth-heading">
-      <div><p>ICE GATEWAY // OPERATOR AUTHENTICATION</p><h2 id={titleId}>{localArchive ? "Claim Your Archive" : "Netrunner Access"}</h2></div>
+      <div><p>{copy("ICE GATEWAY // OPERATOR AUTHENTICATION", "TEMPLE GATEWAY // ADVENTURER VERIFICATION")}</p><h2 id={titleId}>{localArchive ? copy("Claim Your Archive", "Claim Your Quest Journal") : copy("Netrunner Access", "Questkeeper's Sanctuary")}</h2></div>
       {onClose && <button className="auth-close" type="button" aria-label="Close account dialog" disabled={pending} onClick={onClose}>✕</button>}
     </header>
     <ThemeToggle />
-    <p className="auth-intro">{localArchive ? "Your first account inherits this local library, XP, trophies, and dossier. Nothing is moved or deleted." : "Sign in to your private library, or register a new operator with an empty archive."}</p>
+    <p className="auth-intro">{localArchive ? copy("Your first account inherits this local library, XP, trophies, and dossier. Nothing is moved or deleted.", "Your first account inherits this local quest journal, XP, trophies, and adventurer's codex. Nothing is moved or deleted.") : copy("Sign in to your private library, or register a new operator with an empty archive.", "Open your personal quest journal, or inscribe a new adventurer's ledger.")}</p>
     <div className="auth-tabs" role="group" aria-label="Account access">
       <button type="button" aria-pressed={mode === "login"} disabled={pending} onClick={() => switchMode("login")}>LOGIN</button>
-      <button type="button" aria-pressed={mode === "register"} disabled={pending} onClick={() => switchMode("register")}>{localArchive ? "REGISTER // CLAIM ARCHIVE" : "REGISTER // NEW ARCHIVE"}</button>
+      <button type="button" aria-pressed={mode === "register"} disabled={pending} onClick={() => switchMode("register")}>{localArchive ? copy("REGISTER // CLAIM ARCHIVE", "INSCRIBE // CLAIM JOURNAL") : copy("REGISTER // NEW ARCHIVE", "INSCRIBE // NEW LEDGER")}</button>
     </div>
     <form action={action} key={mode} onInvalidCapture={(event) => {
       const field = event.target;
-      if (field instanceof HTMLInputElement) setClientError(field.name === "email" ? "Enter a valid email address." : field.name === "password" ? "Use a password of 8–128 characters." : `Enter a valid ${field.name === "handle" ? "handle" : "operator name"} or leave it empty.`);
+      if (field instanceof HTMLInputElement) setClientError(field.name === "email" ? "Enter a valid email address." : field.name === "password" ? "Use a password of 8–128 characters." : `Enter a valid ${field.name === "handle" ? copy("handle", "adventurer alias") : copy("operator name", "adventurer name")} or leave it empty.`);
     }} onSubmit={(event) => {
       if (cooldown.seconds > 0) { event.preventDefault(); return; }
       setPasswordVisible(false);
@@ -81,7 +81,7 @@ function AuthPanel({ localArchive = false, onClose }: { localArchive?: boolean; 
       for (const name of ["email", "handle", "operatorName"]) {
         const field = event.currentTarget.elements.namedItem(name);
         if (field instanceof HTMLInputElement) {
-          if (name !== "email" && field.value !== "" && !field.value.trim()) { event.preventDefault(); setClientError(`Enter a valid ${name === "handle" ? "handle" : "operator name"} or leave it empty.`); return; }
+          if (name !== "email" && field.value !== "" && !field.value.trim()) { event.preventDefault(); setClientError(`Enter a valid ${name === "handle" ? copy("handle", "adventurer alias") : copy("operator name", "adventurer name")} or leave it empty.`); return; }
           field.value = field.value.trim();
         }
       }
@@ -102,20 +102,21 @@ function AuthPanel({ localArchive = false, onClose }: { localArchive?: boolean; 
         </div>
         <p className="auth-hint">8–128 characters. Passwords are salted and hashed on the server.</p>
         {mode === "register" && <>
-          <label>Handle <span>(optional)</span><input name="handle" autoComplete="off" maxLength={24} pattern="[A-Za-z0-9][A-Za-z0-9_-]{2,23}" title="3–24 letters, numbers, underscores or hyphens" spellCheck={false} autoCapitalize="none" placeholder="night-city-runner" /></label>
+          <label>{copy("Handle", "Adventurer alias")} <span>(optional)</span><input name="handle" autoComplete="off" maxLength={24} pattern="[A-Za-z0-9][A-Za-z0-9_-]{2,23}" title="3–24 letters, numbers, underscores or hyphens" spellCheck={false} autoCapitalize="none" placeholder={copy("night-city-runner", "hero-of-time")} /></label>
           <label>{copy("Operator name", "Adventurer name")} <span>(optional)</span><input name="operatorName" autoComplete="nickname" maxLength={28} placeholder={copy("ANONYMOUS NETRUNNER", "UNNAMED ADVENTURER")} /></label>
         </>}
       </fieldset>
       {error && <p className="auth-error" role="alert" id={errorId}>{error}</p>}
-      <button className="auth-submit" type="submit" disabled={pending || cooldown.seconds > 0}>{cooldown.seconds > 0 ? cooldown.label : pending ? "VERIFYING IDENTITY…" : mode === "login" ? "▶ SIGN IN" : localArchive ? "⚡ CREATE ACCOUNT & CLAIM ARCHIVE" : "⚡ CREATE NETRUNNER ACCOUNT"}</button>
+      <button className="auth-submit" type="submit" disabled={pending || cooldown.seconds > 0}>{cooldown.seconds > 0 ? cooldown.label : pending ? copy("VERIFYING IDENTITY…", "VERIFYING YOUR SEAL…") : mode === "login" ? copy("▶ SIGN IN", "▶ ENTER THE ARCHIVE") : localArchive ? copy("⚡ CREATE ACCOUNT & CLAIM ARCHIVE", "▶ INSCRIBE & CLAIM JOURNAL") : copy("⚡ CREATE NETRUNNER ACCOUNT", "▶ INSCRIBE LEDGER")}</button>
     </form>
-    <p className="auth-hint">{localArchive ? "Only the first registration claims the local archive. Later accounts start fresh." : "Sessions expire after 7 days. Log out to revoke this device’s session."}</p>
+    <p className="auth-hint">{localArchive ? copy("Only the first registration claims the local archive. Later accounts start fresh.", "Only the first inscription claims the local quest journal. Later adventurers begin with a new ledger.") : "Sessions expire after 7 days. Log out to revoke this device’s session."}</p>
   </div>;
   return onClose ? <div className="auth-modal-backdrop" onClick={(event) => { if (event.target === event.currentTarget && !pendingRef.current) onClose(); }}>{panel}</div> : panel;
 }
 
 export function AccountGate() {
-  return <section className="auth-gate"><p className="auth-gate-eyebrow">ARCHIVE LOCKED // IDENTIFY YOURSELF</p><AuthPanel /></section>;
+  const copy = useLayoutCopy();
+  return <section className="auth-gate"><p className="auth-gate-eyebrow">{copy("ARCHIVE LOCKED // IDENTIFY YOURSELF", "CHAMBER SEALED // SPEAK YOUR NAME")}</p><AuthPanel /></section>;
 }
 
 export default function AccountControls({ player }: { player: CurrentPlayer }) {
