@@ -1,4 +1,5 @@
 import { buildDossierMetadata } from "@/lib/dossier-metadata";
+import { ThemeToggle } from "@/components/ThemeProvider";
 import { cache, Suspense } from "react";
 import Link from "next/link";
 import { connection } from "next/server";
@@ -31,6 +32,7 @@ async function Dossier({ params }: { params: Promise<{ handle: string }> }) {
       <header className="public-dossier-heading">
         <p className="public-dossier-eyebrow">PUBLIC TRANSMISSION // READ-ONLY CITIZEN DOSSIER</p>
         <h1>@{dossier.identity.handle}</h1>
+        <ThemeToggle />
       </header>
       <PublicDossierCard dossier={dossier} artwork={artwork} timestamp={new Date().toISOString()} />
       <footer className="public-dossier-footer"><Link className="public-dossier-gateway" href="/" prefetch={false}>⚡ INITIALIZE YOUR OWN ARCHIVE // BACKLOG BUSTER</Link></footer>

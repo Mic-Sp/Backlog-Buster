@@ -1,0 +1,176 @@
+/* The toggle has the same footprint in either theme. Existing layout rules stay
+   in their owning stylesheets; seasonal overrides below change paint only. */
+button.theme-toggle {
+	min-height: 36px;
+	min-width: 164px;
+	padding: 8px 12px;
+	border: 1px solid #32616a;
+	border-radius: 2px;
+	color: #94f7ff;
+	background: #0d202a;
+	font: 700 10px/1.4 "Courier New", monospace;
+	letter-spacing: 0.04em;
+	cursor: pointer;
+}
+button.theme-toggle:focus-visible { outline: 2px solid #fcee0a; outline-offset: 3px; }
+.theme-controls { display: inline-flex; align-items: center; gap: 4px; width: 164px; flex-shrink: 0; vertical-align: middle; }
+.theme-controls[data-active="true"] button.theme-toggle { min-width: 0; flex: 1; padding-right: 4px; padding-left: 4px; font-size: 9px; }
+.theme-controls button.halloween-sfx-toggle {
+	min-height: 36px;
+	width: 32px;
+	min-width: 32px;
+	padding: 8px 2px;
+	border: 1px solid #7cba5e;
+	border-radius: 2px;
+	font: 700 10px/1.4 "Courier New", monospace;
+	cursor: pointer;
+}
+
+/* Fixed, pointer-transparent artwork stays out of every card/grid/flex flow.
+   It has no stacking override, so existing modal layers retain their priority. */
+.halloween-decorations { display: none; position: fixed; inset: 0; overflow: hidden; pointer-events: none; }
+:root[data-theme="halloween"] .halloween-decorations { display: block; }
+.halloween-decorations svg { position: absolute; pointer-events: none; user-select: none; }
+.haunt-web { top: 0; left: 0; width: 92px; height: 92px; opacity: 0.55; }
+.haunt-ghost { top: 100px; right: 3px; width: 50px; height: 64px; opacity: 0.75; animation: haunt-float 5s ease-in-out infinite; }
+.haunt-pumpkin { bottom: 8px; left: 3px; width: 70px; height: 70px; opacity: 0.85; }
+.haunt-bat { top: 3px; right: 24px; width: 88px; height: 52px; opacity: 0.75; }
+.haunt-wing { transform-box: fill-box; transform-origin: center right; animation: haunt-flap 1.8s ease-in-out infinite; }
+.haunt-wing-right { transform-origin: center left; animation-direction: reverse; }
+@keyframes haunt-float { 0%, 100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(9px) rotate(4deg); } }
+@keyframes haunt-flap { 0%, 100% { transform: rotate(-6deg); } 50% { transform: rotate(9deg); } }
+@media (max-width: 600px) {
+	.haunt-web { width: 40px; height: 40px; opacity: 0.3; }
+	.haunt-ghost { width: 28px; height: 36px; right: 0; opacity: 0.4; }
+	.haunt-pumpkin { width: 38px; height: 38px; left: 0; bottom: 0; opacity: 0.5; }
+	.haunt-bat { width: 50px; height: 30px; right: 4px; opacity: 0.4; }
+}
+@media (prefers-reduced-motion: reduce) {
+	.haunt-ghost, .haunt-wing { animation: none; }
+}
+
+:root[data-theme="halloween"] {
+	color-scheme: dark;
+	--canvas: #09060f;
+	--paper: #160e21;
+	--ink: #f4edf7;
+	--muted: #c0afca;
+	--line: #594063;
+	--green: #b4ff72;
+	--lime: #ffad5c;
+	--blue: #b4ff72;
+	--coral: #ff7095;
+	--haunt-orange: #ffad5c;
+	--haunt-green: #b4ff72;
+	--haunt-crimson: #ff7095;
+}
+
+:root[data-theme="halloween"] body {
+	color: var(--ink);
+	background-color: var(--canvas);
+	background-image:
+		radial-gradient(ellipse at 8% 0%, #ff7b1915, transparent 35%),
+		radial-gradient(ellipse at 94% 26%, #a151d921, transparent 34%),
+		radial-gradient(ellipse at 56% 100%, #91ff5110, transparent 32%),
+		linear-gradient(145deg, #09060f, #130c1e 58%, #08080d);
+}
+
+/* Void surfaces, with the original border widths and card geometry intact. */
+:root[data-theme="halloween"] :is(
+	.player-summary, .add-section, .library-card, .spotlight-card, .trophy-card,
+	.deck-card, .deck-empty-slot, .saga-chain-card, .telemetry-drawer,
+	.auth-panel, .security-modal, .dossier-modal, .public-dossier-frame,
+	.quest-modal, .advisor-modal, .vault-modal, .achievement-toast,
+	.hud-milestone-tooltip, .saga-debug-readout
+) {
+	color: var(--ink);
+	border-color: #725078;
+	background: linear-gradient(125deg, #211329, #100d19 65%, #191020);
+	box-shadow: inset 0 1px #ffad5c15, 0 0 16px #9b4acc0d;
+}
+:root[data-theme="halloween"] .player-summary { border-left-color: var(--haunt-orange); }
+:root[data-theme="halloween"] .add-section { border-top-color: var(--haunt-crimson); }
+
+:root[data-theme="halloween"] :is(.advisor-card, .advisor-card[data-variant="external"], .advisor-card[data-variant="cleanser"], .game-row:not(.game-row-head)) {
+	color: var(--ink);
+	border-color: #725078;
+	background: #170f22;
+	box-shadow: none;
+}
+:root[data-theme="halloween"] :is(.game-row:not(.game-row-head):hover, .library-card:hover, .deck-card:hover) {
+	border-color: var(--haunt-orange);
+	background-color: #26162e;
+}
+:root[data-theme="halloween"] :is(.game-row[data-status="Playing"], .spotlight-card, .advisor-card[data-variant="cleanser"]) { border-color: #7cba5e; }
+:root[data-theme="halloween"] :is(.game-row[data-status="Completed"], .trophy-card, .advisor-card[data-variant="external"]) { border-color: #b87c46; }
+:root[data-theme="halloween"] :is(.game-row[data-status="Flatlined"], .spotlight-card[data-status="Flatlined"]) { border-color: #a94d69; background-color: #24101d; }
+
+/* Restrained phosphor glow; no filters on artwork and no moving backgrounds. */
+:root[data-theme="halloween"] :is(h1, h2, .section-heading-title, .summary-level-value strong, .summary-total-xp > strong) {
+	color: #ffd0a0;
+	text-shadow: 0 0 9px #ff8a3829;
+}
+:root[data-theme="halloween"] :is(h3, h4, .eyebrow, .advisor-external-section > h3, .advisor-card h4, .game-count strong, .summary-progress-heading strong) { color: var(--haunt-orange); text-shadow: 0 0 8px #ff8a3820; }
+:root[data-theme="halloween"] :is(.summary-label, .advisor-intro, .advisor-metadata, .library-card-metadata, .auth-intro, .security-hint, .dossier-avatar-help, .page-footer, .member-count) { color: #c8b8cf; }
+:root[data-theme="halloween"] :is(.game-name strong, .xp-value, .spotlight-badge, .trophy-badge, .account-operator span, .account-operator small, .member-count > span, .agent-briefing-eyebrow) { color: var(--haunt-green); text-shadow: none; }
+:root[data-theme="halloween"] :is(.game-row[data-status="Flatlined"] .game-name strong, .game-row[data-status="Flatlined"] .xp-value, .advisor-error, .form-action-error, .auth-error, .agent-briefing-error, .security-error) { color: #ff9bb4; text-shadow: none; }
+:root[data-theme="halloween"] :is(.account-operator, .advisor-card-body, .library-card-body, .agent-briefing-readout, .security-account-summary dd) { color: var(--ink); }
+
+/* Inputs and actions retain their status, disabled, and focus behavior. */
+:root[data-theme="halloween"] :is(input, select, textarea) {
+	color: #f4edf7;
+	background-color: #100c18;
+	border-color: #70527b;
+	caret-color: var(--haunt-green);
+	accent-color: var(--haunt-orange);
+}
+:root[data-theme="halloween"] :is(input, textarea)::placeholder { color: #b6a3c1; }
+:root[data-theme="halloween"] :is(button, .trailer-link-button, .public-dossier-gateway) {
+	color: #ffd0a0;
+	border-color: #a06b47;
+	background-color: #29192a;
+	text-shadow: none;
+	box-shadow: none;
+}
+:root[data-theme="halloween"] :is(button:hover:not(:disabled), .trailer-link-button:hover, .public-dossier-gateway:hover) {
+	color: #100c18;
+	background-color: var(--haunt-orange);
+	border-color: var(--haunt-orange);
+	text-shadow: none;
+	box-shadow: 0 0 10px #ffad5c25;
+}
+:root[data-theme="halloween"] :is(button[aria-pressed="true"], button[data-added="true"], .advisor-modal button.advisor-acquire-button[data-added="true"]) {
+	color: var(--haunt-green);
+	background-color: #192519;
+	border-color: #7cba5e;
+}
+:root[data-theme="halloween"] :is(button, a, input, select, textarea, summary):focus-visible {
+	outline-color: var(--haunt-green);
+	border-color: var(--haunt-green);
+	box-shadow: 0 0 0 2px #b4ff7220;
+}
+:root[data-theme="halloween"] :is(.column-sort-btn, .metadata-edit-button, .auth-password-toggle, .security-eye-toggle) { background-color: transparent; }
+:root[data-theme="halloween"] :is(.library-tabs button[aria-pressed="true"], .library-view-controls button[aria-pressed="true"]) { color: var(--haunt-green); border-color: var(--haunt-green); }
+
+:root[data-theme="halloween"] :is(.advisor-reason, .advisor-card[data-variant="external"] .advisor-reason, .advisor-card[data-variant="cleanser"] .advisor-reason, .agent-briefing .agent-briefing-readout, .advisor-loading, .advisor-empty, .advisor-scout-locked, .saga-debug-payload pre, .security-account-summary > div) {
+	color: #e9ddec;
+	border-color: #70527b;
+	background: #100c18;
+}
+:root[data-theme="halloween"] :is(.advisor-reason > span, .agent-briefing-readout .agent-briefing-eyebrow, .agent-briefing-readout p.agent-briefing-metrics, .advisor-scout-status) { color: var(--haunt-green); }
+:root[data-theme="halloween"] .advisor-bounty { color: #ffd0a0; border-color: #96613d; background: #2c1a16; }
+:root[data-theme="halloween"] .advisor-scout-terminal {
+	color: var(--haunt-green);
+	border-color: #7cba5e;
+	border-left-color: var(--haunt-orange);
+	background: linear-gradient(120deg, #182015, #110c1b);
+	box-shadow: inset 0 0 16px #b4ff7207;
+}
+:root[data-theme="halloween"] .advisor-scout-terminal p { color: var(--haunt-green); }
+:root[data-theme="halloween"] .advisor-scout-terminal-label { color: var(--haunt-orange); }
+:root[data-theme="halloween"] :is(.advisor-scout-cursor, #add-title::after) { background: var(--haunt-green); box-shadow: 0 0 8px #b4ff7238; }
+:root[data-theme="halloween"] .summary-progress-track { border-color: #70527b; background: #0c0910; }
+:root[data-theme="halloween"] :is(.summary-progress-track span, .gig-progress-track > span) { background: linear-gradient(90deg, #ffad5c, #b4ff72); }
+:root[data-theme="halloween"] :is(.advisor-modal-backdrop, .auth-modal-backdrop, .security-modal-backdrop, .dossier-modal-backdrop, .vault-modal-backdrop, .quest-modal-backdrop) { background-color: #07040de8; }
+:root[data-theme="halloween"] .member-count { background: #160e21; border-color: #70527b; }
+:root[data-theme="halloween"] .member-count strong { color: var(--haunt-orange); }

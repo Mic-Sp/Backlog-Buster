@@ -8,6 +8,7 @@ import SafeForm from "@/components/SafeForm";
 import type { CurrentPlayer } from "@/lib/player";
 import "./AccountControls.css";
 import useCooldown from "@/components/useCooldown";
+import { ThemeToggle } from "@/components/ThemeProvider";
 
 function LogoutButton() {
   const { pending } = useFormStatus();
@@ -57,6 +58,7 @@ function AuthPanel({ localArchive = false, onClose }: { localArchive?: boolean; 
       <div><p>ICE GATEWAY // OPERATOR AUTHENTICATION</p><h2 id={titleId}>{localArchive ? "Claim Your Archive" : "Netrunner Access"}</h2></div>
       {onClose && <button className="auth-close" type="button" aria-label="Close account dialog" disabled={pending} onClick={onClose}>✕</button>}
     </header>
+    <ThemeToggle />
     <p className="auth-intro">{localArchive ? "Your first account inherits this local library, XP, trophies, and dossier. Nothing is moved or deleted." : "Sign in to your private library, or register a new operator with an empty archive."}</p>
     <div className="auth-tabs" role="group" aria-label="Account access">
       <button type="button" aria-pressed={mode === "login"} disabled={pending} onClick={() => switchMode("login")}>LOGIN</button>
@@ -121,6 +123,7 @@ export default function AccountControls({ player }: { player: CurrentPlayer }) {
       <AccountSecurity />
       <SafeForm action={logout}><LogoutButton /></SafeForm>
     </>}
+    <ThemeToggle />
     {isOpen && createPortal(<AuthPanel localArchive={player.isLocal} onClose={close} />, document.body)}
   </div>;
 }
