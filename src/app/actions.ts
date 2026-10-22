@@ -385,10 +385,25 @@ export async function fetchBacklogAdvisor() {
   });
 }
 
-export async function fetchExternalScout() {
+export async function fetchExternalScout(excludedTitles: readonly string[] = []) {
   return safeAction(async () => {
     const playerId = await getAuthenticatedPlayerId();
-    return guardedRequest(playerId, "scout", "external", () => getExternalRecommendations(playerId));
+    if (!Array.isArray(excludedTitles) || excludedTitles.length > 30 ||
+      excludedTitles.some((title) => typeof title !== "string")) {
+      throw new InputError("Provide up to 30 excluded game titles as strings.");
+    }
+    const seen = new Set<string>();
+    const sanitizedTitles = excludedTitles.map((title) => title.trim().slice(0, 120).trim())
+      .filter((title) => {
+        const key = normalizeGameTitle(title);
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    // Distinct exclusions must not share an in-flight response. The feature key
+    // stays "scout", preserving the per-player cooldown across all lists.
+    const input = sanitizedTitles.length ? JSON.stringify(sanitizedTitles) : "external";
+    return guardedRequest(playerId, "scout", input, () => getExternalRecommendations(playerId, sanitizedTitles));
   });
 }
 

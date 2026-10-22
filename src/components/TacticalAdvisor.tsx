@@ -37,6 +37,8 @@ export default function TacticalAdvisor({ games }: { games: Pick<LibraryGame, "i
   const requestId = useRef(0);
   const startingRef = useRef(false);
   const scoutRequestId = useRef(0);
+  // Keep session history across modal opens; match the action's 30-title cap.
+  const seenExternalTitles = useRef(new Map<string, string>());
   const backlogCount = useMemo(() => games.filter((game) => game.status === "Backlog").length, [games]);
   const pinnedCount = games.filter((game) => game.status === "Backlog" && game.pinnedOrder != null).length;
   const ownedTitles = useMemo(() => new Set(games.map((game) => normalizeGameTitle(game.title))), [games]);
@@ -53,8 +55,20 @@ export default function TacticalAdvisor({ games }: { games: Pick<LibraryGame, "i
     setExternalError("");
     startScouting(async () => {
       try {
-        const result = unwrapActionResult(await fetchExternalScout());
-        if (request === scoutRequestId.current) setExternalPicks(result);
+        const result = unwrapActionResult(await fetchExternalScout([...seenExternalTitles.current.values()]));
+        if (request === scoutRequestId.current) {
+          for (const pick of result) {
+            const key = normalizeGameTitle(pick.title);
+            seenExternalTitles.current.delete(key);
+            seenExternalTitles.current.set(key, pick.title);
+          }
+          while (seenExternalTitles.current.size > 30) {
+            const oldest = seenExternalTitles.current.keys().next().value;
+            if (oldest === undefined) break;
+            seenExternalTitles.current.delete(oldest);
+          }
+          setExternalPicks(result);
+        }
       } catch (error) {
         if (error instanceof ActionFailure) scoutCooldown.start(error.retryAfterSeconds);
         if (request === scoutRequestId.current) setExternalError(actionErrorMessage(error, "External scouting failed. Retry the scan to reconnect."));

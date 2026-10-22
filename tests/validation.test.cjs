@@ -18,6 +18,35 @@ const form = (values) => { const data = new FormData(); for (const [key, value] 
 const load = loader({ "server-only": {}, "@/lib/prisma": {}, "@/lib/player": {} });
 const { validateGameForm } = load("src/lib/form-validation.ts");
 
+test("external scout validates and bounds client exclusions inside authenticated request protection", async () => {
+  const calls = [], inputs = [];
+  const scoped = loader({
+    "next/cache": { revalidatePath() {} },
+    "@/lib/prisma": {},
+    "@/lib/player": { getAuthenticatedPlayerId: async () => "scout-player" },
+    "@/lib/api-resilience": { guardedRequest: async (id, feature, input, work) => {
+      assert.equal(id, "scout-player"); assert.equal(feature, "scout"); inputs.push(input); return work();
+    } },
+    "@/lib/recommendations": { getExternalRecommendations: async (...args) => { calls.push(args); return []; } },
+  });
+  const { fetchExternalScout } = scoped("src/app/actions.ts");
+  assert.deepEqual(await fetchExternalScout(), []);
+  assert.deepEqual(calls[0], ["scout-player", []]);
+  const titles = [" Tunic ", "TUNIC", " ", "Dark Souls III", "dark souls 3", "x".repeat(200)];
+  assert.deepEqual(await fetchExternalScout(titles), []);
+  assert.deepEqual(calls[1], ["scout-player", ["Tunic", "Dark Souls III", "x".repeat(120)]]);
+  assert.equal(titles[0], " Tunic ");
+  assert.notEqual(inputs[0], inputs[1]);
+  assert.deepEqual(JSON.parse(inputs[1]), calls[1][1]);
+  await fetchExternalScout(Array.from({ length: 30 }, (_, index) => `Title ${index}`));
+  assert.equal(calls[2][1].length, 30);
+  for (const invalid of [null, "Tunic", {}, [42], Array(31).fill("Tunic")]) {
+    assert.match((await fetchExternalScout(invalid)).error, /up to 30/);
+  }
+  assert.equal(calls.length, 3);
+  assert.equal(inputs.length, 3);
+});
+
 test("blank titles, invalid numbers and unsafe URLs are rejected; text and optional blanks normalize", () => {
   for (const title of ["", "   ", "\t\n", "\u00a0\u2003"]) assert.throws(() => validateGameForm(form({ title })), /Please input a valid title/);
   for (const field of [{ lengthHours: "NaN" }, { lengthHours: "0" }, { difficulty: "4" }, { hoursPlayed: "-1" }, { releaseYear: "1700" }, { releaseYear: "2020.5" }, { coverUrl: "javascript:alert(1)" }]) assert.throws(() => validateGameForm(form({ title: "Game", ...field })));
