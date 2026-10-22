@@ -34,21 +34,47 @@ button.theme-toggle:focus-visible { outline: 2px solid #fcee0a; outline-offset: 
 :root[data-theme="halloween"] .halloween-decorations { display: block; }
 .halloween-decorations svg { position: absolute; pointer-events: none; user-select: none; }
 .haunt-web { top: 0; left: 0; width: 92px; height: 92px; opacity: 0.55; }
-.haunt-ghost { top: 100px; right: 3px; width: 50px; height: 64px; opacity: 0.75; animation: haunt-float 5s ease-in-out infinite; }
+.haunt-ghost {
+	--haunt-ghost-opacity: 0.78;
+	top: clamp(80px, 16vh, 140px); right: 12px; width: 50px; height: 64px;
+	opacity: var(--haunt-ghost-opacity); filter: drop-shadow(0 0 7px #d7bcff99);
+}
 .haunt-pumpkin { bottom: 8px; left: 3px; width: 70px; height: 70px; opacity: 0.85; }
-.haunt-bat { top: 3px; right: 24px; width: 88px; height: 52px; opacity: 0.75; }
-.haunt-wing { transform-box: fill-box; transform-origin: center right; animation: haunt-flap 1.8s ease-in-out infinite; }
+.haunt-bat { --haunt-bat-width: 88px; top: 26px; left: 16px; width: var(--haunt-bat-width); height: 52px; opacity: 0.75; }
+.haunt-wing { transform-box: fill-box; transform-origin: center right; }
 .haunt-wing-right { transform-origin: center left; animation-direction: reverse; }
-@keyframes haunt-float { 0%, 100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(9px) rotate(4deg); } }
+:root[data-theme="halloween"] .haunt-bat { animation: haunt-swoop 16s ease-in-out infinite alternate, haunt-bob 2.8s ease-in-out infinite; }
+:root[data-theme="halloween"] .haunt-ghost { animation: haunt-drift 18s ease-in-out infinite; }
+:root[data-theme="halloween"] .haunt-wing { animation-name: haunt-flap; animation-duration: 1.2s; animation-timing-function: ease-in-out; animation-iteration-count: infinite; }
+/* Independent translate and transform tracks combine the long flight with a
+   small bob. Alternating travel eases into each turn without a position reset. */
+@keyframes haunt-swoop {
+	from { translate: 0 0; }
+	to { translate: calc(100vw - var(--haunt-bat-width) - 32px) 0; }
+}
+@keyframes haunt-bob {
+	0%, 100% { transform: translateY(0) rotate(-4deg); }
+	25% { transform: translateY(-9px) rotate(2deg); }
+	50% { transform: translateY(2px) rotate(5deg); }
+	75% { transform: translateY(10px) rotate(-2deg); }
+}
+/* Keep the haunting path inside even a short viewport; opacity also phases
+   the ghost's soft halo, with matching endpoints for a seamless loop. */
+@keyframes haunt-drift {
+	0%, 100% { transform: translate(0, 0) rotate(-4deg); opacity: var(--haunt-ghost-opacity); }
+	25% { transform: translate(-9px, clamp(0px, calc(40dvh - 96px), 168px)) rotate(3deg); opacity: 0.06; }
+	50% { transform: translate(-3px, clamp(0px, calc(100dvh - 240px), 420px)) rotate(-2deg); opacity: var(--haunt-ghost-opacity); }
+	75% { transform: translate(-12px, clamp(0px, calc(60dvh - 144px), 252px)) rotate(4deg); opacity: 0.12; }
+}
 @keyframes haunt-flap { 0%, 100% { transform: rotate(-6deg); } 50% { transform: rotate(9deg); } }
 @media (max-width: 600px) {
 	.haunt-web { width: 40px; height: 40px; opacity: 0.3; }
-	.haunt-ghost { width: 28px; height: 36px; right: 0; opacity: 0.4; }
+	.haunt-ghost { --haunt-ghost-opacity: 0.4; width: 28px; height: 36px; right: 8px; }
 	.haunt-pumpkin { width: 38px; height: 38px; left: 0; bottom: 0; opacity: 0.5; }
-	.haunt-bat { width: 50px; height: 30px; right: 4px; opacity: 0.4; }
+	.haunt-bat { --haunt-bat-width: 50px; height: 30px; opacity: 0.4; }
 }
 @media (prefers-reduced-motion: reduce) {
-	.haunt-ghost, .haunt-wing { animation: none; }
+	:root[data-theme="halloween"] :is(.haunt-bat, .haunt-ghost, .haunt-wing) { animation: none; }
 }
 
 :root[data-theme="halloween"] {
