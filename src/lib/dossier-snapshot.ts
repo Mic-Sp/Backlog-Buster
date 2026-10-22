@@ -1,4 +1,5 @@
 "use client";
+import type { LayoutMode } from "@/lib/appearance";
 
 // Embed artwork before exporting: the serialized SVG never depends on remote resources.
 export async function loadDossierArtwork(url: string, signal: AbortSignal): Promise<string | null> {
@@ -61,12 +62,12 @@ export async function captureDossierPng(card: SVGSVGElement): Promise<Blob> {
   }
 }
 
-export function downloadDossier(blob: Blob, callsign: string) {
+export function downloadDossier(blob: Blob, callsign: string, layoutMode: LayoutMode = "cyberpunk") {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
   const name = callsign.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "operator";
-  link.download = `netrunner-id-${name}-${new Date().toISOString().slice(0, 10)}.png`;
+  link.download = `${layoutMode === "fantasy" ? "adventurers-codex" : "netrunner-id"}-${name}-${new Date().toISOString().slice(0, 10)}.png`;
   document.body.append(link);
   link.click();
   link.remove();

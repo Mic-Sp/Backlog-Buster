@@ -5,8 +5,12 @@ import NetrunnerIdCard from "@/components/NetrunnerIdCard";
 import { DEFAULT_AVATAR_URL } from "@/lib/operator-avatar";
 import { captureDossierPng, downloadDossier, loadDossierArtwork } from "@/lib/dossier-snapshot";
 import type { PublicDossier } from "@/lib/public-dossier";
+import { useUIEffects } from "@/components/ThemeProvider";
+import { useLayoutCopy } from "@/components/LayoutText";
 
 export default function PublicDossierCard({ dossier, artwork, timestamp }: { dossier: PublicDossier; artwork: Record<string, string | null>; timestamp: string }) {
+  const { layoutMode } = useUIEffects();
+  const copy = useLayoutCopy();
   const cardRef = useRef<SVGSVGElement>(null);
   const exporting = useRef(false);
   const [busy, setBusy] = useState(false);
@@ -38,7 +42,7 @@ export default function PublicDossierCard({ dossier, artwork, timestamp }: { dos
         await navigator.clipboard.write([new ClipboardItem({ "image/png": png })]);
         setFeedback({ text: "ID CARD COPIED TO CLIPBOARD // READY FOR TRANSMISSION", error: false });
       } else {
-        downloadDossier(await png, dossier.identity.callsign);
+        downloadDossier(await png, dossier.identity.callsign, layoutMode);
         setFeedback({ text: "ID SNAPSHOT DOWNLOADED // 2000 × 1360 PNG", error: false });
       }
     } catch {
@@ -46,10 +50,10 @@ export default function PublicDossierCard({ dossier, artwork, timestamp }: { dos
     } finally { exporting.current = false; setBusy(false); }
   }
 
-  return <><NetrunnerIdCard data={dossier.card} identity={dossier.identity} timestamp={timestamp} artwork={{ ...artwork, [DEFAULT_AVATAR_URL]: defaultAvatar }} cardRef={cardRef} />
+  return <><NetrunnerIdCard layoutMode={layoutMode} data={dossier.card} identity={dossier.identity} timestamp={timestamp} artwork={{ ...artwork, [DEFAULT_AVATAR_URL]: defaultAvatar }} cardRef={cardRef} />
     <div className="public-dossier-exports" aria-busy={busy}>
-      <button type="button" disabled={busy || !ready} onClick={() => void exportSnapshot("copy")}>📋 COPY DOSSIER TO CLIPBOARD</button>
-      <button type="button" disabled={busy || !ready} onClick={() => void exportSnapshot("download")}>💾 DOWNLOAD ID SNAPSHOT</button>
+      <button type="button" disabled={busy || !ready} onClick={() => void exportSnapshot("copy")}>{copy("📋 COPY DOSSIER TO CLIPBOARD", "📋 COPY CODEX TO CLIPBOARD")}</button>
+      <button type="button" disabled={busy || !ready} onClick={() => void exportSnapshot("download")}>{copy("💾 DOWNLOAD ID SNAPSHOT", "📜 DOWNLOAD CODEX SNAPSHOT")}</button>
     </div>
     {busy && <p className="public-dossier-eyebrow" role="status">ENCODING ID SNAPSHOT…</p>}
     {feedback && <p className="public-dossier-feedback" role={feedback.error ? "alert" : "status"} data-error={feedback.error}>{feedback.text}</p>}

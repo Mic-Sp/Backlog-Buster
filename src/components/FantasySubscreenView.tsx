@@ -57,12 +57,12 @@ export default function FantasySubscreenView({ controller: c }: { controller: Ga
     </header>
 
     <section className="fantasy-quest-pane fantasy-panel" data-workspace-pane="quest" aria-label="Quest status and medallions"><FantasyCorners />
-      <FantasyEquipmentDeck deck={c.deck} />
       <section className="fantasy-medallions" aria-labelledby="fantasy-medallions-title"><div className="fantasy-section-heading"><div><p className="fantasy-kicker">TOKENS OF YOUR TRAVELS</p><h3 id="fantasy-medallions-title">Sage Medallions</h3></div><span>{unlocked.length} / {c.achievements.length} awakened</span></div>
         {c.achievements.length ? <ul className="fantasy-medallion-grid">{c.achievements.map((achievement, index) => <li key={achievement.key} data-unlocked={achievement.unlocked} style={{ "--medallion-hue": `${index * 47 % 360}` } as CSSProperties}>
           <span className="fantasy-medallion" aria-hidden="true">{achievement.unlocked ? achievement.icon : "◇"}</span><h4>{achievement.title}</h4><p>{achievement.description}</p><small>{achievement.unlocked ? `Awakened · +${achievement.xpAwarded} XP` : `${achievement.current} / ${achievement.target} · sleeping`}</small>
         </li>)}</ul> : <p className="fantasy-hint">Your first medallion awaits. Complete quests to awaken your collection.</p>}
       </section>
+      <FantasyEquipmentDeck deck={c.deck} />
     </section>
 
     <section className="fantasy-item-pane fantasy-panel" data-workspace-pane="items" aria-labelledby="fantasy-inventory-title"><FantasyCorners />
@@ -82,7 +82,7 @@ export default function FantasySubscreenView({ controller: c }: { controller: Ga
           data-library-game-id={game.id} data-reorder-row-id={game.id} data-status={game.status} data-selected={selected?.id === game.id} data-equipped={game.pinnedOrder !== null} data-active={game.status === "Playing"}
           data-dragging={c.dragSourceId === game.id || undefined} data-drop-target={c.dropTargetId === game.id || c.backlogReturnTarget === game.id || undefined}
           draggable={(c.isReorderableRow(game.id) || c.canDragToDeck(game)) && !c.rowReorderBusy}
-          onPointerDownCapture={() => c.rememberDragOrigin({ gameId: game.id, source: "table" }, false)} onDragStart={event => c.startLibraryDrag(event, { gameId: game.id, source: "table" })} onDragEnd={c.endRowDrag}
+          onPointerDownCapture={event => c.rememberDragOrigin({ gameId: game.id, source: "table" }, event.target instanceof Element && Boolean(event.target.closest(".fantasy-inventory-quick-pin")))} onDragStart={event => c.startLibraryDrag(event, { gameId: game.id, source: "table" })} onDragEnd={c.endRowDrag}
           onDragOver={event => dragOver(event, game)} onDragLeave={event => c.leaveLibraryGame(event, game.id)} onDrop={event => c.dropRowGame(event, game.id)}>
           <button type="button" className="fantasy-inventory-slot" data-ui-sound="custom" aria-pressed={selected?.id === game.id} aria-label={`Inspect ${game.title}${game.pinnedOrder !== null ? `, equipped C-Button ${game.pinnedOrder}` : ""}${game.status === "Playing" ? ", active quest" : ""}`} onClick={() => selectGame(game)} onMouseEnter={() => selectGame(game)} onFocus={() => selectGame(game)}>
             {game.coverUrl ?
@@ -91,6 +91,9 @@ export default function FantasySubscreenView({ controller: c }: { controller: Ga
             <span className="fantasy-slot-title">{game.title}</span><span className="fantasy-slot-status">{game.pinnedOrder !== null ? `C ${game.pinnedOrder} · Equipped` : game.status === "Playing" ? "Active quest" : game.status === "Backlog" && !c.canDragToDeck(game) ? "Sealed · Unreleased" : game.status}</span>
             <QuestRating rating={game.rating} />
           </button>
+          {c.canDragToDeck(game) && <span className="fantasy-inventory-quick-pin" onClick={event => event.stopPropagation()} onFocus={() => selectGame(game)}>
+            <DeckPinButton gameId={game.id} pinnedOrder={game.pinnedOrder} pinnedCount={c.pinnedCount} releaseYear={game.releaseYear} disabled={c.rowReorderBusy} />
+          </span>}
           <SlotBrackets />
         </li>)}</ul>
         {c.visibleGames.length === 0 && <p className="fantasy-empty-inventory">{c.games.length === 0 ? "Your satchel is empty. Inscribe your first quest in the Chronicle." : "No quests match this scroll. Clear your filters to reveal more."}</p>}

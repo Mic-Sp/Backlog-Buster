@@ -179,7 +179,8 @@
 :root[data-layout-mode="fantasy"] .fantasy-empty-equipment > span { font-size: 56px; color: #b69b57; }
 :root[data-layout-mode="fantasy"] .fantasy-empty-equipment p { margin: 12px 0 5px; font-size: 15px; }
 :root[data-layout-mode="fantasy"] .fantasy-empty-equipment small { font-size: 10px; }
-:root[data-layout-mode="fantasy"] .fantasy-medallions { margin-top: 30px; padding-top: 22px; border-top: 1px solid #b99b61; }
+:root[data-layout-mode="fantasy"] .fantasy-medallions { margin: 0 0 26px; padding: 0 0 22px; border-bottom: 1px solid #b99b61; }
+:root[data-layout-mode="fantasy"] .dossier-card-preview { background: #eadbb8; }
 :root[data-layout-mode="fantasy"] .fantasy-medallion-grid { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 18px; }
 :root[data-layout-mode="fantasy"] .fantasy-medallion-grid li { text-align: center; opacity: .65; }
 :root[data-layout-mode="fantasy"] .fantasy-medallion-grid li[data-unlocked="true"] { opacity: 1; }
@@ -197,6 +198,12 @@
 :root[data-layout-mode="fantasy"] .fantasy-scroll-filters :is(input, select) { width: 100%; font-size: 12px; }
 :root[data-layout-mode="fantasy"] .fantasy-inventory-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(125px, 1fr)); gap: 15px; list-style: none; padding: 12px 0; margin: 0; }
 :root[data-layout-mode="fantasy"] .fantasy-inventory-grid > li { min-width: 0; position: relative; border: 1px solid #8a8055; border-radius: 7px; padding: 5px; background: #b2ad82; }
+:root[data-layout-mode="fantasy"] .fantasy-inventory-quick-pin { position: absolute; top: 10px; right: 10px; z-index: 3; opacity: 0; pointer-events: none; }
+:root[data-layout-mode="fantasy"] .fantasy-inventory-grid > li:is(:hover, :focus-within) .fantasy-inventory-quick-pin { opacity: 1; pointer-events: auto; }
+:root[data-layout-mode="fantasy"] .fantasy-inventory-quick-pin .deck-pin-button { min-height: 32px; padding: 5px 7px; font: 600 9px/1.3 Georgia, serif; border: 2px outset #e7cf7f; background: #294e3f; color: #fff0b9; }
+@media (hover: none) {
+  :root[data-layout-mode="fantasy"] .fantasy-inventory-quick-pin { opacity: 1; pointer-events: auto; }
+}
 :root[data-layout-mode="fantasy"] .fantasy-inventory-slot { display: flex; flex-direction: column; width: 100%; height: 100%; position: relative; padding: 0; border: 5px ridge #c6c197; border-radius: 3px; background: #385054; color: #f3e4bb; overflow: hidden; box-shadow: 0 2px 3px #6c582c33; }
 :root[data-layout-mode="fantasy"] .fantasy-inventory-slot img { width: 100%; aspect-ratio: 1; object-fit: cover; }
 :root[data-layout-mode="fantasy"] .fantasy-item-icon { display: grid; place-items: center; width: 100%; aspect-ratio: 1; font-size: 44px; color: #d6c690; background: radial-gradient(ellipse at center, #617870, #263f45); }
@@ -437,4 +444,14 @@
 @media (prefers-reduced-motion: reduce) {
   :root[data-layout-mode="fantasy"] .fantasy-navi,
   :root[data-layout-mode="fantasy"] .fantasy-navi * { animation: none; }
+}
+
+@media print {
+  :root[data-layout-mode="fantasy"] .floating-fairies,
+  :root[data-layout-mode="fantasy"] body:has(.dossier-modal) .workspace-shell,
+  :root[data-layout-mode="fantasy"] .dossier-modal :is(.dossier-customize, .dossier-export-actions, .dossier-artwork-status, .dossier-share-preview, .dossier-close-button),
+  :root[data-layout-mode="fantasy"] :is(.dossier-feedback, .public-dossier-exports) { display: none; }
+  :root[data-layout-mode="fantasy"] .dossier-modal-backdrop { position: absolute; inset: 0; padding: 0; background: #fff; }
+  :root[data-layout-mode="fantasy"] .dossier-modal { width: 100%; max-height: none; overflow: visible; border: 0; box-shadow: none; }
+  :root[data-layout-mode="fantasy"] .fantasy-codex-card { break-inside: avoid; print-color-adjust: exact; }
 }

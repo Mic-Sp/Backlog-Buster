@@ -1,7 +1,7 @@
 import type { Achievement } from "@/lib/achievements";
 
 // Vector counterparts of the HUD glyphs stay legible in PNGs on every system.
-export default function DossierMilestoneGlyph({ achievementKey }: { achievementKey: Achievement["key"] }) {
+export default function DossierMilestoneGlyph({ achievementKey, color = "#fcee0a" }: { achievementKey: Achievement["key"]; color?: string }) {
   let shape;
   switch (achievementKey) {
     case "first-blood":
@@ -38,5 +38,5 @@ export default function DossierMilestoneGlyph({ achievementKey }: { achievementK
       shape = <><path d="m10 14-2 2a4 4 0 0 1-6-6l5-5a4 4 0 0 1 6 0m1 5 2-2a4 4 0 0 1 6 6l-5 5a4 4 0 0 1-6 0m-3-3 8-8" /></>;
       break;
   }
-  return <g transform="translate(5 5) scale(.92)" fill="none" stroke="#fcee0a" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{shape}</g>;
+  return <g transform="translate(5 5) scale(.92)" fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{shape}</g>;
 }

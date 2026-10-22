@@ -2,6 +2,7 @@
 
 import { useLayoutCopy } from "@/components/LayoutText";
 import { FantasyCorners } from "@/components/FantasyAccents";
+import { useUIEffects } from "@/components/ThemeProvider";
 
 import { actionErrorMessage, unwrapActionResult } from "@/lib/action-result";
 
@@ -18,6 +19,7 @@ import "./NetrunnerDossier.css";
 
 export default function NetrunnerDossier({ data }: { data: DossierData }) {
   const copy = useLayoutCopy();
+  const { layoutMode } = useUIEffects();
   const [isOpen, setIsOpen] = useState(false);
   const [identity, setIdentity] = useState<DossierIdentity>(() => dossierIdentityFromProfile(data.profile, data.trophies));
   const identityRef = useRef(identity);
@@ -199,7 +201,7 @@ export default function NetrunnerDossier({ data }: { data: DossierData }) {
   async function copyPublicLink() {
     if (busyRef.current || closingRef.current) return;
     if (!publicHandle) {
-      setHandlePrompt("Claim and save a unique handle first to activate your public dossier link.");
+      setHandlePrompt(copy("Claim and save a unique handle first to activate your public dossier link.", "Claim and save an adventurer alias first to open your public codex link."));
       if (customizeRef.current) customizeRef.current.open = true;
       handleInputRef.current?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "center" });
       handleInputRef.current?.focus({ preventScroll: true });
@@ -209,7 +211,7 @@ export default function NetrunnerDossier({ data }: { data: DossierData }) {
     setBusy(true);
     try {
       await navigator.clipboard.writeText(`${window.location.origin}/dossier/${encodeURIComponent(publicHandle)}`);
-      setFeedback({ text: "PUBLIC DOSSIER LINK COPIED // READY FOR TRANSMISSION", error: false });
+      setFeedback({ text: copy("PUBLIC DOSSIER LINK COPIED // READY FOR TRANSMISSION", "PUBLIC CODEX LINK COPIED · READY TO SHARE"), error: false });
     } catch {
       setFeedback({ text: "CLIPBOARD ACCESS FAILED // COPY THE PUBLIC LINK SHOWN BELOW", error: true });
     } finally { busyRef.current = false; setBusy(false); }
@@ -218,7 +220,7 @@ export default function NetrunnerDossier({ data }: { data: DossierData }) {
   async function exportSnapshot(action: "copy" | "download") {
     if (!cardRef.current || !artworkReady || busyRef.current) return;
     if (action === "copy" && (!window.isSecureContext || !navigator.clipboard?.write || typeof ClipboardItem === "undefined")) {
-      setFeedback({ text: "IMAGE CLIPBOARD UNAVAILABLE // USE DOWNLOAD ID SNAPSHOT", error: true });
+      setFeedback({ text: copy("IMAGE CLIPBOARD UNAVAILABLE // USE DOWNLOAD ID SNAPSHOT", "IMAGE CLIPBOARD UNAVAILABLE · DOWNLOAD YOUR CODEX INSTEAD"), error: true });
       return;
     }
     busyRef.current = true;
@@ -230,13 +232,13 @@ export default function NetrunnerDossier({ data }: { data: DossierData }) {
       void png.catch(() => {});
       if (action === "copy") {
         await navigator.clipboard.write([new ClipboardItem({ "image/png": png })]);
-        setFeedback({ text: "ID CARD COPIED TO CLIPBOARD // READY FOR TRANSMISSION", error: false });
+        setFeedback({ text: copy("ID CARD COPIED TO CLIPBOARD // READY FOR TRANSMISSION", "CODEX COPIED TO CLIPBOARD · READY TO SHARE"), error: false });
       } else {
-        downloadDossier(await png, identity.callsign);
-        setFeedback({ text: "ID SNAPSHOT DOWNLOADED // 2000 × 1360 PNG", error: false });
+        downloadDossier(await png, identity.callsign, layoutMode);
+        setFeedback({ text: copy("ID SNAPSHOT DOWNLOADED // 2000 × 1360 PNG", "CODEX DOWNLOADED · 2000 × 1360 PNG"), error: false });
       }
     } catch {
-      setFeedback({ text: action === "copy" ? "CLIPBOARD ACCESS FAILED // TRY DOWNLOAD ID SNAPSHOT" : "SNAPSHOT EXPORT FAILED // PLEASE TRY AGAIN", error: true });
+      setFeedback({ text: action === "copy" ? copy("CLIPBOARD ACCESS FAILED // TRY DOWNLOAD ID SNAPSHOT", "CLIPBOARD ACCESS FAILED · TRY DOWNLOADING YOUR CODEX") : "SNAPSHOT EXPORT FAILED // PLEASE TRY AGAIN", error: true });
     } finally {
       busyRef.current = false;
       setBusy(false);
@@ -254,10 +256,10 @@ export default function NetrunnerDossier({ data }: { data: DossierData }) {
               <div><p>{copy("IDENTITY VERIFICATION // CAREER ARCHIVE", "THE ROYAL REGISTER · YOUR ADVENTURER’S RECORD")}</p><h2 id={titleId}>{copy("Netrunner Dossier", "Adventurer’s Codex")}</h2></div>
               <button className="dossier-close-button" type="button" aria-label={copy("Close Netrunner dossier", "Close adventurer’s codex")} disabled={busy || closing} onClick={closeDossier}>✕</button>
             </header>
-            <div className="dossier-card-preview" aria-label="Shareable ID card preview">
-              <NetrunnerIdCard data={data} identity={identity} timestamp={timestamp} artwork={artworkState.images} artworkLoading={!artworkReady} cardRef={cardRef} />
+            <div className="dossier-card-preview" aria-label={copy("Shareable ID card preview", "Shareable adventurer codex preview")}>
+              <NetrunnerIdCard layoutMode={layoutMode} data={data} identity={identity} timestamp={timestamp} artwork={artworkState.images} artworkLoading={!artworkReady} cardRef={cardRef} />
             </div>
-            <p className="dossier-artwork-status" role="status">{!artworkReady ? "SYNCING PORTRAIT & TROPHY ARTWORK…" : missingArtwork ? "Some artwork is offline. The snapshot includes the offline tiles shown above." : "SNAPSHOT READY // HIGH-RESOLUTION PNG"}</p>
+            <p className="dossier-artwork-status" role="status">{!artworkReady ? copy("SYNCING PORTRAIT & TROPHY ARTWORK…", "UNFURLING PORTRAIT & RELIQUARY ARTWORK…") : missingArtwork ? "Some artwork is offline. The snapshot includes the offline tiles shown above." : copy("SNAPSHOT READY // HIGH-RESOLUTION PNG", "CODEX READY · HIGH-RESOLUTION PNG")}</p>
 
             <details className="dossier-customize" ref={customizeRef} open>
               <summary>{copy("⚙ PERSONALIZE IDENTITY", "✎ PERSONALIZE YOUR CODEX")}</summary>
@@ -275,7 +277,7 @@ export default function NetrunnerDossier({ data }: { data: DossierData }) {
                 </div>
                 <div className="dossier-identity-fields">
                   <label>{copy("Operator name", "Adventurer name")}<input name="callsign" value={identity.callsign} maxLength={28} placeholder={copy("ANONYMOUS NETRUNNER", "UNNAMED ADVENTURER")} onChange={(event) => customize({ ...identity, callsign: event.target.value })} /></label>
-                  <label>Handle <span>(optional)</span><input ref={handleInputRef} name="handle" value={identity.handle} maxLength={32} autoComplete="off" autoCapitalize="none" spellCheck={false} placeholder="night-city-runner" aria-describedby={`${titleId}-handle-help`} onChange={(event) => customize({ ...identity, handle: event.target.value })} /><small id={`${titleId}-handle-help`}>3–32 lowercase letters, numbers or hyphens.</small>{handlePrompt && <span className="dossier-handle-prompt" role="alert">{handlePrompt}</span>}</label>
+                  <label>{copy("Handle", "Adventurer alias")} <span>(optional)</span><input ref={handleInputRef} name="handle" value={identity.handle} maxLength={32} autoComplete="off" autoCapitalize="none" spellCheck={false} placeholder={copy("night-city-runner", "hero-of-time")} aria-describedby={`${titleId}-handle-help`} onChange={(event) => customize({ ...identity, handle: event.target.value })} /><small id={`${titleId}-handle-help`}>3–32 lowercase letters, numbers or hyphens.</small>{handlePrompt && <span className="dossier-handle-prompt" role="alert">{handlePrompt}</span>}</label>
                   <label>Personal tagline<input name="tagline" value={identity.tagline} maxLength={64} onChange={(event) => customize({ ...identity, tagline: event.target.value })} /></label>
                   <label>{copy("Neon accent", "Heraldic accent")}<select aria-label={copy("Neon accent", "Heraldic accent")} value={identity.accent} onChange={(event) => customize({ ...identity, accent: event.target.value as DossierAccent })}>{Object.keys(dossierAccents).map((accent) => <option key={accent} value={accent}>{accent.toUpperCase()}</option>)}</select></label>
                 </div>
@@ -303,9 +305,9 @@ export default function NetrunnerDossier({ data }: { data: DossierData }) {
             <div className="dossier-export-actions">
               <button className="dossier-share-button" type="button" disabled={busy || closing || saveStatus === "saving"} onClick={() => void copyPublicLink()}>{copy("🔗 COPY PUBLIC DOSSIER LINK", "🔗 COPY PUBLIC CODEX LINK")}</button>
               <button className="dossier-copy-button" type="button" disabled={busy || closing || !artworkReady} onClick={() => void exportSnapshot("copy")}>{copy("📋 COPY DOSSIER TO CLIPBOARD", "📋 COPY CODEX TO CLIPBOARD")}</button>
-              <button className="dossier-download-button" type="button" disabled={busy || closing || !artworkReady} onClick={() => void exportSnapshot("download")}>💾 DOWNLOAD ID SNAPSHOT</button>
+              <button className="dossier-download-button" type="button" disabled={busy || closing || !artworkReady} onClick={() => void exportSnapshot("download")}>{copy("💾 DOWNLOAD ID SNAPSHOT", "📜 DOWNLOAD CODEX SNAPSHOT")}</button>
             </div>
-            {busy && <p className="dossier-artwork-status" role="status">ENCODING ID SNAPSHOT…</p>}
+            {busy && <p className="dossier-artwork-status" role="status">{copy("ENCODING ID SNAPSHOT…", "ILLUMINATING YOUR CODEX…")}</p>}
           </div>
           {feedback && <div className="dossier-feedback" role={feedback.error ? "alert" : "status"} data-error={feedback.error}>{feedback.text}</div>}
         </div>, document.body,

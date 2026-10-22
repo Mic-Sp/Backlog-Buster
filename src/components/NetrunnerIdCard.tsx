@@ -1,19 +1,27 @@
 "use client";
 
 import { useId, type Ref } from "react";
+import type { LayoutMode } from "@/lib/appearance";
+import FantasyCodexCard from "@/components/FantasyCodexCard";
 import { dossierAccents, dossierTitleLines, getStreetCred, type DossierCardData, type DossierIdentity } from "@/lib/dossier";
 import OperatorEmblem from "@/components/OperatorEmblem";
 import { customAvatarUrl, DEFAULT_AVATAR_URL, resolveAvatarPreset } from "@/lib/operator-avatar";
 import DossierMilestoneGlyph from "@/components/DossierMilestoneGlyph";
 
-export default function NetrunnerIdCard({ data, identity, timestamp, artwork, cardRef, artworkLoading = false }: {
+export type DossierCardProps = {
   data: DossierCardData;
   identity: DossierIdentity;
   timestamp: string;
   artwork: Record<string, string | null>;
   cardRef: Ref<SVGSVGElement>;
   artworkLoading?: boolean;
-}) {
+};
+
+export default function NetrunnerIdCard({ layoutMode = "cyberpunk", ...props }: DossierCardProps & { layoutMode?: LayoutMode }) {
+  return layoutMode === "fantasy" ? <FantasyCodexCard {...props} /> : <CyberpunkIdCard {...props} />;
+}
+
+function CyberpunkIdCard({ data, identity, timestamp, artwork, cardRef, artworkLoading = false }: DossierCardProps) {
   const prefix = useId().replace(/[^a-zA-Z0-9_-]/g, "");
   const accent = dossierAccents[identity.accent];
   const unlocked = data.achievements.filter((achievement) => achievement.unlocked);
