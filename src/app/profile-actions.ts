@@ -6,6 +6,18 @@ import { prisma } from "@/lib/prisma";
 import { getAuthenticatedPlayerId } from "@/lib/player";
 import { publicProfileSelect, serializePlayerProfile, validatePlayerProfile } from "@/lib/player-profile";
 import type { PlayerProfileInput } from "@/lib/player-profile-types";
+import { isLayoutMode } from "@/lib/appearance";
+
+export async function savePreferredLayoutMode(mode: unknown) {
+  return safeAction(async () => {
+    const id = await getAuthenticatedPlayerId();
+    if (!isLayoutMode(mode)) throw new InputError("Choose Cyberpunk Deck or Fantasy Subscreen.");
+    await prisma.player.update({ where: { id }, data: { preferredLayoutMode: mode }, select: { id: true } });
+    // The provider already updated the UI. Future server renders read the saved
+    // value; refreshing here could overwrite a newer optimistic toggle.
+    return { preferredLayoutMode: mode };
+  });
+}
 
 export async function savePlayerProfile(input: PlayerProfileInput) {
   return safeAction(async () => {

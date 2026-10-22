@@ -52,3 +52,20 @@ test("blocked storage preserves in-memory preferences and cannot break startup",
     else global.localStorage = previous;
   }
 });
+
+test("database layout wins over conflicting local preferences before paint and during restoration", () => {
+  const previous = global.localStorage;
+  try {
+    for (const preferred of ["cyberpunk", "fantasy"]) {
+      global.localStorage = { getItem: key => key === "backlogbuster:layout-mode" ? (preferred === "fantasy" ? "cyberpunk" : "fantasy") : "halloween" };
+      const root = { playerLayout: preferred };
+      assert.equal(readAppearance(root).layoutMode, preferred);
+      vm.runInNewContext(appearanceStartupScript, { document: { documentElement: { dataset: root } }, localStorage: global.localStorage });
+      assert.equal(root.layoutMode, preferred);
+      assert.equal(root.theme, preferred === "fantasy" ? "fantasy" : "halloween");
+    }
+  } finally {
+    if (previous === undefined) delete global.localStorage;
+    else global.localStorage = previous;
+  }
+});

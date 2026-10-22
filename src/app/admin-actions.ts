@@ -10,6 +10,7 @@ import { hashPassword } from "@/lib/auth-crypto";
 import { isValidPassword } from "@/lib/password-validation";
 import { isValidEmail, normalizeEmail } from "@/lib/email-validation";
 import type { Prisma } from "@/generated/prisma/client";
+import { isLayoutMode, normalizeLayoutMode } from "@/lib/appearance";
 
 // Match registration/member counts, excluding unclaimed local archives.
 const registeredPlayers = { email: { not: null }, passwordHash: { not: null } };
@@ -46,7 +47,7 @@ export async function getAdminPlayerDirectory(page = 1, pageSize = 50) {
         tx.player.findMany({
           where: registeredPlayers, orderBy: [{ createdAt: "desc" }, { id: "asc" }],
           skip: (page - 1) * pageSize, take: pageSize,
-          select: { id: true, operatorName: true, handle: true, email: true, isAdmin: true, isOwner: true, createdAt: true, updatedAt: true },
+          select: { id: true, operatorName: true, handle: true, email: true, isAdmin: true, isOwner: true, createdAt: true, updatedAt: true, preferredLayoutMode: true },
         }),
       ]);
       const where = { userId: { in: players.map(player => player.id) } };
@@ -74,6 +75,7 @@ export async function getAdminPlayerDirectory(page = 1, pageSize = 50) {
             id: player.id, operatorName: player.operatorName, handle: player.handle, email: player.email,
             isAdmin: player.isAdmin, isOwner: player.isOwner, gameCount: game?._count._all ?? 0, totalXp, level: calculateLevelProgress(totalXp).level,
             activeSessionCount: activeSessionsByPlayer.get(player.id) ?? 0,
+            preferredLayoutMode: normalizeLayoutMode(player.preferredLayoutMode),
             createdAt: player.createdAt.toISOString(), updatedAt: player.updatedAt.toISOString(),
             latestSessionAt: latestSessionAt?.toISOString() ?? null,
             lastRecordedActivityAt: new Date(Math.max(...activity.map(date => date.getTime()))).toISOString(),
@@ -128,6 +130,26 @@ async function manageableTarget(tx: Prisma.TransactionClient, actorId: string, i
   if (target.isOwner) throw new InputError("The Owner account is protected. Use normal self-service settings for your own credentials.");
   if (target.isAdmin && !actor.isOwner) throw new InputError("Only the Owner can manage admin accounts.");
   return { actor, target, guard: { isOwner: false, ...(!actor.isOwner ? { isAdmin: false } : {}) } };
+}
+
+export async function adminSetPlayerLayoutMode(targetPlayerId: string, mode: unknown) {
+  return safeAction(async () => {
+    const admin = await requireAdmin();
+    const id = readTargetPlayerId(targetPlayerId);
+    if (!isLayoutMode(mode)) throw new InputError("Choose Cyberpunk Deck or Fantasy Subscreen.");
+    try {
+      await prisma.$transaction(async tx => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended('backlogbuster-account-registration', 0))`;
+        const { guard } = await manageableTarget(tx, admin.id, id);
+        await tx.player.update({
+          where: { id, ...guard, AND: [registeredPlayers] },
+          data: { preferredLayoutMode: mode }, select: { id: true },
+        });
+      }, { timeout: 15000 });
+    } catch (error) { accountMutationError(error); }
+    revalidatePath("/", "layout");
+    return { preferredLayoutMode: mode };
+  });
 }
 
 export async function adminResetPlayerPassword(targetPlayerId: string, newPassword: string) {

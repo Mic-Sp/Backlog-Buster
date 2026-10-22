@@ -16,6 +16,30 @@ function loader(mocks = {}) {
 }
 const input = { operatorName: '  Ghost  ', handle: ' Night-Runner ', tagline: ' One more gig. ', neonAccent: 'GOLD', featuredTrophyIds: [7, null, null] };
 
+test('layout saves validate modes and only update the authenticated player', async () => {
+  let authenticated = true;
+  const writes = [];
+  const load = loader({
+    '@/lib/player': { getAuthenticatedPlayerId: async () => {
+      if (!authenticated) throw Object.assign(new Error('Sign in'), { name: 'AuthenticationRequiredError' });
+      return 'current-player';
+    } },
+    '@/lib/prisma': { prisma: { player: { update: async args => { writes.push(args); return { id: 'current-player' }; } } } },
+    'next/cache': {},
+  });
+  const { savePreferredLayoutMode } = load('src/app/profile-actions.ts');
+  for (const mode of ['fantasy', 'cyberpunk']) {
+    assert.deepEqual(await savePreferredLayoutMode(mode), { preferredLayoutMode: mode });
+    assert.deepEqual(writes.at(-1), { where: { id: 'current-player' }, data: { preferredLayoutMode: mode }, select: { id: true } });
+  }
+  for (const mode of [null, undefined, 'halloween', 'FANTASY', '', 1, { id: 'victim', preferredLayoutMode: 'fantasy' }]) {
+    assert.match((await savePreferredLayoutMode(mode)).error, /Choose Cyberpunk/);
+  }
+  authenticated = false;
+  assert.match((await savePreferredLayoutMode('fantasy')).error, /Sign in/);
+  assert.equal(writes.length, 2);
+});
+
 test('profile handles normalize, blank identity fields default, and malformed/duplicate trophy inputs fail', () => {
   const load = loader({ '@/lib/prisma': {}, '@/lib/player': {} });
   const { validatePlayerProfile } = load('src/lib/player-profile.ts');
@@ -35,7 +59,7 @@ test('profile handles normalize, blank identity fields default, and malformed/du
 
 test('profile saves use authenticated ownership, reject claimed handles and foreign trophies, and revalidate the HUD', async () => {
   let claimed = false, eligible = true, writes = 0, locks = 0, refreshes = 0, race = false;
-  const row = { id: 'current-player', operatorName: 'Old Name', handle: 'old-handle', tagline: 'Old tagline', neonAccent: 'CYAN', avatarUrl: null, featuredTrophyIds: [], updatedAt: new Date() };
+  const row = { id: 'current-player', operatorName: 'Old Name', handle: 'old-handle', tagline: 'Old tagline', neonAccent: 'CYAN', preferredLayoutMode: 'fantasy', avatarUrl: null, featuredTrophyIds: [], updatedAt: new Date() };
   const tx = {
     $executeRaw: async () => { locks++; },
     player: {
@@ -47,9 +71,9 @@ test('profile saves use authenticated ownership, reject claimed handles and fore
   const load = loader({ 'next/cache': { revalidatePath: p => { assert.equal(p, '/'); refreshes++; } }, '@/lib/player': { getCurrentPlayerId: async () => 'current-player', getAuthenticatedPlayerId: async () => 'current-player' }, '@/lib/prisma': { prisma: { $transaction: work => work(tx), player: { upsert: async ({where}) => { assert.equal(where.id, 'current-player'); return row; } } } } });
   const { savePlayerProfile } = load('src/app/profile-actions.ts');
   const saved = await savePlayerProfile({ ...input, id: 'victim', avatarUrl: 'preset:kitsune' });
-  assert.equal(saved.avatarUrl, 'preset:kitsune'); assert.equal(saved.id, 'current-player'); assert.equal(saved.operatorName, 'Ghost'); assert.equal(saved.handle, 'night-runner'); assert.equal(saved.neonAccent, 'GOLD'); assert.equal(refreshes, 1); assert.equal(writes, 1); assert.equal(locks, 1);
+  assert.equal(saved.preferredLayoutMode, 'fantasy'); assert.equal(saved.avatarUrl, 'preset:kitsune'); assert.equal(saved.id, 'current-player'); assert.equal(saved.operatorName, 'Ghost'); assert.equal(saved.handle, 'night-runner'); assert.equal(saved.neonAccent, 'GOLD'); assert.equal(refreshes, 1); assert.equal(writes, 1); assert.equal(locks, 1);
   claimed = true; assert.match((await savePlayerProfile(input)).error, /already claimed/); assert.equal(writes, 1);
   claimed = false; eligible = false; assert.match((await savePlayerProfile(input)).error, /your completed, five-star/); assert.equal(writes, 1);
   eligible = true; race = true; assert.match((await savePlayerProfile(input)).error, /already claimed/); assert.equal(refreshes, 1);
-  const loaded = await load('src/lib/player-profile.ts').getCurrentPlayerProfile(); assert.equal(loaded.handle, 'old-handle'); assert.equal(typeof loaded.updatedAt, 'string');
+  const loaded = await load('src/lib/player-profile.ts').getCurrentPlayerProfile(); assert.equal(loaded.preferredLayoutMode, 'fantasy'); assert.equal(loaded.handle, 'old-handle'); assert.equal(typeof loaded.updatedAt, 'string');
 });

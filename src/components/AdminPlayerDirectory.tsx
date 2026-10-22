@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
-import { adminDeletePlayerAccount, adminResetPlayerPassword, adminUpdatePlayerEmail, adminRevokePlayerSessions, adminSetPlayerAdmin, getAdminPlayerDirectory } from "@/app/admin-actions";
+import { adminDeletePlayerAccount, adminResetPlayerPassword, adminUpdatePlayerEmail, adminRevokePlayerSessions, adminSetPlayerAdmin, adminSetPlayerLayoutMode, getAdminPlayerDirectory } from "@/app/admin-actions";
+import type { LayoutMode } from "@/lib/appearance";
 import { actionErrorMessage, unwrapActionResult, type ActionError } from "@/lib/action-result";
 import { isValidPassword } from "@/lib/password-validation";
 import { isValidEmail, normalizeEmail } from "@/lib/email-validation";
@@ -26,7 +27,7 @@ export default function AdminPlayerDirectory({ currentPlayerId, currentPlayerIsO
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [feedback, setFeedback] = useState<{ id: string; error: boolean; text: string } | null>(null);
-  const [pending, setPending] = useState<{ id: string; kind: "reset" | "email" | "delete" | "sessions" | "role" } | null>(null);
+  const [pending, setPending] = useState<{ id: string; kind: "reset" | "email" | "delete" | "sessions" | "role" | "layout" } | null>(null);
   const mutationRef = useRef(false);
   const requestRef = useRef<{ key: string; promise: ReturnType<typeof getAdminPlayerDirectory> } | null>(null);
   const headingId = useId();
@@ -139,6 +140,17 @@ export default function AdminPlayerDirectory({ currentPlayerId, currentPlayerIsO
     finally { mutationRef.current = false; setPending(null); onBusyChange(false); }
   }
 
+  async function changeLayout(id: string, mode: LayoutMode) {
+    if (locked || mutationRef.current || !canManageId(id)) return;
+    clearSelection(); mutationRef.current = true; onBusyChange(true); setPending({ id, kind: "layout" });
+    try {
+      const result = unwrapActionResult(await adminSetPlayerLayoutMode(id, mode));
+      setDirectory(current => current ? { ...current, players: current.players.map(player => player.id === id ? { ...player, preferredLayoutMode: result.preferredLayoutMode } : player) } : null);
+      setFeedback({ id, error: false, text: `DEFAULT VIEW SAVED // ${mode === "fantasy" ? "Fantasy Subscreen" : "Cyberpunk Deck"}` });
+    } catch (cause) { setFeedback({ id, error: true, text: actionErrorMessage(cause, "Layout preference update failed. Please try again.") }); }
+    finally { mutationRef.current = false; setPending(null); onBusyChange(false); }
+  }
+
   return <section className="admin-directory" aria-labelledby={headingId} aria-busy={loading || Boolean(pending)}>
     <div className="admin-section-heading"><h3 id={headingId}>03 // PLAYER DIRECTORY</h3><button type="button" disabled={locked} onClick={() => reload()}>REFRESH DIRECTORY</button></div>
     <p className="admin-hint">Registered operators and account controls. Activity reflects the latest saved records.</p>
@@ -162,9 +174,18 @@ export default function AdminPlayerDirectory({ currentPlayerId, currentPlayerIsO
               <div><dt>Games</dt><dd>{player.gameCount.toLocaleString("en-US")}</dd></div>
               <div><dt>XP / Level</dt><dd>{player.totalXp.toLocaleString("en-US")} XP // LV {player.level}</dd></div>
               <div><dt>Active Sessions</dt><dd>{typeof player.activeSessionCount === "number" ? player.activeSessionCount.toLocaleString("en-US") : "—"}</dd></div>
+              <div><dt>Preferred Layout</dt><dd>{player.preferredLayoutMode === "fantasy" ? "Fantasy Subscreen" : "Cyberpunk Deck"}</dd></div>
               <div><dt>Created</dt><dd><time dateTime={player.createdAt}>{dateLabel(player.createdAt)}</time></dd></div>
               <div><dt>Last Recorded Activity</dt><dd><time dateTime={player.lastRecordedActivityAt}>{dateLabel(player.lastRecordedActivityAt)}</time></dd></div>
             </dl>
+            <div className="admin-layout-preference">
+              <label htmlFor={`${rowId}-layout`}>Default view</label>{" "}
+              <select id={`${rowId}-layout`} value={player.preferredLayoutMode ?? "cyberpunk"} disabled={locked || !manageable} onChange={event => void changeLayout(player.id, event.target.value as LayoutMode)}>
+                <option value="cyberpunk">Cyberpunk Deck</option>
+                <option value="fantasy">Fantasy Subscreen</option>
+              </select>
+              {pending?.id === player.id && pending.kind === "layout" && <span role="status"> SAVING DEFAULT VIEW…</span>}
+            </div>
             {!manageable && <p className="admin-hint admin-account-protection">{player.isOwner
               ? "OWNER ACCOUNT // PROTECTED. Credentials can only be updated through the Owner’s Account Security settings."
               : "ADMIN ACCOUNT // OWNER ACCESS REQUIRED. Use Account Security for your own credentials."}</p>}

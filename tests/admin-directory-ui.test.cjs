@@ -10,7 +10,7 @@ const players = [
   { id: 'player', isAdmin: false, isOwner: false },
   { id: 'unclaimed', isAdmin: false, isOwner: false, email: null },
 ].map(player => ({ operatorName: player.id, email: `${player.id}@example.com`, gameCount: 2, totalXp: 100, level: 1,
-  activeSessionCount: 2, createdAt: '2026-01-01T12:00:00Z', lastRecordedActivityAt: '2026-01-01T12:00:00Z', ...player }));
+  activeSessionCount: 2, preferredLayoutMode: player.id === 'player' ? 'fantasy' : 'cyberpunk', createdAt: '2026-01-01T12:00:00Z', lastRecordedActivityAt: '2026-01-01T12:00:00Z', ...player }));
 function render(viewer, target, selection) {
   let stateIndex = 0;
   const overrides = { 0: { players: [players.find(p => p.id === target)], page: 1, pageCount: 1, totalCount: 1 }, 3: false };
@@ -31,6 +31,19 @@ function render(viewer, target, selection) {
   }));
 }
 const button = (html, label) => html.match(new RegExp(`<button\\b([^>]*)>${label}</button>`))?.[1];
+
+test('directory displays saved layouts and gates inline preference controls by hierarchy', () => {
+  for (const [viewer, target, allowed] of [['admin', 'player', true], ['owner', 'admin', true], ['admin', 'peer', false], ['owner', 'owner', false]]) {
+    const html = render(viewer, target);
+    const control = html.match(/<select\b([^>]*)>(.*?)<\/select>/s);
+    assert(control);
+    assert.equal(control[1].includes('disabled'), !allowed);
+    assert.match(control[2], /value="cyberpunk"/);
+    assert.match(control[2], /value="fantasy"/);
+    assert.match(control[2], target === 'player' ? /value="fantasy" selected=""/ : /value="cyberpunk" selected=""/);
+    assert.match(html, /Preferred Layout/);
+  }
+});
 
 test('Owner badge and immunity hide every account mutation, including stale selections', () => {
   for (const viewer of ['owner', 'admin']) for (const selection of [undefined, 'password', 'email', 'delete', 'role']) {

@@ -205,4 +205,5 @@ button.theme-toggle:focus-visible { outline: 2px solid #fcee0a; outline-offset: 
 
 /* Layout selection shares the header controls without changing deck geometry. */
 .theme-controls { width: auto; flex-wrap: wrap; }
+.theme-save-error { flex-basis: 100%; max-width: 36ch; color: #ffb8cc; font-size: 11px; line-height: 1.5; }
 .theme-controls .layout-mode-toggle { padding: 5px 7px; font-size: 9px; }

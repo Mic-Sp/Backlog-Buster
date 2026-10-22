@@ -106,6 +106,7 @@
 :root[data-layout-mode="fantasy"] .account-operator :is(span, small) { color: #77613c; }
 :root[data-layout-mode="fantasy"] .theme-controls { flex-wrap: wrap; width: auto; }
 :root[data-layout-mode="fantasy"] .theme-controls button { font-size: 9px; }
+:root[data-layout-mode="fantasy"] .theme-save-error { color: #9a2937; }
 :root[data-layout-mode="fantasy"] .fantasy-status-heading { display: flex; grid-column: 1 / -1; align-items: center; flex-wrap: wrap; gap: 10px 20px; }
 :root[data-layout-mode="fantasy"] .fantasy-status-heading .fantasy-kicker { width: 100%; margin: 0; }
 :root[data-layout-mode="fantasy"] .fantasy-status-heading h2 { margin: 0; font-size: 24px; font-weight: 500; }

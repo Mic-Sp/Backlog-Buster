@@ -5,6 +5,7 @@ export type PlayerProfile = {
   handle: string | null;
   tagline: string;
   neonAccent: "CYAN" | "GOLD" | "MAGENTA";
+  preferredLayoutMode: "cyberpunk" | "fantasy";
   avatarUrl: string | null;
   featuredTrophyIds: (number | null)[];
   updatedAt: string;

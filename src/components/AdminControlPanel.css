@@ -56,6 +56,10 @@
 .admin-player-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 18px 0; }
 .admin-player-stats dt { color: var(--admin-muted); font-size: 10px; line-height: 1.6; }
 .admin-player-stats dd { margin: 4px 0 0; color: var(--admin-ink); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.admin-layout-preference { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 14px 0; color: var(--admin-ink); font-size: 12px; }
+.admin-layout-preference select { min-width: 0; max-width: 100%; min-height: 36px; padding: 8px; border: 1px solid var(--admin-line); border-radius: 2px; color: var(--admin-ink); background: var(--admin-surface); font: inherit; }
+.admin-layout-preference select:disabled { opacity: .6; }
+.admin-layout-preference select:focus-visible { outline: 2px solid var(--admin-accent); outline-offset: 3px; }
 .admin-player-actions, .admin-directory-pages { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .admin-directory-pages { justify-content: space-between; }
 .admin-player-actions .admin-hint { font-size: 10px; }

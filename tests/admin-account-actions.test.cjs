@@ -54,10 +54,11 @@ function fixture({ realHash = false, owner = false } = {}) {
         return p ? { id: p.id } : null;
       },
       update: async ({ where, data, select }) => {
-        assert.deepEqual(select, { id: true }); assert.equal(Object.keys(data).length, 1); assert(["passwordHash", "email", "isAdmin"].includes(Object.keys(data)[0]));
+        assert.deepEqual(select, { id: true }); assert.equal(Object.keys(data).length, 1); assert(["passwordHash", "email", "isAdmin", "preferredLayoutMode"].includes(Object.keys(data)[0]));
         const p = target(where); if (!p) missing();
         if (state.failUpdateCode) throw Object.assign(new Error("PRIVATE update failed"), { code: state.failUpdateCode });
         if (data.email) assert.equal(where.email, p.email, "Email update guards the current credential snapshot");
+        if (data.preferredLayoutMode) { assert.equal(where.isOwner, false); if (!owner) assert.equal(where.isAdmin, false); }
         calls.writes++; Object.assign(p, data); return { id: p.id };
       },
       delete: async ({ where, select }) => {
@@ -317,4 +318,42 @@ test("Owner can manage admins, but cannot target the Owner through any admin mut
   ]) {
     const before = structuredClone(f.db); assert.equal(typeof (await run(a)).error, "string"); assert.deepEqual(f.db, before);
   }
+});
+
+
+test("admin layout changes preserve sessions and other account data, and Owner can change an Admin's layout", async () => {
+  for (const owner of [false, true]) {
+    const f = fixture({ owner });
+    const id = owner ? "other-admin" : "member";
+    for (const mode of ["fantasy", "cyberpunk"]) {
+      assert.deepEqual(await f.actions.adminSetPlayerLayoutMode(id, mode), { preferredLayoutMode: mode });
+      assert.deepEqual(f.db, { ...f.initial, players: f.initial.players.map(p => p.id === id ? { ...p, preferredLayoutMode: mode } : p) });
+    }
+    assert.deepEqual(f.calls.paths, [["/", "layout"], ["/", "layout"]]);
+  }
+});
+
+test("admin layout changes enforce hierarchy, registered targets, input validation, and fresh authorization", async () => {
+  for (const owner of [false, true]) {
+    const f = fixture({ owner });
+    for (const id of ["primary-owner", "default-player", "missing", "", null, {}, "x".repeat(129), ...(!owner ? ["admin", "other-admin"] : [])]) {
+      assert.equal(typeof (await f.actions.adminSetPlayerLayoutMode(id, "fantasy")).error, "string");
+      assert.deepEqual(f.db, f.initial);
+    }
+    for (const mode of [null, undefined, "halloween", "FANTASY", "", {}, 1]) {
+      assert.match((await f.actions.adminSetPlayerLayoutMode("member", mode)).error, /Choose Cyberpunk/);
+    }
+    assert.equal(f.calls.writes, 0);
+  }
+  for (const state of [{ active: false }, { admin: false }]) {
+    const f = fixture(); Object.assign(f.state, state);
+    assert.equal(typeof (await f.actions.adminSetPlayerLayoutMode("member", "fantasy")).error, "string");
+    assert.equal(f.calls.transactions, 0);
+    const waiting = fixture(); waiting.state.onLock = () => Object.assign(waiting.state, state);
+    assert.equal(typeof (await waiting.actions.adminSetPlayerLayoutMode("member", "fantasy")).error, "string");
+    assert.deepEqual(waiting.db, waiting.initial);
+  }
+  const failed = fixture(); failed.state.failUpdateCode = "P2025";
+  assert.match((await failed.actions.adminSetPlayerLayoutMode("member", "fantasy")).error, /unavailable or changed/);
+  assert.deepEqual(failed.db, failed.initial);
 });

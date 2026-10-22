@@ -20,6 +20,7 @@ model Player {
   operatorName      String            @default("ANONYMOUS NETRUNNER")
   tagline           String            @default("One more gig. One more legend.")
   neonAccent        String            @default("CYAN")
+  preferredLayoutMode String          @default("cyberpunk")
   avatarUrl         String?
   featuredTrophyIds Json              @default("[]")
   createdAt         DateTime          @default(now())

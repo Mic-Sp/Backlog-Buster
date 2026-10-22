@@ -1,6 +1,7 @@
 import "server-only";
 import { isAvatarPreset } from "@/lib/operator-avatar";
 import { InputError } from "@/lib/action-result";
+import { normalizeLayoutMode } from "@/lib/appearance";
 
 import { prisma } from "@/lib/prisma";
 import { getCurrentPlayerId } from "@/lib/player";
@@ -8,12 +9,12 @@ import type { PlayerProfile, PlayerProfileInput } from "@/lib/player-profile-typ
 
 export const publicProfileSelect = {
   id: true, operatorName: true, handle: true, tagline: true, neonAccent: true,
-  avatarUrl: true, featuredTrophyIds: true, updatedAt: true,
+  avatarUrl: true, featuredTrophyIds: true, updatedAt: true, preferredLayoutMode: true,
 } as const;
 
 export function serializePlayerProfile(profile: {
   id: string; operatorName: string; handle: string | null; tagline: string; neonAccent: string;
-  avatarUrl: string | null; featuredTrophyIds: unknown; updatedAt: Date;
+  avatarUrl: string | null; featuredTrophyIds: unknown; updatedAt: Date; preferredLayoutMode: string;
 }): PlayerProfile {
   return {
     id: profile.id,
@@ -21,6 +22,7 @@ export function serializePlayerProfile(profile: {
     handle: profile.handle,
     tagline: profile.tagline,
     neonAccent: profile.neonAccent === "GOLD" || profile.neonAccent === "MAGENTA" ? profile.neonAccent : "CYAN",
+    preferredLayoutMode: normalizeLayoutMode(profile.preferredLayoutMode),
     avatarUrl: profile.avatarUrl,
     featuredTrophyIds: Array.isArray(profile.featuredTrophyIds)
       ? profile.featuredTrophyIds.slice(0, 3).map((id: unknown) => typeof id === "number" && Number.isSafeInteger(id) && id > 0 ? id : null)

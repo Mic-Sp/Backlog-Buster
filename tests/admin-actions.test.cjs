@@ -27,7 +27,7 @@ function fixture() {
   const calls = { queries: 0, aggregates: 0, deletes: [], refreshes: [] };
   const players = [
     { id: "owner", operatorName: "Admin", handle: "admin", email: "admin@example.com", passwordHash: "PRIVATE_HASH", isAdmin: true, isOwner: true, createdAt: new Date("2020-02-01Z"), updatedAt: new Date("2020-03-01Z") },
-    { id: "member", operatorName: "Member", handle: null, email: "member@example.com", passwordHash: "PRIVATE_HASH", isAdmin: false, isOwner: false, createdAt: new Date("2020-01-01Z"), updatedAt: new Date("2020-01-02Z") },
+    { id: "member", operatorName: "Member", handle: null, email: "member@example.com", passwordHash: "PRIVATE_HASH", isAdmin: false, isOwner: false, preferredLayoutMode: "fantasy", createdAt: new Date("2020-01-01Z"), updatedAt: new Date("2020-01-02Z") },
     { id: "default-player", email: null, passwordHash: null, isAdmin: false },
   ];
   const caches = [{ slug: "saga-one" }, { slug: "saga-two" }];
@@ -66,7 +66,7 @@ function fixture() {
       count: async ({ where }) => { read(); return registered(where).length; },
       findMany: async ({ where, select, skip, take, orderBy }) => {
         read();
-        assert.deepEqual(Object.keys(select).sort(), ["id", "operatorName", "handle", "email", "isAdmin", "isOwner", "createdAt", "updatedAt"].sort());
+        assert.deepEqual(Object.keys(select).sort(), ["id", "operatorName", "handle", "email", "isAdmin", "isOwner", "createdAt", "updatedAt", "preferredLayoutMode"].sort());
         assert.deepEqual(orderBy, [{ createdAt: "desc" }, { id: "asc" }]);
         return registered(where).slice(skip, skip + take);
       },
@@ -118,11 +118,11 @@ test("directory serializes safe paginated summaries, includes achievement XP, an
   const [admin, member] = result.players;
   assert.deepEqual(admin, {
     id: "owner", operatorName: "Admin", handle: "admin", email: "admin@example.com", isAdmin: true, isOwner: true,
-    gameCount: 3, totalXp: 1350, level: 3, activeSessionCount: 2,
+    gameCount: 3, totalXp: 1350, level: 3, activeSessionCount: 2, preferredLayoutMode: "cyberpunk",
     createdAt: "2020-02-01T00:00:00.000Z", updatedAt: "2020-03-01T00:00:00.000Z",
     latestSessionAt: "2020-06-01T00:00:00.000Z", lastRecordedActivityAt: "2020-07-01T00:00:00.000Z",
   });
-  assert.equal(member.gameCount, 0); assert.equal(member.totalXp, 0); assert.equal(member.level, 1);
+  assert.equal(member.preferredLayoutMode, "fantasy"); assert.equal(member.gameCount, 0); assert.equal(member.totalXp, 0); assert.equal(member.level, 1);
   assert.equal(member.activeSessionCount, 0);
   assert.equal(member.latestSessionAt, null); assert.equal(member.lastRecordedActivityAt, member.updatedAt);
   const serialized = JSON.stringify(result);

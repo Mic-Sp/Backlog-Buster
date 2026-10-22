@@ -5,6 +5,7 @@ import "./halloween.css";
 import "./fantasy.css";
 import { appearanceStartupScript } from "@/lib/appearance";
 import ThemeProvider from "@/components/ThemeProvider";
+import { getCurrentPlayer } from "@/lib/player";
 
 const terminalFont = VT323({
   weight: "400",
@@ -18,13 +19,16 @@ export const metadata: Metadata = {
   description: "Keep your next game in sight.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const currentPlayer = await getCurrentPlayer();
+  const player = currentPlayer && !currentPlayer.isLocal
+    ? { id: currentPlayer.id, preferredLayoutMode: currentPlayer.preferredLayoutMode } : null;
   return (
-    <html lang="en" className={terminalFont.variable} suppressHydrationWarning>
+    <html lang="en" className={terminalFont.variable} data-player-layout={player?.preferredLayoutMode} data-layout-mode={player?.preferredLayoutMode} data-theme={player?.preferredLayoutMode} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: appearanceStartupScript }} />
       </head>
-      <body><ThemeProvider>{children}</ThemeProvider></body>
+      <body><ThemeProvider player={player}>{children}</ThemeProvider></body>
     </html>
   );
 }
