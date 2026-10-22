@@ -1,6 +1,7 @@
 "use client";
 
 import useCooldown from "@/components/useCooldown";
+import { DEFAULT_COOLDOWN_SECONDS } from "@/lib/cooldown";
 import { unwrapActionResult } from "@/lib/action-result";
 
 import SafeForm, { SafeActionButton } from "@/components/SafeForm";
@@ -81,6 +82,7 @@ function comparePinnedGames(left: LibraryGame, right: LibraryGame) {
 
 export default function GameLibrary({ games: serverGames, achievements = [], children }: { games: LibraryGame[]; achievements?: Achievement[]; children?: ReactNode }) {
   const sagaCooldown = useCooldown();
+  const sagaProviderCooldown = useCooldown();
   const sagaScanRef = useRef(false);
   const [sagaDebug, setSagaDebug] = useState<{ key: string; data: SagaChronologyDebug } | null>(null);
   const [games, returnToBacklogOptimistically] = useOptimistic<LibraryGame[], { gameId: number; orderedIds: number[] | null }>(serverGames, (current, move) => {
@@ -373,14 +375,25 @@ export default function GameLibrary({ games: serverGames, achievements = [], chi
   }
 
   function detectSagaOrder(forceRefresh = false) {
-    if (!selectedSaga || timelineBusy || reorderInFlightRef.current || sagaScanRef.current || (!forceRefresh && sagaCooldown.seconds > 0)) return;
+    if (!selectedSaga || timelineBusy || reorderInFlightRef.current || sagaScanRef.current || sagaProviderCooldown.seconds > 0 || (!forceRefresh && sagaCooldown.seconds > 0)) return;
     const key = selectedSaga.key;
     setSagaNotice(null);
     sagaScanRef.current = true;
     startDetectingSaga(async () => {
+      const startedAt = Date.now();
       try {
         const result = await autoDetectSagaOrder(key, forceRefresh);
-        if ("retryAfterSeconds" in result && typeof result.retryAfterSeconds === "number") sagaCooldown.start(result.retryAfterSeconds);
+        if (!result.error) {
+          sagaCooldown.start(DEFAULT_COOLDOWN_SECONDS, startedAt);
+          sagaProviderCooldown.start(DEFAULT_COOLDOWN_SECONDS, startedAt);
+        }
+        if ("retryAfterSeconds" in result && typeof result.retryAfterSeconds === "number") {
+          sagaCooldown.start(result.retryAfterSeconds);
+          sagaProviderCooldown.start(result.retryAfterSeconds);
+        }
+        if ("debug" in result && result.debug?.status === "refresh-deferred" && result.debug.updatedAt) {
+          sagaCooldown.start(300, new Date(result.debug.updatedAt).getTime());
+        }
         if (sagaFilterRef.current !== key) return;
         if ("debug" in result && result.debug) {
           const debug = result.debug;
@@ -388,7 +401,9 @@ export default function GameLibrary({ games: serverGames, achievements = [], chi
             geminiPayload: debug.geminiPayload ?? (current?.key === key ? current.data.geminiPayload : undefined),
           } }));
         }
-        setSagaNotice({ key, text: result.error ?? result.message ?? "Canon scan complete.", error: Boolean(result.error) });
+        setSagaNotice({ key, text: "retryAfterSeconds" in result && result.retryAfterSeconds
+          ? "Canon provider is cooling down. Available ranks were preserved; wait for the countdown before retrying."
+          : result.error ?? result.message ?? "Canon scan complete.", error: Boolean(result.error) });
         if ("updatedCount" in result && result.updatedCount > 0) setSortBy("timeline-asc");
       } catch {
         if (sagaFilterRef.current === key) setSagaNotice({ key, text: "Canon scan failed. Existing ranks were kept; unassigned games use release order.", error: true });
@@ -858,7 +873,7 @@ export default function GameLibrary({ games: serverGames, achievements = [], chi
           </div>
           <p className="saga-chains-hint">Unassigned games follow ranked games in release order. Use ▲ / ▼ to swap visible games, or drag table rows to reorder. Hidden saga games keep their relative positions.</p>
           {sagaNotice?.key === selectedSaga.key && <p className="saga-order-notice" role="status" data-error={sagaNotice.error}>{sagaNotice.text}</p>}
-          <SagaChronologyDebugger key={selectedSaga.key} sagaKey={selectedSaga.key} scanDebug={sagaDebug?.key === selectedSaga.key ? sagaDebug.data : null} busy={timelineBusy} onForceRefresh={() => detectSagaOrder(true)} />
+          <SagaChronologyDebugger key={selectedSaga.key} sagaKey={selectedSaga.key} scanDebug={sagaDebug?.key === selectedSaga.key ? sagaDebug.data : null} busy={timelineBusy} cooldownSeconds={sagaProviderCooldown.seconds} onForceRefresh={() => detectSagaOrder(true)} />
         </section>
       )}
 

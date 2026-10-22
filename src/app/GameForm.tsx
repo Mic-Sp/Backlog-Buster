@@ -1,6 +1,7 @@
 "use client";
 
 import useCooldown from "@/components/useCooldown";
+import { DEFAULT_COOLDOWN_SECONDS } from "@/lib/cooldown";
 import { actionErrorMessage, ActionFailure, unwrapActionResult } from "@/lib/action-result";
 
 import SafeForm from "@/components/SafeForm";
@@ -41,8 +42,10 @@ export default function GameForm() {
 
     searchingRef.current = true;
     startSearch(async () => {
+      const startedAt = Date.now();
       try {
         const gameInfo = unwrapActionResult(await searchGameInfo(title));
+        cooldown.start(DEFAULT_COOLDOWN_SECONDS, startedAt);
         const currentForm = formRef.current;
 
         if (!gameInfo) {

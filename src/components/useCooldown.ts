@@ -1,20 +1,27 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { cooldownLabel } from "@/lib/cooldown";
 
 export default function useCooldown() {
-  const deadline = useRef(0);
+  const [deadline, setDeadline] = useState(0);
   const [seconds, setSeconds] = useState(0);
-  const start = useCallback((value: unknown) => {
-    if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) return;
-    deadline.current = Date.now() + Math.min(Math.ceil(value), 86400) * 1000;
-    setSeconds(Math.ceil((deadline.current - Date.now()) / 1000));
+  const start = useCallback((value: unknown, startedAt = Date.now()) => {
+    if (typeof value !== "number" || !Number.isFinite(value) || value <= 0 || !Number.isFinite(startedAt)) return;
+    const until = startedAt + Math.min(Math.ceil(value), 86400) * 1000;
+    const remaining = Math.max(0, Math.ceil((until - Date.now()) / 1000));
+    // A shorter concurrent response must not erase a longer provider cooldown.
+    setDeadline((current) => Math.max(current, until));
+    setSeconds((current) => Math.max(current, remaining));
   }, []);
-  const active = seconds > 0;
   useEffect(() => {
-    if (!active) return;
-    const timer = setInterval(() => setSeconds(Math.max(0, Math.ceil((deadline.current - Date.now()) / 1000))), 250);
+    if (!deadline) return;
+    const timer = setInterval(() => {
+      const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+      setSeconds(remaining);
+      if (remaining === 0) clearInterval(timer);
+    }, 1000);
     return () => clearInterval(timer);
-  }, [active]);
-  return { seconds, start, label: `⏳ COOLING DOWN // ${seconds}s` };
+  }, [deadline]);
+  return { seconds, start, label: cooldownLabel(seconds) };
 }

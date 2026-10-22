@@ -1,6 +1,7 @@
 "use client";
 
 import useCooldown from "@/components/useCooldown";
+import { DEFAULT_COOLDOWN_SECONDS } from "@/lib/cooldown";
 import { unwrapActionResult } from "@/lib/action-result";
 
 import { useEffect, useId, useRef, useState, useTransition } from "react";
@@ -43,6 +44,7 @@ export default function AgentBriefing({ game }: { game: BriefingGame }) {
     setApplyError("");
     setAppliedHours(null);
     setBriefing("");
+    const startedAt = Date.now();
     try {
       const response = await fetch("/api/ai-briefing", {
         method: "POST",
@@ -54,10 +56,11 @@ export default function AgentBriefing({ game }: { game: BriefingGame }) {
       if (controller.signal.aborted) return;
       if (response.status === 429 || result?.retryAfterSeconds) cooldown.start(result?.retryAfterSeconds ?? (Number(response.headers.get("Retry-After")) || 10));
       if (!response.ok || typeof result?.briefing !== "string" || !result.briefing.trim()) {
-        setError(typeof result?.error === "string" ? result.error : "No briefing received. Please try again.");
+        setError(response.status === 429 || result?.retryAfterSeconds ? "Request limit reached. Wait for the cooldown before retrying." : typeof result?.error === "string" ? result.error : "No briefing received. Please try again.");
         return;
       }
       setBriefing(result.briefing);
+      cooldown.start(DEFAULT_COOLDOWN_SECONDS, startedAt);
     } catch {
       if (!controller.signal.aborted) setError("Could not load the agent briefing. Please try again.");
     } finally {

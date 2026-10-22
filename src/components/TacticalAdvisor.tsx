@@ -1,6 +1,7 @@
 "use client";
 
 import useCooldown from "@/components/useCooldown";
+import { DEFAULT_COOLDOWN_SECONDS } from "@/lib/cooldown";
 import { actionErrorMessage, ActionFailure, unwrapActionResult } from "@/lib/action-result";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
@@ -54,8 +55,10 @@ export default function TacticalAdvisor({ games }: { games: Pick<LibraryGame, "i
     setExternalPicks(null);
     setExternalError("");
     startScouting(async () => {
+      const startedAt = Date.now();
       try {
         const result = unwrapActionResult(await fetchExternalScout([...seenExternalTitles.current.values()]));
+        scoutCooldown.start(DEFAULT_COOLDOWN_SECONDS, startedAt);
         if (request === scoutRequestId.current) {
           for (const pick of result) {
             const key = normalizeGameTitle(pick.title);
@@ -120,8 +123,10 @@ export default function TacticalAdvisor({ games }: { games: Pick<LibraryGame, "i
     setPicks(null);
     setError("");
     startFetching(async () => {
+      const startedAt = Date.now();
       try {
         const result = unwrapActionResult(await fetchBacklogAdvisor());
+        advisorCooldown.start(DEFAULT_COOLDOWN_SECONDS, startedAt);
         if (request === requestId.current) setPicks(result);
       } catch (error) {
         if (error instanceof ActionFailure) advisorCooldown.start(error.retryAfterSeconds);
@@ -261,11 +266,16 @@ export default function TacticalAdvisor({ games }: { games: Pick<LibraryGame, "i
               {!scoutUnlocked ? (
                 <div className="advisor-scout-locked">
                   <p>🔒 EXTERNAL SCOUTING STANDBY // Backlog at {backlogCount} gigs (Target: &lt;= 5 gigs)</p>
-                  <button type="button" disabled={isStarting || isAdding || scoutCooldown.seconds > 0 || isScouting} onClick={() => { setScoutOverride(true); setScoutUnlocked(true); loadExternalPicks(true); }}>⚡ OVERRIDE LOCK &amp; SCAN</button>
+                  <button type="button" disabled={isStarting || isAdding || scoutCooldown.seconds > 0 || isScouting} onClick={() => { setScoutOverride(true); setScoutUnlocked(true); loadExternalPicks(true); }}>{scoutCooldown.seconds > 0 ? scoutCooldown.label : "⚡ OVERRIDE LOCK & SCAN"}</button>
                 </div>
               ) : (
                 <>
-                  {isScouting && <p className="advisor-loading" role="status">EXTERNAL SCOUT // ACQUIRING NEW CONTRACT INTEL…</p>}
+                  {isScouting && (
+                    <div className="advisor-scout-terminal" role="status" aria-live="polite" aria-atomic="true">
+                      <span className="advisor-scout-terminal-label" aria-hidden="true">CORTEX // EXTERNAL SCOUT ONLINE</span>
+                      <p>SCANNING NEURAL NET // SEARCHING FOR COMPATIBLE CONTRACTS...<span className="advisor-scout-cursor" aria-hidden="true" /></p>
+                    </div>
+                  )}
                   {externalError && <p className="advisor-error" role="alert">{externalError}</p>}
                   {!isScouting && externalPicks && (externalPicks.length ? (
                     <div className="advisor-external-grid">
@@ -296,7 +306,7 @@ export default function TacticalAdvisor({ games }: { games: Pick<LibraryGame, "i
                       })}
                     </div>
                   ) : <p className="advisor-empty" role="status">No new affinity picks with a confirmed release year of this year or earlier are available. Complete and rate a gig 4–5 stars to guide scouting; games already in your library are excluded.</p>)}
-                  {!isScouting && <button className="advisor-refresh" type="button" disabled={isStarting || isAdding || scoutCooldown.seconds > 0} onClick={() => loadExternalPicks()}>{scoutCooldown.seconds > 0 ? scoutCooldown.label : externalError ? "RETRY EXTERNAL SCAN" : "RESCAN NEW CONTRACTS"}</button>}
+                  <button className="advisor-refresh" type="button" disabled={isScouting || isStarting || isAdding || scoutCooldown.seconds > 0} aria-busy={isScouting} onClick={() => loadExternalPicks()}>{isScouting ? "SCANNING NEURAL NET…" : scoutCooldown.seconds > 0 ? scoutCooldown.label : externalError ? "RETRY EXTERNAL SCAN" : "RESCAN NEW CONTRACTS"}</button>
                   <p className="advisor-scout-status" role="status" aria-live="polite">{addedTitles.size > 0 ? `${addedTitles.size} new contract${addedTitles.size === 1 ? "" : "s"} added to backlog.` : ""}</p>
                 </>
               )}

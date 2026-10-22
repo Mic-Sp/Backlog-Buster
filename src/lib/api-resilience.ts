@@ -1,6 +1,7 @@
 import "server-only";
 import { createHash } from "node:crypto";
 import { RateLimitError } from "@/lib/action-result";
+import { DEFAULT_COOLDOWN_SECONDS } from "@/lib/cooldown";
 
 const flights = new Map<string, Promise<unknown>>();
 const cooldowns = new Map<string, number>();
@@ -22,7 +23,7 @@ export async function coalesce<T>(key: string, work: () => Promise<T>): Promise<
 }
 
 // Process-local, bounded protection. A shared store is required across replicas.
-export function guardedRequest<T>(playerId: string, feature: string, input: string, work: () => Promise<T>, seconds = 10): Promise<T> {
+export function guardedRequest<T>(playerId: string, feature: string, input: string, work: () => Promise<T>, seconds = DEFAULT_COOLDOWN_SECONDS): Promise<T> {
   return coalesce(`player:${playerId}:${feature}:${input}`, async () => {
     const key = `${playerId}:${feature}`;
     const now = Date.now();

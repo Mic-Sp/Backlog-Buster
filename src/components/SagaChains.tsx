@@ -1,4 +1,5 @@
 "use client";
+import { cooldownLabel } from "@/lib/cooldown";
 
 import type { SagaChain, SagaOrderMode } from "@/lib/sagas";
 import "./SagaChains.css";
@@ -22,7 +23,7 @@ export function SagaOrderControls({ order, onOrderChange, onAutoDetect, isDetect
         <button type="button" aria-pressed={order === "timeline"} onClick={() => onOrderChange("timeline")}>TIMELINE ORDER</button>
       </div>
       <button className="saga-detect-order" type="button" disabled={isDetecting || disabled || cooldownSeconds > 0} onClick={onAutoDetect} title="Resolve and save canon ranks for this saga, replacing any existing timeline ranks">
-        {cooldownSeconds > 0 ? `⏳ COOLING DOWN // ${cooldownSeconds}s` : isDetecting ? "⏳ SCANNING CANON…" : "🤖 AUTO-DETECT CANON ORDER"}
+        {cooldownSeconds > 0 ? cooldownLabel(cooldownSeconds) : isDetecting ? "⏳ SCANNING CANON…" : "🤖 AUTO-DETECT CANON ORDER"}
       </button>
     </div>
   );

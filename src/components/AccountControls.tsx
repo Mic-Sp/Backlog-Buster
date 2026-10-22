@@ -2,11 +2,12 @@
 
 import { useActionState, useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal, useFormStatus } from "react-dom";
-import { authenticate, logout } from "@/app/auth-actions";
+import { authenticate, logout, type AuthState } from "@/app/auth-actions";
 import AccountSecurity from "@/components/AccountSecurity";
 import SafeForm from "@/components/SafeForm";
 import type { CurrentPlayer } from "@/lib/player";
 import "./AccountControls.css";
+import useCooldown from "@/components/useCooldown";
 
 function LogoutButton() {
   const { pending } = useFormStatus();
@@ -17,7 +18,12 @@ function AuthPanel({ localArchive = false, onClose }: { localArchive?: boolean; 
   const [mode, setMode] = useState<"login" | "register">(localArchive ? "register" : "login");
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [clientError, setClientError] = useState("");
-  const [state, action, pending] = useActionState(authenticate.bind(null, mode), {});
+  const cooldown = useCooldown();
+  const [state, action, pending] = useActionState(async (previous: AuthState, data: FormData) => {
+    const result = await authenticate(mode, previous, data);
+    cooldown.start(result.retryAfterSeconds);
+    return result;
+  }, {});
   const pendingRef = useRef(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const emailRef = useRef<HTMLInputElement>(null);
@@ -60,6 +66,7 @@ function AuthPanel({ localArchive = false, onClose }: { localArchive?: boolean; 
       const field = event.target;
       if (field instanceof HTMLInputElement) setClientError(field.name === "email" ? "Enter a valid email address." : field.name === "password" ? "Use a password of 8–128 characters." : `Enter a valid ${field.name === "handle" ? "handle" : "operator name"} or leave it empty.`);
     }} onSubmit={(event) => {
+      if (cooldown.seconds > 0) { event.preventDefault(); return; }
       setPasswordVisible(false);
       setClientError("");
       const data = new FormData(event.currentTarget);
@@ -94,7 +101,7 @@ function AuthPanel({ localArchive = false, onClose }: { localArchive?: boolean; 
         </>}
       </fieldset>
       {error && <p className="auth-error" role="alert" id={errorId}>{error}</p>}
-      <button className="auth-submit" type="submit" disabled={pending}>{pending ? "VERIFYING IDENTITY…" : mode === "login" ? "▶ SIGN IN" : localArchive ? "⚡ CREATE ACCOUNT & CLAIM ARCHIVE" : "⚡ CREATE NETRUNNER ACCOUNT"}</button>
+      <button className="auth-submit" type="submit" disabled={pending || cooldown.seconds > 0}>{cooldown.seconds > 0 ? cooldown.label : pending ? "VERIFYING IDENTITY…" : mode === "login" ? "▶ SIGN IN" : localArchive ? "⚡ CREATE ACCOUNT & CLAIM ARCHIVE" : "⚡ CREATE NETRUNNER ACCOUNT"}</button>
     </form>
     <p className="auth-hint">{localArchive ? "Only the first registration claims the local archive. Later accounts start fresh." : "Sessions expire after 7 days. Log out to revoke this device’s session."}</p>
   </div>;

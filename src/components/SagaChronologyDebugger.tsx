@@ -3,16 +3,18 @@
 import { useRef, useState, useTransition } from "react";
 import { getSagaChronologyDebug } from "@/app/actions";
 import type { SagaChronologyDebug } from "@/lib/saga-debug";
+import { cooldownLabel } from "@/lib/cooldown";
 
 const statusLabels = {
   hit: "HIT", miss: "MISS", refreshed: "MISS / REFRESHED",
   "refresh-deferred": "PARTIAL HIT / REFRESH DEFERRED", fallback: "FALLBACK",
 };
 
-export default function SagaChronologyDebugger({ sagaKey, scanDebug, busy, onForceRefresh }: {
+export default function SagaChronologyDebugger({ sagaKey, scanDebug, busy, cooldownSeconds = 0, onForceRefresh }: {
   sagaKey: string;
   scanDebug: SagaChronologyDebug | null;
   busy: boolean;
+  cooldownSeconds?: number;
   onForceRefresh: () => void;
 }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -44,8 +46,8 @@ export default function SagaChronologyDebugger({ sagaKey, scanDebug, busy, onFor
           setIsOpen(!isOpen);
           if (!isOpen && !data) inspect();
         }}>🔍 {isOpen ? "HIDE" : "DEBUG"} CHRONOLOGY MATCHING</button>
-        <button type="button" disabled={busy || isLoading} onClick={() => { setIsOpen(true); onForceRefresh(); }} title="Bypass the shared cache and five-minute refresh cooldown, fetch IGDB, and replace this saga's saved ranks. IGDB request limits still apply.">
-          {busy ? "⏳ SCANNING…" : "🔄 FORCE REFRESH CACHE"}
+        <button type="button" disabled={busy || isLoading || cooldownSeconds > 0} onClick={() => { setIsOpen(true); onForceRefresh(); }} title="Bypass the shared cache and five-minute refresh cooldown, fetch IGDB, and replace this saga's saved ranks. IGDB request limits still apply.">
+          {cooldownSeconds > 0 ? cooldownLabel(cooldownSeconds) : busy ? "⏳ SCANNING…" : "🔄 FORCE REFRESH CACHE"}
         </button>
       </div>
       {isOpen && <section id="saga-debug-readout" className="saga-debug-readout" aria-label="Saga cache and match debugger" aria-busy={busy || isLoading}>

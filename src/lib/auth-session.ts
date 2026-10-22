@@ -5,6 +5,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { sessionTokenHash, signSessionToken, verifySessionToken } from "@/lib/auth-crypto";
+import { RateLimitError } from "@/lib/action-result";
 
 export const sessionCookieName = process.env.NODE_ENV === "production" ? "__Host-bb_session_v1" : "bb_session_v1";
 const sessionSeconds = 7 * 24 * 60 * 60;
@@ -83,14 +84,14 @@ export async function consumeAuthAttempt(email: string): Promise<boolean> {
   // An account limit survives restarts and cannot be bypassed by spoofing proxy headers.
   const account = createHmac("sha256", secret).update(`auth-email:${email}`).digest("hex");
   for (const [key, windowMs, limit] of [[account, 15 * 60 * 1000, 10], ["global", 60 * 1000, 60]] as const) {
-    const result = await prisma.$queryRaw<{ attempts: number }[]>`
+    const result = await prisma.$queryRaw<{ attempts: number; resetsAt: Date }[]>`
       INSERT INTO "AuthRateLimit" ("key", "attempts", "resetsAt") VALUES (${key}, 1, ${new Date(now.getTime() + windowMs)})
       ON CONFLICT ("key") DO UPDATE SET
         "attempts" = CASE WHEN "AuthRateLimit"."resetsAt" <= ${now} THEN 1 ELSE "AuthRateLimit"."attempts" + 1 END,
         "resetsAt" = CASE WHEN "AuthRateLimit"."resetsAt" <= ${now} THEN EXCLUDED."resetsAt" ELSE "AuthRateLimit"."resetsAt" END
-      RETURNING "attempts"
+      RETURNING "attempts", "resetsAt"
     `;
-    if (result[0].attempts > limit) return false;
+    if (result[0].attempts > limit) throw new RateLimitError(Math.max(1, Math.ceil((result[0].resetsAt.getTime() - Date.now()) / 1000)));
   }
   await prisma.authRateLimit.deleteMany({ where: { resetsAt: { lt: now } } });
   return true;

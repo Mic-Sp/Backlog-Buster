@@ -17,6 +17,7 @@ export function unwrapActionResult<T>(result: T): Exclude<T, ActionError> {
 }
 
 export function actionErrorMessage(error: unknown, fallback = "Could not save your changes. Please try again.") {
+  if (error instanceof ActionFailure && error.retryAfterSeconds) return "Request limit reached. Wait for the cooldown before retrying.";
   if (error instanceof InputError || error instanceof ActionFailure) return error.message;
   if (error instanceof Error && error.name === "AuthenticationRequiredError") return "Sign in to access your library.";
   return fallback;

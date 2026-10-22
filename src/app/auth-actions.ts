@@ -1,14 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { actionErrorMessage } from "@/lib/action-result";
+import { actionErrorMessage, RateLimitError } from "@/lib/action-result";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { readCredentials, registerPlayer } from "@/lib/auth-accounts";
 import { hashPassword, verifyPassword } from "@/lib/auth-crypto";
 import { consumeAuthAttempt, createPlayerSession, destroyPlayerSession } from "@/lib/auth-session";
 
-export type AuthState = { error?: string; mode?: "login" | "register" };
+export type AuthState = { error?: string; mode?: "login" | "register"; retryAfterSeconds?: number };
 
 export async function authenticate(mode: "login" | "register", _previous: AuthState, formData: FormData): Promise<AuthState> {
   if (mode !== "login" && mode !== "register") return { error: "Choose login or register." };
@@ -16,7 +16,7 @@ export async function authenticate(mode: "login" | "register", _previous: AuthSt
   try { input = readCredentials(formData, mode === "register"); }
   catch (error) { return { mode, error: actionErrorMessage(error, "Check your account details.") }; }
   try {
-    if (!await consumeAuthAttempt(input.email)) return { mode, error: "Too many account attempts. Try again in 15 minutes." };
+    if (!await consumeAuthAttempt(input.email)) return { mode, error: "Too many account attempts. Wait for the cooldown before retrying.", retryAfterSeconds: 900 };
     let playerId: string;
     if (mode === "register") {
       const passwordHash = await hashPassword(input.password);
@@ -34,7 +34,8 @@ export async function authenticate(mode: "login" | "register", _previous: AuthSt
       playerId = player.id;
     }
     await createPlayerSession(playerId);
-  } catch {
+  } catch (error) {
+    if (error instanceof RateLimitError) return { mode, error: "Too many account attempts. Wait for the cooldown before retrying.", retryAfterSeconds: error.retryAfterSeconds };
     return { mode, error: "Account service unavailable. Please try again shortly." };
   }
   revalidatePath("/", "layout");
