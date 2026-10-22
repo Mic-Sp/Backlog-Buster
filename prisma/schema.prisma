@@ -82,6 +82,21 @@ model ExternalOAuthToken {
   updatedAt   DateTime @updatedAt
 }
 
+// Public, provider-verified metadata only; never populate from player-entered titles.
+model GameCatalog {
+  // Lowercase canonical title plus release year preserves remakes with the same name.
+  key            String   @id
+  title          String
+  releaseYear    Int?
+  platforms      String[] @default([])
+  genre          String?
+  estimatedHours Int?
+  coverUrl       String?
+  updatedAt      DateTime @updatedAt
+
+  @@index([title])
+}
+
 model Game {
   id          Int      @id @default(autoincrement())
   userId      String   @default("default-player")

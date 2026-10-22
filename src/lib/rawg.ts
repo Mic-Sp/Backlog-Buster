@@ -1,6 +1,7 @@
 import "server-only";
 import { resilientFetch } from "@/lib/api-resilience";
 import { RateLimitError } from "@/lib/action-result";
+import type { CatalogSuggestion } from "@/lib/catalog-types";
 
 export type RawgGameInfo = {
   coverUrl: string | null;
@@ -66,6 +67,43 @@ function safeHttpUrl(value: unknown): string | null {
   } catch {
     return null;
   }
+}
+
+/** Multi-result title search, separate from the existing single-game enrichment. */
+export async function searchRawgGames(title: string): Promise<CatalogSuggestion[]> {
+  const apiKey = process.env.RAWG_API_KEY?.trim();
+  if (!apiKey) return [];
+  try {
+    const query = new URLSearchParams({ key: apiKey, search: title, page_size: "8" });
+    const response = await resilientFetch(`https://api.rawg.io/api/games?${query}`, {
+      cache: "no-store", signal: AbortSignal.timeout(5000),
+    });
+    if (!response.ok) return [];
+    const payload: unknown = await response.json();
+    if (!isRecord(payload) || !Array.isArray(payload.results)) return [];
+    return payload.results.slice(0, 8).flatMap((game): CatalogSuggestion[] => {
+      if (!isRecord(game) || typeof game.name !== "string") return [];
+      const canonicalTitle = game.name.trim().replace(/\s+/g, " ");
+      if (!canonicalTitle || canonicalTitle.length > 120) return [];
+      const genres: unknown[] = Array.isArray(game.genres) ? game.genres : [];
+      const genre = genres.find((entry) => isRecord(entry) && typeof entry.name === "string" && entry.name.trim());
+      const releaseMatch = typeof game.released === "string" ? /^(\d{4})-\d{2}-\d{2}$/.exec(game.released) : null;
+      const year = releaseMatch ? Number(releaseMatch[1]) : 0;
+      const platforms = Array.isArray(game.platforms) ? game.platforms.flatMap((entry) => {
+        const platform = isRecord(entry) && isRecord(entry.platform) ? entry.platform : null;
+        return platform && typeof platform.name === "string" && platform.name.trim() ? [platform.name.trim()] : [];
+      }) : [];
+      return [{
+        title: canonicalTitle,
+        releaseYear: year >= 1800 && year <= 2100 ? year : null,
+        platforms: [...new Set<string>(platforms)],
+        genre: isRecord(genre) && typeof genre.name === "string" ? genre.name.trim().slice(0, 80) : null,
+        estimatedHours: typeof game.playtime === "number" && Number.isFinite(game.playtime) && game.playtime > 0
+          ? Math.min(10000, Math.max(1, Math.round(game.playtime))) : null,
+        coverUrl: safeHttpUrl(game.background_image),
+      }];
+    });
+  } catch { return []; }
 }
 
 export async function lookupRawgGame(title: string, reportRateLimit = false): Promise<RawgGameInfo | null> {

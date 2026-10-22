@@ -331,9 +331,86 @@ p {
 	gap: 8px;
 }
 
-.title-search-row input {
+.title-autocomplete {
+	position: relative;
 	flex: 1 1 auto;
-	width: 0;
+	min-width: 0;
+}
+
+.title-autocomplete input {
+	width: 100%;
+}
+
+.title-suggestions {
+	position: absolute;
+	top: calc(100% + 6px);
+	left: 0;
+	z-index: 20;
+	width: 100%;
+	min-width: min(320px, 75vw);
+	max-height: min(360px, 50vh);
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	margin: 0;
+	padding: 4px;
+	list-style: none;
+	border: 1px solid var(--blue);
+	border-radius: 2px;
+	background: #0a1118;
+	color: #f3f4f6;
+	box-shadow: 0 10px 28px #0009, 0 0 12px #00e5ff22;
+}
+
+.title-suggestions [role="option"] {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	min-width: 0;
+	padding: 8px;
+	border: 1px solid transparent;
+	cursor: pointer;
+}
+
+.title-suggestions [aria-selected="true"] {
+	border-color: var(--blue);
+	background: #12303d;
+}
+
+.title-suggestion-cover {
+	position: relative;
+	display: grid;
+	place-items: center;
+	flex: 0 0 40px;
+	width: 40px;
+	height: 56px;
+	overflow: hidden;
+	border: 1px solid #425361;
+	background: #16222d;
+	color: var(--blue);
+	font-size: 24px;
+}
+
+.title-suggestion-cover img {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+.title-suggestion-copy { display: grid; gap: 5px; min-width: 0; }
+.title-suggestion-title { font-size: 13px; line-height: 1.4; overflow-wrap: anywhere; }
+.title-suggestion-title small { font-weight: 400; white-space: nowrap; }
+.title-suggestion-summary { color: #a4b5ca; font-size: 11px; font-weight: 400; overflow-wrap: anywhere; }
+.title-autocomplete-status {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
 }
 
 .search-button {
@@ -814,7 +891,7 @@ button.start-gig-badge:focus-visible {
 	}
 
 	.field-difficulty,
-	.field:last-of-type {
+	label.field:last-of-type {
 		grid-column: auto;
 	}
 
@@ -902,6 +979,10 @@ button.start-gig-badge:focus-visible {
 	.field-cover {
 		grid-column: 1 / -1;
 	}
+
+	.title-search-row { flex-wrap: wrap; }
+	.title-autocomplete { flex-basis: 200px; }
+	.title-suggestions { min-width: 0; }
 
 	.add-button {
 		grid-column: 1 / -1;

@@ -266,6 +266,10 @@
 :root[data-layout-mode="fantasy"] .section-heading-title { color: #4c5739; font-family: Georgia, serif; font-size: 22px; }
 :root[data-layout-mode="fantasy"] .eyebrow { color: #8b7141; font-family: Georgia, serif; }
 :root[data-layout-mode="fantasy"] .add-section .game-form { margin-top: 24px; }
+:root[data-layout-mode="fantasy"] .title-suggestions { color: #30251d; background: linear-gradient(#f8edcf, #e8d4a6); border: 3px ridge #b99b52; border-radius: 6px 2px; box-shadow: inset 0 1px #fff6d9, 0 10px 28px #3b291b55; font-family: Georgia, "Times New Roman", serif; }
+:root[data-layout-mode="fantasy"] .title-suggestions [aria-selected="true"] { color: #233b2b; border-color: #977b36; background: #d9c68e; }
+:root[data-layout-mode="fantasy"] .title-suggestion-cover { color: #806123; background: #e2cf9c; border-color: #a98a45; }
+:root[data-layout-mode="fantasy"] .title-suggestion-summary { color: #655032; }
 :root[data-layout-mode="fantasy"] .search-button,
 :root[data-layout-mode="fantasy"] .add-button { color: #f2e2af; background: #355943; border-color: #8b9251; }
 :root[data-layout-mode="fantasy"] .page-footer { order: 9; color: #c3c9b0; border-color: #6f805f; font-size: 10px; padding: 14px 0 0; }

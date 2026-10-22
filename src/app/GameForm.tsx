@@ -5,8 +5,10 @@ import { DEFAULT_COOLDOWN_SECONDS } from "@/lib/cooldown";
 import { actionErrorMessage, ActionFailure, unwrapActionResult } from "@/lib/action-result";
 
 import SafeForm from "@/components/SafeForm";
+import TitleAutocomplete from "@/components/TitleAutocomplete";
+import type { CatalogSuggestion } from "@/lib/catalog-types";
 
-import { useRef, useState, useTransition } from "react";
+import { useId, useRef, useState, useTransition } from "react";
 import { resolveRawgPlaytime } from "@/lib/game-playtime";
 import { createGame, searchGameInfo } from "./actions";
 
@@ -16,6 +18,10 @@ export default function GameForm() {
   const cooldown = useCooldown();
   const searchingRef = useRef(false);
   const formRef = useRef<HTMLFormElement>(null);
+  const titleId = useId();
+  const customizedFields = useRef(new Set<string>());
+  const autofilledFields = useRef(new Set<string>());
+  const [formVersion, setFormVersion] = useState(0);
   const [platformOptions, setPlatformOptions] = useState(defaultPlatforms);
   const [lookupMessage, setLookupMessage] = useState("");
   const [isSearching, startSearch] = useTransition();
@@ -24,7 +30,38 @@ export default function GameForm() {
     const result = unwrapActionResult(await createGame(data));
     window.dispatchEvent(new CustomEvent("backlogbuster:game-added", { detail: result.gameId }));
     setLookupMessage("");
+    customizedFields.current.clear();
+    autofilledFields.current.clear();
+    setFormVersion((version) => version + 1);
     return result;
+  }
+
+  function fillMetadata(values: Record<string, string>) {
+    for (const [name, value] of Object.entries(values)) {
+      const field = formRef.current?.elements.namedItem(name);
+      if (field instanceof HTMLInputElement && !customizedFields.current.has(name)) {
+        field.value = value;
+        autofilledFields.current.add(name);
+      }
+    }
+  }
+
+  function clearAutofill() {
+    fillMetadata(Object.fromEntries([...autofilledFields.current].map((name) => [name, ""])));
+    autofilledFields.current.clear();
+    setLookupMessage("");
+  }
+
+  function selectSuggestion(suggestion: CatalogSuggestion) {
+    fillMetadata({
+      platform: suggestion.platforms[0] ?? "",
+      coverUrl: suggestion.coverUrl ?? "",
+      genre: suggestion.genre ?? "",
+      releaseYear: suggestion.releaseYear?.toString() ?? "",
+      lengthHours: suggestion.estimatedHours?.toString() ?? "",
+    });
+    setPlatformOptions((options) => [...new Set([...options, ...suggestion.platforms])]);
+    setLookupMessage("Title selected. Review or edit the suggested details.");
   }
 
   function searchForGame() {
@@ -47,6 +84,8 @@ export default function GameForm() {
         const gameInfo = unwrapActionResult(await searchGameInfo(title));
         cooldown.start(DEFAULT_COOLDOWN_SECONDS, startedAt);
         const currentForm = formRef.current;
+        const currentTitle = currentForm?.elements.namedItem("title");
+        if (!(currentTitle instanceof HTMLInputElement) || currentTitle.value.trim() !== title) return;
 
         if (!gameInfo) {
           setLookupMessage("No match found. You can still add the game manually.");
@@ -54,12 +93,7 @@ export default function GameForm() {
         }
 
         if (currentForm) {
-          const setInputValue = (name: string, value: string) => {
-            const field = currentForm.elements.namedItem(name);
-            if (field instanceof HTMLInputElement) {
-              field.value = value;
-            }
-          };
+          const setInputValue = (name: string, value: string) => fillMetadata({ [name]: value });
 
           if (gameInfo.platforms[0]) {
             setInputValue("platform", gameInfo.platforms[0]);
@@ -87,7 +121,7 @@ export default function GameForm() {
             lengthHoursField.value.trim() === "" &&
             rawgLengthHours !== null
           ) {
-            lengthHoursField.value = String(rawgLengthHours);
+            setInputValue("lengthHours", String(rawgLengthHours));
           }
         }
 
@@ -105,17 +139,15 @@ export default function GameForm() {
   }
 
   return (
-    <SafeForm action={addGame} className="game-form" ref={formRef}>
-      <label className="field field-title">
-        <span>Game title</span>
+    <SafeForm action={addGame} className="game-form" ref={formRef} onChangeCapture={(event) => {
+      if (event.target instanceof HTMLInputElement && event.target.name !== "title") {
+        customizedFields.current.add(event.target.name);
+      }
+    }}>
+      <div className="field field-title">
+        <label htmlFor={titleId}>Game title</label>
         <div className="title-search-row">
-          <input
-            autoComplete="off"
-            maxLength={120}
-            name="title"
-            placeholder="What are you playing next?"
-            required
-          />
+          <TitleAutocomplete key={formVersion} id={titleId} onSelect={selectSuggestion} onTitleChange={clearAutofill} />
           <button
             className="search-button"
             disabled={isSearching || cooldown.seconds > 0}
@@ -126,7 +158,7 @@ export default function GameForm() {
           </button>
         </div>
         <span className="lookup-message" aria-live="polite">{lookupMessage}</span>
-      </label>
+      </div>
 
       <label className="field">
         <span>Platform</span>
