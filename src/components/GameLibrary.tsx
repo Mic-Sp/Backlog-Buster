@@ -20,6 +20,8 @@ import { DECK_CAPACITY, DECK_DRAG_TYPE, readDeckDrag, type DeckDragGame } from "
 import { isReleasedYear } from "@/lib/game-release";
 import AgentBriefing from "@/components/AgentBriefing";
 import SagaChains, { SagaBadge, SagaOrderControls } from "@/components/SagaChains";
+import SagaChronologyDebugger from "@/components/SagaChronologyDebugger";
+import type { SagaChronologyDebug } from "@/lib/saga-debug";
 import { buildSagaChains, compareSagaGames, type SagaOrderMode } from "@/lib/sagas";
 import { compareBacklogPriority, getBacklogInsertionOrder } from "@/lib/backlog-order";
 import "./BacklogReorder.css";
@@ -80,6 +82,7 @@ function comparePinnedGames(left: LibraryGame, right: LibraryGame) {
 export default function GameLibrary({ games: serverGames, achievements = [], children }: { games: LibraryGame[]; achievements?: Achievement[]; children?: ReactNode }) {
   const sagaCooldown = useCooldown();
   const sagaScanRef = useRef(false);
+  const [sagaDebug, setSagaDebug] = useState<{ key: string; data: SagaChronologyDebug } | null>(null);
   const [games, returnToBacklogOptimistically] = useOptimistic<LibraryGame[], { gameId: number; orderedIds: number[] | null }>(serverGames, (current, move) => {
     const ranks = new Map(move.orderedIds?.map((id, index) => [id, index + 1]));
     return current.map((game) => game.id === move.gameId || ranks.has(game.id) ? {
@@ -369,16 +372,22 @@ export default function GameLibrary({ games: serverGames, achievements = [], chi
     setSortBy(order === "timeline" ? "timeline-asc" : "year-asc");
   }
 
-  function detectSagaOrder() {
-    if (!selectedSaga || timelineBusy || reorderInFlightRef.current || sagaScanRef.current || sagaCooldown.seconds > 0) return;
+  function detectSagaOrder(forceRefresh = false) {
+    if (!selectedSaga || timelineBusy || reorderInFlightRef.current || sagaScanRef.current || (!forceRefresh && sagaCooldown.seconds > 0)) return;
     const key = selectedSaga.key;
     setSagaNotice(null);
     sagaScanRef.current = true;
     startDetectingSaga(async () => {
       try {
-        const result = await autoDetectSagaOrder(key);
-        if ("retryAfterSeconds" in result) sagaCooldown.start(result.retryAfterSeconds);
+        const result = await autoDetectSagaOrder(key, forceRefresh);
+        if ("retryAfterSeconds" in result && typeof result.retryAfterSeconds === "number") sagaCooldown.start(result.retryAfterSeconds);
         if (sagaFilterRef.current !== key) return;
+        if ("debug" in result && result.debug) {
+          const debug = result.debug;
+          setSagaDebug(current => ({ key, data: { ...debug,
+            geminiPayload: debug.geminiPayload ?? (current?.key === key ? current.data.geminiPayload : undefined),
+          } }));
+        }
         setSagaNotice({ key, text: result.error ?? result.message ?? "Canon scan complete.", error: Boolean(result.error) });
         if ("updatedCount" in result && result.updatedCount > 0) setSortBy("timeline-asc");
       } catch {
@@ -388,7 +397,7 @@ export default function GameLibrary({ games: serverGames, achievements = [], chi
   }
 
   const sagaOrder: SagaOrderMode | null = sortBy === "timeline-asc" ? "timeline" : sortBy === "year-asc" ? "release" : null;
-  const sagaOrderControls = { order: sagaOrder, onOrderChange: changeSagaOrder, onAutoDetect: detectSagaOrder, isDetecting: isDetectingSaga, cooldownSeconds: sagaCooldown.seconds, disabled: isReorderingTimeline };
+  const sagaOrderControls = { order: sagaOrder, onOrderChange: changeSagaOrder, onAutoDetect: () => detectSagaOrder(), isDetecting: isDetectingSaga, cooldownSeconds: sagaCooldown.seconds, disabled: isReorderingTimeline };
 
   function persistVisibleTimeline(orderedVisibleIds: number[]) {
     if (!selectedSaga || !inTimelineView || timelineBusy || reorderInFlightRef.current) return;
@@ -849,6 +858,7 @@ export default function GameLibrary({ games: serverGames, achievements = [], chi
           </div>
           <p className="saga-chains-hint">Unassigned games follow ranked games in release order. Use ▲ / ▼ to swap visible games, or drag table rows to reorder. Hidden saga games keep their relative positions.</p>
           {sagaNotice?.key === selectedSaga.key && <p className="saga-order-notice" role="status" data-error={sagaNotice.error}>{sagaNotice.text}</p>}
+          <SagaChronologyDebugger key={selectedSaga.key} sagaKey={selectedSaga.key} scanDebug={sagaDebug?.key === selectedSaga.key ? sagaDebug.data : null} busy={timelineBusy} onForceRefresh={() => detectSagaOrder(true)} />
         </section>
       )}
 

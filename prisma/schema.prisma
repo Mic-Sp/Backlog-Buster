@@ -49,6 +49,27 @@ model AuthRateLimit {
   @@index([resetsAt])
 }
 
+// Global public game metadata only; never store operator IDs or personal data here.
+model FranchiseChronology {
+  // Normalized lowercase franchise key, e.g. "resident-evil".
+  slug        String   @id
+  displayName String
+  // Ordered entries: { title: string, releaseYear: number | null, chronologicalRank: number }[].
+  games       Json     @default("[]")
+  source      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Server-to-server credentials only; never include this model in client/public payloads.
+model ExternalOAuthToken {
+  provider    String   @id
+  accessToken String
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
 model Game {
   id          Int      @id @default(autoincrement())
   userId      String   @default("default-player")

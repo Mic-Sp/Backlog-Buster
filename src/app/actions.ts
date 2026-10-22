@@ -3,7 +3,7 @@
 import { getLibraryExport, importLibraryGames } from "@/lib/library-vault";
 import type { LibraryImportPayload } from "@/lib/library-import";
 import { guardedRequest } from "@/lib/api-resilience";
-import { safeAction, InputError, RateLimitError } from "@/lib/action-result";
+import { safeAction, InputError } from "@/lib/action-result";
 import { validateGameForm } from "@/lib/form-validation";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
@@ -16,7 +16,10 @@ import { normalizeGameTitle } from "@/lib/game-title";
 import { DECK_CAPACITY } from "@/lib/deck";
 import type { Prisma } from "@/generated/prisma/client";
 import { buildSagaChains, parseChronologicalOrder } from "@/lib/sagas";
-import { resolveSagaChronology } from "@/lib/saga-chronology";
+import { inspectSagaChronologyCache, resolveCachedSagaChronology } from "@/lib/saga-chronology-cache";
+import { buildSagaChronologyDebug, type SagaCacheSnapshot } from "@/lib/saga-debug";
+import { getHybridSagaChronology } from "@/lib/saga-lore";
+import { buildAssignedSagaOrder } from "@/lib/saga-chronology";
 import { isReleasedYear } from "@/lib/game-release";
 import { getBacklogInsertionOrder } from "@/lib/backlog-order";
 
@@ -389,43 +392,76 @@ export async function fetchExternalScout() {
   });
 }
 
-export async function autoDetectSagaOrder(sagaKey: string) {
+async function loadOwnedSaga(sagaKey: string) {
+  if (typeof sagaKey !== "string" || !sagaKey.trim() || sagaKey.length > 240) {
+    throw new InputError("Choose a valid saga to scan.");
+  }
+  const userId = await getAuthenticatedPlayerId();
+  const games = await prisma.game.findMany({
+    where: { userId },
+    select: { id: true, title: true, status: true, franchise: true, releaseYear: true, chronologicalOrder: true },
+  });
+  const chain = buildSagaChains(games).chains.find((saga) => saga.key === sagaKey);
+  if (!chain) throw new InputError("This saga is no longer available. Refresh your library and try again.");
+  const ids = new Set(chain.gameIds);
+  const members = games.filter((game) => ids.has(game.id));
+  return { userId, chain, members };
+}
+
+export async function getSagaChronologyDebug(sagaKey: string) {
   return safeAction(async () => {
-    if (typeof sagaKey !== "string" || !sagaKey.trim() || sagaKey.length > 240) {
-      return { updatedCount: 0, error: "Choose a valid saga to scan." };
-    }
-    const userId = await getAuthenticatedPlayerId();
-    const games = await prisma.game.findMany({
-      where: { userId },
-      select: { id: true, title: true, status: true, franchise: true, chronologicalOrder: true },
-    });
-    const chain = buildSagaChains(games).chains.find((saga) => saga.key === sagaKey);
-    if (!chain) return { updatedCount: 0, error: "This saga is no longer available. Refresh your library and try again." };
-    const ids = new Set(chain.gameIds);
-    const members = games.filter((game) => ids.has(game.id));
-    let order: Record<string, number> | null;
+    const { userId, chain, members } = await loadOwnedSaga(sagaKey);
+    const cache = await inspectSagaChronologyCache(chain.name);
+    if (await getAuthenticatedPlayerId() !== userId) throw new InputError("Sign in again to inspect saga chronology.");
+    return { debug: buildSagaChronologyDebug(cache, members) };
+  });
+}
+
+export async function autoDetectSagaOrder(sagaKey: string, forceRefresh = false) {
+  return safeAction(async () => {
+    if (typeof forceRefresh !== "boolean") throw new InputError("Choose a valid cache refresh option.");
+    const { userId, chain, members } = await loadOwnedSaga(sagaKey);
+    let localFallback = false;
+    let providerNotice: string | undefined;
+    let retryAfterSeconds: number | undefined;
+    let cacheDebug: SagaCacheSnapshot = { status: "fallback", source: "fallback", updatedAt: null, canonicalGames: [] };
+    let fallbackMessage = "No IGDB franchise timeline found — sorted matching games by release year.";
     try {
-      order = await guardedRequest(userId, "chronology", sagaKey, () => resolveSagaChronology(chain.name, members.map((game) => game.title)));
-    } catch (error) {
-      if (error instanceof RateLimitError) throw error;
-      return { updatedCount: 0, error: error instanceof Error ? error.message : "Canon scan failed. Existing timeline ranks were kept." };
+      const result = await resolveCachedSagaChronology(chain.name, members.map(game => ({ title: game.title, releaseYear: game.releaseYear })),
+        previous => getHybridSagaChronology(chain.name, members.map(({ title, releaseYear }) => ({ title, releaseYear })), userId, previous, { forceRefresh }), { forceRefresh });
+      cacheDebug = result.debug;
+      providerNotice = result.notice;
+      retryAfterSeconds = result.retryAfterSeconds;
+      localFallback = result.localFallback === true;
+    } catch {
+      localFallback = true;
+      fallbackMessage = "Shared chronology unavailable — sorted matching games by release year.";
     }
-    if (!order) return { updatedCount: 0, message: "No reliable shared canon timeline was found. Existing ranks were kept; unassigned games use release order." };
-    // A slow AI request must not authorize writes after logout/session expiry.
+    // A slow provider request must not authorize writes after logout/session expiry.
     if (await getAuthenticatedPlayerId() !== userId) throw new InputError("Sign in again before saving saga chronology.");
+    const assignedOrder = buildAssignedSagaOrder(members, cacheDebug.canonicalGames, localFallback);
     try {
       // No network calls inside the transaction. Snapshot guards prevent overwriting
-      // metadata or manual ranks edited in another tab while Gemini was responding.
+      // metadata or manual ranks edited in another tab while the provider was responding.
+      // Include the tail in the same atomic update, clearing every stale unmatched rank.
       await prisma.$transaction(members.map((game) => prisma.game.update({
-        where: { id: game.id, userId, title: game.title, franchise: game.franchise, chronologicalOrder: game.chronologicalOrder },
-        data: { chronologicalOrder: order[game.title.trim()] },
+        where: { id: game.id, userId, title: game.title, franchise: game.franchise, releaseYear: game.releaseYear, chronologicalOrder: game.chronologicalOrder },
+        data: { chronologicalOrder: assignedOrder.get(game.id) ?? null },
         select: { id: true },
       })));
     } catch {
       return { updatedCount: 0, error: "Your saga changed during the scan. No ranks were saved; please try again." };
     }
     revalidatePath("/");
-    return { updatedCount: members.length, message: `Canon order saved for ${members.length} games. You can adjust individual ranks in Edit Metadata.` };
+    const debug = buildSagaChronologyDebug(cacheDebug, members.map(game => ({ ...game,
+      chronologicalOrder: assignedOrder.get(game.id) ?? null,
+    })), localFallback);
+    const rankedCount = [...assignedOrder.values()].filter(rank => rank !== null).length;
+    const tailCount = members.length - rankedCount;
+    const tailNotice = tailCount ? ` ${tailCount} unmatched or unreleased games had stale ranks cleared and follow in release order.` : "";
+    if (localFallback) return { updatedCount: members.length, message: (providerNotice ?? fallbackMessage) + tailNotice, debug, retryAfterSeconds };
+    return { updatedCount: members.length, debug, retryAfterSeconds,
+      message: (providerNotice ? `${providerNotice} ` : "") + `Library timeline saved with ${rankedCount} sequential ranks${rankedCount ? ` (1–${rankedCount})` : ""}.` + tailNotice };
   });
 }
 

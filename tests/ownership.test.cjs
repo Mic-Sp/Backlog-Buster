@@ -33,9 +33,10 @@ function fixture(){
     delete:async({where})=>{check(where);assert.equal(typeof where.id,'number');const record=games.find(game=>match(game,where));if(!record)fail();games=games.filter(game=>game!==record);writes.push(where);return record;},
     create:async({data})=>{assert.equal(data.userId,playerId);const record={...base,...data,id:1000};games.push(record);writes.push({userId:data.userId,id:record.id});return record;},
   };
-  const prisma={game,$executeRaw:async(_sql,key)=>{assert(key.includes(playerId));locks.push(key);},$transaction:async work=>{const before=structuredClone(games);try{return typeof work==='function'?await work(prisma):await Promise.all(work);}catch(error){games=before;throw error;}},$queryRaw:async(strings,...values)=>{assert.match(strings.join(''),/WHERE "id" = .* AND "userId" =/s);const[hours,id,userId]=values;assert.equal(userId,playerId);const record=games.find(game=>game.id===id&&game.userId===userId);if(!record)return[];record.hoursPlayed=Math.max(0,Math.min(10000,record.hoursPlayed+hours));writes.push({id,userId});return[{id}];}};
+  let canonical = null;
+  const prisma={franchiseChronology:{findUnique:async()=>canonical,upsert:async({create})=>{canonical=create;return{slug:create.slug};}},game,$executeRaw:async(_sql,key)=>{assert(key.includes(playerId)||key.startsWith('backlogbuster-franchise:'));locks.push(key);},$transaction:async work=>{const before=structuredClone(games);try{return typeof work==='function'?await work(prisma):await Promise.all(work);}catch(error){games=before;throw error;}},$queryRaw:async(strings,...values)=>{assert.match(strings.join(''),/WHERE "id" = .* AND "userId" =/s);const[hours,id,userId]=values;assert.equal(userId,playerId);const record=games.find(game=>game.id===id&&game.userId===userId);if(!record)return[];record.hoursPlayed=Math.max(0,Math.min(10000,record.hoursPlayed+hours));writes.push({id,userId});return[{id}];}};
   let load;
-  load=loader({'next/cache':{revalidatePath(){}},'@/lib/prisma':{prisma},'@/lib/player':{getAuthenticatedPlayerId:async()=>{if(!authenticated)throw new(load('src/lib/action-result.ts').InputError)('Sign in to access your library.');return playerId;},getCurrentPlayerId:()=>assert.fail('Legacy local-profile fallback must never authorize an action')},'@/lib/achievements':{syncAndGetAchievements:async id=>{assert.equal(id,playerId);syncs.push(id);}},'@/lib/api-resilience':{guardedRequest:async(_id,_feature,_input,work)=>work()},'@/lib/rawg':{lookupRawgGame:async()=>null},'@/lib/recommendations':{getBacklogRecommendations:async id=>{assert.equal(id,playerId);return{};},getExternalRecommendations:async id=>{assert.equal(id,playerId);return[];}},'@/lib/saga-chronology':{resolveSagaChronology:async(_name,titles)=>{scans++;if(revokeDuringScan)authenticated=false;return Object.fromEntries(titles.map((title,index)=>[title,index+1]));}}});
+  load=loader({'next/cache':{revalidatePath(){}},'@/lib/prisma':{prisma},'@/lib/player':{getAuthenticatedPlayerId:async()=>{if(!authenticated)throw new(load('src/lib/action-result.ts').InputError)('Sign in to access your library.');return playerId;},getCurrentPlayerId:()=>assert.fail('Legacy local-profile fallback must never authorize an action')},'@/lib/achievements':{syncAndGetAchievements:async id=>{assert.equal(id,playerId);syncs.push(id);}},'@/lib/api-resilience':{guardedRequest:async(_id,_feature,_input,work)=>work()},'@/lib/rawg':{lookupRawgGame:async()=>null},'@/lib/recommendations':{getBacklogRecommendations:async id=>{assert.equal(id,playerId);return{};},getExternalRecommendations:async id=>{assert.equal(id,playerId);return[];}},'@/lib/igdb-chronology':{getIgdbChronology:async()=>{scans++;if(revokeDuringScan)authenticated=false;return{source:'igdb',games:['Saga One','Saga Two'].map((title,index)=>({title,releaseYear:2020,chronologicalRank:index+1}))};}}});
   return{actions:load('src/app/actions.ts'),setAuth:value=>authenticated=value,setPlayer:value=>playerId=value,revokeDuringScan:()=>revokeDuringScan=true,get games(){return games;},initial,reads,writes,syncs,locks,get scans(){return scans;},sagaKey:load('src/lib/sagas.ts').buildSagaChains(games.filter(game=>game.userId==='owner')).chains[0].key};
 }
 const gameForm=id=>form({id:String(id),status:'Playing',lengthHours:'20',difficulty:'2',userId:'other',playerId:'other'});
@@ -57,7 +58,7 @@ test('forged foreign IDs cannot update, rate, flatline, delete, pin, log, or reo
   assert.equal(f.syncs.length,0,'Rejected foreign deletes cannot even mint the caller achievements');
 });
 
-test('valid owner mutations, per-owner pinned limits, reorders and AI ranks leave other operators untouched',async()=>{
+test('valid owner mutations, per-owner pinned limits, reorders and provider ranks leave other operators untouched',async()=>{
   const f=fixture(),a=f.actions,foreign=f.initial.filter(game=>game.userId==='other');
   assert.deepEqual(await a.reorderBacklogGames(['5','2']),{success:true});assert.equal(f.games.find(game=>game.id===5).backlogOrder,1);
   assert.deepEqual(await a.reorderSagaTimeline(['2','1']),{success:true});assert.equal(f.games.find(game=>game.id===2).chronologicalOrder,1);
@@ -71,17 +72,15 @@ test('valid owner mutations, per-owner pinned limits, reorders and AI ranks leav
   assert.deepEqual(await a.deleteGame(form({id:'4'})),{success:true});assert.deepEqual(f.games.filter(game=>game.userId==='other'),foreign);assert(f.syncs.length>0);
 });
 
-test('AI saga scans recheck the live session before saving after a slow response',async()=>{
+test('Saga scans recheck the live session before saving after a slow response',async()=>{
   const f=fixture();f.revokeDuringScan();const result=await f.actions.autoDetectSagaOrder(f.sagaKey);assert.match(result.error,/Sign in/);assert.deepEqual(f.games,f.initial);assert.equal(f.writes.length,0);
 });
 
-test('personalized in-flight results are isolated by operator while public chronology cache is defensive and metadata-only',async()=>{
+test('personalized in-flight results are isolated by operator and local chronology results are independent',async()=>{
   const {guardedRequest}=loader()('src/lib/api-resilience.ts');let calls=0;
   const values=await Promise.all([guardedRequest('owner-a','advisor','same-input',async()=>{calls++;return{notes:'A private result'};}),guardedRequest('owner-b','advisor','same-input',async()=>{calls++;return{notes:'B private result'};})]);assert.equal(calls,2);assert.deepEqual(values,[{notes:'A private result'},{notes:'B private result'}]);
-  const previous=process.env.GEMINI_API_KEY;process.env.GEMINI_API_KEY='isolated-fixture-key';
-  try{
-    const requests=[];const chronology=loader({'@/lib/api-resilience':{resilientFetch:async(_url,options)=>{requests.push(JSON.parse(options.body));return new Response(JSON.stringify({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify({'Saga One':1,'Saga Two':2})}]}}]}),{status:200,headers:{'Content-Type':'application/json'}});}}})('src/lib/saga-chronology.ts');
-    const first=await chronology.resolveSagaChronology('Shared Saga',['Saga Two','Saga One']);first['Saga One']=999;const second=await chronology.resolveSagaChronology('Shared Saga',['Saga One','Saga Two']);assert.deepEqual(second,{'Saga One':1,'Saga Two':2});assert.equal(requests.length,1);
-    const data=requests[0].contents[0].parts[0].text;assert(data.includes('Saga One'));for(const privateField of ['userId','notes','rating','status','passwordHash'])assert(!data.includes(privateField));
-  }finally{if(previous===undefined)delete process.env.GEMINI_API_KEY;else process.env.GEMINI_API_KEY=previous;}
+  const {buildReleaseYearOrder}=loader()('src/lib/saga-chronology.ts');
+  const games=[{id:2,title:'Saga Two',releaseYear:2020},{id:1,title:'Saga One',releaseYear:2010}],before=structuredClone(games);
+  const first=buildReleaseYearOrder(games);first.set(1,999);
+  assert.deepEqual([...buildReleaseYearOrder(games)],[[1,1],[2,2]]);assert.deepEqual(games,before);
 });

@@ -1,3 +1,144 @@
+.saga-debugger {
+	margin-top: 14px;
+	font-family: "Courier New", monospace;
+}
+
+.saga-debug-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.saga-debugger button {
+	min-height: 32px;
+	padding: 7px 10px;
+	border: 1px solid #32616a;
+	border-radius: 2px;
+	color: #94f7ff;
+	background: #0b1823;
+	font: 700 10px "Courier New", monospace;
+	letter-spacing: 0.04em;
+	cursor: pointer;
+}
+
+.saga-debugger button:hover:not(:disabled),
+.saga-debugger button:focus-visible {
+	border-color: #00f0ff;
+	color: #00f0ff;
+	outline: 1px solid #00f0ff;
+	outline-offset: 2px;
+}
+
+.saga-debugger button:disabled {
+	opacity: 0.45;
+	cursor: wait;
+}
+
+.saga-debug-readout {
+	margin-top: 10px;
+	padding: 14px;
+	min-width: 0;
+	border: 1px solid #285461;
+	background: #080e18;
+	color: #c9d9e8;
+	font-size: 11px;
+	line-height: 1.6;
+}
+
+.saga-debug-readout h4 {
+	margin: 0 0 12px;
+	color: #00f0ff;
+	font: 700 12px "Courier New", monospace;
+}
+
+.saga-debug-provider-error {
+	padding: 10px;
+	border: 1px solid #804155;
+	background: #21101b;
+	color: #ffb4cc;
+	overflow-wrap: anywhere;
+}
+
+.saga-debug-stats {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+	gap: 10px;
+	margin: 0;
+}
+
+.saga-debug-stats dt {
+	color: #899fb4;
+	text-transform: uppercase;
+}
+
+.saga-debug-stats dd {
+	margin: 3px 0 0;
+	color: #fcee0a;
+	overflow-wrap: anywhere;
+}
+
+.saga-debug-table-scroll {
+	max-width: 100%;
+	overflow-x: auto;
+}
+
+.saga-debug-readout table {
+	width: 100%;
+	min-width: 670px;
+	border-collapse: collapse;
+	text-align: left;
+}
+
+.saga-debug-readout caption {
+	padding: 8px 0;
+	text-align: left;
+	color: #94f7ff;
+}
+
+.saga-debug-readout th,
+.saga-debug-readout td {
+	padding: 9px;
+	border: 1px solid #263849;
+	vertical-align: top;
+	overflow-wrap: anywhere;
+}
+
+.saga-debug-readout th {
+	color: #00f0ff;
+	background: #0b1823;
+}
+
+.saga-debug-readout small {
+	display: block;
+	color: #899fb4;
+}
+
+.saga-debug-readout tr[data-unmatched="true"] td:nth-child(2) {
+	color: #ff8bad;
+}
+
+.saga-debug-canon,
+.saga-debug-payload {
+	margin-top: 12px;
+}
+
+.saga-debug-canon summary,
+.saga-debug-payload summary {
+	color: #94f7ff;
+	cursor: pointer;
+}
+
+.saga-debug-canon pre,
+.saga-debug-payload pre {
+	max-height: 300px;
+	padding: 12px;
+	overflow: auto;
+	border: 1px solid #263849;
+	background: #06090f;
+	font: inherit;
+	white-space: pre;
+}
+
 .saga-chains-drawer {
 	margin: 18px 0;
 	border: 1px solid #285461;

@@ -62,17 +62,18 @@ test('outbound retries, deduplication, provider cooldowns, route responses and s
     assert.equal(calls, 2);
     for (const response of responses) { assert.equal(response.status, 429); assert.equal(response.headers.get('Retry-After'), '30'); assert.equal((await response.json()).retryAfterSeconds, 30); }
     const blocked = await route.POST(request()); assert.equal(blocked.status, 429); assert.equal(calls, 2);
-    // A rate-limited canon scan cannot enter the transaction or overwrite saved ranks.
+    // Without verified titles, an IGDB outage clears stale ranks instead of ranking unknown games.
     let writes = 0;
     const sagaLoad = loader({ 'next/cache': { revalidatePath() {} }, '@/lib/player': { getAuthenticatedPlayerId: async () => 'saga-fixture' },
-      '@/lib/prisma': { prisma: { game: { findMany: async () => [1, 2].map(id => ({ id, title: `Game ${id}`, status: 'Backlog', franchise: 'Test Saga', chronologicalOrder: id })) }, $transaction: async () => { writes++; } } },
+      '@/lib/prisma': { prisma: { franchiseChronology: { findUnique: async () => null }, game: { findMany: async () => [1, 2].map(id => ({ id, title: `Game ${id}`, status: 'Backlog', franchise: 'Test Saga', releaseYear: 2000 + id, chronologicalOrder: id })), update: args => ({ args }) }, $transaction: async jobs => { for (const { args } of jobs) { assert.equal(args.where.userId, 'saga-fixture'); assert.equal(args.data.chronologicalOrder, null); writes++; } } } },
       '@/lib/achievements': {}, '@/lib/recommendations': {}, '@/lib/rawg': {},
-      '@/lib/saga-chronology': { resolveSagaChronology: async () => { throw new SagaLimit(20); } },
+      '@/lib/igdb-chronology': { getIgdbChronology: async () => { throw new SagaLimit(20); } },
+      '@/lib/api-resilience': { guardedRequest: () => { throw new SagaLimit(20); } },
     });
     const SagaLimit = sagaLoad('src/lib/action-result.ts').RateLimitError;
     const chains = sagaLoad('src/lib/sagas.ts').buildSagaChains([1, 2].map(id => ({ id, title: `Game ${id}`, status: 'Backlog', franchise: 'Test Saga' })));
     const result = await sagaLoad('src/app/actions.ts').autoDetectSagaOrder(chains.chains[0].key);
-    assert.equal(result.status, 429); assert.equal(result.retryAfterSeconds, 20); assert.equal(writes, 0);
+    assert.equal(result.updatedCount, 2); assert.match(result.message, /No verified saga titles/); assert.equal(result.error, undefined); assert.equal(writes, 2);
   } finally {
     global.fetch = originalFetch; Math.random = originalRandom;
     if (originalKey === undefined) delete process.env.GEMINI_API_KEY; else process.env.GEMINI_API_KEY = originalKey;
