@@ -14,14 +14,16 @@ button.theme-toggle {
 }
 button.theme-toggle:focus-visible { outline: 2px solid #fcee0a; outline-offset: 3px; }
 .theme-controls { display: inline-flex; align-items: center; gap: 4px; width: 164px; flex-shrink: 0; vertical-align: middle; }
-.theme-controls[data-active="true"] button.theme-toggle { min-width: 0; flex: 1; padding-right: 4px; padding-left: 4px; font-size: 9px; }
-.theme-controls button.halloween-sfx-toggle {
+.theme-controls button.theme-toggle { min-width: 0; flex: 1; padding-right: 4px; padding-left: 4px; font-size: 9px; }
+.theme-controls button.ui-sfx-toggle {
 	min-height: 36px;
 	width: 32px;
 	min-width: 32px;
 	padding: 8px 2px;
-	border: 1px solid #7cba5e;
+	border: 1px solid #32616a;
 	border-radius: 2px;
+	color: #94f7ff;
+	background: #0d202a;
 	font: 700 10px/1.4 "Courier New", monospace;
 	cursor: pointer;
 }

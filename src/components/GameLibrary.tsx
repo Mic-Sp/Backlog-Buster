@@ -1,6 +1,7 @@
 "use client";
 
 import useCooldown from "@/components/useCooldown";
+import { useUIEffects } from "@/components/ThemeProvider";
 import { DEFAULT_COOLDOWN_SECONDS } from "@/lib/cooldown";
 import { unwrapActionResult } from "@/lib/action-result";
 
@@ -81,6 +82,12 @@ function comparePinnedGames(left: LibraryGame, right: LibraryGame) {
 }
 
 export default function GameLibrary({ games: serverGames, achievements = [], children }: { games: LibraryGame[]; achievements?: Achievement[]; children?: ReactNode }) {
+  const { playSfx } = useUIEffects();
+  async function completeGameWithSound(data: FormData) {
+    const result = unwrapActionResult(await completeGame(data));
+    playSfx("confirm");
+    return result;
+  }
   const sagaCooldown = useCooldown();
   const sagaProviderCooldown = useCooldown();
   const sagaScanRef = useRef(false);
@@ -961,7 +968,7 @@ export default function GameLibrary({ games: serverGames, achievements = [], chi
                   {game.status === "Playing" && <AgentBriefing game={game} />}
                   {renderCardControls(game)}
                   {game.status === "Playing" && (
-                    <SafeActionButton type="submit" formAction={completeGame} className="complete-gig-button">
+                    <SafeActionButton type="submit" formAction={completeGameWithSound} className="complete-gig-button">
                       🏆 COMPLETE GIG (+{Math.max(game.lengthHours, game.hoursPlayed) * game.difficulty * 10} XP)
                     </SafeActionButton>
                   )}

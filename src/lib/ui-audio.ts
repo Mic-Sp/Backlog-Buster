@@ -1,8 +1,10 @@
-export type HalloweenSound = "welcome" | "pop" | "roll" | "scan";
+export type UISound = "welcome" | "click" | "confirm" | "pop" | "roll" | "scan";
+export type SoundTheme = "cyberpunk" | "halloween";
 
 /** Browser-only at playback time; safe to construct during SSR or in tests. */
-export function createHalloweenAudio() {
+export function createUIAudio() {
   let enabled = false;
+  let theme: SoundTheme = "cyberpunk";
   let context: AudioContext | undefined;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let generation = 0;
@@ -20,7 +22,12 @@ export function createHalloweenAudio() {
     if (!enabled) stop();
   }
 
-  function play(sound: HalloweenSound) {
+  function setTheme(value: SoundTheme) {
+    if (theme !== value) stop();
+    theme = value;
+  }
+
+  function play(sound: UISound) {
     if (!enabled || typeof window === "undefined") return;
     stop();
     const currentGeneration = generation;
@@ -49,7 +56,19 @@ export function createHalloweenAudio() {
             oscillator.start(at + offset);
             oscillator.stop(at + offset + duration + 0.02);
           }
-          if (sound === "welcome") {
+          if (theme === "cyberpunk") {
+            if (sound === "click") {
+              note(1800, 0, 0.035, "triangle", 1000);
+            } else if (sound === "scan" || sound === "roll") {
+              note(220, 0, 0.25, "sine", 1320);
+              [880, 1320, 1760].forEach((frequency, index) => note(frequency, 0.2 + index * 0.065, 0.08, "triangle"));
+            } else {
+              [659.25, 987.77, 1318.51].forEach((frequency, index) => note(frequency, index * 0.07, 0.14, "sine"));
+              if (sound === "welcome") note(2637, 0.23, 0.11, "triangle", 1318.51);
+            }
+          } else if (sound === "click") {
+            note(440, 0, 0.055, "square", 220);
+          } else if (sound === "welcome") {
             [261.63, 311.13, 392].forEach(frequency => note(frequency, 0, 0.65, "triangle", frequency * 0.97));
             note(784, 0.12, 0.55, "sine", 330);
           } else if (sound === "scan") {
@@ -68,5 +87,5 @@ export function createHalloweenAudio() {
     } catch { stop(); }
   }
 
-  return { setEnabled, play, stop };
+  return { setEnabled, setTheme, play, stop };
 }

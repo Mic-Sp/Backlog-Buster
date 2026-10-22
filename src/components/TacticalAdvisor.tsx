@@ -13,10 +13,10 @@ import { normalizeGameTitle } from "@/lib/game-title";
 import { buildTrailerUrl } from "@/lib/trailers";
 import DeckPinButton from "@/components/DeckPinButton";
 import AgentBriefing from "@/components/AgentBriefing";
-import { useHalloweenEffects } from "@/components/ThemeProvider";
+import { useUIEffects } from "@/components/ThemeProvider";
 
 export default function TacticalAdvisor({ games }: { games: Pick<LibraryGame, "id" | "title" | "status" | "pinnedOrder" | "hoursPlayed" | "lengthHours">[] }) {
-  const { playHalloweenSfx } = useHalloweenEffects();
+  const { playSfx } = useUIEffects();
   const advisorCooldown = useCooldown();
   const scoutCooldown = useCooldown();
   const advisorFlight = useRef(false);
@@ -53,7 +53,7 @@ export default function TacticalAdvisor({ games }: { games: Pick<LibraryGame, "i
       return;
     }
     scoutFlight.current = true;
-    playHalloweenSfx("scan");
+    playSfx("scan");
     const request = ++scoutRequestId.current;
     setExternalPicks(null);
     setExternalError("");
@@ -109,7 +109,7 @@ export default function TacticalAdvisor({ games }: { games: Pick<LibraryGame, "i
     startAdding(async () => {
       try {
         unwrapActionResult(await addExternalScoutGame(formData));
-        playHalloweenSfx("pop");
+        playSfx("confirm");
         setAddedTitles((current) => new Set([...current, key]));
       } catch {
         setExternalError(`Could not add ${pick.title}. Please try again.`);
@@ -123,7 +123,7 @@ export default function TacticalAdvisor({ games }: { games: Pick<LibraryGame, "i
   function loadPicks() {
     if (advisorFlight.current || advisorCooldown.seconds > 0) return;
     advisorFlight.current = true;
-    playHalloweenSfx("scan");
+    playSfx("scan");
     const request = ++requestId.current;
     setPicks(null);
     setError("");

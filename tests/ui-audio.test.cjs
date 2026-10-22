@@ -2,19 +2,19 @@
 const test = require("node:test"), assert = require("node:assert/strict"), fs = require("node:fs"), path = require("node:path"), ts = require("typescript");
 function load() {
   const instance = { exports: {} };
-  const code = ts.transpileModule(fs.readFileSync(path.join(__dirname, "../src/lib/halloween-audio.ts"), "utf8"), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
+  const code = ts.transpileModule(fs.readFileSync(path.join(__dirname, "../src/lib/ui-audio.ts"), "utf8"), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
   new Function("module", "exports", code)(instance, instance.exports);
   return instance.exports;
 }
 
-test("Halloween audio is gated, bounded, stops on mute/off, and tolerates unavailable APIs", async () => {
+test("both audio palettes are gated, bounded, stop on mute/theme changes, and tolerate unavailable APIs", async () => {
   const previous = { window: global.window, setTimeout: global.setTimeout, clearTimeout: global.clearTimeout };
   const contexts = [], timers = new Map(); let timerId = 0;
-  const param = () => ({ setValueAtTime() {}, exponentialRampToValueAtTime() {} });
+  const param = (onSet = () => {}) => ({ setValueAtTime(value) { onSet(value); }, exponentialRampToValueAtTime() {} });
   class Audio {
-    state = "running"; currentTime = 0; destination = {}; notes = 0; closed = false;
+    state = "running"; currentTime = 0; destination = {}; notes = 0; closed = false; frequencies = [];
     constructor() { contexts.push(this); }
-    createOscillator() { this.notes++; return { frequency: param(), connect() {}, start() {}, stop() {} }; }
+    createOscillator() { this.notes++; return { frequency: param(value => this.frequencies.push(value)), connect() {}, start() {}, stop() {} }; }
     createGain() { return { gain: param(), connect() {} }; }
     close() { this.closed = true; this.state = "closed"; return Promise.resolve(); }
     resume() { this.state = "running"; return Promise.resolve(); }
@@ -23,8 +23,9 @@ test("Halloween audio is gated, bounded, stops on mute/off, and tolerates unavai
     global.setTimeout = (callback, delay) => { assert.equal(delay, 1200); const id = ++timerId; timers.set(id, callback); return id; };
     global.clearTimeout = id => timers.delete(id);
     delete global.window;
-    const { createHalloweenAudio } = load();
-    const audio = createHalloweenAudio();
+    const { createUIAudio } = load();
+    const audio = createUIAudio();
+    audio.setTheme("halloween");
     audio.setEnabled(true); assert.doesNotThrow(() => audio.play("welcome"));
     global.window = {}; assert.doesNotThrow(() => audio.play("scan"));
     global.window.AudioContext = Audio;
@@ -36,6 +37,15 @@ test("Halloween audio is gated, bounded, stops on mute/off, and tolerates unavai
     }
     audio.setEnabled(false); assert.equal(contexts.at(-1).closed, true); assert.equal(timers.size, 0);
     audio.play("pop"); assert.equal(contexts.length, 4);
+    audio.setEnabled(true); audio.play("welcome");
+    const spooky = contexts.at(-1);
+    assert.deepEqual(spooky.frequencies, [261.63, 311.13, 392, 784]);
+    audio.setTheme("cyberpunk"); assert.equal(spooky.closed, true);
+    audio.play("welcome");
+    assert.deepEqual(contexts.at(-1).frequencies, [659.25, 987.77, 1318.51, 2637]);
+    for (const [sound, count] of [["scan", 4], ["roll", 4], ["confirm", 3], ["click", 1]]) {
+      audio.play(sound); assert.equal(contexts.at(-1).notes, count);
+    }
     audio.setEnabled(true); audio.play("welcome");
     [...timers.values()][0](); assert.equal(contexts.at(-1).closed, true); assert.equal(timers.size, 0);
     global.window.AudioContext = class { constructor() { throw Error("Unavailable"); } };

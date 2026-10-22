@@ -7,7 +7,7 @@ import { acceptQuest } from "@/app/actions";
 import { buildTrailerUrl } from "@/lib/trailers";
 import { isReleasedYear } from "@/lib/game-release";
 import DeckPinButton from "@/components/DeckPinButton";
-import { useHalloweenEffects } from "@/components/ThemeProvider";
+import { useUIEffects } from "@/components/ThemeProvider";
 
 type QuestGame = {
   id: number;
@@ -22,7 +22,7 @@ type QuestGame = {
 };
 
 export default function QuestRoulette({ games }: { games: QuestGame[] }) {
-  const { playHalloweenSfx } = useHalloweenEffects();
+  const { playSfx } = useUIEffects();
   const [isOpen, setIsOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -110,7 +110,7 @@ export default function QuestRoulette({ games }: { games: QuestGame[] }) {
 
   function roll() {
     if (intervalRef.current !== null || isAccepting || matches.length === 0) return;
-    playHalloweenSfx("roll");
+    playSfx("roll");
     resetResult();
     const candidates = matches.length > 1
       ? matches.filter((game) => game.id !== lastWinnerId.current)
