@@ -19,6 +19,7 @@ function loader(mocks = {}) {
 
 test('local backlog advice can repeat immediately while external scouting stays rate limited', async () => {
   let advisorCalls = 0, scoutCalls = 0, authenticated = true;
+  const histories = [];
   const load = loader({
     'next/cache': { revalidatePath() {} },
     '@/lib/player': { getAuthenticatedPlayerId: async () => {
@@ -27,8 +28,9 @@ test('local backlog advice can repeat immediately while external scouting stays 
     } },
     '@/lib/prisma': {}, '@/lib/achievements': {}, '@/lib/rawg': {},
     '@/lib/recommendations': {
-      getBacklogRecommendations: async playerId => {
+      getBacklogRecommendations: async (playerId, excludedIds) => {
         assert.equal(playerId, 'advisor-fixture');
+        histories.push(excludedIds);
         advisorCalls++;
         return { continuationPick: null, palateCleanserPick: null, revision: advisorCalls };
       },
@@ -41,10 +43,15 @@ test('local backlog advice can repeat immediately while external scouting stays 
   assert.equal((await fetchBacklogAdvisor()).revision, 1);
   assert.deepEqual(await fetchExternalScout(), []);
   // Neither an internal repeat nor the scout's active cooldown can lock local advice.
-  assert.equal((await fetchBacklogAdvisor()).revision, 2);
+  assert.equal((await fetchBacklogAdvisor([10, 20, 10])).revision, 2);
+  assert.deepEqual(histories, [[], [10, 20]]);
   assert.equal((await fetchExternalScout(['Previously seen'])).status, 429);
   assert.equal(scoutCalls, 1);
   assert.equal((await fetchBacklogAdvisor()).revision, 3);
+  for (const history of [null, {}, '1', [0], [-1], [1.5], [NaN], ['1'], [2_147_483_648], Array(10_001).fill(1)]) {
+    assert.match((await fetchBacklogAdvisor(history)).error, /valid list/);
+  }
+  assert.equal(advisorCalls, 3);
   authenticated = false;
   assert.deepEqual(await fetchBacklogAdvisor(), { error: 'Sign in to access your library.' });
   assert.equal(advisorCalls, 3);

@@ -45,6 +45,7 @@ export function useTacticalAdvisorController({ games }: { games: Pick<LibraryGam
   const scoutRequestId = useRef(0);
   // Keep session history across modal opens; match the action's 30-title cap.
   const seenExternalTitles = useRef(new Map<string, string>());
+  const seenInternalIds = useRef<number[]>([]);
   const backlogCount = useMemo(() => games.filter((game) => game.status === "Backlog").length, [games]);
   const pinnedCount = games.filter((game) => game.status === "Backlog" && game.pinnedOrder != null).length;
   const ownedTitles = useMemo(() => new Set(games.map((game) => normalizeGameTitle(game.title))), [games]);
@@ -132,8 +133,11 @@ export function useTacticalAdvisorController({ games }: { games: Pick<LibraryGam
     setError("");
     startFetching(async () => {
       try {
-        const result = unwrapActionResult(await fetchBacklogAdvisor());
-        if (request === requestId.current) setPicks(result);
+        const result = unwrapActionResult(await fetchBacklogAdvisor(seenInternalIds.current));
+        if (request === requestId.current) {
+          seenInternalIds.current = result.seenGameIds ?? [];
+          setPicks(result);
+        }
       } catch (error) {
         if (request === requestId.current) setError(actionErrorMessage(error, "CORTEX could not scan your backlog. Please retry."));
       } finally { advisorFlight.current = false; }
@@ -211,7 +215,7 @@ export function useTacticalAdvisorController({ games }: { games: Pick<LibraryGam
 
   function renderPick(pick: BacklogRecommendation | null, variant: "continuation" | "cleanser") {
     const savedGame = games.find((game) => game.id === pick?.game.id && game.status === "Backlog");
-    const heading = variant === "continuation" ? copy("🔗 DIRECT CONTINUATION // SEQUEL & AFFINITY", "THE FAMILIAR PATH · CONTINUE YOUR SAGA") : copy("⚡ PALATE CLEANSER // PACING RESET", "THE WANDERING PATH · A FRESH ADVENTURE");
+    const heading = variant === "continuation" ? copy("🔗 AFFINITY // FAVORITES MATCH", "THE FAMILIAR PATH · FAVORITES & AFFINITY") : copy("⚡ PALETTE CLEANSER // PACING RESET", "PALETTE CLEANSER · THE WANDERING PATH");
     return (
       <article className="advisor-card" data-variant={variant}>
         <h3 className="advisor-card-eyebrow">{heading}</h3>

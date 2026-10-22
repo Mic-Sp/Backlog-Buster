@@ -13,6 +13,7 @@ import { AdminRequiredError, requireAdmin } from "@/lib/admin";
 import { resolveRawgPlaytime } from "@/lib/game-playtime";
 import { lookupRawgGame, type RawgGameInfo } from "@/lib/rawg";
 import { getBacklogRecommendations, getExternalRecommendations } from "@/lib/recommendations";
+import { MAX_ADVISOR_HISTORY } from "@/lib/backlog-advisor";
 import { normalizeGameTitle } from "@/lib/game-title";
 import { DECK_CAPACITY } from "@/lib/deck";
 import type { Prisma } from "@/generated/prisma/client";
@@ -379,11 +380,15 @@ export async function searchGameInfo(title: string) {
   });
 }
 
-export async function fetchBacklogAdvisor() {
+export async function fetchBacklogAdvisor(excludedGameIds: readonly number[] = []) {
   return safeAction(async () => {
     const playerId = await getAuthenticatedPlayerId();
+    if (!Array.isArray(excludedGameIds) || excludedGameIds.length > MAX_ADVISOR_HISTORY ||
+      excludedGameIds.some(id => !Number.isSafeInteger(id) || id < 1 || id > 2_147_483_647)) {
+      throw new InputError("Provide a valid list of previously recommended game IDs.");
+    }
     // Saved-library recommendations use local ranking, without external API calls.
-    return getBacklogRecommendations(playerId);
+    return getBacklogRecommendations(playerId, [...new Set(excludedGameIds)]);
   });
 }
 
