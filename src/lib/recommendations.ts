@@ -7,6 +7,7 @@ import { resolveRawgPlaytime } from "@/lib/game-playtime";
 import { normalizeGameTitle } from "@/lib/game-title";
 import { isReleasedYear } from "@/lib/game-release";
 import { franchiseAffinities, genreNeighbors, generalDiscovery } from "@/lib/scout-catalog";
+import { getAIScoutCandidates } from "@/lib/scout-ai";
 
 type AdvisorGame = {
   id: number;
@@ -194,13 +195,15 @@ export async function getBacklogRecommendations(userId?: string): Promise<Backlo
   return { continuationPick, palateCleanserPick: recommendation(cleanser, reason) };
 }
 
-export async function getExternalRecommendations(userId?: string): Promise<ExternalRecommendation[]> {
-  userId ??= await getCurrentPlayerId();
-  const games = await prisma.game.findMany({
-    where: { userId },
-    select: { title: true, platform: true, genre: true, status: true, rating: true, earnedXp: true },
-  });
-  const owned = new Set(games.map((game) => normalizeGameTitle(game.title)));
+type ScoutLibraryGame = Pick<AdvisorGame, "title" | "platform" | "genre" | "status" | "rating" | "earnedXp">;
+type ScoutCandidate = { title: string; reason: string; preferredPlatform: string };
+
+// Pure deterministic fallback selection; RAWG enrichment remains in the caller.
+function selectStaticScoutCandidates(
+  games: readonly ScoutLibraryGame[],
+  extraExcludedTitles: readonly string[] = [],
+): ScoutCandidate[] {
+  const excluded = new Set([...games.map((game) => game.title), ...extraExcludedTitles].map(normalizeGameTitle));
   const completed = games.filter((game) => game.status === "Completed");
   const favorites = completed.filter((game) => game.rating !== null && game.rating >= 4)
     .sort((left, right) => (right.rating ?? 0) - (left.rating ?? 0) || right.earnedXp - left.earnedXp || left.title.localeCompare(right.title));
@@ -223,14 +226,14 @@ export async function getExternalRecommendations(userId?: string): Promise<Exter
       ...generalDiscovery.map((candidate) => ({ title: candidate, basis: "A broader curated discovery pick beyond your established favorites." })),
     ].filter((candidate) => {
       const key = normalizeGameTitle(candidate.title);
-      if (owned.has(key) || seen.has(key)) return false;
+      if (excluded.has(key) || seen.has(key)) return false;
       seen.add(key);
       return true;
     });
     return { seed, candidates };
   });
 
-  const selected: { title: string; reason: string; preferredPlatform: string }[] = [];
+  const selected: ScoutCandidate[] = [];
   const selectedTitles = new Set<string>();
   // Keep a bounded reserve in case RAWG cannot confirm a candidate has been released.
   const candidateLimit = 9;
@@ -249,25 +252,65 @@ export async function getExternalRecommendations(userId?: string): Promise<Exter
     }
   }
 
+  return selected;
+}
+
+export async function getExternalRecommendations(
+  userId?: string,
+  extraExcludedTitles: readonly string[] = [],
+): Promise<ExternalRecommendation[]> {
+  userId ??= await getCurrentPlayerId();
+  const games = await prisma.game.findMany({
+    where: { userId },
+    select: { title: true, platform: true, genre: true, status: true, rating: true, earnedXp: true },
+  });
   const currentYear = new Date().getFullYear();
   const recommendations: ExternalRecommendation[] = [];
-  // Enrich three at a time, trying replacements only if a release year is missing or upcoming.
-  for (let offset = 0; offset < selected.length && recommendations.length < 3; offset += 3) {
-    const batch = await Promise.all(selected.slice(offset, offset + 3).map(async (candidate): Promise<ExternalRecommendation | null> => {
-      const lookup = await lookupRawgGame(candidate.title, true);
-      if (!lookup || !isReleasedYear(lookup.releaseYear, currentYear)) return null;
-      return {
-        title: candidate.title,
-        platform: lookup.platforms.find((platform) => normalize(platform) === normalize(candidate.preferredPlatform)) ?? lookup.platforms[0] ?? "PC",
-        genre: lookup.genre,
-        releaseYear: lookup.releaseYear,
-        coverUrl: lookup.coverUrl,
-        lengthHours: resolveRawgPlaytime(lookup.playtime, lookup.genre) ?? 10,
-        difficulty: 2,
-        reason: candidate.reason,
-      };
-    }));
-    recommendations.push(...batch.filter((pick): pick is ExternalRecommendation => pick !== null));
+  const excluded = new Set([...games.map((game) => game.title), ...extraExcludedTitles].map(normalizeGameTitle));
+  const attemptedTitles: string[] = [];
+
+  async function appendEnrichedCandidates(candidates: ScoutCandidate[], tolerateLookupErrors: boolean) {
+    const selected = candidates.filter((candidate) => {
+      const key = normalizeGameTitle(candidate.title);
+      if (!key || excluded.has(key)) return false;
+      excluded.add(key);
+      attemptedTitles.push(candidate.title);
+      return true;
+    });
+    // Keep provider concurrency bounded and preserve candidate priority.
+    for (let offset = 0; offset < selected.length && recommendations.length < 3; offset += 3) {
+      const batch = await Promise.all(selected.slice(offset, offset + 3).map(async (candidate): Promise<ExternalRecommendation | null> => {
+        try {
+          const lookup = await lookupRawgGame(candidate.title, true);
+          if (!lookup || !isReleasedYear(lookup.releaseYear, currentYear)) return null;
+          return {
+            title: candidate.title,
+            platform: lookup.platforms.find((platform) => normalize(platform) === normalize(candidate.preferredPlatform)) ?? lookup.platforms[0] ?? "PC",
+            genre: lookup.genre,
+            releaseYear: lookup.releaseYear,
+            coverUrl: lookup.coverUrl,
+            lengthHours: resolveRawgPlaytime(lookup.playtime, lookup.genre) ?? 10,
+            difficulty: 2,
+            reason: candidate.reason,
+          };
+        } catch (error) {
+          if (!tolerateLookupErrors) throw error;
+          return null;
+        }
+      }));
+      recommendations.push(...batch.filter((pick): pick is ExternalRecommendation => pick !== null).slice(0, 3 - recommendations.length));
+    }
+  }
+
+  try {
+    await appendEnrichedCandidates(await getAIScoutCandidates(games, extraExcludedTitles), true);
+  } catch {
+    // Missing configuration, timeouts, quota errors, and invalid AI output all
+    // fall back to the deterministic catalog without exposing provider details.
+  }
+  if (recommendations.length < 3) {
+    const fallback = selectStaticScoutCandidates(games, [...extraExcludedTitles, ...attemptedTitles]);
+    await appendEnrichedCandidates(fallback, false);
   }
   return recommendations.slice(0, 3);
 }
