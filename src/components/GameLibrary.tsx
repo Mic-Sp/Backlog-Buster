@@ -1,32 +1,29 @@
 "use client";
 
-import useCooldown from "@/components/useCooldown";
 import { useUIEffects } from "@/components/ThemeProvider";
+import useCooldown from "@/components/useCooldown";
+import { actionErrorMessage, unwrapActionResult } from "@/lib/action-result";
 import { DEFAULT_COOLDOWN_SECONDS } from "@/lib/cooldown";
-import { unwrapActionResult } from "@/lib/action-result";
-
-import SafeForm, { SafeActionButton } from "@/components/SafeForm";
-
-import { useEffect, useMemo, useOptimistic, useRef, useState, useTransition, type DragEvent, type ReactNode } from "react";
-import { autoDetectSagaOrder, completeGame, deleteGame, flatlineGame, logPlaySession, reorderBacklogGames, reorderSagaTimeline, returnDeckGameToBacklog, startGame, updateGame } from "@/app/actions";
+import { autoDetectSagaOrder, completeGame, logPlaySession, reorderBacklogGames, reorderSagaTimeline, returnDeckGameToBacklog, startGame } from "@/app/actions";
 import type { Achievement } from "@/lib/achievements";
-import StarRatingInput from "@/components/StarRatingInput";
-import LibraryDataVault from "@/components/LibraryDataVault";
-import LibraryTelemetry from "@/components/LibraryTelemetry";
-import TrophyRatingEditor from "@/components/TrophyRatingEditor";
-import TacticalAdvisor from "@/components/TacticalAdvisor";
-import { buildTrailerUrl } from "@/lib/trailers";
-import DeckPinButton from "@/components/DeckPinButton";
-import UpNextDeck from "@/components/UpNextDeck";
+import { compareBacklogPriority, getBacklogInsertionOrder } from "@/lib/backlog-order";
 import { DECK_CAPACITY, DECK_DRAG_TYPE, readDeckDrag, type DeckDragGame } from "@/lib/deck";
 import { isReleasedYear } from "@/lib/game-release";
-import AgentBriefing from "@/components/AgentBriefing";
-import SagaChains, { SagaBadge, SagaOrderControls } from "@/components/SagaChains";
-import SagaChronologyDebugger from "@/components/SagaChronologyDebugger";
 import type { SagaChronologyDebug } from "@/lib/saga-debug";
 import { buildSagaChains, compareSagaGames, type SagaOrderMode } from "@/lib/sagas";
-import { compareBacklogPriority, getBacklogInsertionOrder } from "@/lib/backlog-order";
-import "./BacklogReorder.css";
+import { useEffect, useMemo, useOptimistic, useRef, useState, useTransition, type DragEvent, type ReactNode } from "react";
+import FantasySubscreenView from "@/components/FantasySubscreenView";
+import { useSubscreen } from "@/components/WorkspaceShell";
+import useGameDrafts from "@/components/useGameDrafts";
+import { updateGame, deleteGame, flatlineGame } from "@/app/actions";
+import CyberpunkLibraryView from "@/components/CyberpunkLibraryView";
+import GameMetadataEditor from "@/components/GameMetadataEditor";
+import { LibraryDataVaultView, useLibraryDataVaultController } from "@/components/LibraryDataVault";
+import { QuestRouletteView, useQuestRouletteController } from "@/components/QuestRoulette";
+import { useSagaDebuggerController } from "@/components/SagaChronologyDebugger";
+import { TacticalAdvisorView, useTacticalAdvisorController } from "@/components/TacticalAdvisor";
+import { useUpNextDeckController } from "@/components/UpNextDeck";
+import { DeckPinsContext } from "@/components/useDeckPins";
 
 export type LibraryGame = {
   id: number;
@@ -51,13 +48,11 @@ export type LibraryGame = {
   releaseYear: number | null;
 };
 
-const statuses = ["Backlog", "Playing", "Completed", "Flatlined"];
-const views = ["Backlog", "Playing", "Completed", "Flatlined", "All"] as const;
-type LibraryView = typeof views[number];
+type LibraryView = "Backlog" | "Playing" | "Completed" | "Flatlined" | "All";
 type TimelineOrderState = { key: string; ids: number[]; pending: boolean };
 const sagaDragType = "application/x-backlogbuster-saga-game";
 const backlogDragType = "application/x-backlogbuster-backlog-game";
-type SortColumn = "title" | "platform" | "genre" | "year" | "status" | "hours" | "difficulty" | "xp";
+export type SortColumn = "title" | "platform" | "genre" | "year" | "status" | "hours" | "difficulty" | "xp";
 const statusPriority: Record<string, number> = { Playing: 0, Backlog: 1, Completed: 2, Flatlined: 3 };
 const primaryColumnSort = {
   title: "title-asc",
@@ -69,7 +64,6 @@ const primaryColumnSort = {
   difficulty: "difficulty-desc",
   xp: "xp-desc",
 } as const;
-const difficultyLabels: Record<number, string> = { 1: "Easy", 2: "Medium", 3: "Tough" };
 
 function sortableXp(game: LibraryGame) {
   return game.status === "Flatlined" ? 0 : game.earnedXp || game.lengthHours * game.difficulty * 10;
@@ -81,10 +75,25 @@ function comparePinnedGames(left: LibraryGame, right: LibraryGame) {
   return leftSlot - rightSlot;
 }
 
-export default function GameLibrary({ games: serverGames, achievements = [], isAdmin = false, children }: { games: LibraryGame[]; achievements?: Achievement[]; isAdmin?: boolean; children?: ReactNode }) {
-  const { playSfx } = useUIEffects();
+
+function useGameLibraryController({ games: serverGames, achievements = [], isAdmin = false, children }: { games: LibraryGame[]; achievements?: Achievement[]; isAdmin?: boolean; children?: ReactNode }) {
+  const { playSfx, layoutMode } = useUIEffects();
+  const { showPane } = useSubscreen();
+  const [selectedGameId, setSelectedGameId] = useState<number | null>(null);
+  const [gameActionError, setGameActionError] = useState("");
+  async function mutateGame<T>(action: (data: FormData) => Promise<T>, data: FormData) {
+    setGameActionError("");
+    try {
+      const result = await action(data);
+      unwrapActionResult(result);
+      return result;
+    } catch (error) {
+      setGameActionError(actionErrorMessage(error));
+      throw error;
+    }
+  }
   async function completeGameWithSound(data: FormData) {
-    const result = unwrapActionResult(await completeGame(data));
+    const result = unwrapActionResult(await mutateGame(completeGame, data));
     playSfx("confirm");
     return result;
   }
@@ -164,7 +173,8 @@ export default function GameLibrary({ games: serverGames, achievements = [], isA
     reorderFocusRef.current = null;
     if (document.activeElement !== document.body) return;
     const controls = collectionRef.current?.querySelectorAll<HTMLButtonElement>(`button[data-reorder-game-id="${id}"]:not(:disabled)`);
-    const target = Array.from(controls ?? []).find((button) => button.dataset.reorderDirection === String(direction)) ?? controls?.[0];
+    const visibleControls = Array.from(controls ?? []).filter(button => button.getClientRects().length > 0);
+    const target = visibleControls.find(button => button.dataset.reorderDirection === String(direction)) ?? visibleControls[0];
     target?.focus();
   }, [isReorderingTimeline, isReorderingBacklog, games]);
 
@@ -210,7 +220,10 @@ export default function GameLibrary({ games: serverGames, achievements = [], isA
     return () => {
       document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", handleKeyDown);
-      trigger?.focus();
+      if (trigger?.isConnected) trigger.focus();
+      // Locate the replacement trigger if switching views removed the original.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      else collectionRef.current?.querySelector<HTMLButtonElement>(`[data-metadata-trigger-id="${editingMetaGame?.id}"]`)?.focus();
     };
   }, [editingMetaGame]);
 
@@ -336,16 +349,19 @@ export default function GameLibrary({ games: serverGames, achievements = [], isA
       setSagaNotice(null);
       setSortBy("default");
       setRevealedGameId(id);
+      setSelectedGameId(id);
+      showPane("items");
     }
     window.addEventListener("backlogbuster:game-added", showAddedGame);
     return () => window.removeEventListener("backlogbuster:game-added", showAddedGame);
-  }, []);
+  }, [showPane]);
 
   useEffect(() => {
     if (revealedGameId === null || !visibleGames.some(game => game.id === revealedGameId)) return;
     // Wait for the refreshed library and its selected view to commit before scrolling.
     const frame = requestAnimationFrame(() => {
-      const row = collectionRef.current?.querySelector<HTMLElement>(`[data-reorder-row-id="${revealedGameId}"], .spotlight-card[data-game-id="${revealedGameId}"]`);
+      const matches = collectionRef.current?.querySelectorAll<HTMLElement>(`[data-library-game-id="${revealedGameId}"]`);
+      const row = Array.from(matches ?? []).find(element => element.getClientRects().length > 0);
       if (!row) return;
       row.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth", block: "center" });
       setRevealedGameId(null);
@@ -354,14 +370,17 @@ export default function GameLibrary({ games: serverGames, achievements = [], isA
   }, [revealedGameId, visibleGames]);
 
   async function startGameAndShowPlaying(data: FormData) {
-    const result = unwrapActionResult(await startGame(data));
+    const result = unwrapActionResult(await mutateGame(startGame, data));
     clearFilters();
     setActiveView("Playing");
+    showPane("items");
     setRevealedGameId(Number(data.get("id")));
+    setSelectedGameId(Number(data.get("id")));
     return result;
   }
 
   function selectSaga(key: string) {
+    if (key !== sagaFilter) playSfx("page");
     setSagaFilter(key);
     sagaFilterRef.current = key;
     setSagaNotice(null);
@@ -378,6 +397,7 @@ export default function GameLibrary({ games: serverGames, achievements = [], isA
   }
 
   function changeSagaOrder(order: SagaOrderMode) {
+    playSfx("page");
     setSortBy(order === "timeline" ? "timeline-asc" : "year-asc");
   }
 
@@ -516,7 +536,7 @@ export default function GameLibrary({ games: serverGames, achievements = [], isA
 
   function backlogTargetFromEvent(event: DragEvent<HTMLElement>) {
     if (!inBacklogPriorityView || !(event.target instanceof Element)) return null;
-    const row = event.target.closest<HTMLFormElement>("form.game-row");
+    const row = event.target.closest<HTMLElement>("[data-reorder-row-id]");
     const id = Number(row?.dataset.reorderRowId);
     return visibleGames.some((game) => game.id === id && game.status === "Backlog" && game.pinnedOrder == null) ? id : null;
   }
@@ -561,7 +581,7 @@ export default function GameLibrary({ games: serverGames, achievements = [], isA
     });
   }
 
-  function startLibraryDrag(event: DragEvent<HTMLFormElement>, fallback: DeckDragGame) {
+  function startLibraryDrag(event: DragEvent<HTMLElement>, fallback: DeckDragGame) {
     if (rowReorderBusy || reorderInFlightRef.current || dragFromControlRef.current) {
       event.preventDefault();
       return;
@@ -584,13 +604,14 @@ export default function GameLibrary({ games: serverGames, achievements = [], isA
       setDeckDraggedGame(origin);
     }
     event.dataTransfer.effectAllowed = "move";
-    const source = collectionRef.current?.querySelector<HTMLElement>(fromDeck ? `[data-deck-game-id="${sourceId}"]` : `form[data-reorder-row-id="${sourceId}"]`);
+    const sources = collectionRef.current?.querySelectorAll<HTMLElement>(fromDeck ? `[data-deck-game-id="${sourceId}"]` : `[data-reorder-row-id="${sourceId}"]`);
+    const source = Array.from(sources ?? []).find(element => element.getClientRects().length > 0);
     if (source) event.dataTransfer.setDragImage(source, 16, source.offsetHeight / 2);
     dragSourceRef.current = fromDeck ? null : sourceId;
     setDragSourceId(fromDeck ? null : sourceId);
   }
 
-  function dropRowGame(event: DragEvent<HTMLFormElement>, targetId: number) {
+  function dropRowGame(event: DragEvent<HTMLElement>, targetId: number) {
     if (!isReorderableRow(targetId) || rowReorderBusy || dragSourceRef.current === null) return;
     event.preventDefault();
     const sourceId = dragSourceRef.current;
@@ -607,39 +628,19 @@ export default function GameLibrary({ games: serverGames, achievements = [], isA
     else persistVisibleBacklog(ids);
   }
 
-  function renderTimelinePill(game: LibraryGame) {
-    if (!inTimelineView) return null;
-    const position = visibleTimelinePositions.get(game.id) ?? -1;
-    const rank = optimisticTimeline.pending && optimisticTimeline.key === selectedSaga?.key
-      ? (timelinePositions.get(game.id) ?? 0) + 1 : game.chronologicalOrder;
-    return (
-      <span className="saga-timeline-ordinal saga-timeline-control" data-assigned={rank != null}>
-        <button type="button" className="timeline-swap-button" data-timeline-game-id={game.id} data-timeline-direction="-1" data-reorder-game-id={game.id} data-reorder-direction="-1" disabled={timelineBusy || position <= 0} aria-label={`Move ${game.title} up in saga timeline`} title="Move up in saga timeline" onClick={() => swapTimelineGame(game.id, -1)}>▲</button>
-        <span title={rank != null ? "In-universe timeline rank" : "Timeline rank unassigned; using release order"}>{rank != null ? `TL #${String(rank).padStart(2, "0")}` : "TL —"}</span>
-        <button type="button" className="timeline-swap-button" data-timeline-game-id={game.id} data-timeline-direction="1" data-reorder-game-id={game.id} data-reorder-direction="1" disabled={timelineBusy || position < 0 || position === visibleGames.length - 1} aria-label={`Move ${game.title} down in saga timeline`} title="Move down in saga timeline" onClick={() => swapTimelineGame(game.id, 1)}>▼</button>
-      </span>
-    );
+  function dragOverLibraryGame(event: DragEvent<HTMLElement>, targetId: number) {
+    if (!isReorderableRow(targetId) || rowReorderBusy || dragSourceRef.current === null || !isReorderableRow(dragSourceRef.current) || dragSourceRef.current === targetId) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    setDropTargetId(targetId);
   }
 
-  function renderBacklogPriorityPill(game: LibraryGame) {
-    if (!canReorderBacklog || game.pinnedOrder != null) return null;
-    const position = visibleBacklogPositions.get(game.id) ?? -1;
-    const rank = (backlogPositions.get(game.id) ?? 0) + 1;
-    return (
-      <span className="backlog-priority-control" role="group" aria-label={`Backlog priority ${rank} for ${game.title}`}>
-        <button type="button" className="backlog-swap-button" data-reorder-game-id={game.id} data-reorder-direction="-1" disabled={rowReorderBusy || position <= 0} aria-label={`Move ${game.title} up in Backlog priority`} title="Move up in Backlog priority" onClick={() => swapBacklogGame(game.id, -1)}>▲</button>
-        <span title="Custom Backlog priority">#{String(rank).padStart(2, "0")}</span>
-        <button type="button" className="backlog-swap-button" data-reorder-game-id={game.id} data-reorder-direction="1" disabled={rowReorderBusy || position < 0 || position === visibleBacklogIds.length - 1} aria-label={`Move ${game.title} down in Backlog priority`} title="Move down in Backlog priority" onClick={() => swapBacklogGame(game.id, 1)}>▼</button>
-      </span>
-    );
-  }
-
-  function renderSagaBadge(game: LibraryGame, layout: "default" | "table" | "trophy" = "default") {
-    const saga = byGameId.get(game.id);
-    return saga ? <SagaBadge saga={saga} onSelect={selectSaga} layout={layout} /> : null;
+  function leaveLibraryGame(event: DragEvent<HTMLElement>, targetId: number) {
+    if (!(event.relatedTarget instanceof Node) || !event.currentTarget.contains(event.relatedTarget)) setDropTargetId(current => current === targetId ? null : current);
   }
 
   function changeView(view: LibraryView) {
+    if (view !== activeView) playSfx("page");
     setActiveView(view);
     if ((view === "Backlog" && sortBy.startsWith("rating-")) ||
       (view !== "All" && view !== "Backlog" && sortBy === "pinned-first") ||
@@ -654,558 +655,130 @@ export default function GameLibrary({ games: serverGames, achievements = [], isA
     setSortBy((current) => current === primary ? reverse : primary);
   }
 
-  function getAriaSort(column: SortColumn) {
-    return sortBy === `${column}-asc` ? "ascending"
-      : sortBy === `${column}-desc` ? "descending" : "none";
-  }
+  function openMetadata(game: LibraryGame) { setEditingMetaGame(game); }
+  function closeMetadata() { setEditingMetaGame(null); }
 
-  function getSortIcon(column: SortColumn) {
-    const direction = getAriaSort(column);
-    return direction === "ascending" ? "▲" : direction === "descending" ? "▼" : "↕";
-  }
+  const drafts = useGameDrafts(games);
+  const advisor = useTacticalAdvisorController({ games });
+  const vault = useLibraryDataVaultController({ games });
+  const roulette = useQuestRouletteController({ games: games.filter(game => game.status === "Backlog") });
+  const deck = useUpNextDeckController({ startAction: startGameAndShowPlaying, games, draggedGame: deckDraggedGame, onDragGameChange: changeDeckDrag, onDragPointerDown: rememberDragOrigin, onGameDragStart: startLibraryDrag, disabled: rowReorderBusy });
+  const debuggerController = useSagaDebuggerController({ enabled: isAdmin && Boolean(selectedSaga), sagaKey: selectedSaga?.key ?? "", scanDebug: sagaDebug?.key === selectedSaga?.key ? sagaDebug?.data ?? null : null, busy: timelineBusy, cooldownSeconds: sagaProviderCooldown.seconds, onForceRefresh: () => detectSagaOrder(true) });
+  const controller = {
+    ...drafts,
+    gameActionError,
+    actions: {
+      updateGame: (data: FormData) => mutateGame(updateGame, data),
+      deleteGame: (data: FormData) => mutateGame(deleteGame, data),
+      flatlineGame: (data: FormData) => mutateGame(flatlineGame, data),
+    },
+    selectedGameId,
+    setSelectedGameId,
+    completeGameWithSound,
+    games,
+    isReturningDeck,
+    deckReturnNotice,
+    backlogReturnHover,
+    backlogReturnTarget,
+    activeView,
+    searchQuery,
+    setSearchQuery,
+    platformFilter,
+    setPlatformFilter,
+    genreFilter,
+    setGenreFilter,
+    sortBy,
+    setSortBy,
+    sagaNotice,
+    backlogNotice,
+    dragSourceRef,
+    dragSourceId,
+    dropTargetId,
+    setDropTargetId,
+    openMetadata,
+    closeMetadata,
+    editingMetaGame,
+    setEditingMetaGame,
+    metadataModalRef,
+    isLogging,
+    sessionError,
+    pinnedCount,
+    currentYear,
+    chains,
+    byGameId,
+    selectedSaga,
+    optimisticTimeline,
+    timelinePositions,
+    inTimelineView,
+    timelineBusy,
+    backlogPositions,
+    inBacklogPriorityView,
+    canReorderBacklog,
+    rowReorderBusy,
+    canReturnToBacklog,
+    logSession,
+    platforms,
+    genres,
+    viewCounts,
+    visibleGames,
+    visibleTimelinePositions,
+    visibleBacklogIds,
+    visibleBacklogPositions,
+    hasActiveFilters,
+    showFilteredCount,
+    clearFilters,
+    startGameAndShowPlaying,
+    selectSaga,
+    sagaOrderControls,
+    swapTimelineGame,
+    swapBacklogGame,
+    isReorderableRow,
+    canDragToDeck,
+    endRowDrag,
+    rememberDragOrigin,
+    dragOverBacklog,
+    leaveBacklog,
+    dropDeckIntoBacklog,
+    startLibraryDrag,
+    dropRowGame,
+    dragOverLibraryGame,
+    leaveLibraryGame,
+    changeView,
+    toggleColumnSort,
+    achievements,
+    isAdmin,
+    children,
+    collectionRef,
+    layoutMode,
+    advisor,
+    vault,
+    roulette,
+    deck,
+    debuggerController,
+  };
 
-  function renderSortableHeader(column: SortColumn, label: string) {
-    return (
-      <span role="columnheader" aria-sort={getAriaSort(column)}>
-        <button type="button" className="column-sort-btn" onClick={() => toggleColumnSort(column)}>
-          {label} <span aria-hidden="true">{getSortIcon(column)}</span>
-        </button>
-      </span>
-    );
-  }
+  return controller;
+}
 
-  function renderCardCover(game: LibraryGame, className: string) {
-    return game.coverUrl ? (
-      // Keep the same lazy thumbnail behavior in every library view.
-      // eslint-disable-next-line @next/next/no-img-element
-      <img className={className} src={game.coverUrl} alt={`${game.title} cover art`} width={640} height={360} loading="lazy" decoding="async" />
-    ) : (
-      <div className={`${className} library-card-no-cover`} role="img" aria-label={`${game.title} cover art unavailable`}>NO COVER</div>
-    );
-  }
+export type GameLibraryController = ReturnType<typeof useGameLibraryController>;
 
-  function renderMetadataFields(game: LibraryGame) {
-    return (
-      <div className="metadata-modal-fields">
-        <label>
-          Title
-          <input name="title" defaultValue={game.title} maxLength={120} required aria-label={`Title for ${game.title}`} />
-        </label>
-        <label>
-          Platform
-          <input name="platform" defaultValue={game.platform} maxLength={80} aria-label={`Platform for ${game.title}`} />
-        </label>
-        <label>
-          Genre
-          <input name="genre" defaultValue={game.genre ?? ""} aria-label={`Genre for ${game.title}`} />
-        </label>
-        <label>
-          Franchise / Saga Name
-          <input name="franchise" defaultValue={game.franchise ?? ""} maxLength={120} placeholder="Auto-detect, or enter a custom saga name" aria-label={`Franchise / Saga Name for ${game.title}`} />
-        </label>
-        <label>
-          Release year
-          <input name="releaseYear" type="number" min="1800" max="2100" step="1" defaultValue={game.releaseYear ?? ""} aria-label={`Release year for ${game.title}`} />
-        </label>
-        <label>
-          Timeline / Chronological Order
-          <input name="chronologicalOrder" type="number" min="1" max="10000" step="1" defaultValue={game.chronologicalOrder ?? ""} placeholder="Optional · blank uses release order" aria-label={`Timeline / Chronological Order for ${game.title}`} />
-        </label>
-        <label>
-          Cover image URL
-          <input name="coverUrl" type="url" defaultValue={game.coverUrl ?? ""} placeholder="https://..." aria-label={`Cover URL for ${game.title}`} />
-        </label>
-      </div>
-    );
-  }
-
-  function renderCardControls(game: LibraryGame) {
-    return (
-      <>
-        <input name="id" type="hidden" value={game.id} />
-        <div className="library-card-controls">
-          <label>
-            Status
-            <select name="status" defaultValue={game.status} aria-label={`Status for ${game.title}`} required>
-              {statuses.map((status) => <option key={status} value={status}>{status}</option>)}
-            </select>
-          </label>
-          <label>
-            Est. Hours
-            <input name="lengthHours" type="number" defaultValue={game.lengthHours} aria-label={`Hours for ${game.title}`} min="1" max="10000" step="1" required />
-          </label>
-          <label>
-            Hours Played
-            <input name="hoursPlayed" type="number" defaultValue={game.hoursPlayed} aria-label={`Hours played for ${game.title}`} min="0" max="10000" step="1" required />
-          </label>
-          <label>
-            Difficulty
-            <select name="difficulty" defaultValue={game.difficulty} aria-label={`Difficulty for ${game.title}`} required>
-              {[1, 2, 3].map((difficulty) => <option key={difficulty} value={difficulty}>{difficulty} · {difficultyLabels[difficulty]}</option>)}
-            </select>
-          </label>
-          <div className="star-rating-field">
-            <span>Rating</span>
-            <StarRatingInput defaultValue={game.rating} label={`Rating for ${game.title}`} />
-          </div>
-        </div>
-        <label className="field-log-label">
-          NETRUNNER FIELD LOG
-          <textarea className="field-log-textarea" name="notes" rows={3} maxLength={1000} defaultValue={game.notes ?? ""} placeholder="Log current checkpoint, build notes, or session thoughts..." />
-        </label>
-        <div className="library-card-actions">
-          <button className="status-save" type="submit">Save</button>
-          <SafeActionButton className="delete-button" formAction={deleteGame} formNoValidate type="submit">Delete</SafeActionButton>
-          {game.status === "Playing" && (
-            <SafeActionButton className="flatline-gig-button" formAction={flatlineGame} type="submit">💀 FLATLINE GIG</SafeActionButton>
-          )}
-          {game.status === "Flatlined" && (
-            <SafeActionButton className="revive-gig-button" formAction={startGame} type="submit">▶ REVIVE GIG</SafeActionButton>
-          )}
-          {game.status === "Playing" && (
-            <a className="trailer-link-button" href={buildTrailerUrl(game.title, game.releaseYear)} target="_blank" rel="noopener noreferrer">🎬 WATCH TRAILER ↗</a>
-          )}
-          <button type="button" className="edit-meta-btn" onClick={() => setEditingMetaGame(game)}>⚙ EDIT META</button>
-        </div>
-      </>
-    );
-  }
-
-  return (
-    <section className="collection" aria-labelledby="collection-title" ref={collectionRef}>
-      <div className="collection-heading">
-        <div>
-          <p className="eyebrow">02 / YOUR LIBRARY</p>
-          <h2 id="collection-title">System Playqueue</h2>
-        </div>
-        <div className="collection-heading-actions">
-          <p className="game-count" role="status">
-            <strong>{showFilteredCount ? `${visibleGames.length} / ${games.length}` : String(games.length).padStart(2, "0")}</strong>
-            <span>{!showFilteredCount && visibleGames.length === 1 ? "game" : "games"}</span>
-          </p>
-          {children}
-          <TacticalAdvisor games={games} />
-          <LibraryDataVault games={games} />
-        </div>
-      </div>
-
-      <LibraryTelemetry games={games} />
-      <SagaChains chains={chains} selectedKey={selectedSaga?.key ?? ""} onSelect={selectSaga} {...sagaOrderControls} />
-
-      <div className="library-tabs" role="group" aria-label="Library view">
-        {views.map((view) => (
-          <button
-            key={view}
-            type="button"
-            data-view={view.toLowerCase()}
-            aria-pressed={activeView === view}
-            onClick={() => changeView(view)}
-          >
-            {view.toUpperCase()} <span>{viewCounts[view]}</span>
-          </button>
-        ))}
-      </div>
-
-      <div className="library-toolbar">
-        <label className="library-search">
-          <span>Search library</span>
-          <input
-            type="search"
-            placeholder="Search title, genre, or platform..."
-            value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
-          />
-        </label>
-        <label>
-          <span>Platform</span>
-          <select value={platformFilter} onChange={(event) => setPlatformFilter(event.target.value)}>
-            <option value="">All platforms</option>
-            {platforms.map((platform) => <option key={platform} value={platform}>{platform}</option>)}
-          </select>
-        </label>
-        <label>
-          <span>Genre</span>
-          <select value={genreFilter} onChange={(event) => setGenreFilter(event.target.value)}>
-            <option value="">All genres</option>
-            {genres.map((genre) => <option key={genre} value={genre}>{genre}</option>)}
-          </select>
-        </label>
-        <label>
-          <span>Sort</span>
-          <select className="library-filter-select" aria-label="Sort games" value={sortBy} onChange={(event) => setSortBy(event.target.value)}>
-            <option value="default">Default order</option>
-            {activeView === "Backlog" && !selectedSaga && <option value="custom-priority">Custom Priority</option>}
-            {(selectedSaga || sortBy === "timeline-asc") && <option value="timeline-asc">Saga: timeline order</option>}
-            {activeView !== "Backlog" && (
-              <>
-                <option value="rating-desc">Highest rated</option>
-                <option value="rating-asc">Lowest rated</option>
-              </>
-            )}
-            {(activeView === "All" || activeView === "Backlog") && <option value="pinned-first">Pinned first</option>}
-            <option value="hours-asc">Hours: shortest first</option>
-            <option value="hours-desc">Hours: longest first</option>
-            <option value="xp-desc">XP: highest first</option>
-            <option value="xp-asc">XP: lowest first</option>
-            <option value="year-desc">Year: newest first</option>
-            <option value="year-asc">Year: oldest first</option>
-            <option value="title-asc">Title: A–Z</option>
-            <option value="title-desc">Title: Z–A</option>
-            <option value="platform-asc">Platform: A–Z</option>
-            <option value="platform-desc">Platform: Z–A</option>
-            <option value="genre-asc">Genre: A–Z</option>
-            <option value="genre-desc">Genre: Z–A</option>
-            <option value="status-asc">Status: Playing → Flatlined</option>
-            <option value="status-desc">Status: Flatlined → Playing</option>
-            <option value="difficulty-desc">Difficulty: hardest first</option>
-            <option value="difficulty-asc">Difficulty: easiest first</option>
-          </select>
-        </label>
-        {hasActiveFilters && (
-          <button className="library-clear" type="button" onClick={clearFilters}>CLEAR FILTERS</button>
-        )}
-      </div>
-
-      {inBacklogPriorityView && backlogNotice && <p className="backlog-order-notice" role="status" data-error={backlogNotice.error}>{backlogNotice.text}</p>}
-      {deckReturnNotice && <p className="backlog-order-notice" role="status" data-deck-return-notice="true" data-error={deckReturnNotice.error}>{deckReturnNotice.text}</p>}
-
-      {selectedSaga && (
-        <section className="saga-timeline-panel" aria-label={`${selectedSaga.name} saga timeline`}>
-          <div className="saga-timeline-heading">
-            <div>
-              <p className="saga-chain-count">⛓️ SAGA CHAIN // {selectedSaga.completed}/{selectedSaga.total} CLEARED</p>
-              <h3>{selectedSaga.name}</h3>
-            </div>
-            <SagaOrderControls {...sagaOrderControls} />
-          </div>
-          <p className="saga-chains-hint">Unassigned games follow ranked games in release order. Use ▲ / ▼ to swap visible games, or drag table rows to reorder. Hidden saga games keep their relative positions.</p>
-          {sagaNotice?.key === selectedSaga.key && <p className="saga-order-notice" role="status" data-error={sagaNotice.error}>{sagaNotice.text}</p>}
-          {isAdmin && <SagaChronologyDebugger key={selectedSaga.key} sagaKey={selectedSaga.key} scanDebug={sagaDebug?.key === selectedSaga.key ? sagaDebug.data : null} busy={timelineBusy} cooldownSeconds={sagaProviderCooldown.seconds} onForceRefresh={() => detectSagaOrder(true)} />}
-        </section>
-      )}
-
-      {(activeView === "All" || activeView === "Backlog") && <UpNextDeck startAction={startGameAndShowPlaying} games={games} draggedGame={deckDraggedGame} onDragGameChange={changeDeckDrag} onDragPointerDown={rememberDragOrigin} onGameDragStart={startLibraryDrag} disabled={rowReorderBusy} />}
-      <div data-view={activeView.toLowerCase()} className={activeView === "Completed" ? "trophy-room" : undefined}>
-        {activeView === "Completed" && (
-          <>
-            <div className="trophy-room-banner" aria-label="Completed games shown">
-              <div>
-                <p className="eyebrow">ARCHIVE // ACHIEVEMENTS UNLOCKED</p>
-                <h3>Trophy Room</h3>
-              </div>
-              <dl>
-                <div><dt>Gigs cleared</dt><dd>{visibleGames.length.toLocaleString()}</dd></div>
-                <div><dt>Hours logged</dt><dd>{visibleGames.reduce((total, game) => total + game.lengthHours, 0).toLocaleString()}h</dd></div>
-                <div><dt>XP earned</dt><dd>+{visibleGames.reduce((total, game) => total + game.earnedXp, 0).toLocaleString()} XP</dd></div>
-              </dl>
-            </div>
-            <details className="trophy-milestones-drawer">
-              <summary>Milestones · {achievements.filter((achievement) => achievement.unlocked).length} / {achievements.length} unlocked</summary>
-              <p className="milestones-hint">Career milestones cover your entire library. Earned badges and their bonus XP are permanent.</p>
-              <div className="trophy-milestones-grid">
-                {achievements.map((achievement) => (
-                  <article className="milestone-card" data-unlocked={achievement.unlocked} key={achievement.key}>
-                    <span className="milestone-icon" aria-hidden="true">{achievement.icon}</span>
-                    <h3>{achievement.title}</h3>
-                    <p>{achievement.description}</p>
-                    <p className="milestone-progress">{achievement.current} / {achievement.target} current progress</p>
-                    <p className="milestone-bonus">+{achievement.unlocked ? achievement.xpAwarded : achievement.xpBonus} XP {achievement.unlocked ? "awarded" : "bonus"}</p>
-                    {achievement.unlockedAt ? (
-                      <p className="milestone-unlock-stamp">UNLOCKED <time dateTime={achievement.unlockedAt}>{achievement.unlockedAt.slice(0, 10)}</time></p>
-                    ) : <p className="milestone-locked">LOCKED</p>}
-                  </article>
-                ))}
-              </div>
-            </details>
-          </>
-        )}
-        {visibleGames.length === 0 ? (
-          <div className="empty-state backlog-return-zone" data-deck-return-active={canReturnToBacklog || undefined} data-deck-return-hover={backlogReturnHover || undefined} onDragOver={dragOverBacklog} onDragLeave={leaveBacklog} onDrop={dropDeckIntoBacklog}>
-            <span className="empty-mark" aria-hidden="true">+</span>
-            <p>{games.length === 0 ? "Your list is clear. Add a game to get started." : "No games match. Try another view or clear your filters."}</p>
-          </div>
-        ) : activeView === "Playing" || activeView === "Flatlined" ? (
-          <div className="playing-spotlight-grid">
-            {visibleGames.map((game) => (
-              <SafeForm
-                action={updateGame}
-                className="spotlight-card"
-                data-game-id={game.id}
-                data-status={game.status}
-                key={`${game.id}-${game.status}-${game.lengthHours}-${game.difficulty}-${game.title}-${game.platform}-${game.genre ?? ""}-${game.releaseYear ?? ""}-${game.coverUrl ?? ""}-${game.hoursPlayed}-${game.notes ?? ""}-${game.rating ?? ""}-${game.franchise ?? ""}-${game.chronologicalOrder ?? ""}`}
-              >
-                {renderCardCover(game, "spotlight-cover")}
-                <div className="spotlight-card-body">
-                  <p className="spotlight-badge">{game.status === "Flatlined" ? "💀 FLATLINED // SHELVED" : "LIVE GIG // IN PROGRESS"}</p>
-                  <h3>{game.title}{renderTimelinePill(game)}</h3>
-                  <p className="library-card-metadata">
-                    {game.platform} · {game.genre?.trim() || "Unknown genre"} · {game.releaseYear ?? "Unknown year"}
-                    {activeView === "Flatlined" && game.rating !== null && (
-                      <> <span className="library-rating-badge" aria-label={`Rated ${game.rating} out of 5 stars`}>★ {game.rating}/5</span></>
-                    )}
-                    {renderSagaBadge(game)}
-                  </p>
-                  <div className="gig-progress-block">
-                    <div className="gig-progress-header">
-                      <span>{game.status === "Flatlined" ? "ARCHIVED GIG PROGRESS" : "ACTIVE GIG PROGRESS"}</span>
-                      {game.status === "Playing" && (
-                        <div className="gig-session-actions">
-                          <button type="button" disabled={isLogging} onClick={() => logSession(game.id, 1)} aria-label={`Log one hour for ${game.title}`}>+1H</button>
-                          <button type="button" disabled={isLogging} onClick={() => logSession(game.id, 2)} aria-label={`Log two hours for ${game.title}`}>+2H</button>
-                        </div>
-                      )}
-                    </div>
-                    <p>{game.hoursPlayed} / {game.lengthHours}h ({Math.min(100, Math.round((game.hoursPlayed / game.lengthHours) * 100))}%)</p>
-                    <div className="gig-progress-track" role="progressbar" aria-label={`Progress for ${game.title}`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.min(100, Math.round((game.hoursPlayed / game.lengthHours) * 100))} aria-valuetext={`${game.hoursPlayed} of ${game.lengthHours} hours`}>
-                      <span style={{ width: `${Math.min(100, Math.round((game.hoursPlayed / game.lengthHours) * 100))}%` }} />
-                    </div>
-                    {sessionError?.gameId === game.id && <p role="alert">{sessionError.message}</p>}
-                  </div>
-                  <div className="spotlight-bounty">
-                    <span>{game.status === "Flatlined" ? "Shelved Gig // No Game XP" : "Potential XP Bounty"}</span>
-                    <strong>{(game.status === "Flatlined" ? 0 : game.lengthHours * game.difficulty * 10).toLocaleString()} XP</strong>
-                  </div>
-                  {game.status === "Playing" && <AgentBriefing game={game} />}
-                  {renderCardControls(game)}
-                  {game.status === "Playing" && (
-                    <SafeActionButton type="submit" formAction={completeGameWithSound} className="complete-gig-button">
-                      🏆 COMPLETE GIG (+{Math.max(game.lengthHours, game.hoursPlayed) * game.difficulty * 10} XP)
-                    </SafeActionButton>
-                  )}
-                </div>
-              </SafeForm>
-            ))}
-          </div>
-        ) : activeView === "Completed" ? (
-          <div className="trophy-grid">
-            {visibleGames.map((game) => (
-              <article className="trophy-card" key={`${game.id}-${game.status}-${game.lengthHours}-${game.difficulty}-${game.title}-${game.platform}-${game.genre ?? ""}-${game.releaseYear ?? ""}-${game.coverUrl ?? ""}-${game.hoursPlayed}-${game.notes ?? ""}-${game.rating ?? ""}-${game.franchise ?? ""}-${game.chronologicalOrder ?? ""}`}>
-                <div className="trophy-badge">
-                  <span>🏆 GIG CLEARED</span>
-                  {renderSagaBadge(game, "trophy")}
-                </div>
-                {renderCardCover(game, "trophy-cover")}
-                <div className="trophy-card-body">
-                  <h3>{game.title}{renderTimelinePill(game)}</h3>
-                  {game.wasFlatlined && <p className="trophy-revived-badge">⚡ REVIVED FROM FLATLINE</p>}
-                  <p className="library-card-metadata">{game.platform} · {game.genre?.trim() || "Unknown genre"} · {game.releaseYear ?? "Unknown year"}</p>
-                  <p className="trophy-record">{game.hoursPlayed}h played · {game.lengthHours}h length · Tier {game.difficulty} / {difficultyLabels[game.difficulty]}</p>
-                  {game.notes?.trim() && (
-                    <div className="trophy-field-log">
-                      <span>NETRUNNER FIELD LOG</span>
-                      <p>{game.notes}</p>
-                    </div>
-                  )}
-                  <p className="trophy-reward">+{game.earnedXp.toLocaleString()} XP</p>
-                  <TrophyRatingEditor game={game} />
-                  <details className="trophy-edit-drawer">
-                    <summary>Manage Record</summary>
-                    <SafeForm action={updateGame} key={`${game.id}-${game.status}-${game.lengthHours}-${game.difficulty}-${game.title}-${game.platform}-${game.genre ?? ""}-${game.releaseYear ?? ""}-${game.coverUrl ?? ""}-${game.hoursPlayed}-${game.notes ?? ""}-${game.rating ?? ""}-${game.franchise ?? ""}-${game.chronologicalOrder ?? ""}`}>
-                      {renderCardControls(game)}
-                    </SafeForm>
-                  </details>
-                </div>
-              </article>
-            ))}
-          </div>
-        ) : (
-          <div className="game-table backlog-return-zone" role="table" aria-label="Saved games" data-deck-return-active={canReturnToBacklog || undefined} data-deck-return-hover={backlogReturnHover || undefined} aria-busy={isReturningDeck} onDragOver={dragOverBacklog} onDragLeave={leaveBacklog} onDrop={dropDeckIntoBacklog}>
-            <div className="game-row game-row-head" role="row">
-              {renderSortableHeader("title", "Game")}
-              {renderSortableHeader("platform", "Platform")}
-              {renderSortableHeader("genre", "Genre")}
-              {renderSortableHeader("year", "Year")}
-              {renderSortableHeader("status", "Status")}
-              {renderSortableHeader("hours", "Hours")}
-              {renderSortableHeader("difficulty", "Difficulty")}
-              {renderSortableHeader("xp", "Earned XP")}
-              <span role="columnheader">Actions</span>
-            </div>
-            {visibleGames.map((game) => (
-              <SafeForm
-                action={updateGame}
-                className="game-row"
-                data-status={game.status}
-                draggable={(isReorderableRow(game.id) || canDragToDeck(game)) && !rowReorderBusy}
-                data-timeline-draggable={inTimelineView || undefined}
-                data-timeline-row-id={game.id}
-                data-reorder-row-id={game.id}
-                data-backlog-draggable={(canReorderBacklog && game.pinnedOrder == null) || undefined}
-                data-backlog-priority={inBacklogPriorityView || undefined}
-                data-deck-draggable={canDragToDeck(game) || undefined}
-                data-backlog-return-target={backlogReturnTarget === game.id || undefined}
-                data-timeline-dragging={dragSourceId === game.id || undefined}
-                data-timeline-drop-target={dropTargetId === game.id || undefined}
-                onPointerDownCapture={(event) => {
-                  rememberDragOrigin({ gameId: game.id, source: "table" }, event.target instanceof Element && Boolean(event.target.closest("button, input, select, textarea, a, summary, [contenteditable='true']")));
-                }}
-                onDragStart={(event) => startLibraryDrag(event, { gameId: game.id, source: "table" })}
-                onDragEnd={endRowDrag}
-                onDragOver={(event) => {
-                  if (!isReorderableRow(game.id) || rowReorderBusy || dragSourceRef.current === null || !isReorderableRow(dragSourceRef.current) || dragSourceRef.current === game.id) return;
-                  event.preventDefault();
-                  event.dataTransfer.dropEffect = "move";
-                  setDropTargetId(game.id);
-                }}
-                onDragLeave={(event) => {
-                  if (!(event.relatedTarget instanceof Node) || !event.currentTarget.contains(event.relatedTarget)) setDropTargetId((current) => current === game.id ? null : current);
-                }}
-                onDrop={(event) => dropRowGame(event, game.id)}
-                key={`${game.id}-${game.status}-${game.lengthHours}-${game.difficulty}-${game.title}-${game.platform}-${game.genre ?? ""}-${game.releaseYear ?? ""}-${game.coverUrl ?? ""}-${game.hoursPlayed}-${game.notes ?? ""}-${game.rating ?? ""}-${game.franchise ?? ""}-${game.chronologicalOrder ?? ""}`}
-                role="row"
-              >
-                <input name="id" type="hidden" value={game.id} />
-                <span className="game-name" role="cell">
-                  {(isReorderableRow(game.id) || canDragToDeck(game)) && <span className="saga-row-drag-grip" draggable={!rowReorderBusy} aria-hidden="true" title={inTimelineView ? "Drag to reorder this saga or stage a released Backlog gig on deck" : canReorderBacklog ? "Drag to change Backlog priority or stage a released gig on deck" : "Drag to an On Deck slot"}>⋮⋮</span>}
-                  <span className="mobile-label">Game</span>
-                  <span className="game-identity">
-                    <span className="game-cover-wrap">
-                      {game.coverUrl ? (
-                        <img
-                          alt={`${game.title} cover art`}
-                          className="game-cover"
-                          decoding="async"
-                          loading="lazy"
-                          draggable={false}
-                          src={game.coverUrl}
-                        />
-                      ) : (
-                        <div
-                          aria-label={`${game.title} cover art unavailable`}
-                          className="game-cover game-cover-placeholder"
-                          role="img"
-                        >
-                          <span>NO<br />COVER</span>
-                        </div>
-                      )}
-                      {game.status === "Backlog" && (
-                        <DeckPinButton gameId={game.id} pinnedOrder={game.pinnedOrder} pinnedCount={pinnedCount} releaseYear={game.releaseYear} iconOnly />
-                      )}
-                    </span>
-                    <span className="game-title-stack">
-                      <span className="game-title-heading"><strong title={game.title}>{game.title}</strong>{renderTimelinePill(game)}</span>
-                      <span className="game-title-actions">
-                        {(game.status === "Backlog" || game.status === "Flatlined") && (
-                          <SafeActionButton className="start-gig-badge" formAction={startGameAndShowPlaying} type="submit">{game.status === "Flatlined" ? "▶ REVIVE GIG" : "▶ START GIG"}</SafeActionButton>
-                        )}
-                        <button type="button" className="edit-meta-btn" onClick={() => setEditingMetaGame(game)}>⚙ EDIT META</button>
-                        {renderBacklogPriorityPill(game)}
-                        {renderSagaBadge(game, "table")}
-                      </span>
-                    </span>
-                  </span>
-                </span>
-                <span role="cell">
-                  <span className="mobile-label">Platform</span>
-                  {game.platform}
-                </span>
-                <span className="genre-cell" role="cell">
-                  <span className="mobile-label">Genre</span>
-                  <span className="row-game-metadata">
-                    <span>{game.genre?.trim() || "—"}</span>
-                    {activeView === "All" && game.rating !== null && (
-                      <span className="library-rating-badge" aria-label={`Rated ${game.rating} out of 5 stars`}>★ {game.rating}/5</span>
-                    )}
-                    {game.status === "Backlog" && !isReleasedYear(game.releaseYear, currentYear) && (
-                      <span className="unreleased-badge" title="Excluded from Cortex and Roulette until a release year of this year or earlier is saved.">⏳ UNRELEASED</span>
-                    )}
-                  </span>
-                </span>
-                <span role="cell">
-                  <span className="mobile-label">Year</span>
-                  {game.releaseYear ?? "—"}
-                </span>
-                <label className="row-edit-field" role="cell">
-                  <span className="mobile-label">Status</span>
-                  <select
-                    aria-label={`Status for ${game.title}`}
-                    className="status-select"
-                    defaultValue={game.status}
-                    name="status"
-                    required
-                  >
-                    {statuses.map((status) => (
-                      <option key={status} value={status}>{status}</option>
-                    ))}
-                  </select>
-                </label>
-                <label className="row-edit-field" role="cell">
-                  <span className="mobile-label">Hours</span>
-                  <input
-                    aria-label={`Hours for ${game.title}`}
-                    className="row-hours-input"
-                    defaultValue={game.lengthHours}
-                    max="10000"
-                    min="1"
-                    name="lengthHours"
-                    required
-                    step="1"
-                    type="number"
-                  />
-                </label>
-                <label className="row-edit-field" role="cell">
-                  <span className="mobile-label">Difficulty</span>
-                  <select
-                    aria-label={`Difficulty for ${game.title}`}
-                    className="difficulty-select"
-                    defaultValue={game.difficulty}
-                    name="difficulty"
-                    required
-                  >
-                    <option value="1">1</option>
-                    <option value="2">2</option>
-                    <option value="3">3</option>
-                  </select>
-                </label>
-                <span className="xp-value" role="cell">
-                  <span className="mobile-label">Earned XP</span>
-                  {game.earnedXp.toLocaleString()} XP
-                </span>
-                <span className="row-actions" role="cell">
-                  <button className="status-save" type="submit">Save</button>
-                  <SafeActionButton
-                    className="delete-button"
-                    formAction={deleteGame}
-                    formNoValidate
-                    type="submit"
-                  >
-                    Delete
-                  </SafeActionButton>
-                </span>
-              </SafeForm>
-            ))}
-          </div>
-        )}
-      </div>
-      {activeView === "Playing" && <UpNextDeck startAction={startGameAndShowPlaying} games={games} draggedGame={deckDraggedGame} onDragGameChange={changeDeckDrag} onDragPointerDown={rememberDragOrigin} onGameDragStart={startLibraryDrag} disabled={rowReorderBusy} />}
-      {editingMetaGame && (
-        <div className="metadata-modal-backdrop" onClick={(event) => {
-          if (event.target === event.currentTarget) setEditingMetaGame(null);
-        }}>
-          <SafeForm
-            className="metadata-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="metadata-modal-title"
-            ref={metadataModalRef}
-            action={updateGame}
-            onSuccess={() => setEditingMetaGame(null)}
-            key={`${editingMetaGame.id}-${editingMetaGame.status}-${editingMetaGame.lengthHours}-${editingMetaGame.difficulty}-${editingMetaGame.title}-${editingMetaGame.platform}-${editingMetaGame.genre ?? ""}-${editingMetaGame.releaseYear ?? ""}-${editingMetaGame.coverUrl ?? ""}-${editingMetaGame.hoursPlayed}-${editingMetaGame.notes ?? ""}-${editingMetaGame.rating ?? ""}-${editingMetaGame.franchise ?? ""}-${editingMetaGame.chronologicalOrder ?? ""}`}
-          >
-            <p className="eyebrow">RECORD // METADATA EDITOR</p>
-            <h2 id="metadata-modal-title">Edit Game Metadata</h2>
-            <input type="hidden" name="id" value={editingMetaGame.id} />
-            <input type="hidden" name="status" value={editingMetaGame.status} />
-            <input type="hidden" name="lengthHours" value={editingMetaGame.lengthHours} />
-            <input type="hidden" name="difficulty" value={editingMetaGame.difficulty} />
-            {renderMetadataFields(editingMetaGame)}
-            <div className="metadata-modal-actions">
-              <button className="metadata-save-btn" type="submit">SAVE METADATA</button>
-              <button className="metadata-cancel-btn" type="button" onClick={() => setEditingMetaGame(null)}>CANCEL</button>
-            </div>
-          </SafeForm>
-        </div>
-      )}
+export default function GameLibrary(props: Parameters<typeof useGameLibraryController>[0]) {
+  const controller = useGameLibraryController(props);
+  const {
+    collectionRef,
+    layoutMode,
+    advisor,
+    vault,
+    roulette,
+  } = controller;
+  return <DeckPinsContext.Provider value={controller.deck.pins}>
+    <section className="collection" aria-labelledby="collection-title" ref={collectionRef} data-library-layout={layoutMode} onInputCapture={controller.captureGameDraft} onChangeCapture={controller.captureGameDraft}>
+    {layoutMode === "fantasy" ? <FantasySubscreenView controller={controller} /> : <CyberpunkLibraryView controller={controller} />}
+    <TacticalAdvisorView controller={advisor} part="overlay" />
+    <LibraryDataVaultView controller={vault} part="overlay" />
+    <QuestRouletteView controller={roulette} part="overlay" />
+    <GameMetadataEditor controller={controller} />
+    {controller.gameActionError && <p className="form-action-error library-action-error" role="alert">{controller.gameActionError}</p>}
     </section>
-  );
+  </DeckPinsContext.Provider>;
 }

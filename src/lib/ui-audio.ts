@@ -1,5 +1,5 @@
-export type UISound = "welcome" | "click" | "confirm" | "pop" | "roll" | "scan";
-export type SoundTheme = "cyberpunk" | "halloween";
+export type UISound = "welcome" | "click" | "confirm" | "pop" | "roll" | "scan" | "page";
+export type SoundTheme = "cyberpunk" | "halloween" | "fantasy";
 
 /** Browser-only at playback time; safe to construct during SSR or in tests. */
 export function createUIAudio() {
@@ -56,7 +56,20 @@ export function createUIAudio() {
             oscillator.start(at + offset);
             oscillator.stop(at + offset + duration + 0.02);
           }
-          if (theme === "cyberpunk") {
+          if (theme === "fantasy") {
+            // Original short motifs: airy ocarina tones, crystalline cursor, and item fanfare.
+            if (sound === "click") {
+              note(2093, 0, 0.045, "triangle", 1568);
+              note(3136, 0.015, 0.04, "sine");
+            } else if (sound === "page" || sound === "welcome") {
+              [587.33, 880, 1174.66, 1567.98].forEach((frequency, index) => note(frequency, index * 0.075, 0.16, "sine"));
+            } else if (sound === "scan" || sound === "roll") {
+              [659.25, 783.99, 1174.66, 987.77, 880, 1318.51].forEach((frequency, index) => note(frequency, index * 0.095, 0.19, "sine"));
+            } else {
+              [392, 523.25, 659.25, 783.99].forEach((frequency, index) => note(frequency, index * 0.1, index === 3 ? 0.5 : 0.17, "triangle"));
+              note(1046.5, 0.3, 0.5, "sine");
+            }
+          } else if (theme === "cyberpunk") {
             if (sound === "click") {
               note(1800, 0, 0.035, "triangle", 1000);
             } else if (sound === "scan" || sound === "roll") {

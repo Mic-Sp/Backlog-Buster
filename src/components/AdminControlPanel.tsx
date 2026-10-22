@@ -1,5 +1,8 @@
 "use client";
 
+import { useLayoutCopy } from "@/components/LayoutText";
+import { FantasyCorners } from "@/components/FantasyAccents";
+
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { adminPruneExpiredSessions, getAdminSystemOverview, purgeSagaChronologyCache } from "@/app/admin-actions";
@@ -10,6 +13,7 @@ import "./AdminControlPanel.css";
 type SystemOverview = Exclude<Awaited<ReturnType<typeof getAdminSystemOverview>>, ActionError>;
 
 function AdminPanel({ onClose, currentPlayerId, currentPlayerIsOwner }: { onClose: () => void; currentPlayerId: string; currentPlayerIsOwner: boolean }) {
+  const copy = useLayoutCopy();
   const [overview, setOverview] = useState<SystemOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [purging, setPurging] = useState(false);
@@ -94,14 +98,15 @@ function AdminPanel({ onClose, currentPlayerId, currentPlayerIsOwner }: { onClos
 
   return <div className="admin-modal-backdrop" onClick={event => { if (event.target === event.currentTarget && !busyRef.current) onClose(); }}>
     <div className="admin-modal" ref={panelRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={descriptionId} aria-busy={loading || locked}>
+            <FantasyCorners />
       <header className="admin-modal-heading">
-        <div><p>ADMIN // OVERWATCH</p><h2 id={titleId}>Admin Control Panel</h2></div>
+        <div><p>ADMIN // OVERWATCH</p><h2 id={titleId}>{copy("Admin Control Panel", "Royal Administration")}</h2></div>
         <button type="button" aria-label="Close admin control panel" disabled={locked} onClick={onClose}>✕</button>
       </header>
-      <p className="admin-hint" id={descriptionId}>System telemetry, chronology maintenance, and player account controls.</p>
+      <p className="admin-hint" id={descriptionId}>{copy("System telemetry, chronology maintenance, and player account controls.", "Realm records, saga chronology maintenance, and player account controls.")}</p>
       <section aria-labelledby={`${titleId}-telemetry`}>
-        <div className="admin-section-heading"><h3 id={`${titleId}-telemetry`}>01 // SYSTEM TELEMETRY</h3><button type="button" disabled={loading || locked} onClick={refresh}>REFRESH OVERVIEW</button></div>
-        {loading && <p className="admin-hint" role="status">CONNECTING TO SYSTEM TELEMETRY…</p>}
+        <div className="admin-section-heading"><h3 id={`${titleId}-telemetry`}>{copy("01 // SYSTEM TELEMETRY", "I · REALM RECORDS")}</h3><button type="button" disabled={loading || locked} onClick={refresh}>REFRESH OVERVIEW</button></div>
+        {loading && <p className="admin-hint" role="status">{copy("CONNECTING TO SYSTEM TELEMETRY…", "OPENING THE ROYAL LEDGER…")}</p>}
         {overview && <dl className="admin-telemetry">
           <div><dt>Registered Accounts</dt><dd>{overview.registeredAccountCount.toLocaleString("en-US")}</dd></div>
           <div><dt>Admin Accounts</dt><dd>{overview.adminAccountCount.toLocaleString("en-US")}</dd></div>

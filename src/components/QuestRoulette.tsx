@@ -1,5 +1,8 @@
 "use client";
 
+import { useLayoutCopy } from "@/components/LayoutText";
+import { FantasyCorners } from "@/components/FantasyAccents";
+
 import { unwrapActionResult } from "@/lib/action-result";
 
 import { useEffect, useRef, useState, useTransition } from "react";
@@ -21,7 +24,7 @@ type QuestGame = {
   pinnedOrder: number | null;
 };
 
-export default function QuestRoulette({ games }: { games: QuestGame[] }) {
+export function useQuestRouletteController({ games }: { games: QuestGame[] }) {
   const { playSfx } = useUIEffects();
   const [isOpen, setIsOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -61,13 +64,14 @@ export default function QuestRoulette({ games }: { games: QuestGame[] }) {
 
   useEffect(() => {
     if (!isOpen) return;
-    const trigger = triggerRef.current;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     dialogRef.current?.focus();
     return () => {
       document.body.style.overflow = previousOverflow;
-      trigger?.focus();
+      // Restore to the current layout's trigger; the previous one may have unmounted.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      triggerRef.current?.focus();
     };
   }, [isOpen]);
 
@@ -147,19 +151,93 @@ export default function QuestRoulette({ games }: { games: QuestGame[] }) {
     });
   }
 
+  function open() { setIsOpen(true); }
+  function close() { if (!busy) setIsOpen(false); }
+
+  return {
+    open,
+    close,
+    games,
+    isOpen,
+    setIsOpen,
+    triggerRef,
+    dialogRef,
+    time,
+    setTime,
+    genre,
+    setGenre,
+    platform,
+    setPlatform,
+    cyclingTitle,
+    message,
+    isAccepting,
+    currentYear,
+    releasedGames,
+    genres,
+    platforms,
+    matches,
+    winner,
+    isRolling,
+    busy,
+    pinnedCount,
+    resetResult,
+    roll,
+    accept,
+  };
+}
+
+export type QuestRouletteController = ReturnType<typeof useQuestRouletteController>;
+
+export default function QuestRoulette(props: Parameters<typeof useQuestRouletteController>[0]) {
+  const controller = useQuestRouletteController(props);
+  return <QuestRouletteView controller={controller} />;
+}
+
+export function QuestRouletteView({ controller, part = "all" }: { controller: QuestRouletteController; part?: "all" | "trigger" | "overlay" }) {
+  const copy = useLayoutCopy();
+  const {
+    open,
+    close,
+    games,
+    isOpen,
+    setIsOpen,
+    triggerRef,
+    dialogRef,
+    time,
+    setTime,
+    genre,
+    setGenre,
+    platform,
+    setPlatform,
+    cyclingTitle,
+    message,
+    isAccepting,
+    currentYear,
+    releasedGames,
+    genres,
+    platforms,
+    matches,
+    winner,
+    isRolling,
+    busy,
+    pinnedCount,
+    resetResult,
+    roll,
+    accept,
+  } = controller;
   return (
     <>
-      <button
+      {part !== "overlay" && (<button
         className="quest-trigger-button"
         type="button"
         ref={triggerRef}
         aria-haspopup="dialog"
         aria-expanded={isOpen}
-        onClick={() => setIsOpen(true)}
+        onClick={open}
       >
-        🎲 ROLL RANDOM GIG
-      </button>
-      {isOpen && (
+        {copy("🎲 ROLL RANDOM GIG", "▣ ROLL RANDOM QUEST")}
+      </button>)}
+      {part !== "trigger" && isOpen && (
         <div
           className="quest-modal-backdrop"
           onClick={(event) => {
@@ -175,14 +253,15 @@ export default function QuestRoulette({ games }: { games: QuestGame[] }) {
             ref={dialogRef}
             tabIndex={-1}
           >
+            <FantasyCorners />
             <div className="quest-modal-header">
               <div>
-                <p className="eyebrow">SIDE JOB / RANDOM QUEST GENERATOR</p>
-                <h2 id="quest-title">Backlog Roulette</h2>
+                <p className="eyebrow">{copy("SIDE JOB / RANDOM QUEST GENERATOR", "THE GOSSIP STONE · LET FATE CHOOSE")}</p>
+                <h2 id="quest-title">{copy("Backlog Roulette", "The Quest of Chance")}</h2>
               </div>
-              <button className="quest-modal-close" type="button" aria-label="Close Backlog Roulette" disabled={busy} onClick={() => setIsOpen(false)}>✕</button>
+              <button className="quest-modal-close" type="button" aria-label={copy("Close Backlog Roulette", "Close quest of chance")} disabled={busy} onClick={close}>✕</button>
             </div>
-            <p className="quest-intro">Set your limits. Let the next gig find you.</p>
+            <p className="quest-intro">{copy("Set your limits. Let the next gig find you.", "Set the bounds of your journey. Let the next quest find you.")}</p>
 
             <fieldset className="quest-filters" disabled={busy}>
               <legend className="quest-sr-only">Filter backlog games</legend>
@@ -213,17 +292,17 @@ export default function QuestRoulette({ games }: { games: QuestGame[] }) {
 
             <p className="quest-match-count">
               {games.length === 0
-                ? "No backlog gigs yet. Add a game to get started."
+                ? copy("No backlog gigs yet. Add a game to get started.", "Your quest journal is empty. Inscribe a quest to begin.")
                 : releasedGames.length === 0
-                  ? `No released gigs available. Roulette requires a release year of ${currentYear} or earlier.`
+                  ? copy(`No released gigs available. Roulette requires a release year of ${currentYear} or earlier.`, `No released quests await. The stone requires a release year of ${currentYear} or earlier.`)
                   : matches.length === 0
-                    ? "No gigs match. Try changing your filters."
-                    : `${matches.length} ${matches.length === 1 ? "gig matches" : "gigs match"} your filters.`}
+                    ? copy("No gigs match. Try changing your filters.", "No quests match. Try changing the bounds of your journey.")
+                    : copy(`${matches.length} ${matches.length === 1 ? "gig matches" : "gigs match"} your filters.`, `${matches.length} ${matches.length === 1 ? "quest matches" : "quests match"} your filters.`)}
             </p>
 
             {!winner && (
               <button className="quest-button quest-roll" type="button" disabled={busy || matches.length === 0} onClick={roll}>
-                {isRolling ? "SCANNING GIGS…" : "ROLL RANDOM GIG"}
+                {isRolling ? copy("SCANNING GIGS…", "LISTENING TO THE STONE…") : copy("ROLL RANDOM GIG", "ROLL RANDOM QUEST")}
               </button>
             )}
             {isRolling && <p className="quest-cycling" aria-hidden="true">{cyclingTitle}</p>}
@@ -236,9 +315,9 @@ export default function QuestRoulette({ games }: { games: QuestGame[] }) {
                       // The roulette uses the same lightweight thumbnails as the library.
                       // eslint-disable-next-line @next/next/no-img-element
                       <img className="quest-cover" src={winner.coverUrl} alt={`${winner.title} cover art`} width={72} height={96} loading="lazy" decoding="async" />
-                    ) : <div className="quest-cover quest-no-cover">NO COVER</div>}
+                    ) : <div className="quest-cover quest-no-cover">{copy("NO COVER", "NO ARTWORK")}</div>}
                     <div>
-                      <p className="eyebrow">GIG FOUND</p>
+                      <p className="eyebrow">{copy("GIG FOUND", "A QUEST REVEALED")}</p>
                       <h3>{winner.title}</h3>
                       <p>{winner.platform} · {winner.genre?.trim() || "Unknown genre"} · {winner.lengthHours}h</p>
                       <p className="quest-reward">{(winner.lengthHours * winner.difficulty * 10).toLocaleString("en-US")} XP reward on completion</p>
@@ -246,7 +325,7 @@ export default function QuestRoulette({ games }: { games: QuestGame[] }) {
                   </div>
                   <div className="quest-actions">
                     <button className="quest-button quest-accept" type="button" disabled={busy} onClick={accept}>
-                      {isAccepting ? "ACCEPTING…" : "ACCEPT GIG"}
+                      {isAccepting ? "ACCEPTING…" : copy("ACCEPT GIG", "ACCEPT QUEST")}
                     </button>
                     <button className="quest-button quest-reroll" type="button" disabled={busy} onClick={roll}>REROLL</button>
                     <DeckPinButton gameId={winner.id} pinnedOrder={winner.pinnedOrder} pinnedCount={pinnedCount} releaseYear={winner.releaseYear} disabled={busy} />

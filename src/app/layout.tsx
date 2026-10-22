@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { VT323 } from "next/font/google";
 import "./globals.css";
 import "./halloween.css";
+import "./fantasy.css";
+import { appearanceStartupScript } from "@/lib/appearance";
 import ThemeProvider from "@/components/ThemeProvider";
 
 const terminalFont = VT323({
@@ -20,7 +22,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={terminalFont.variable} suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: `try{document.documentElement.dataset.theme=localStorage.getItem("backlogbuster:theme")==="halloween"?"halloween":"cyberpunk"}catch{}` }} />
+        <script dangerouslySetInnerHTML={{ __html: appearanceStartupScript }} />
       </head>
       <body><ThemeProvider>{children}</ThemeProvider></body>
     </html>

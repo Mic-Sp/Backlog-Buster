@@ -10,47 +10,93 @@ const statusLabels = {
   "refresh-deferred": "PARTIAL HIT / REFRESH DEFERRED", fallback: "FALLBACK",
 };
 
-export default function SagaChronologyDebugger({ sagaKey, scanDebug, busy, cooldownSeconds = 0, onForceRefresh }: {
+export function useSagaDebuggerController({ sagaKey, scanDebug, busy, cooldownSeconds = 0, onForceRefresh, enabled = true }: {
+  enabled?: boolean;
   sagaKey: string;
   scanDebug: SagaChronologyDebug | null;
   busy: boolean;
   cooldownSeconds?: number;
   onForceRefresh: () => void;
 }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [readout, setReadout] = useState<SagaChronologyDebug | null>(null);
-  const [error, setError] = useState("");
+  const [openKey, setOpenKey] = useState<string | null>(null);
+  const [readouts, setReadouts] = useState<Record<string, SagaChronologyDebug>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, startLoading] = useTransition();
-  const loadingRef = useRef(false);
-  const data = scanDebug ?? readout;
+  const loadingRef = useRef(new Set<string>());
+  const isOpen = enabled && openKey === sagaKey;
+  const data = enabled ? scanDebug ?? readouts[sagaKey] ?? null : null;
+  const error = errors[sagaKey] ?? "";
+
+  function setIsOpen(open: boolean) {
+    if (enabled) setOpenKey(open ? sagaKey : null);
+  }
 
   function inspect() {
-    if (loadingRef.current || busy) return;
-    loadingRef.current = true;
-    setError("");
+    if (!enabled || !sagaKey || loadingRef.current.has(sagaKey) || busy) return;
+    const key = sagaKey;
+    loadingRef.current.add(key);
+    setErrors(current => ({ ...current, [key]: "" }));
     startLoading(async () => {
       try {
-        const result = await getSagaChronologyDebug(sagaKey);
-        if ("debug" in result) setReadout(result.debug);
-        else setError(result.error);
+        const result = await getSagaChronologyDebug(key);
+        if ("debug" in result) setReadouts(current => ({ ...current, [key]: result.debug }));
+        else setErrors(current => ({ ...current, [key]: result.error }));
       } catch {
-        setError("Cache inspection unavailable. Try again; no ranks were changed.");
-      } finally { loadingRef.current = false; }
+        setErrors(current => ({ ...current, [key]: "Cache inspection unavailable. Try again; no ranks were changed." }));
+      } finally { loadingRef.current.delete(key); }
     });
   }
 
+  function forceRefresh() {
+    if (!enabled || !sagaKey || busy || isLoading || cooldownSeconds > 0) return;
+    setIsOpen(true);
+    onForceRefresh();
+  }
+
+  return {
+    busy,
+    cooldownSeconds,
+    forceRefresh,
+    isOpen,
+    setIsOpen,
+    error,
+    isLoading,
+    data,
+    inspect,
+  };
+}
+
+export type SagaChronologyDebuggerController = ReturnType<typeof useSagaDebuggerController>;
+
+export default function SagaChronologyDebugger(props: Parameters<typeof useSagaDebuggerController>[0]) {
+  const controller = useSagaDebuggerController(props);
+  return <SagaChronologyDebuggerView controller={controller} />;
+}
+
+export function SagaChronologyDebuggerView({ controller, part = "all" }: { controller: SagaChronologyDebuggerController; part?: "all" | "trigger" | "overlay" }) {
+  const {
+    busy,
+    cooldownSeconds,
+    forceRefresh,
+    isOpen,
+    setIsOpen,
+    error,
+    isLoading,
+    data,
+    inspect,
+  } = controller;
   return (
     <div className="saga-debugger">
-      <div className="saga-debug-actions">
+      {part !== "overlay" && <div className="saga-debug-actions">
         <button type="button" aria-expanded={isOpen} aria-controls="saga-debug-readout" onClick={() => {
           setIsOpen(!isOpen);
           if (!isOpen && !data) inspect();
         }}>🔍 {isOpen ? "HIDE" : "DEBUG"} CHRONOLOGY MATCHING</button>
-        <button type="button" disabled={busy || isLoading || cooldownSeconds > 0} onClick={() => { setIsOpen(true); onForceRefresh(); }} title="Bypass the shared cache and five-minute refresh cooldown, fetch IGDB, and replace this saga's saved ranks. IGDB request limits still apply.">
+        <button type="button" disabled={busy || isLoading || cooldownSeconds > 0} onClick={forceRefresh} title="Bypass the shared cache and five-minute refresh cooldown, fetch IGDB, and replace this saga's saved ranks. IGDB request limits still apply.">
           {cooldownSeconds > 0 ? cooldownLabel(cooldownSeconds) : busy ? "⏳ SCANNING…" : "🔄 FORCE REFRESH CACHE"}
         </button>
-      </div>
-      {isOpen && <section id="saga-debug-readout" className="saga-debug-readout" aria-label="Saga cache and match debugger" aria-busy={busy || isLoading}>
+      </div>}
+      {part !== "trigger" && isOpen && <section id="saga-debug-readout" className="saga-debug-readout" aria-label="Saga cache and match debugger" aria-busy={busy || isLoading}>
         <h4>🔍 SAGA CACHE &amp; MATCH DEBUGGER</h4>
         {(busy || isLoading) && <p role="status">Reading chronology telemetry…</p>}
         {error && <p role="alert">{error}</p>}

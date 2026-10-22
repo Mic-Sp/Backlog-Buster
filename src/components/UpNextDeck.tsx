@@ -3,24 +3,26 @@
 import { unwrapActionResult } from "@/lib/action-result";
 
 import SafeForm from "@/components/SafeForm";
+import { DeckPinsContext, useDeckPins } from "@/components/useDeckPins";
 
-import { useEffect, useOptimistic, useRef, useState, useTransition, type DragEvent } from "react";
 import { assignDeckSlot, startGame, swapDeckSlot } from "@/app/actions";
-import type { LibraryGame } from "@/components/GameLibrary";
 import DeckPinButton from "@/components/DeckPinButton";
+import type { LibraryGame } from "@/components/GameLibrary";
 import { DECK_CAPACITY, DECK_DRAG_TYPE, readDeckDrag, type DeckDragGame } from "@/lib/deck";
 import { isReleasedYear } from "@/lib/game-release";
+import { useEffect, useOptimistic, useRef, useState, useTransition, type DragEvent } from "react";
 import "./DeckReorder.css";
 
-export default function UpNextDeck({ games, draggedGame, onDragGameChange, onDragPointerDown, onGameDragStart, disabled = false, startAction = startGame }: {
+export function useUpNextDeckController({ games, draggedGame, onDragGameChange, onDragPointerDown, onGameDragStart, disabled = false, startAction = startGame }: {
   games: LibraryGame[];
   draggedGame: DeckDragGame | null;
   onDragGameChange: (game: DeckDragGame | null) => void;
   onDragPointerDown: (game: DeckDragGame, fromControl: boolean) => void;
-  onGameDragStart: (event: DragEvent<HTMLFormElement>, game: DeckDragGame) => void;
+  onGameDragStart: (event: DragEvent<HTMLElement>, game: DeckDragGame) => void;
   disabled?: boolean;
   startAction?: (data: FormData) => Promise<unknown>;
 }) {
+  const pins = useDeckPins();
   const [isSwapping, startSwapping] = useTransition();
   const swappingRef = useRef(false);
   const sectionRef = useRef<HTMLElement>(null);
@@ -37,7 +39,7 @@ export default function UpNextDeck({ games, draggedGame, onDragGameChange, onDra
     });
   });
   const pinned = optimisticGames.filter((game) => game.status === "Backlog" && game.pinnedOrder != null);
-  const busy = isSwapping || disabled;
+  const busy = isSwapping || pins.isPending || disabled;
   const dragSource = games.find((game) => game.id === draggedGame?.gameId && game.status === "Backlog");
   const acceptsDrop = !busy && dragSource != null && isReleasedYear(dragSource.releaseYear) &&
     (draggedGame?.source === "table" || dragSource.pinnedOrder != null);
@@ -47,8 +49,8 @@ export default function UpNextDeck({ games, draggedGame, onDragGameChange, onDra
     const { id, direction } = focusRef.current;
     focusRef.current = null;
     if (document.activeElement !== document.body) return;
-    const controls = sectionRef.current?.querySelectorAll<HTMLButtonElement>(`[data-deck-game-id="${id}"] .deck-slot-controls button:not(:disabled)`);
-    const target = Array.from(controls ?? []).find((button) => button.dataset.direction === String(direction)) ?? controls?.[0];
+    const controls = sectionRef.current?.querySelectorAll<HTMLButtonElement>(`[data-deck-game-id="${id}"] [data-deck-direction]:not(:disabled)`);
+    const target = Array.from(controls ?? []).find((button) => button.dataset.deckDirection === String(direction)) ?? controls?.[0];
     target?.focus();
   }, [isSwapping, games]);
 
@@ -78,12 +80,17 @@ export default function UpNextDeck({ games, draggedGame, onDragGameChange, onDra
     });
   }
 
+  function startDeckDrag(event: DragEvent<HTMLElement>, gameId: number) {
+    if (busy || swappingRef.current) event.preventDefault();
+    else onGameDragStart(event, { gameId, source: "deck" });
+  }
+
   function endDeckDrag() {
     setHoveredSlot(null);
     onDragGameChange(null);
   }
 
-  function dropIntoSlot(event: DragEvent<HTMLLIElement>, slot: number) {
+  function dropIntoSlot(event: DragEvent<HTMLElement>, slot: number) {
     if (!acceptsDrop) return;
     event.preventDefault();
     event.stopPropagation();
@@ -93,6 +100,52 @@ export default function UpNextDeck({ games, draggedGame, onDragGameChange, onDra
     if (matchesSource && dragSource && drag) saveSlot(dragSource, slot, drag.source);
   }
 
+  return {
+    pins,
+    startDeckDrag,
+    optimisticGames,
+    saveSlot,
+    onDragPointerDown,
+    onGameDragStart,
+    startAction,
+    swappingRef,
+    sectionRef,
+    hoveredSlot,
+    setHoveredSlot,
+    notice,
+    pinned,
+    busy,
+    acceptsDrop,
+    moveSlot,
+    endDeckDrag,
+    dropIntoSlot,
+  };
+}
+
+export type UpNextDeckController = ReturnType<typeof useUpNextDeckController>;
+
+export default function UpNextDeck(props: Parameters<typeof useUpNextDeckController>[0]) {
+  const controller = useUpNextDeckController(props);
+  return <DeckPinsContext.Provider value={controller.pins}><UpNextDeckView controller={controller} /></DeckPinsContext.Provider>;
+}
+
+export function UpNextDeckView({ controller }: { controller: UpNextDeckController }) {
+  const {
+    onDragPointerDown,
+    onGameDragStart,
+    startAction,
+    swappingRef,
+    sectionRef,
+    hoveredSlot,
+    setHoveredSlot,
+    notice,
+    pinned,
+    busy,
+    acceptsDrop,
+    moveSlot,
+    endDeckDrag,
+    dropIntoSlot,
+  } = controller;
   return (
     <section className="up-next-deck" aria-labelledby="deck-title" ref={sectionRef}>
       <div className="deck-heading">
@@ -144,8 +197,8 @@ export default function UpNextDeck({ games, draggedGame, onDragGameChange, onDra
                   <div className="deck-slot-heading">
                     <p className="deck-slot-badge"><span className="deck-drag-grip" aria-hidden="true">⋮⋮ </span>SLOT {String(slot).padStart(2, "0")}</p>
                     <span className="deck-slot-controls">
-                      <button type="button" data-direction="-1" disabled={busy || !isReleasedYear(game.releaseYear) || slot === 1} aria-label={`Move ${game.title} to previous deck slot`} title="Swap with previous slot" onClick={() => moveSlot(game, -1)}>◀</button>
-                      <button type="button" data-direction="1" disabled={busy || !isReleasedYear(game.releaseYear) || slot === DECK_CAPACITY} aria-label={`Move ${game.title} to next deck slot`} title="Swap with next slot" onClick={() => moveSlot(game, 1)}>▶</button>
+                      <button type="button" data-deck-direction="-1" disabled={busy || !isReleasedYear(game.releaseYear) || slot === 1} aria-label={`Move ${game.title} to previous deck slot`} title="Swap with previous slot" onClick={() => moveSlot(game, -1)}>◀</button>
+                      <button type="button" data-deck-direction="1" disabled={busy || !isReleasedYear(game.releaseYear) || slot === DECK_CAPACITY} aria-label={`Move ${game.title} to next deck slot`} title="Swap with next slot" onClick={() => moveSlot(game, 1)}>▶</button>
                     </span>
                   </div>
                   <div className="deck-game-info">

@@ -1,5 +1,8 @@
 "use client";
 
+import { useLayoutCopy } from "@/components/LayoutText";
+import { FantasyCorners } from "@/components/FantasyAccents";
+
 import { actionErrorMessage, unwrapActionResult } from "@/lib/action-result";
 
 import { startTransition, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
@@ -14,6 +17,7 @@ import { captureDossierPng, downloadDossier, loadDossierArtwork } from "@/lib/do
 import "./NetrunnerDossier.css";
 
 export default function NetrunnerDossier({ data }: { data: DossierData }) {
+  const copy = useLayoutCopy();
   const [isOpen, setIsOpen] = useState(false);
   const [identity, setIdentity] = useState<DossierIdentity>(() => dossierIdentityFromProfile(data.profile, data.trophies));
   const identityRef = useRef(identity);
@@ -241,13 +245,14 @@ export default function NetrunnerDossier({ data }: { data: DossierData }) {
 
   return (
     <>
-      <button className="dossier-trigger-button" ref={triggerRef} type="button" aria-haspopup="dialog" onClick={openDossier}>🪪 NETRUNNER DOSSIER</button>
+      <button className="dossier-trigger-button" ref={triggerRef} type="button" aria-haspopup="dialog" onClick={openDossier}>{copy("🪪 NETRUNNER DOSSIER", "📜 ADVENTURER’S CODEX")}</button>
       {isOpen && createPortal(
         <div className="dossier-modal-backdrop" onClick={(event) => { if (event.target === event.currentTarget) closeDossier(); }}>
           <div className="dossier-modal" ref={modalRef} role="dialog" aria-modal="true" aria-labelledby={titleId} aria-busy={busy || closing}>
+            <FantasyCorners />
             <header className="dossier-modal-heading">
-              <div><p>IDENTITY VERIFICATION // CAREER ARCHIVE</p><h2 id={titleId}>Netrunner Dossier</h2></div>
-              <button className="dossier-close-button" type="button" aria-label="Close Netrunner dossier" disabled={busy || closing} onClick={closeDossier}>✕</button>
+              <div><p>{copy("IDENTITY VERIFICATION // CAREER ARCHIVE", "THE ROYAL REGISTER · YOUR ADVENTURER’S RECORD")}</p><h2 id={titleId}>{copy("Netrunner Dossier", "Adventurer’s Codex")}</h2></div>
+              <button className="dossier-close-button" type="button" aria-label={copy("Close Netrunner dossier", "Close adventurer’s codex")} disabled={busy || closing} onClick={closeDossier}>✕</button>
             </header>
             <div className="dossier-card-preview" aria-label="Shareable ID card preview">
               <NetrunnerIdCard data={data} identity={identity} timestamp={timestamp} artwork={artworkState.images} artworkLoading={!artworkReady} cardRef={cardRef} />
@@ -255,12 +260,12 @@ export default function NetrunnerDossier({ data }: { data: DossierData }) {
             <p className="dossier-artwork-status" role="status">{!artworkReady ? "SYNCING PORTRAIT & TROPHY ARTWORK…" : missingArtwork ? "Some artwork is offline. The snapshot includes the offline tiles shown above." : "SNAPSHOT READY // HIGH-RESOLUTION PNG"}</p>
 
             <details className="dossier-customize" ref={customizeRef} open>
-              <summary>⚙ PERSONALIZE IDENTITY</summary>
+              <summary>{copy("⚙ PERSONALIZE IDENTITY", "✎ PERSONALIZE YOUR CODEX")}</summary>
               <fieldset disabled={busy || closing || saveStatus === "saving"}>
                 <legend className="dossier-sr-only">Customize your shareable identity card</legend>
                 <div className="dossier-avatar-controls">
-                  <p className="dossier-avatar-label">Operator Avatar</p>
-                  <div className="dossier-avatar-presets" role="group" aria-label="Operator Avatar">
+                  <p className="dossier-avatar-label">{copy("Operator Avatar", "Adventurer Portrait")}</p>
+                  <div className="dossier-avatar-presets" role="group" aria-label={copy("Operator Avatar", "Adventurer Portrait")}>
                     {avatarPresets.map((preset) => <button key={preset.id} className="dossier-avatar-preset" type="button" title={preset.title} aria-label={preset.title} aria-pressed={resolveAvatarPreset(identity.avatarUrl) === preset.id} onClick={() => customize({ ...identity, avatarUrl: preset.id === "bb" ? null : `preset:${preset.id}` })}>
                       <OperatorAvatar avatarUrl={preset.id === "bb" ? null : `preset:${preset.id}`} alt={preset.title} />
                     </button>)}
@@ -269,10 +274,10 @@ export default function NetrunnerDossier({ data }: { data: DossierData }) {
                   <p className="dossier-avatar-help">Choose an emblem or paste an HTTP/HTTPS image URL. Unavailable images use the default BB emblem.</p>
                 </div>
                 <div className="dossier-identity-fields">
-                  <label>Operator name<input name="callsign" value={identity.callsign} maxLength={28} placeholder="ANONYMOUS NETRUNNER" onChange={(event) => customize({ ...identity, callsign: event.target.value })} /></label>
+                  <label>{copy("Operator name", "Adventurer name")}<input name="callsign" value={identity.callsign} maxLength={28} placeholder={copy("ANONYMOUS NETRUNNER", "UNNAMED ADVENTURER")} onChange={(event) => customize({ ...identity, callsign: event.target.value })} /></label>
                   <label>Handle <span>(optional)</span><input ref={handleInputRef} name="handle" value={identity.handle} maxLength={32} autoComplete="off" autoCapitalize="none" spellCheck={false} placeholder="night-city-runner" aria-describedby={`${titleId}-handle-help`} onChange={(event) => customize({ ...identity, handle: event.target.value })} /><small id={`${titleId}-handle-help`}>3–32 lowercase letters, numbers or hyphens.</small>{handlePrompt && <span className="dossier-handle-prompt" role="alert">{handlePrompt}</span>}</label>
                   <label>Personal tagline<input name="tagline" value={identity.tagline} maxLength={64} onChange={(event) => customize({ ...identity, tagline: event.target.value })} /></label>
-                  <label>Neon accent<select aria-label="Neon accent" value={identity.accent} onChange={(event) => customize({ ...identity, accent: event.target.value as DossierAccent })}>{Object.keys(dossierAccents).map((accent) => <option key={accent} value={accent}>{accent.toUpperCase()}</option>)}</select></label>
+                  <label>{copy("Neon accent", "Heraldic accent")}<select aria-label={copy("Neon accent", "Heraldic accent")} value={identity.accent} onChange={(event) => customize({ ...identity, accent: event.target.value as DossierAccent })}>{Object.keys(dossierAccents).map((accent) => <option key={accent} value={accent}>{accent.toUpperCase()}</option>)}</select></label>
                 </div>
                 <div className="dossier-showcase-fields">
                   {Array.from({ length: 3 }, (_, index) => <label key={index}>Featured trophy {String(index + 1).padStart(2, "0")}
@@ -287,17 +292,17 @@ export default function NetrunnerDossier({ data }: { data: DossierData }) {
                   </label>)}
                 </div>
               </fieldset>
-              <button className="dossier-save-identity" type="button" disabled={busy || closing || saveStatus === "saving"} onClick={saveIdentity}>{saveStatus === "saving" ? "SAVING IDENTITY…" : "💾 SAVE IDENTITY TO ARCHIVE"}</button>
+              <button className="dossier-save-identity" type="button" disabled={busy || closing || saveStatus === "saving"} onClick={saveIdentity}>{saveStatus === "saving" ? "SAVING IDENTITY…" : copy("💾 SAVE IDENTITY TO ARCHIVE", "✦ SAVE TO THE ROYAL REGISTER")}</button>
               <div className="dossier-profile-status" data-state={saveStatus}>
-                <span role={saveStatus === "error" ? "alert" : "status"}>{saveStatus === "saved" ? "✓ IDENTITY SAVED TO OPERATOR CLOUD ARCHIVE" : saveStatus === "error" ? saveError : saveStatus === "pending" ? "UNSAVED IDENTITY CHANGES" : "SYNCING PLAYER IDENTITY…"}</span>
+                <span role={saveStatus === "error" ? "alert" : "status"}>{saveStatus === "saved" ? copy("✓ IDENTITY SAVED TO OPERATOR CLOUD ARCHIVE", "✓ IDENTITY SAVED TO THE ROYAL REGISTER") : saveStatus === "error" ? saveError : saveStatus === "pending" ? copy("UNSAVED IDENTITY CHANGES", "UNSAVED CODEX CHANGES") : copy("SYNCING PLAYER IDENTITY…", "INSCRIBING YOUR IDENTITY…")}</span>
                 {saveStatus === "error" && <button type="button" onClick={saveIdentity}>RETRY SAVE</button>}
               </div>
-              <p>Identity preferences are saved to your operator’s cloud archive and follow your account across browsers. Showcase slots feature completed games rated five stars.</p>
+              <p>{copy("Identity preferences are saved to your operator’s cloud archive and follow your account across browsers. Showcase slots feature completed games rated five stars.", "Your identity is saved to the royal register and follows your account across browsers. Showcase slots feature completed quests rated five stars.")}</p>
             </details>
             {publicHandle && <div className="dossier-share-preview"><span>PUBLIC ARCHIVE // <code>/dossier/{publicHandle}</code></span><a className="dossier-public-open" href={`/dossier/${encodeURIComponent(publicHandle)}`} target="_blank" rel="noopener noreferrer">↗ OPEN PUBLIC PAGE</a></div>}
             <div className="dossier-export-actions">
-              <button className="dossier-share-button" type="button" disabled={busy || closing || saveStatus === "saving"} onClick={() => void copyPublicLink()}>🔗 COPY PUBLIC DOSSIER LINK</button>
-              <button className="dossier-copy-button" type="button" disabled={busy || closing || !artworkReady} onClick={() => void exportSnapshot("copy")}>📋 COPY DOSSIER TO CLIPBOARD</button>
+              <button className="dossier-share-button" type="button" disabled={busy || closing || saveStatus === "saving"} onClick={() => void copyPublicLink()}>{copy("🔗 COPY PUBLIC DOSSIER LINK", "🔗 COPY PUBLIC CODEX LINK")}</button>
+              <button className="dossier-copy-button" type="button" disabled={busy || closing || !artworkReady} onClick={() => void exportSnapshot("copy")}>{copy("📋 COPY DOSSIER TO CLIPBOARD", "📋 COPY CODEX TO CLIPBOARD")}</button>
               <button className="dossier-download-button" type="button" disabled={busy || closing || !artworkReady} onClick={() => void exportSnapshot("download")}>💾 DOWNLOAD ID SNAPSHOT</button>
             </div>
             {busy && <p className="dossier-artwork-status" role="status">ENCODING ID SNAPSHOT…</p>}

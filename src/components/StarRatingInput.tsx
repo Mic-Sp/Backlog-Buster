@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 
-export default function StarRatingInput({ defaultValue, label = "Personal rating", onChange }: {
+export default function StarRatingInput({ defaultValue, label = "Personal rating", onChange, glyph = "star" }: {
+  glyph?: "star" | "heart";
   defaultValue: number | null;
   label?: string;
   onChange?: (rating: number | null) => void;
@@ -31,7 +32,7 @@ export default function StarRatingInput({ defaultValue, label = "Personal rating
             onChange?.(nextRating > 0 ? nextRating : null);
           }}
         >
-          {starValue <= activeStars ? "★" : "☆"}
+          {glyph === "heart" ? starValue <= activeStars ? "♥" : "♡" : starValue <= activeStars ? "★" : "☆"}
         </button>
       ))}
       <span className="star-rating-readout">{activeStars > 0 ? `${activeStars}/5` : "UNRATED"}</span>

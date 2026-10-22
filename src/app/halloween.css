@@ -202,3 +202,7 @@ button.theme-toggle:focus-visible { outline: 2px solid #fcee0a; outline-offset: 
 :root[data-theme="halloween"] :is(.advisor-modal-backdrop, .auth-modal-backdrop, .security-modal-backdrop, .dossier-modal-backdrop, .vault-modal-backdrop, .quest-modal-backdrop) { background-color: #07040de8; }
 :root[data-theme="halloween"] .member-count { background: #160e21; border-color: #70527b; }
 :root[data-theme="halloween"] .member-count strong { color: var(--haunt-orange); }
+
+/* Layout selection shares the header controls without changing deck geometry. */
+.theme-controls { width: auto; flex-wrap: wrap; }
+.theme-controls .layout-mode-toggle { padding: 5px 7px; font-size: 9px; }

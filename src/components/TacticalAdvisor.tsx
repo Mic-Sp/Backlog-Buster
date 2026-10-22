@@ -1,5 +1,8 @@
 "use client";
 
+import { useLayoutCopy } from "@/components/LayoutText";
+import { FantasyCorners } from "@/components/FantasyAccents";
+
 import useCooldown from "@/components/useCooldown";
 import { DEFAULT_COOLDOWN_SECONDS } from "@/lib/cooldown";
 import { actionErrorMessage, ActionFailure, unwrapActionResult } from "@/lib/action-result";
@@ -15,9 +18,9 @@ import DeckPinButton from "@/components/DeckPinButton";
 import AgentBriefing from "@/components/AgentBriefing";
 import { useUIEffects } from "@/components/ThemeProvider";
 
-export default function TacticalAdvisor({ games }: { games: Pick<LibraryGame, "id" | "title" | "status" | "pinnedOrder" | "hoursPlayed" | "lengthHours">[] }) {
+export function useTacticalAdvisorController({ games }: { games: Pick<LibraryGame, "id" | "title" | "status" | "pinnedOrder" | "hoursPlayed" | "lengthHours">[] }) {
+  const copy = useLayoutCopy();
   const { playSfx } = useUIEffects();
-  const advisorCooldown = useCooldown();
   const scoutCooldown = useCooldown();
   const advisorFlight = useRef(false);
   const scoutFlight = useRef(false);
@@ -121,20 +124,17 @@ export default function TacticalAdvisor({ games }: { games: Pick<LibraryGame, "i
   }
 
   function loadPicks() {
-    if (advisorFlight.current || advisorCooldown.seconds > 0) return;
+    if (advisorFlight.current) return;
     advisorFlight.current = true;
     playSfx("scan");
     const request = ++requestId.current;
     setPicks(null);
     setError("");
     startFetching(async () => {
-      const startedAt = Date.now();
       try {
         const result = unwrapActionResult(await fetchBacklogAdvisor());
-        advisorCooldown.start(DEFAULT_COOLDOWN_SECONDS, startedAt);
         if (request === requestId.current) setPicks(result);
       } catch (error) {
-        if (error instanceof ActionFailure) advisorCooldown.start(error.retryAfterSeconds);
         if (request === requestId.current) setError(actionErrorMessage(error, "CORTEX could not scan your backlog. Please retry."));
       } finally { advisorFlight.current = false; }
     });
@@ -170,13 +170,14 @@ export default function TacticalAdvisor({ games }: { games: Pick<LibraryGame, "i
 
   useEffect(() => {
     if (!isOpen) return;
-    const trigger = triggerRef.current;
     const overflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     dialogRef.current?.focus();
     return () => {
       document.body.style.overflow = overflow;
-      trigger?.focus();
+      // Restore to the current layout's trigger; the previous one may have unmounted.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      triggerRef.current?.focus();
     };
   }, [isOpen]);
 
@@ -210,7 +211,7 @@ export default function TacticalAdvisor({ games }: { games: Pick<LibraryGame, "i
 
   function renderPick(pick: BacklogRecommendation | null, variant: "continuation" | "cleanser") {
     const savedGame = games.find((game) => game.id === pick?.game.id && game.status === "Backlog");
-    const heading = variant === "continuation" ? "🔗 DIRECT CONTINUATION // SEQUEL & AFFINITY" : "⚡ PALATE CLEANSER // PACING RESET";
+    const heading = variant === "continuation" ? copy("🔗 DIRECT CONTINUATION // SEQUEL & AFFINITY", "THE FAMILIAR PATH · CONTINUE YOUR SAGA") : copy("⚡ PALATE CLEANSER // PACING RESET", "THE WANDERING PATH · A FRESH ADVENTURE");
     return (
       <article className="advisor-card" data-variant={variant}>
         <h3 className="advisor-card-eyebrow">{heading}</h3>
@@ -220,15 +221,15 @@ export default function TacticalAdvisor({ games }: { games: Pick<LibraryGame, "i
               // Reuse the library's lazy-loading cover behavior.
               // eslint-disable-next-line @next/next/no-img-element
               <img className="advisor-cover" src={pick.game.coverUrl} alt={`${pick.game.title} cover art`} width={640} height={360} loading="lazy" decoding="async" />
-            ) : <div className="advisor-cover advisor-no-cover" role="img" aria-label={`${pick.game.title} cover art unavailable`}>NO COVER</div>}
+            ) : <div className="advisor-cover advisor-no-cover" role="img" aria-label={`${pick.game.title} cover art unavailable`}>{copy("NO COVER", "NO ARTWORK")}</div>}
             <div className="advisor-card-body">
               <h4>{pick.game.title}</h4>
               <p className="advisor-metadata">{pick.game.platform} · {pick.game.genre?.trim() || "Uncategorized"} · {savedGame?.lengthHours ?? pick.game.lengthHours}h</p>
               <p className="advisor-bounty">+{((savedGame?.lengthHours ?? pick.game.lengthHours) * pick.game.difficulty * 10).toLocaleString("en-US")} POTENTIAL XP</p>
-              <div className="advisor-reason"><span>TACTICAL ASSESSMENT</span><p>{pick.reason}</p></div>
+              <div className="advisor-reason"><span>{copy("TACTICAL ASSESSMENT", "A FAIRY’S COUNSEL")}</span><p>{pick.reason}</p></div>
               <div className="advisor-card-actions">
                 <button className="advisor-start-button" type="button" disabled={isFetching || isStarting || isAdding} onClick={() => startGig(pick.game.id)}>
-                  {startingId === pick.game.id ? "ACCEPTING GIG…" : "▶ START GIG NOW"}
+                  {startingId === pick.game.id ? copy("ACCEPTING GIG…", "ACCEPTING QUEST…") : copy("▶ START GIG NOW", "▶ BEGIN THIS QUEST")}
                 </button>
                 <a className="trailer-link-button" href={buildTrailerUrl(pick.game.title, pick.game.releaseYear)} target="_blank" rel="noopener noreferrer">🎬 WATCH TRAILER ↗</a>
                 {savedGame && <DeckPinButton gameId={savedGame.id} pinnedOrder={savedGame.pinnedOrder} pinnedCount={pinnedCount} releaseYear={pick.game.releaseYear} disabled={isFetching || isStarting || isAdding} />}
@@ -236,25 +237,91 @@ export default function TacticalAdvisor({ games }: { games: Pick<LibraryGame, "i
               <AgentBriefing game={{ ...pick.game, lengthHours: savedGame?.lengthHours ?? pick.game.lengthHours, hoursPlayed: savedGame?.hoursPlayed }} />
             </div>
           </>
-        ) : <p className="advisor-empty">No matching backlog gig available.</p>}
+        ) : <p className="advisor-empty">{copy("No matching backlog gig available.", "No matching quest awaits in your journal.")}</p>}
       </article>
     );
   }
 
+  return {
+    scoutCooldown,
+    isOpen,
+    picks,
+    error,
+    isFetching,
+    isStarting,
+    scoutUnlocked,
+    setScoutUnlocked,
+    setScoutOverride,
+    externalPicks,
+    externalError,
+    addedTitles,
+    addingTitle,
+    isScouting,
+    isAdding,
+    triggerRef,
+    dialogRef,
+    backlogCount,
+    ownedTitles,
+    loadExternalPicks,
+    openAdvisor,
+    addContract,
+    loadPicks,
+    close,
+    renderPick,
+  };
+}
+
+export type TacticalAdvisorController = ReturnType<typeof useTacticalAdvisorController>;
+
+export default function TacticalAdvisor(props: Parameters<typeof useTacticalAdvisorController>[0]) {
+  const controller = useTacticalAdvisorController(props);
+  return <TacticalAdvisorView controller={controller} />;
+}
+
+export function TacticalAdvisorView({ controller, part = "all" }: { controller: TacticalAdvisorController; part?: "all" | "trigger" | "overlay" }) {
+  const copy = useLayoutCopy();
+  const {
+    scoutCooldown,
+    isOpen,
+    picks,
+    error,
+    isFetching,
+    isStarting,
+    scoutUnlocked,
+    setScoutUnlocked,
+    setScoutOverride,
+    externalPicks,
+    externalError,
+    addedTitles,
+    addingTitle,
+    isScouting,
+    isAdding,
+    triggerRef,
+    dialogRef,
+    backlogCount,
+    ownedTitles,
+    loadExternalPicks,
+    openAdvisor,
+    addContract,
+    loadPicks,
+    close,
+    renderPick,
+  } = controller;
   return (
     <>
-      <button className="advisor-trigger-button" type="button" ref={triggerRef} aria-haspopup="dialog" aria-expanded={isOpen} onClick={openAdvisor} disabled={isFetching || isScouting}>
-        🧠 CORTEX // ADVISE NEXT GIG
-      </button>
-      {isOpen && createPortal(
+      {part !== "overlay" && (<button className="advisor-trigger-button" type="button" ref={triggerRef} aria-haspopup="dialog" aria-expanded={isOpen} onClick={openAdvisor} disabled={isFetching || isScouting}>
+        {copy("🧠 CORTEX // ADVISE NEXT GIG", "✧ NAVI // SEEK GUIDANCE")}
+      </button>)}
+      {part !== "trigger" && isOpen && createPortal(
         <div className="advisor-modal-backdrop" onClick={(event) => { if (event.target === event.currentTarget) close(); }}>
           <div className="advisor-modal" role="dialog" aria-modal="true" aria-labelledby="advisor-title" aria-busy={isFetching || isStarting || isScouting || isAdding} ref={dialogRef} tabIndex={-1}>
+            <FantasyCorners />
             <header className="advisor-header">
-              <div><p className="eyebrow">BACKLOG INTELLIGENCE // EXTERNAL SCOUT ONLINE</p><h2 id="advisor-title">CORTEX // TACTICAL GIG ADVISOR</h2></div>
+              <div><p className="eyebrow">{copy("BACKLOG INTELLIGENCE // EXTERNAL SCOUT ONLINE", "A FAIRY’S COUNSEL · THE NEXT CHAPTER AWAITS")}</p><h2 id="advisor-title">{copy("CORTEX // TACTICAL GIG ADVISOR", "Navi Guidance")}</h2></div>
               <button className="advisor-close" type="button" aria-label="Close tactical advisor" disabled={isStarting || isAdding} onClick={close}>✕</button>
             </header>
-            <p className="advisor-intro">Two tactical routes through your saved backlog, informed by your completions, ratings, and current gigs.</p>
-            {isFetching && <p className="advisor-loading" role="status">SCANNING LIBRARY // CALIBRATING NEXT GIG…</p>}
+            <p className="advisor-intro">{copy("Two tactical routes through your saved backlog, informed by your completions, ratings, and current gigs.", "Two paths through your quest journal, guided by your completed adventures, ratings, and current journeys.")}</p>
+            {isFetching && <p className="advisor-loading" role="status">{copy("SCANNING LIBRARY // CALIBRATING NEXT GIG…", "CONSULTING THE QUEST SCROLLS…")}</p>}
             {error && <p className="advisor-error" role="alert">{error}</p>}
             {!isFetching && picks && (
               picks.continuationPick || picks.palateCleanserPick ? (
@@ -262,23 +329,23 @@ export default function TacticalAdvisor({ games }: { games: Pick<LibraryGame, "i
                   {renderPick(picks.continuationPick, "continuation")}
                   {renderPick(picks.palateCleanserPick, "cleanser")}
                 </div>
-              ) : <p className="advisor-empty" role="status">No released backlog gigs are eligible. CORTEX requires a saved release year of this year or earlier.</p>
+              ) : <p className="advisor-empty" role="status">{copy("No released backlog gigs are eligible. CORTEX requires a saved release year of this year or earlier.", "No released quests are eligible. Guidance requires a saved release year of this year or earlier.")}</p>
             )}
-            {!isFetching && <button className="advisor-refresh" type="button" disabled={isStarting || isAdding || advisorCooldown.seconds > 0} onClick={loadPicks}>{advisorCooldown.seconds > 0 ? advisorCooldown.label : error ? "RETRY SCAN" : "REFRESH SCAN"}</button>}
+            {!isFetching && <button className="advisor-refresh" type="button" disabled={isStarting || isAdding} onClick={loadPicks}>{error ? copy("RETRY SCAN", "SEEK GUIDANCE AGAIN") : copy("REFRESH SCAN", "CONSULT THE FAIRY AGAIN")}</button>}
             <section className="advisor-external-section" aria-labelledby="external-scout-title">
-              <h3 id="external-scout-title">02 // EXTERNAL SCOUT (NEW CONTRACTS)</h3>
+              <h3 id="external-scout-title">{copy("02 // EXTERNAL SCOUT (NEW CONTRACTS)", "BEYOND THE MAP · NEW QUESTS")}</h3>
               <p className="advisor-intro">Curated affinity picks from your completed favorites, enriched with RAWG metadata.</p>
               {!scoutUnlocked ? (
                 <div className="advisor-scout-locked">
-                  <p>🔒 EXTERNAL SCOUTING STANDBY // Backlog at {backlogCount} gigs (Target: &lt;= 5 gigs)</p>
-                  <button type="button" disabled={isStarting || isAdding || scoutCooldown.seconds > 0 || isScouting} onClick={() => { setScoutOverride(true); setScoutUnlocked(true); loadExternalPicks(true); }}>{scoutCooldown.seconds > 0 ? scoutCooldown.label : "⚡ OVERRIDE LOCK & SCAN"}</button>
+                  <p>{copy(`🔒 EXTERNAL SCOUTING STANDBY // Backlog at ${backlogCount} gigs (Target: <= 5 gigs)`, `✧ Beyond the map is resting · ${backlogCount} quests in your Backlog (Target: <= 5 quests)`)}</p>
+                  <button type="button" disabled={isStarting || isAdding || scoutCooldown.seconds > 0 || isScouting} onClick={() => { setScoutOverride(true); setScoutUnlocked(true); loadExternalPicks(true); }}>{scoutCooldown.seconds > 0 ? scoutCooldown.label : copy("⚡ OVERRIDE LOCK & SCAN", "✦ EXPLORE BEYOND THE MAP")}</button>
                 </div>
               ) : (
                 <>
                   {isScouting && (
                     <div className="advisor-scout-terminal" role="status" aria-live="polite" aria-atomic="true">
-                      <span className="advisor-scout-terminal-label" aria-hidden="true">CORTEX // EXTERNAL SCOUT ONLINE</span>
-                      <p>SCANNING NEURAL NET // SEARCHING FOR COMPATIBLE CONTRACTS...<span className="advisor-scout-cursor" aria-hidden="true" /></p>
+                      <span className="advisor-scout-terminal-label" aria-hidden="true">{copy("CORTEX // EXTERNAL SCOUT ONLINE", "NAVI · SCOUTING BEYOND THE MAP")}</span>
+                      <p>{copy("SCANNING NEURAL NET // SEARCHING FOR COMPATIBLE CONTRACTS...", "FOLLOWING THE FAIRY LIGHT · SEEKING NEW ADVENTURES…")}<span className="advisor-scout-cursor" aria-hidden="true" /></p>
                     </div>
                   )}
                   {externalError && <p className="advisor-error" role="alert">{externalError}</p>}
@@ -292,15 +359,15 @@ export default function TacticalAdvisor({ games }: { games: Pick<LibraryGame, "i
                             {pick.coverUrl ? (
                               // eslint-disable-next-line @next/next/no-img-element
                               <img className="advisor-cover" src={pick.coverUrl} alt={`${pick.title} cover art`} width={640} height={360} loading="lazy" decoding="async" />
-                            ) : <div className="advisor-cover advisor-no-cover" role="img" aria-label={`${pick.title} cover art unavailable`}>NO COVER</div>}
+                            ) : <div className="advisor-cover advisor-no-cover" role="img" aria-label={`${pick.title} cover art unavailable`}>{copy("NO COVER", "NO ARTWORK")}</div>}
                             <div className="advisor-card-body">
                               <h4>{pick.title}</h4>
                               <p className="advisor-metadata">{pick.platform} · {pick.genre ?? "Genre unknown"} · {pick.releaseYear ?? "Year unknown"}</p>
                               <p className="advisor-bounty">{pick.lengthHours}h EST. // +{(pick.lengthHours * pick.difficulty * 10).toLocaleString("en-US")} POTENTIAL XP</p>
-                              <div className="advisor-reason"><span>ACQUISITION RATIONALE</span><p>{pick.reason}</p></div>
+                              <div className="advisor-reason"><span>{copy("ACQUISITION RATIONALE", "WHY THIS QUEST CALLS TO YOU")}</span><p>{pick.reason}</p></div>
                               <div className="advisor-card-actions">
                                 <button className="advisor-acquire-button" type="button" data-added={added} disabled={added || isStarting || isAdding} onClick={() => addContract(pick)}>
-                                  {added ? "✓ ADDED TO BACKLOG" : addingTitle === key ? "ADDING CONTRACT…" : "+ ADD TO BACKLOG"}
+                                  {added ? "✓ ADDED TO BACKLOG" : addingTitle === key ? copy("ADDING CONTRACT…", "INSCRIBING QUEST…") : "+ ADD TO BACKLOG"}
                                 </button>
                                 <a className="trailer-link-button" href={buildTrailerUrl(pick.title, pick.releaseYear)} target="_blank" rel="noopener noreferrer">🎬 WATCH TRAILER ↗</a>
                               </div>
@@ -310,8 +377,8 @@ export default function TacticalAdvisor({ games }: { games: Pick<LibraryGame, "i
                         );
                       })}
                     </div>
-                  ) : <p className="advisor-empty" role="status">No new affinity picks with a confirmed release year of this year or earlier are available. Complete and rate a gig 4–5 stars to guide scouting; games already in your library are excluded.</p>)}
-                  <button className="advisor-refresh" type="button" disabled={isScouting || isStarting || isAdding || scoutCooldown.seconds > 0} aria-busy={isScouting} onClick={() => loadExternalPicks()}>{isScouting ? "SCANNING NEURAL NET…" : scoutCooldown.seconds > 0 ? scoutCooldown.label : externalError ? "RETRY EXTERNAL SCAN" : "RESCAN NEW CONTRACTS"}</button>
+                  ) : <p className="advisor-empty" role="status">{copy("No new affinity picks with a confirmed release year of this year or earlier are available. Complete and rate a gig 4–5 stars to guide scouting; games already in your library are excluded.", "No new released adventures were found. Complete and rate a quest 4–5 stars to guide the fairy; quests already in your journal are excluded.")}</p>)}
+                  <button className="advisor-refresh" type="button" disabled={isScouting || isStarting || isAdding || scoutCooldown.seconds > 0} aria-busy={isScouting} onClick={() => loadExternalPicks()}>{isScouting ? copy("SCANNING NEURAL NET…", "FOLLOWING THE FAIRY LIGHT…") : scoutCooldown.seconds > 0 ? scoutCooldown.label : externalError ? copy("RETRY EXTERNAL SCAN", "RETRY THE SEARCH") : copy("RESCAN NEW CONTRACTS", "SEEK NEW QUESTS")}</button>
                   <p className="advisor-scout-status" role="status" aria-live="polite">{addedTitles.size > 0 ? `${addedTitles.size} new contract${addedTitles.size === 1 ? "" : "s"} added to backlog.` : ""}</p>
                 </>
               )}

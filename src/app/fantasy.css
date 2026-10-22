@@ -1,0 +1,422 @@
+/* The shell keeps its server slots mounted. Only the chosen pane is concealed. */
+.fantasy-workspace-banner, .fantasy-status-heading, .fantasy-label, .fantasy-decoration { display: none; }
+.fantasy-decoration, .fantasy-decoration * { pointer-events: none; }
+:root[data-layout-mode="fantasy"] {
+  color-scheme: light;
+  --ink: #30251d;
+  --muted: #68523e;
+  --surface: #e7d5a8;
+  --panel: #eddfba;
+  --line: #9b7b40;
+  --gold: #d5b861;
+  --parchment: #efdfb5;
+  --royal: #253f46;
+  --fairy: #78d8f9;
+}
+:root[data-layout-mode="fantasy"] body {
+  color: var(--ink);
+  background: radial-gradient(ellipse at 50% 0%, #496461 0%, #192e36 55%, #101d29 100%);
+  font-family: Georgia, "Times New Roman", serif;
+}
+:root[data-layout-mode="fantasy"] .workspace-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  position: relative;
+  width: min(1280px, calc(100% - 48px));
+  margin: 28px auto;
+  padding: 30px;
+  border: 8px double #b7a366;
+  border-radius: 28px 8px 28px 8px;
+  outline: 2px solid #152b32;
+  background: linear-gradient(90deg, #ffffff04, transparent 20%, #ffffff06 80%, transparent), #233e47;
+  box-shadow: inset 0 0 0 3px #0d222b, 0 18px 45px #050d1466;
+}
+:root[data-layout-mode="fantasy"] .workspace-shell::before,
+:root[data-layout-mode="fantasy"] .workspace-shell::after {
+  content: "◆";
+  position: absolute;
+  color: #edce79;
+  font-size: 24px;
+  line-height: 1;
+  pointer-events: none;
+}
+:root[data-layout-mode="fantasy"] .workspace-shell::before { top: 8px; left: 10px; }
+:root[data-layout-mode="fantasy"] .workspace-shell::after { bottom: 8px; right: 10px; }
+:root[data-layout-mode="fantasy"] :is(h1, h2, h3, h4) { color: inherit; text-shadow: none; font-family: Georgia, "Times New Roman", serif; letter-spacing: .015em; }
+:root[data-layout-mode="fantasy"] button,
+:root[data-layout-mode="fantasy"] .fantasy-quest-actions a {
+  color: #f4e6b9;
+  border: 1px solid #aa9256;
+  border-radius: 5px;
+  background: linear-gradient(#496057, #243c3c);
+  box-shadow: inset 0 1px #ffffff20, 0 2px 0 #102b31;
+  padding: 9px 12px;
+  min-height: 36px;
+  font: 600 12px/1.4 Georgia, "Times New Roman", serif;
+  text-decoration: none;
+  cursor: pointer;
+}
+:root[data-layout-mode="fantasy"] button:hover:not(:disabled) { color: #fff3c6; border-color: #f4d98c; background: #3a5c54; }
+:root[data-layout-mode="fantasy"] button:disabled { opacity: .48; cursor: not-allowed; }
+:root[data-layout-mode="fantasy"] :is(button, a, input, select, textarea, summary):focus-visible { outline: 3px solid #28915c; outline-offset: 3px; }
+:root[data-layout-mode="fantasy"] :is(input, select, textarea) {
+  color: #30251d;
+  background: #fcf1d5;
+  border: 1px solid #9b814e;
+  border-radius: 4px;
+  box-shadow: inset 0 2px 3px #6b4d2017;
+  min-width: 0;
+  max-width: 100%;
+  font: 14px/1.5 Georgia, "Times New Roman", serif;
+  padding: 8px 10px;
+}
+:root[data-layout-mode="fantasy"] :is(input, textarea)::placeholder { color: #87775e; }
+:root[data-layout-mode="fantasy"] label { color: #55442e; font: 600 12px/1.5 Georgia, "Times New Roman", serif; }
+:root[data-layout-mode="fantasy"] .fantasy-workspace-banner { display: grid; grid-template-columns: 58px 1fr auto; align-items: center; gap: 16px; order: 0; color: #f2dfab; }
+:root[data-layout-mode="fantasy"] .fantasy-workspace-banner h1 { margin: 5px 0 8px; font-size: clamp(22px, 3vw, 36px); font-weight: 500; }
+:root[data-layout-mode="fantasy"] .fantasy-workspace-banner p { margin: 0; font-size: 12px; color: #d4d6bd; }
+:root[data-layout-mode="fantasy"] .fantasy-crest { color: #e3c772; font-size: 26px; line-height: .85; letter-spacing: -3px; text-align: center; filter: drop-shadow(0 2px 0 #12262d); }
+:root[data-layout-mode="fantasy"] .fantasy-pause-seal { display: block; padding: 12px; border: 1px solid #a78f56; border-radius: 50%; text-align: center; font: 12px/1.7 Georgia, serif; letter-spacing: .15em; }
+:root[data-layout-mode="fantasy"] .fantasy-pause-seal small { font-size: 7px; }
+:root[data-layout-mode="fantasy"] .fantasy-kicker { font: 600 10px/1.6 Georgia, serif; color: #79643b; letter-spacing: .16em; text-transform: uppercase; margin: 0 0 5px; }
+:root[data-layout-mode="fantasy"] .fantasy-workspace-banner .fantasy-kicker { color: #c3b37e; font-size: 9px; }
+:root[data-layout-mode="fantasy"] .fantasy-page-navigation { display: flex; grid-column: 1 / -1; align-items: stretch; gap: 10px; margin-top: 12px; padding: 8px; border-block: 2px solid #a79563; background: #102b3370; }
+:root[data-layout-mode="fantasy"] .fantasy-page-navigation > button { flex-shrink: 0; background: #bdc6b9; color: #283c3c; border: 3px outset #e2e1c4; border-radius: 7px; }
+:root[data-layout-mode="fantasy"] kbd { font: bold 16px Georgia, serif; }
+:root[data-layout-mode="fantasy"] .fantasy-page-tabs { display: grid; grid-template-columns: repeat(4, 1fr); flex: 1; gap: 5px; }
+:root[data-layout-mode="fantasy"] .fantasy-page-tabs button { padding: 9px 6px; font-size: 11px; letter-spacing: .06em; border-color: transparent; background: transparent; box-shadow: none; color: #c9ceb4; }
+:root[data-layout-mode="fantasy"] .fantasy-page-tabs button[aria-pressed="true"] { border-color: #d2b76d; color: #ffe7a4; background: #49665d; box-shadow: inset 0 -3px #d2b76d; }
+:root[data-layout-mode="fantasy"] .player-summary {
+  order: 1;
+  display: grid;
+  grid-template-columns: 64px repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin: 0;
+  padding: 22px;
+  color: #332c22;
+  border: 4px double #9b7b40;
+  border-radius: 7px;
+  background: var(--parchment);
+  box-shadow: inset 0 0 25px #a1793a20;
+  min-width: 0;
+}
+:root[data-layout-mode="fantasy"] .player-summary .account-controls { grid-column: 1 / -1; order: -1; width: 100%; margin: 0; flex-wrap: wrap; justify-content: flex-end; color: #3d4838; padding-bottom: 12px; border-bottom: 1px solid #b8a06c; }
+:root[data-layout-mode="fantasy"] .account-operator { color: #3c3a2a; margin-right: auto; }
+:root[data-layout-mode="fantasy"] .account-operator :is(span, small) { color: #77613c; }
+:root[data-layout-mode="fantasy"] .theme-controls { flex-wrap: wrap; width: auto; }
+:root[data-layout-mode="fantasy"] .theme-controls button { font-size: 9px; }
+:root[data-layout-mode="fantasy"] .fantasy-status-heading { display: flex; grid-column: 1 / -1; align-items: center; flex-wrap: wrap; gap: 10px 20px; }
+:root[data-layout-mode="fantasy"] .fantasy-status-heading .fantasy-kicker { width: 100%; margin: 0; }
+:root[data-layout-mode="fantasy"] .fantasy-status-heading h2 { margin: 0; font-size: 24px; font-weight: 500; }
+:root[data-layout-mode="fantasy"] .fantasy-hearts { color: #b23e35; letter-spacing: 3px; font-size: 23px; text-shadow: 0 1px #fff2d1, 1px 2px #713224; }
+:root[data-layout-mode="fantasy"] .fantasy-heart-caption { font-size: 11px; color: #6e5b40; }
+:root[data-layout-mode="fantasy"] .summary-level-value strong,
+:root[data-layout-mode="fantasy"] .summary-total-xp > strong { color: #295a3c; font-size: 29px; }
+:root[data-layout-mode="fantasy"] .summary-label { color: #75613d; font-size: 10px; letter-spacing: .06em; }
+:root[data-layout-mode="fantasy"] .summary-progress { grid-column: auto; padding: 0; border: none; }
+:root[data-layout-mode="fantasy"] .summary-progress-track { background: #253f34; border: 3px ridge #bbaa6a; height: 18px; border-radius: 3px; }
+:root[data-layout-mode="fantasy"] .summary-progress-track span { background: linear-gradient(#a1db70, #388d48); box-shadow: none; }
+:root[data-layout-mode="fantasy"] .summary-progress-heading strong,
+:root[data-layout-mode="fantasy"] .summary-progress-percent { color: #2f643c; }
+:root[data-layout-mode="fantasy"] .summary-counts { grid-column: 1 / -1; border: none; padding: 0; }
+:root[data-layout-mode="fantasy"] .summary-count-items p { border-color: #bba476; background: #dbc795; color: #4e482e; }
+:root[data-layout-mode="fantasy"] .summary-count-items strong { color: #365d3f; }
+:root[data-layout-mode="fantasy"] .hud-career-tools { grid-column: 1 / -1; }
+:root[data-layout-mode="fantasy"] .hud-brand { border: 2px ridge #b4a064; border-radius: 50%; background: #335548; width: 60px; height: 60px; min-width: 0; min-height: 0; padding: 0; align-self: center; }
+:root[data-layout-mode="fantasy"] .collection { display: contents; }
+:root[data-layout-mode="fantasy"] .fantasy-library-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; color: #e9dcaf; order: 2; }
+:root[data-layout-mode="fantasy"] .fantasy-library-heading h2 { font-size: 20px; font-weight: 500; margin: 0 0 8px; }
+:root[data-layout-mode="fantasy"] .fantasy-library-heading p { font-size: 11px; margin: 0; color: #c9cbb2; }
+:root[data-layout-mode="fantasy"] .fantasy-library-heading .fantasy-kicker { color: #c7b580; font-size: 8px; margin-bottom: 4px; }
+:root[data-layout-mode="fantasy"] .fantasy-tool-bar { display: flex; flex-wrap: wrap; gap: 8px; }
+:root[data-layout-mode="fantasy"] .fantasy-tool-bar button { font-size: 10px; }
+:root[data-layout-mode="fantasy"] .fantasy-fairy-button { color: #bcefff; border-color: #7abace; }
+:root[data-layout-mode="fantasy"] .fantasy-fairy { font-size: 22px; line-height: .8; color: #b4edff; text-shadow: 0 0 10px #8adcff99; vertical-align: middle; margin-right: 4px; }
+:root[data-layout-mode="fantasy"] .fantasy-panel {
+  min-width: 0;
+  padding: 26px;
+  border: 5px ridge #c1ac74;
+  border-radius: 8px;
+  color: #342b20;
+  background: radial-gradient(ellipse at 50% 40%, #fff1ce55, #a27c3220), var(--parchment);
+  box-shadow: inset 0 0 22px #92703d28;
+}
+:root[data-layout-mode="fantasy"] .fantasy-quest-pane { order: 3; }
+:root[data-layout-mode="fantasy"] .fantasy-item-pane { order: 4; }
+:root[data-layout-mode="fantasy"] .fantasy-chronicle-pane { order: 5; }
+:root[data-layout-mode="fantasy"] .fantasy-section-heading { display: flex; justify-content: space-between; align-items: center; gap: 15px; flex-wrap: wrap; margin-bottom: 18px; }
+:root[data-layout-mode="fantasy"] .fantasy-section-heading h3 { font-size: 23px; font-weight: 500; margin: 0; }
+:root[data-layout-mode="fantasy"] .fantasy-section-heading > span { font-size: 11px; color: #786039; }
+:root[data-layout-mode="fantasy"] .fantasy-hint { color: #796546; font-size: 12px; line-height: 1.7; margin-block: 10px 18px; }
+:root[data-layout-mode="fantasy"] .fantasy-equipment-grid { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+:root[data-layout-mode="fantasy"] .fantasy-equipment-grid > li { position: relative; padding: 18px; border: 4px ridge #c7a642; border-radius: 12px 12px 30px 12px; background: linear-gradient(135deg, #a4aa7b50, #b1964950); box-shadow: inset 0 0 0 2px #6f743e; min-width: 0; }
+:root[data-layout-mode="fantasy"] .fantasy-c-button { display: inline-grid; place-items: center; background: radial-gradient(circle at 35% 30%, #fff4af, #dfbf45 65%, #8c6d1f); border: 2px outset #ffe599; border-radius: 50%; color: #655020; font-weight: bold; font-size: 12px; width: 38px; height: 38px; position: absolute; top: 10px; right: 10px; z-index: 1; }
+:root[data-layout-mode="fantasy"] .fantasy-equipped-quest { display: flex; flex-direction: column; align-items: center; gap: 9px; text-align: center; }
+:root[data-layout-mode="fantasy"] .fantasy-equipped-quest h4 { font-size: 16px; margin: 0; overflow-wrap: anywhere; }
+:root[data-layout-mode="fantasy"] .fantasy-equipped-quest p { margin: 0; font-size: 11px; color: #675731; }
+:root[data-layout-mode="fantasy"] .fantasy-equipped-art { display: grid; place-items: center; width: 94px; aspect-ratio: 1; border: 4px ridge #a18e53; margin: 5px auto 6px; background: #1f393a; font-size: 38px; color: #e7d8ab; }
+:root[data-layout-mode="fantasy"] .fantasy-equipped-art img { width: 100%; height: 100%; object-fit: cover; }
+:root[data-layout-mode="fantasy"] .fantasy-slot-order { display: flex; gap: 5px; }
+:root[data-layout-mode="fantasy"] .fantasy-slot-order button { min-height: 26px; padding: 3px 10px; }
+:root[data-layout-mode="fantasy"] .fantasy-equipped-quest > button { width: 100%; font-size: 10px; }
+:root[data-layout-mode="fantasy"] .fantasy-empty-equipment { display: grid; place-content: center; text-align: center; min-height: 240px; color: #7b6d47; }
+:root[data-layout-mode="fantasy"] .fantasy-empty-equipment > span { font-size: 56px; color: #b69b57; }
+:root[data-layout-mode="fantasy"] .fantasy-empty-equipment p { margin: 12px 0 5px; font-size: 15px; }
+:root[data-layout-mode="fantasy"] .fantasy-empty-equipment small { font-size: 10px; }
+:root[data-layout-mode="fantasy"] .fantasy-medallions { margin-top: 30px; padding-top: 22px; border-top: 1px solid #b99b61; }
+:root[data-layout-mode="fantasy"] .fantasy-medallion-grid { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 18px; }
+:root[data-layout-mode="fantasy"] .fantasy-medallion-grid li { text-align: center; opacity: .65; }
+:root[data-layout-mode="fantasy"] .fantasy-medallion-grid li[data-unlocked="true"] { opacity: 1; }
+:root[data-layout-mode="fantasy"] .fantasy-medallion { display: grid; place-items: center; width: 62px; height: 62px; margin: 0 auto 10px; border: 5px ridge #a99562; border-radius: 50%; background: #c4b58a; font-size: 25px; color: #746647; }
+:root[data-layout-mode="fantasy"] [data-unlocked="true"] > .fantasy-medallion { border-color: #d6ba6d; background: radial-gradient(circle at 35% 30%, hsl(var(--medallion-hue) 45% 70%), hsl(var(--medallion-hue) 45% 30%)); box-shadow: 0 2px 5px #66512a33; color: #fff2cc; }
+:root[data-layout-mode="fantasy"] .fantasy-medallion-grid h4 { font-size: 12px; margin: 0 0 5px; }
+:root[data-layout-mode="fantasy"] .fantasy-medallion-grid p { font-size: 10px; line-height: 1.6; margin: 0 0 4px; }
+:root[data-layout-mode="fantasy"] .fantasy-medallion-grid small { font-size: 9px; color: #76623e; }
+:root[data-layout-mode="fantasy"] .fantasy-status-tabs { display: flex; flex-wrap: wrap; gap: 6px; padding-bottom: 16px; border-bottom: 1px solid #b99f67; }
+:root[data-layout-mode="fantasy"] .fantasy-status-tabs button { border-radius: 12px 12px 2px 2px; background: #cdb784; color: #59492f; }
+:root[data-layout-mode="fantasy"] .fantasy-status-tabs button[aria-pressed="true"] { background: #2e5e43; color: #fff0c2; border-color: #42794d; }
+:root[data-layout-mode="fantasy"] .fantasy-status-tabs button span { margin-left: 8px; font-size: 10px; opacity: .8; }
+:root[data-layout-mode="fantasy"] .fantasy-scroll-filters { display: grid; grid-template-columns: 2fr 1fr 1fr 1.2fr auto; gap: 12px; margin: 18px 0 24px; align-items: end; }
+:root[data-layout-mode="fantasy"] .fantasy-scroll-filters label { display: grid; gap: 6px; }
+:root[data-layout-mode="fantasy"] .fantasy-scroll-filters :is(input, select) { width: 100%; font-size: 12px; }
+:root[data-layout-mode="fantasy"] .fantasy-inventory-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(125px, 1fr)); gap: 15px; list-style: none; padding: 12px 0; margin: 0; }
+:root[data-layout-mode="fantasy"] .fantasy-inventory-grid > li { min-width: 0; position: relative; border: 1px solid #8a8055; border-radius: 7px; padding: 5px; background: #b2ad82; }
+:root[data-layout-mode="fantasy"] .fantasy-inventory-slot { display: flex; flex-direction: column; width: 100%; height: 100%; position: relative; padding: 0; border: 5px ridge #c6c197; border-radius: 3px; background: #385054; color: #f3e4bb; overflow: hidden; box-shadow: 0 2px 3px #6c582c33; }
+:root[data-layout-mode="fantasy"] .fantasy-inventory-slot img { width: 100%; aspect-ratio: 1; object-fit: cover; }
+:root[data-layout-mode="fantasy"] .fantasy-item-icon { display: grid; place-items: center; width: 100%; aspect-ratio: 1; font-size: 44px; color: #d6c690; background: radial-gradient(ellipse at center, #617870, #263f45); }
+:root[data-layout-mode="fantasy"] .fantasy-slot-title { display: block; width: 100%; padding: 8px 5px 5px; font-size: 11px; line-height: 1.4; overflow-wrap: anywhere; }
+:root[data-layout-mode="fantasy"] .fantasy-slot-status { display: block; color: #ced7ab; font-size: 9px; margin: auto 0 4px; }
+:root[data-layout-mode="fantasy"] .fantasy-heart-rating { font-size: 12px; color: #978c6c; letter-spacing: 1px; white-space: nowrap; padding: 0 4px 5px; }
+:root[data-layout-mode="fantasy"] .fantasy-heart-rating [data-filled="true"] { color: #ef4050; }
+:root[data-layout-mode="fantasy"] .fantasy-inventory-grid > [data-selected="true"] { outline: 3px solid #568743; outline-offset: 1px; }
+:root[data-layout-mode="fantasy"] .fantasy-inventory-grid > :is([data-equipped="true"], [data-active="true"])::after { content: ""; position: absolute; inset: 2px; border: 3px solid #e1c957; border-radius: 4px; pointer-events: none; clip-path: polygon(0 0, 25% 0, 25% 5%, 5% 5%, 5% 25%, 0 25%, 0 75%, 5% 75%, 5% 95%, 25% 95%, 25% 100%, 0 100%, 100% 100%, 75% 100%, 75% 95%, 95% 95%, 95% 75%, 100% 75%, 100% 25%, 95% 25%, 95% 5%, 75% 5%, 75% 0, 100% 0); }
+:root[data-layout-mode="fantasy"] .fantasy-inventory-grid > [data-active="true"]::after { border-color: #83c56c; }
+:root[data-layout-mode="fantasy"] [data-dragging="true"] { opacity: .45; }
+:root[data-layout-mode="fantasy"] [data-drop-target="true"],
+:root[data-layout-mode="fantasy"] [data-drop-hover="true"],
+:root[data-layout-mode="fantasy"] [data-deck-return-hover="true"] { outline: 3px solid #4e954f; outline-offset: 3px; }
+:root[data-layout-mode="fantasy"] .fantasy-empty-inventory { padding: 35px 15px; text-align: center; font-size: 14px; color: #7c6543; }
+:root[data-layout-mode="fantasy"] .fantasy-drop-hint { text-align: center; color: #3b733e; border: 1px dashed #638f4b; padding: 12px; font-size: 12px; }
+:root[data-layout-mode="fantasy"] .fantasy-dialogue { margin-top: 22px; padding: 22px; color: #f0e3be; border: 6px ridge #bba777; border-radius: 22px 5px; background: linear-gradient(120deg, #1e3a45, #18313a); box-shadow: inset 0 0 0 2px #0d2931; }
+:root[data-layout-mode="fantasy"] .fantasy-dialogue-heading { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+:root[data-layout-mode="fantasy"] .fantasy-dialogue-heading h4 { margin: 0 0 6px; color: #ffe7a3; font-size: 25px; font-weight: 500; }
+:root[data-layout-mode="fantasy"] .fantasy-dialogue-heading p { margin: 0; color: #cad0b6; font-size: 12px; line-height: 1.7; }
+:root[data-layout-mode="fantasy"] .fantasy-dialogue .fantasy-kicker { color: #a3be9a; font-size: 9px; }
+:root[data-layout-mode="fantasy"] .fantasy-dialogue-gem { color: #88e0df; font-size: 29px; }
+:root[data-layout-mode="fantasy"] .fantasy-quest-facts { display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 11px; color: #d0cda5; margin: 14px 0; }
+:root[data-layout-mode="fantasy"] .fantasy-dialogue .saga-badge { margin-block: 4px 12px; }
+:root[data-layout-mode="fantasy"] .fantasy-reorder-controls { display: inline-flex; align-items: center; gap: 8px; font-size: 10px; margin: 5px 0 12px; }
+:root[data-layout-mode="fantasy"] .fantasy-reorder-controls button { min-height: 28px; padding: 4px 8px; }
+:root[data-layout-mode="fantasy"] .fantasy-session-log { display: flex; gap: 8px; align-items: center; font-size: 12px; margin: 12px 0; flex-wrap: wrap; }
+:root[data-layout-mode="fantasy"] .fantasy-editor-fields { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 10px; }
+:root[data-layout-mode="fantasy"] .fantasy-dialogue label { color: #dad5b3; display: grid; gap: 5px; font-size: 11px; }
+:root[data-layout-mode="fantasy"] .fantasy-dialogue :is(input, select, textarea) { width: 100%; }
+:root[data-layout-mode="fantasy"] .fantasy-journal-notes { margin: 12px 0; }
+:root[data-layout-mode="fantasy"] .fantasy-quest-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+:root[data-layout-mode="fantasy"] .fantasy-quest-actions :is(button, a) { font-size: 11px; }
+:root[data-layout-mode="fantasy"] .fantasy-quest-actions > :first-child { background: #587947; color: #fff2c4; }
+:root[data-layout-mode="fantasy"] .star-rating-selector { margin-block: 15px; }
+:root[data-layout-mode="fantasy"] .star-rating-selector button.star-rating-button { color: #a99267; background: transparent; border: none; box-shadow: none; font-size: 22px; padding: 1px 5px; }
+:root[data-layout-mode="fantasy"] .star-rating-selector button.star-rating-button[data-filled="false"] { color: #a99267; }
+:root[data-layout-mode="fantasy"] .star-rating-selector button.star-rating-button[data-filled="true"],
+:root[data-layout-mode="fantasy"] .star-rating-selector button.star-rating-button:hover { color: #ef4050; }
+:root[data-layout-mode="fantasy"] .star-rating-readout { color: #c4b98d; font-size: 10px; }
+:root[data-layout-mode="fantasy"] .fantasy-dialogue-empty { display: flex; align-items: center; gap: 15px; font-size: 13px; }
+:root[data-layout-mode="fantasy"] .fantasy-dialogue-empty > span { font-size: 30px; color: #c1b577; }
+:root[data-layout-mode="fantasy"] .fantasy-notice { padding: 12px; background: #678a4e22; border-left: 3px solid #527c43; color: #42633b; font-size: 12px; line-height: 1.6; }
+:root[data-layout-mode="fantasy"] [data-error="true"], :root[data-layout-mode="fantasy"] .form-action-error { color: #a13f31; border-color: #a13f31; }
+:root[data-layout-mode="fantasy"] .fantasy-saga-select { display: grid; gap: 8px; margin-bottom: 18px; }
+:root[data-layout-mode="fantasy"] .fantasy-map-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+:root[data-layout-mode="fantasy"] .fantasy-map-heading h4 { font-size: 22px; margin: 0; font-weight: 500; }
+:root[data-layout-mode="fantasy"] .fantasy-dungeon-map { list-style: none; padding: 10px 0; margin: 0; display: grid; gap: 15px; }
+:root[data-layout-mode="fantasy"] .fantasy-dungeon-map > li { position: relative; display: flex; align-items: center; flex-wrap: wrap; gap: 15px; padding: 16px; background: #d2c399; border: 2px ridge #a38c52; border-radius: 8px 2px; }
+:root[data-layout-mode="fantasy"] .fantasy-dungeon-map > li:not(:last-child)::after { content: ""; position: absolute; top: 100%; left: 39px; height: 17px; border-left: 4px double #8b7c4e; }
+:root[data-layout-mode="fantasy"] .fantasy-floor-number { display: grid; place-items: center; width: 42px; height: 42px; flex-shrink: 0; border: 3px ridge #9d8d5f; color: #dfe4c3; background: #536b60; font-size: 14px; }
+:root[data-layout-mode="fantasy"] .fantasy-dungeon-map [data-cleared="true"] .fantasy-floor-number { background: #407745; color: #ffedac; }
+:root[data-layout-mode="fantasy"] .fantasy-dungeon-map li > div:first-of-type { flex: 1; min-width: 120px; }
+:root[data-layout-mode="fantasy"] .fantasy-dungeon-map strong { font-weight: 500; font-size: 15px; }
+:root[data-layout-mode="fantasy"] .fantasy-dungeon-map p { margin: 6px 0 0; font-size: 11px; color: #79633e; }
+:root[data-layout-mode="fantasy"] .fantasy-inscribe-pointer { font-size: 12px; color: #79643c; margin-top: 22px; }
+:root[data-layout-mode="fantasy"] .add-section { order: 6; margin: 0; padding: 20px 24px; border: 5px ridge #c1ac74; border-radius: 8px; background: var(--parchment); }
+:root[data-layout-mode="fantasy"] .cyberpunk-label { display: none; }
+:root[data-layout-mode="fantasy"] .fantasy-label { display: inline; }
+:root[data-layout-mode="fantasy"] .section-heading-title { color: #4c5739; font-family: Georgia, serif; font-size: 22px; }
+:root[data-layout-mode="fantasy"] .eyebrow { color: #8b7141; font-family: Georgia, serif; }
+:root[data-layout-mode="fantasy"] .add-section .game-form { margin-top: 24px; }
+:root[data-layout-mode="fantasy"] .search-button,
+:root[data-layout-mode="fantasy"] .add-button { color: #f2e2af; background: #355943; border-color: #8b9251; }
+:root[data-layout-mode="fantasy"] .page-footer { order: 9; color: #c3c9b0; border-color: #6f805f; font-size: 10px; padding: 14px 0 0; }
+:root[data-layout-mode="fantasy"] .member-count { order: 8; background: transparent; border-color: #9a9567; color: #ccd3b7; }
+:root[data-layout-mode="fantasy"] .member-count strong { color: #efdb9d; }
+:root[data-layout-mode="fantasy"] .workspace-shell:is([data-fantasy-pane="items"], [data-fantasy-pane="chronicle"]) .player-summary > :not(.account-controls, .fantasy-decoration) { display: none; }
+:root[data-layout-mode="fantasy"] .workspace-shell:is([data-fantasy-pane="items"], [data-fantasy-pane="chronicle"]) .player-summary { padding: 12px 18px; }
+:root[data-layout-mode="fantasy"] .workspace-shell:is([data-fantasy-pane="items"], [data-fantasy-pane="chronicle"]) .account-controls { border: none; padding: 0; }
+:root[data-layout-mode="fantasy"] .workspace-shell[data-fantasy-pane="quest"] [data-workspace-pane]:not([data-workspace-pane="quest"]),
+:root[data-layout-mode="fantasy"] .workspace-shell[data-fantasy-pane="items"] [data-workspace-pane]:not([data-workspace-pane="items"]),
+:root[data-layout-mode="fantasy"] .workspace-shell[data-fantasy-pane="chronicle"] [data-workspace-pane]:not([data-workspace-pane="chronicle"]) { display: none; }
+/* Root-scoped palette includes existing single-instance body portals. */
+:root[data-layout-mode="fantasy"] :is(.advisor-modal, .vault-modal, .quest-modal, .metadata-modal, .admin-modal, .security-modal, .auth-panel, .dossier-modal, .hud-milestones-panel) { color: #3a3024; background: #eedeb6; border: 5px ridge #bda469; border-radius: 12px 4px; box-shadow: inset 0 0 25px #a2833b22, 0 18px 50px #071b2366; font-family: Georgia, serif; }
+:root[data-layout-mode="fantasy"] :is(.advisor-modal-backdrop, .vault-modal-backdrop, .quest-modal-backdrop, .metadata-modal-backdrop, .admin-modal-backdrop, .security-modal-backdrop, .auth-modal-backdrop) { background: #0b2229db; }
+:root[data-layout-mode="fantasy"] :is(.advisor-header, .vault-modal-header, .quest-modal-header, .security-modal-header, .admin-modal-header) { border-color: #a68d55; }
+:root[data-layout-mode="fantasy"] :is(.advisor-card, .advisor-card[data-variant="external"], .advisor-card[data-variant="cleanser"], .vault-section, .security-account-summary > div, .admin-stat, .saga-debug-readout, .agent-briefing-readout) { color: #493d29; border-color: #b79d66; background: #decda1; }
+:root[data-layout-mode="fantasy"] :is(.advisor-reason, .advisor-reason > span, .advisor-metadata, .advisor-intro, .advisor-card-eyebrow, .advisor-empty, .advisor-scout-status, .advisor-scout-locked, .vault-field, .vault-message, .auth-intro, .security-hint, .quest-intro, .quest-match-count, .quest-message, .admin-hint, .saga-chains-hint, .agent-briefing-readout p, .agent-briefing-eyebrow) { color: #665332; }
+:root[data-layout-mode="fantasy"] :is(.advisor-reason, .advisor-card[data-variant="external"] .advisor-reason, .advisor-bounty, .saga-debug-payload pre, .admin-account-row) { background: #d2c094; border-color: #a18a55; color: #4b442d; }
+:root[data-layout-mode="fantasy"] .saga-debugger { margin-top: 22px; color: #51492e; }
+:root[data-layout-mode="fantasy"] .saga-debug-readout pre { color: #413c2a; background: #cbb88a; }
+:root[data-layout-mode="fantasy"] .fantasy-dialogue .agent-briefing { margin-top: 15px; }
+@media (max-width: 800px) {
+  :root[data-layout-mode="fantasy"] .workspace-shell { width: calc(100% - 20px); margin: 10px auto; padding: 18px 12px; gap: 16px; border-width: 5px; }
+  :root[data-layout-mode="fantasy"] .fantasy-panel { padding: 18px 14px; }
+  :root[data-layout-mode="fantasy"] .fantasy-workspace-banner { grid-template-columns: 36px 1fr; gap: 10px; }
+  :root[data-layout-mode="fantasy"] .fantasy-pause-seal { display: none; }
+  :root[data-layout-mode="fantasy"] .fantasy-page-navigation { gap: 5px; padding: 6px 0; }
+  :root[data-layout-mode="fantasy"] .fantasy-page-navigation > button { padding: 5px; }
+  :root[data-layout-mode="fantasy"] .fantasy-page-tabs { grid-template-columns: repeat(2, 1fr); }
+  :root[data-layout-mode="fantasy"] .fantasy-page-tabs button { font-size: 9px; padding: 7px 3px; }
+  :root[data-layout-mode="fantasy"] .player-summary { grid-template-columns: 50px 1fr 1fr; padding: 16px; gap: 12px; }
+  :root[data-layout-mode="fantasy"] .summary-progress { grid-column: 1 / -1; }
+  :root[data-layout-mode="fantasy"] .fantasy-equipment-grid { gap: 8px; }
+  :root[data-layout-mode="fantasy"] .fantasy-equipment-grid > li { padding: 12px 6px; border-width: 3px; }
+  :root[data-layout-mode="fantasy"] .fantasy-c-button { width: 28px; height: 28px; font-size: 10px; top: 4px; right: 3px; }
+  :root[data-layout-mode="fantasy"] .fantasy-equipped-art { width: min(80px, 100%); }
+  :root[data-layout-mode="fantasy"] .fantasy-equipped-quest h4 { font-size: 12px; }
+  :root[data-layout-mode="fantasy"] .fantasy-equipped-quest > button { font-size: 9px; padding: 6px 3px; }
+  :root[data-layout-mode="fantasy"] .fantasy-empty-equipment { min-height: 230px; }
+  :root[data-layout-mode="fantasy"] .fantasy-empty-equipment p { font-size: 12px; }
+  :root[data-layout-mode="fantasy"] .fantasy-section-heading h3 { font-size: 20px; }
+  :root[data-layout-mode="fantasy"] .fantasy-scroll-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  :root[data-layout-mode="fantasy"] .fantasy-scroll-filters > :first-child { grid-column: 1 / -1; }
+  :root[data-layout-mode="fantasy"] .fantasy-inventory-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 12px; }
+  :root[data-layout-mode="fantasy"] .fantasy-editor-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  :root[data-layout-mode="fantasy"] .fantasy-dialogue { padding: 16px 12px; border-width: 4px; }
+  :root[data-layout-mode="fantasy"] .fantasy-dialogue-heading h4 { font-size: 20px; }
+  :root[data-layout-mode="fantasy"] .fantasy-quest-actions :is(button, a) { flex: 1 1 auto; text-align: center; }
+  :root[data-layout-mode="fantasy"] .fantasy-medallion-grid { grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 15px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  :root[data-layout-mode="fantasy"] * { scroll-behavior: auto; }
+}
+
+:root[data-layout-mode="fantasy"] .hud-brand .wordmark-icon { width: 100%; height: 100%; border-radius: 50%; border: none; box-shadow: none; }
+:root[data-layout-mode="fantasy"] #add-title::after { display: none; }
+@media (max-width: 800px) {
+  :root[data-layout-mode="fantasy"] .hud-brand { width: 46px; height: 46px; }
+}
+
+:root[data-layout-mode="fantasy"] .fantasy-dialogue :is([role="alert"], .form-action-error) { color: #ffc3a8; }
+
+:root[data-layout-mode="fantasy"] .library-action-error { order: 7; padding: 15px; background: var(--parchment); border: 2px solid #b06846; }
+/* Keep each item itself square; captions sit over the lower edge of the icon. */
+:root[data-layout-mode="fantasy"] .fantasy-inventory-slot { aspect-ratio: 1; height: auto; justify-content: flex-end; }
+:root[data-layout-mode="fantasy"] .fantasy-inventory-slot img { position: absolute; inset: 0; width: 100%; height: 100%; }
+:root[data-layout-mode="fantasy"] .fantasy-inventory-slot .fantasy-item-icon { position: absolute; inset: 0; height: 100%; aspect-ratio: auto; padding-bottom: 42%; font-size: clamp(28px, 3vw, 42px); }
+:root[data-layout-mode="fantasy"] .fantasy-inventory-slot .fantasy-slot-title { position: relative; z-index: 1; margin-top: auto; padding: 10px 4px 3px; background: linear-gradient(transparent, #19323b 20%); font-size: 10px; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+:root[data-layout-mode="fantasy"] .fantasy-inventory-slot .fantasy-slot-status { position: relative; z-index: 1; width: 100%; margin: 0; padding: 2px 3px; background: #19323b; font-size: 8px; }
+:root[data-layout-mode="fantasy"] .fantasy-inventory-slot > .fantasy-heart-rating { position: relative; z-index: 1; width: 100%; background: #19323b; font-size: 10px; padding-bottom: 3px; }
+
+
+/* Inert vector ornaments: absolute overlays never affect the component geometry. */
+:root[data-layout-mode="fantasy"] .fantasy-decoration { display: block; }
+:root[data-layout-mode="fantasy"] :is(.fantasy-panel, .add-section) { position: relative; }
+:root[data-layout-mode="fantasy"] .fantasy-corners { position: absolute; inset: 0; color: #a88c49; overflow: hidden; border-radius: inherit; }
+:root[data-layout-mode="fantasy"] .fantasy-corner { position: absolute; width: 34px; height: 34px; opacity: .75; }
+:root[data-layout-mode="fantasy"] .fantasy-corner-nw { top: 5px; left: 5px; }
+:root[data-layout-mode="fantasy"] .fantasy-corner-ne { top: 5px; right: 5px; transform: scaleX(-1); }
+:root[data-layout-mode="fantasy"] .fantasy-corner-se { bottom: 5px; right: 5px; transform: scale(-1); }
+:root[data-layout-mode="fantasy"] .fantasy-corner-sw { bottom: 5px; left: 5px; transform: scaleY(-1); }
+:root[data-layout-mode="fantasy"] .workspace-shell > .fantasy-corners { color: #e1c579; }
+:root[data-layout-mode="fantasy"] .workspace-shell > .fantasy-corners .fantasy-corner { width: 60px; height: 60px; }
+:root[data-layout-mode="fantasy"] .workspace-shell::before,
+:root[data-layout-mode="fantasy"] .workspace-shell::after { content: none; }
+:root[data-layout-mode="fantasy"] .fantasy-crest svg { display: block; width: 58px; height: 58px; pointer-events: none; }
+:root[data-layout-mode="fantasy"] .hud-brand { border-color: #ccb064; background: #234f40; box-shadow: 0 2px 4px #694e2630; }
+:root[data-layout-mode="fantasy"] .hud-brand-logo { pointer-events: none; }
+:root[data-layout-mode="fantasy"] .account-operator { font: 500 15px/1.6 Georgia, serif; }
+:root[data-layout-mode="fantasy"] .account-operator > span { font: 600 9px/1.6 Georgia, serif; letter-spacing: .1em; }
+:root[data-layout-mode="fantasy"] .account-operator small { color: #496c4f; font: italic 12px/1.6 Georgia, serif; }
+:root[data-layout-mode="fantasy"] .hud-career-tools { border-color: #b6a16e; }
+:root[data-layout-mode="fantasy"] .hud-achievements-pills { scrollbar-color: #aa945a #decea6; }
+:root[data-layout-mode="fantasy"] .hud-achievements-pills > button.hud-achievement-pill { min-height: 30px; border-radius: 50%; border: 2px ridge #a58a4e; background: #cabb93; color: #5d573b; box-shadow: none; }
+:root[data-layout-mode="fantasy"] .hud-achievements-pills > button.hud-achievement-pill[data-unlocked="true"] { border-color: #d2b66b; background: #3d654c; color: #ffe8ac; box-shadow: inset 0 1px #eddb9e50; }
+:root[data-layout-mode="fantasy"] .hud-achievements-pills > button.hud-achievement-pill:hover,
+:root[data-layout-mode="fantasy"] .hud-achievements-pills > button.hud-achievement-pill:focus-visible { border-color: #f0d68e; background: #507550; outline-color: #428154; }
+:root[data-layout-mode="fantasy"] button.dossier-trigger-button { border: 2px ridge #b8a064; background: linear-gradient(#486952, #2c4c3e); color: #f6e3ad; font: 600 10px/1.4 Georgia, serif; box-shadow: inset 0 1px #ead69740; }
+:root[data-layout-mode="fantasy"] button.dossier-trigger-button:hover { background: #4c7450; color: #fff0bf; }
+:root[data-layout-mode="fantasy"] .fantasy-tool-bar button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+:root[data-layout-mode="fantasy"] .fantasy-navi { width: 36px; height: 29px; flex: 0 0 36px; overflow: visible; filter: drop-shadow(0 0 4px #6cc9f0a0); animation: fairy-hover 3s ease-in-out infinite; }
+:root[data-layout-mode="fantasy"] .fantasy-navi-wing-left { transform-origin: 39px 32px; animation: fairy-wing-left 1.6s ease-in-out infinite; }
+:root[data-layout-mode="fantasy"] .fantasy-navi-wing-right { transform-origin: 41px 32px; animation: fairy-wing-right 1.6s ease-in-out infinite; }
+@keyframes fairy-hover { 0%, 100% { transform: translateY(1px); } 50% { transform: translateY(-2px); } }
+@keyframes fairy-wing-left { 0%, 100% { transform: rotate(-7deg); } 50% { transform: rotate(5deg); } }
+@keyframes fairy-wing-right { 0%, 100% { transform: rotate(7deg); } 50% { transform: rotate(-5deg); } }
+:root[data-layout-mode="fantasy"] .fantasy-c-button { display: grid; place-items: center; border: none; background: transparent; box-shadow: none; }
+:root[data-layout-mode="fantasy"] .fantasy-c-button svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+:root[data-layout-mode="fantasy"] .fantasy-c-button > span { position: relative; color: #674c15; text-shadow: 0 1px #fff3bd; font-weight: 700; }
+:root[data-layout-mode="fantasy"] .fantasy-slot-brackets { position: absolute; inset: 2px; width: calc(100% - 4px); height: calc(100% - 4px); z-index: 2; color: #e5c96e; opacity: 0; }
+:root[data-layout-mode="fantasy"] .fantasy-inventory-grid > :is([data-equipped="true"], [data-active="true"])::after { content: none; }
+:root[data-layout-mode="fantasy"] .fantasy-inventory-grid > :is([data-selected="true"], [data-equipped="true"], [data-active="true"]) > .fantasy-slot-brackets { opacity: 1; }
+:root[data-layout-mode="fantasy"] .fantasy-inventory-grid > :is([data-active="true"], [data-selected="true"]) > .fantasy-slot-brackets { color: #82be71; }
+
+/* Dialog descendants need their own palette: portals are children of body. */
+:root[data-layout-mode="fantasy"] {
+  --fantasy-modal-paper: #f0e0b9;
+  --fantasy-modal-tile: #e0d0a7;
+  --fantasy-modal-ink: #3d3426;
+  --fantasy-modal-muted: #6b583a;
+  --fantasy-modal-gold: #ab8c48;
+  --fantasy-modal-button: #2e5143;
+}
+:root[data-layout-mode="fantasy"] :is(.advisor-modal, .quest-modal, .metadata-modal, .vault-modal, .security-modal, .admin-modal, .dossier-modal, .auth-panel) {
+  position: relative;
+  background: var(--fantasy-modal-paper);
+  color: var(--fantasy-modal-ink);
+  border: 5px ridge #c8ae70;
+  border-radius: 18px 5px;
+  box-shadow: inset 0 0 28px #99763b24, 0 18px 45px #061a2266;
+  font-family: Georgia, "Times New Roman", serif;
+}
+:root[data-layout-mode="fantasy"] :is(.advisor-modal-backdrop, .quest-modal-backdrop, .metadata-modal-backdrop, .vault-modal-backdrop, .security-modal-backdrop, .admin-modal-backdrop, .dossier-modal-backdrop, .auth-modal-backdrop) { background: #102832e8; }
+:root[data-layout-mode="fantasy"] :is(.advisor-modal, .quest-modal, .metadata-modal, .vault-modal, .security-modal, .admin-modal, .dossier-modal, .auth-panel) :is(h2, h3, h4) { color: #34503d; font-family: Georgia, "Times New Roman", serif; text-shadow: none; font-weight: 500; letter-spacing: .02em; text-transform: none; }
+:root[data-layout-mode="fantasy"] :is(.advisor-modal, .quest-modal, .metadata-modal, .vault-modal, .security-modal, .admin-modal, .dossier-modal, .auth-panel) h2 { font-size: clamp(23px, 3vw, 30px); line-height: 1.25; }
+:root[data-layout-mode="fantasy"] :is(.advisor-modal, .quest-modal, .metadata-modal, .vault-modal, .security-modal, .admin-modal, .dossier-modal, .auth-panel) :is(h3, h4) { line-height: 1.5; }
+:root[data-layout-mode="fantasy"] :is(.advisor-modal, .quest-modal, .metadata-modal, .vault-modal, .security-modal, .admin-modal, .dossier-modal, .auth-panel) :is(p, label, legend, dt, small) { color: var(--fantasy-modal-muted); font-family: Georgia, "Times New Roman", serif; text-shadow: none; }
+:root[data-layout-mode="fantasy"] :is(.advisor-modal, .quest-modal, .metadata-modal, .vault-modal, .security-modal, .admin-modal, .dossier-modal, .auth-panel) :is(input, select, textarea) { color-scheme: light; background: #fcf2d9; color: var(--fantasy-modal-ink); border-color: #ad945d; font-family: Georgia, serif; box-shadow: inset 0 1px 3px #8d713624; }
+:root[data-layout-mode="fantasy"] :is(.advisor-modal, .quest-modal, .metadata-modal, .vault-modal, .security-modal, .admin-modal, .dossier-modal, .auth-panel) :is(button, a.trailer-link-button, .dossier-public-open) { color: #f5e4b3; background: linear-gradient(#4d6b55, #294a40); border-color: #b7a066; border-radius: 5px; font-family: Georgia, serif; text-shadow: none; box-shadow: inset 0 1px #f0daa84d, 0 1px #283e30; }
+:root[data-layout-mode="fantasy"] :is(.advisor-modal, .quest-modal, .metadata-modal, .vault-modal, .security-modal, .admin-modal, .dossier-modal, .auth-panel) :is(button, a.trailer-link-button, .dossier-public-open):hover:not(:disabled) { color: #fff1c5; background: #446d50; border-color: #d6b96f; }
+:root[data-layout-mode="fantasy"] :is(.advisor-modal, .quest-modal, .metadata-modal, .vault-modal, .security-modal, .admin-modal, .dossier-modal, .auth-panel) :is(button, a, input, select, textarea, summary):focus-visible { outline: 3px solid #4d8757; outline-offset: 3px; }
+:root[data-layout-mode="fantasy"] :is(.advisor-modal, .quest-modal, .metadata-modal, .vault-modal, .security-modal, .admin-modal, .dossier-modal, .auth-panel) button[aria-pressed="true"],
+:root[data-layout-mode="fantasy"] .advisor-modal button.advisor-acquire-button[data-added="true"] { color: #fff0ba; border-color: #a89144; background: #456947; }
+:root[data-layout-mode="fantasy"] :is(.advisor-card, .advisor-card[data-variant="cleanser"], .advisor-card[data-variant="external"], .quest-winner, .dossier-customize, .security-account-summary > div, .security-update-form, .advisor-reason, .advisor-bounty, .advisor-scout-locked, .advisor-scout-terminal, .dossier-share-preview) { background: var(--fantasy-modal-tile); border-color: #b79c60; color: var(--fantasy-modal-ink); }
+:root[data-layout-mode="fantasy"] :is(.advisor-card-eyebrow, .advisor-reason > span, .advisor-scout-terminal-label, .quest-reward, .quest-cycling, .security-account-summary dd, .dossier-customize > summary, .dossier-profile-status, .dossier-avatar-label, .dossier-avatar-help, .dossier-artwork-status, .vault-section p) { color: #5c673e; font-family: Georgia, serif; border-color: #ae965c; }
+:root[data-layout-mode="fantasy"] .advisor-card[data-variant="cleanser"] .advisor-reason { border-color: #738b51; }
+:root[data-layout-mode="fantasy"] :is(.advisor-card[data-variant="cleanser"], .advisor-card[data-variant="external"]) .advisor-card-eyebrow { color: #4c6540; border-color: #ac985f; }
+:root[data-layout-mode="fantasy"] :is(.advisor-no-cover, .quest-no-cover) { background: #37564e; color: #d9c995; }
+:root[data-layout-mode="fantasy"] .advisor-scout-cursor { display: none; }
+:root[data-layout-mode="fantasy"] :is(.security-error, .admin-error, .advisor-error, .auth-error, .vault-error, .dossier-feedback[data-error="true"]) { background: #f2d9bd; color: #903c2c; border-color: #ae6846; }
+:root[data-layout-mode="fantasy"] :is(.security-confirmation, .admin-confirmation, .dossier-feedback) { color: #365d3b; background: #e3dfb5; border-color: #7d9153; }
+:root[data-layout-mode="fantasy"] :is(.security-danger-zone, .security-danger-option, .admin-delete-confirmation) { background: #ead2ac; border-color: #a06c45; }
+:root[data-layout-mode="fantasy"] .security-danger-zone :is(p, h3, label) { color: #7b3e2c; }
+:root[data-layout-mode="fantasy"] .security-modal :is(button.security-wipe-reveal, button.security-wipe-confirm),
+:root[data-layout-mode="fantasy"] .admin-modal button.admin-delete-button { background: #804637; border-color: #a96e4b; color: #fff0d7; }
+:root[data-layout-mode="fantasy"] .security-modal :is(button.security-wipe-reveal, button.security-wipe-confirm):hover:not(:disabled),
+:root[data-layout-mode="fantasy"] .admin-modal button.admin-delete-button:hover:not(:disabled) { background: #99553e; color: #fff3db; }
+:root[data-layout-mode="fantasy"] .admin-modal-backdrop {
+  --admin-accent: #86682c; --admin-signal: #3e6747; --admin-frame: #ad945d;
+  --admin-surface: #f0e0b9; --admin-tile: #e0d0a7; --admin-line: #baa16c;
+  --admin-muted: #6b583a; --admin-ink: #3d3426; --admin-button: #2e5143;
+  --admin-error: #903c2c; --admin-error-bg: #f2d9bd; --admin-success: #365d3b; --admin-success-bg: #e3dfb5;
+}
+:root[data-layout-mode="fantasy"] .admin-modal :is(dd, input, button) { font-family: Georgia, serif; }
+:root[data-layout-mode="fantasy"] .hud-milestone-tooltip { background: #f0e0b9; color: #493d2c; border: 3px ridge #bca168; font-family: Georgia, serif; box-shadow: 0 5px 15px #10283240; }
+:root[data-layout-mode="fantasy"] .hud-milestone-tooltip :is(.hud-milestone-tooltip-heading, .hud-milestone-tooltip-heading strong, .hud-milestone-tooltip-heading > span, .hud-milestone-tooltip-status) { color: #496743; }
+@media (max-width: 800px) {
+  :root[data-layout-mode="fantasy"] .fantasy-crest svg { width: 36px; height: 36px; }
+  :root[data-layout-mode="fantasy"] .workspace-shell > .fantasy-corners .fantasy-corner { width: 38px; height: 38px; }
+  :root[data-layout-mode="fantasy"] .fantasy-corner { width: 25px; height: 25px; }
+  :root[data-layout-mode="fantasy"] .hud-career-tools { flex-wrap: wrap; }
+}
+@media (prefers-reduced-motion: reduce) {
+  :root[data-layout-mode="fantasy"] .fantasy-navi,
+  :root[data-layout-mode="fantasy"] .fantasy-navi * { animation: none; }
+}

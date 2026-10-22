@@ -7,7 +7,7 @@ function load() {
   return instance.exports;
 }
 
-test("both audio palettes are gated, bounded, stop on mute/theme changes, and tolerate unavailable APIs", async () => {
+test("all three audio palettes are gated, bounded, stop on mute/theme changes, and tolerate unavailable APIs", async () => {
   const previous = { window: global.window, setTimeout: global.setTimeout, clearTimeout: global.clearTimeout };
   const contexts = [], timers = new Map(); let timerId = 0;
   const param = (onSet = () => {}) => ({ setValueAtTime(value) { onSet(value); }, exponentialRampToValueAtTime() {} });
@@ -46,6 +46,20 @@ test("both audio palettes are gated, bounded, stop on mute/theme changes, and to
     for (const [sound, count] of [["scan", 4], ["roll", 4], ["confirm", 3], ["click", 1]]) {
       audio.play(sound); assert.equal(contexts.at(-1).notes, count);
     }
+    audio.setTheme("fantasy");
+    assert.equal(contexts.at(-1).closed, true);
+    for (const [sound, count] of [["page", 4], ["welcome", 4], ["click", 2], ["scan", 6], ["roll", 6], ["confirm", 5], ["pop", 5]]) {
+      audio.play(sound);
+      assert.equal(contexts.at(-1).notes, count);
+      assert.equal(timers.size, 1);
+      assert.ok(contexts.slice(0, -1).every(context => context.closed));
+      if (sound === "page") assert.deepEqual(contexts.at(-1).frequencies, [587.33, 880, 1174.66, 1567.98]);
+    }
+    audio.setEnabled(false);
+    const countBeforeMutedPlay = contexts.length;
+    audio.play("page");
+    assert.equal(contexts.length, countBeforeMutedPlay);
+    assert.equal(timers.size, 0);
     audio.setEnabled(true); audio.play("welcome");
     [...timers.values()][0](); assert.equal(contexts.at(-1).closed, true); assert.equal(timers.size, 0);
     global.window.AudioContext = class { constructor() { throw Error("Unavailable"); } };

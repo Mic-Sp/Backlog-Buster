@@ -1,16 +1,18 @@
 import { calculateLevelProgress } from "@/lib/player-level";
 import { cache, Suspense } from "react";
 import Link from "next/link";
+import { FantasyCorners } from "@/components/FantasyAccents";
+import LayoutText from "@/components/LayoutText";
 import OperatorAvatar from "@/components/OperatorAvatar";
 import { connection } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { resizeRawgImageUrl } from "@/lib/rawg";
 import GameForm from "./GameForm";
 import MemberCount from "@/components/MemberCount";
+import WorkspaceShell from "@/components/WorkspaceShell";
 import GameLibrary from "@/components/GameLibrary";
 import AchievementToast from "@/components/AchievementToast";
 import HudMilestones from "@/components/HudMilestones";
-import QuestRoulette from "@/components/QuestRoulette";
 import NetrunnerDossier from "@/components/NetrunnerDossier";
 import { calculateLibraryTelemetry } from "@/lib/library-telemetry";
 import { syncAndGetAchievements } from "@/lib/achievements";
@@ -62,15 +64,17 @@ async function PlayerSummary({ player }: { player: CurrentPlayer }) {
 
   return (
     <section className="player-summary" aria-label="Player stats">
+      <FantasyCorners />
+      <div className="fantasy-status-heading"><p className="fantasy-kicker">QUEST STATUS</p><h2>The Hero’s Record</h2><span aria-hidden="true" className="fantasy-hearts">♥ ♥ ♥ ♥ ♥</span><span className="fantasy-heart-caption">Heart of an adventurer · Rank {progress.level}</span></div>
       <AchievementToast playerId={player.id} achievements={achievements} level={progress.level} totalXp={totalXp} />
       <Link className="hud-brand" href="/" aria-label="Backlog Buster home">
         <span className="wordmark-icon">
-          <OperatorAvatar className="hud-brand-logo" avatarUrl={profile.avatarUrl} alt={`${profile.operatorName} operator avatar`} />
+          <OperatorAvatar className="hud-brand-logo" fantasyFallback avatarUrl={profile.avatarUrl} alt={`${profile.operatorName} operator avatar`} />
         </span>
       </Link>
 
       <div className="summary-level">
-        <span className="summary-label">Current level</span>
+        <span className="summary-label"><LayoutText cyberpunk="Current level" fantasy="Hero’s rank" /></span>
         <p className="summary-level-value">
           <span>LV</span>
           <strong>{progress.level.toLocaleString("en-US")}</strong>
@@ -78,13 +82,13 @@ async function PlayerSummary({ player }: { player: CurrentPlayer }) {
       </div>
 
       <div className="summary-total-xp">
-        <span className="summary-label">Total lifetime XP</span>
+        <span className="summary-label"><LayoutText cyberpunk="Total lifetime XP" fantasy="Lifetime renown" /></span>
         <strong>{totalXp.toLocaleString("en-US")}</strong>
       </div>
 
       <div className="summary-progress">
         <div className="summary-progress-heading">
-          <span className="summary-label">Next level</span>
+          <span className="summary-label"><LayoutText cyberpunk="Next level" fantasy="Magic meter · Next rank" /></span>
           <strong>
             {progress.xpTowardNextLevel.toLocaleString("en-US")} / {progress.xpForNextLevel.toLocaleString("en-US")} XP
           </strong>
@@ -167,9 +171,7 @@ async function SavedGames({ userId, isAdmin }: { userId: string; isAdmin: boolea
   }));
 
   return (
-    <GameLibrary games={serializedGames} achievements={achievements} isAdmin={isAdmin}>
-      <QuestRoulette games={serializedGames.filter((game) => game.status === "Backlog")} />
-    </GameLibrary>
+    <GameLibrary games={serializedGames} achievements={achievements} isAdmin={isAdmin} />
   );
 }
 
@@ -178,7 +180,7 @@ async function PlayerWorkspace() {
   const player = await getCurrentPlayer();
   if (!player) return <main className="page-shell"><AccountGate /><MemberCount /></main>;
   return (
-    <main className="page-shell" key={`${player.id}-${player.isLocal}`}>
+    <WorkspaceShell key={`${player.id}-${player.isLocal}`}>
       <Suspense
         fallback={
           <section className="player-summary summary-loading" aria-label="Player stats">
@@ -189,13 +191,14 @@ async function PlayerWorkspace() {
         <PlayerSummary player={player} />
       </Suspense>
 
-      <section className="add-section" aria-labelledby="add-title">
+      <section className="add-section" data-workspace-pane="chronicle" aria-labelledby="add-title">
+        <FantasyCorners />
         <details className="add-disclosure">
           <summary className="section-heading">
             <span className="section-heading-copy">
               <span className="eyebrow">01 / NEW ENTRY</span>
               <span className="section-heading-title" id="add-title">
-                Initialize Game Entry
+                <span className="cyberpunk-label">Initialize Game Entry</span><span className="fantasy-label">Inscribe New Quest</span>
               </span>
             </span>
             <span className="section-index" aria-hidden="true">+</span>
@@ -219,7 +222,7 @@ async function PlayerWorkspace() {
         <span>BACKLOG BUSTER</span>
         <span>YOUR PACE. YOUR PLAYTHROUGH.</span>
       </footer>
-    </main>
+    </WorkspaceShell>
   );
 }
 

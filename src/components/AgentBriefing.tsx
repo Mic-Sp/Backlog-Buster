@@ -1,5 +1,7 @@
 "use client";
 
+import { useLayoutCopy } from "@/components/LayoutText";
+
 import useCooldown from "@/components/useCooldown";
 import { DEFAULT_COOLDOWN_SECONDS } from "@/lib/cooldown";
 import { unwrapActionResult } from "@/lib/action-result";
@@ -19,6 +21,7 @@ type BriefingGame = {
 };
 
 export default function AgentBriefing({ game }: { game: BriefingGame }) {
+  const copy = useLayoutCopy();
   const cooldown = useCooldown();
   const [isLoading, setIsLoading] = useState(false);
   const [briefing, setBriefing] = useState("");
@@ -86,15 +89,15 @@ export default function AgentBriefing({ game }: { game: BriefingGame }) {
   return (
     <div className="agent-briefing">
       <button type="button" className="agent-audit-button" disabled={isLoading || isApplying || cooldown.seconds > 0} onClick={audit} aria-controls={readoutId} aria-expanded={isLoading || Boolean(briefing || error)}>
-        {cooldown.seconds > 0 ? cooldown.label : isLoading ? "🤖 AUDITING PLAYTIME…" : "🤖 AGENT PLAYTIME AUDIT"}
+        {cooldown.seconds > 0 ? cooldown.label : isLoading ? copy("🤖 AUDITING PLAYTIME…", "✦ CONSULTING THE CHRONICLER…") : copy("🤖 AGENT PLAYTIME AUDIT", "✎ CONSULT THE PLAYTIME CHRONICLER")}
       </button>
       <div id={readoutId} className="agent-briefing-readout" hidden={!isLoading && !briefing && !error} aria-live="polite" aria-atomic="true" aria-busy={isLoading}>
-        <span className="agent-briefing-eyebrow">AGENT // PLAYTIME &amp; GIG BRIEFING</span>
+        <span className="agent-briefing-eyebrow">{copy("AGENT // PLAYTIME & GIG BRIEFING", "THE CHRONICLER · PLAYTIME & QUEST NOTES")}</span>
         <p className="agent-briefing-metrics">Est. completion: {game.lengthHours}h · Logged: {game.hoursPlayed == null ? "Unknown" : `${game.hoursPlayed}h`}</p>
         {isLoading ? <p>Reviewing {game.title} and calibrating your next sessions…</p> : error ? <p className="agent-briefing-error" role="alert">{error}</p> : <p>{briefing}</p>}
         {!isLoading && !error && canApply && (
           <button type="button" className="agent-apply-button" disabled={isApplying} onClick={applyEstimate}>
-            {isApplying ? "⚡ APPLYING…" : `⚡ APPLY ${suggestedHours}h TO DATABASE`}
+            {isApplying ? "⚡ APPLYING…" : copy(`⚡ APPLY ${suggestedHours}h TO DATABASE`, `✎ RECORD A ${suggestedHours}h JOURNEY`)}
           </button>
         )}
         {appliedHours !== null && <p className="agent-briefing-saved" role="status">Saved {appliedHours}h as the estimated completion time.</p>}

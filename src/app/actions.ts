@@ -382,7 +382,8 @@ export async function searchGameInfo(title: string) {
 export async function fetchBacklogAdvisor() {
   return safeAction(async () => {
     const playerId = await getAuthenticatedPlayerId();
-    return guardedRequest(playerId, "advisor", "backlog", () => getBacklogRecommendations(playerId));
+    // Saved-library recommendations use local ranking, without external API calls.
+    return getBacklogRecommendations(playerId);
   });
 }
 

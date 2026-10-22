@@ -1,5 +1,7 @@
 "use client";
 
+import { useLayoutCopy } from "@/components/LayoutText";
+
 import { useActionState, useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal, useFormStatus } from "react-dom";
 import { authenticate, logout, type AuthState } from "@/app/auth-actions";
@@ -17,6 +19,7 @@ function LogoutButton() {
 }
 
 function AuthPanel({ localArchive = false, onClose }: { localArchive?: boolean; onClose?: () => void }) {
+  const copy = useLayoutCopy();
   const [mode, setMode] = useState<"login" | "register">(localArchive ? "register" : "login");
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [clientError, setClientError] = useState("");
@@ -100,7 +103,7 @@ function AuthPanel({ localArchive = false, onClose }: { localArchive?: boolean; 
         <p className="auth-hint">8–128 characters. Passwords are salted and hashed on the server.</p>
         {mode === "register" && <>
           <label>Handle <span>(optional)</span><input name="handle" autoComplete="off" maxLength={24} pattern="[A-Za-z0-9][A-Za-z0-9_-]{2,23}" title="3–24 letters, numbers, underscores or hyphens" spellCheck={false} autoCapitalize="none" placeholder="night-city-runner" /></label>
-          <label>Operator name <span>(optional)</span><input name="operatorName" autoComplete="nickname" maxLength={28} placeholder="ANONYMOUS NETRUNNER" /></label>
+          <label>{copy("Operator name", "Adventurer name")} <span>(optional)</span><input name="operatorName" autoComplete="nickname" maxLength={28} placeholder={copy("ANONYMOUS NETRUNNER", "UNNAMED ADVENTURER")} /></label>
         </>}
       </fieldset>
       {error && <p className="auth-error" role="alert" id={errorId}>{error}</p>}
@@ -116,11 +119,12 @@ export function AccountGate() {
 }
 
 export default function AccountControls({ player }: { player: CurrentPlayer }) {
+  const copy = useLayoutCopy();
   const [isOpen, setIsOpen] = useState(false);
   const close = useCallback(() => setIsOpen(false), []);
   return <div className="account-controls">
-    {player.isLocal ? <button className="account-claim-button" type="button" aria-haspopup="dialog" onClick={() => setIsOpen(true)}>⚡ CLAIM NETRUNNER ACCOUNT // SIGN IN</button> : <>
-      <p className="account-operator"><span>CONNECTED //</span> {player.operatorName}{player.handle && <small>@{player.handle}</small>}</p>
+    {player.isLocal ? <button className="account-claim-button" type="button" aria-haspopup="dialog" onClick={() => setIsOpen(true)}>{copy("⚡ CLAIM NETRUNNER ACCOUNT // SIGN IN", "✦ CLAIM YOUR ADVENTURER ACCOUNT // SIGN IN")}</button> : <>
+      <p className="account-operator"><span>{copy("CONNECTED //", "SWORN TO THE REALM ·")}</span> {player.operatorName}{player.handle && <small>@{player.handle}</small>}</p>
       <AccountSecurity />
       {player.isAdmin && <AdminControlPanel currentPlayerId={player.id} currentPlayerIsOwner={player.isOwner} />}
       <SafeForm action={logout}><LogoutButton /></SafeForm>

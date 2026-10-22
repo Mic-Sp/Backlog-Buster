@@ -1,5 +1,8 @@
 "use client";
 
+import { useLayoutCopy } from "@/components/LayoutText";
+import { FantasyCorners } from "@/components/FantasyAccents";
+
 import { startTransition, useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal, useFormStatus } from "react-dom";
 import { getAccountSecuritySummary, updateAccountCredentials, resetOperatorLibrary, wipeOperatorAccount } from "@/app/security-actions";
@@ -28,6 +31,7 @@ function PasswordField({ label, name, value, onChange, visible, onToggle, requir
 }
 
 function SecurityPanel({ onClose }: { onClose: () => void }) {
+  const copy = useLayoutCopy();
   const [summary, setSummary] = useState<AccountSecuritySummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -135,12 +139,13 @@ function SecurityPanel({ onClose }: { onClose: () => void }) {
 
   return <div className="security-modal-backdrop" onClick={event => { if (event.target === event.currentTarget && !busyRef.current) onClose(); }}>
     <div className="security-modal" ref={panelRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={titleId} aria-busy={loading || locked}>
-      <header className="security-modal-heading"><div><p>ACCOUNT SECURITY // OPERATOR CREDENTIALS</p><h2 id={titleId}>ICE SECURITY GATEWAY // OPERATOR CREDENTIALS</h2></div><button type="button" aria-label="Close account security" disabled={locked} onClick={onClose}>✕</button></header>
+            <FantasyCorners />
+      <header className="security-modal-heading"><div><p>{copy("ACCOUNT SECURITY // OPERATOR CREDENTIALS", "THE ROYAL SEAL · ACCOUNT SECURITY")}</p><h2 id={titleId}>{copy("ICE SECURITY GATEWAY // OPERATOR CREDENTIALS", "Guard Your Royal Seal")}</h2></div><button type="button" aria-label="Close account security" disabled={locked} onClick={onClose}>✕</button></header>
       {loading && <p role="status">VERIFYING SECURE SESSION…</p>}
       {summary && <>
         <dl className="security-account-summary">
           <div><dt>Registered Email Address</dt><dd>{summary.email}</dd></div>
-          <div><dt>Operator Handle</dt><dd>{summary.handle ? `@${summary.handle}` : "Unclaimed"}</dd></div>
+          <div><dt>{copy("Operator Handle", "Adventurer Handle")}</dt><dd>{summary.handle ? `@${summary.handle}` : "Unclaimed"}</dd></div>
           <div><dt>Account Created Date</dt><dd>{new Date(summary.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}</dd></div>
           <div><dt>Active Session Status</dt><dd>● ACTIVE // Expires {new Date(summary.sessionExpiresAt).toLocaleDateString("en-US")}</dd></div>
         </dl>
@@ -165,7 +170,7 @@ function SecurityPanel({ onClose }: { onClose: () => void }) {
       {error && <p className="security-error" role="alert">{error}</p>}
       {confirmation && <p className="security-confirmation" role="status">{confirmation}</p>}
       {summary && <section className="security-danger-zone" aria-labelledby={`${titleId}-danger`}>
-        <h3 id={`${titleId}-danger`}>⚠ DANGER ZONE // ARCHIVE TERMINATION</h3>
+        <h3 id={`${titleId}-danger`}>{copy("⚠ DANGER ZONE // ARCHIVE TERMINATION", "⚠ DANGER ZONE · IRREVERSIBLE ARCHIVE CHANGES")}</h3>
         {(["reset", "wipe"] as const).map(mode => {
           const isReset = mode === "reset";
           const phrase = isReset ? "RESET LIBRARY" : "WIPE ARCHIVE";
