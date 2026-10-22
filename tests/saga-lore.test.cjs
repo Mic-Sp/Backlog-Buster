@@ -2,6 +2,10 @@
 const test = require("node:test"), assert = require("node:assert/strict");
 const fs = require("node:fs"), path = require("node:path"), Module = require("node:module"), ts = require("typescript");
 function loader(mocks = {}) {
+  mocks = { '@/lib/admin': {
+    AdminRequiredError: class extends Error {},
+    requireAdmin: async () => ({ id: await mocks['@/lib/player'].getAuthenticatedPlayerId(), isAdmin: true }),
+  }, ...mocks };
   const cache = new Map();
   function load(file) {
     if (cache.has(file)) return cache.get(file);

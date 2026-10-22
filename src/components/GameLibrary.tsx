@@ -81,7 +81,7 @@ function comparePinnedGames(left: LibraryGame, right: LibraryGame) {
   return leftSlot - rightSlot;
 }
 
-export default function GameLibrary({ games: serverGames, achievements = [], children }: { games: LibraryGame[]; achievements?: Achievement[]; children?: ReactNode }) {
+export default function GameLibrary({ games: serverGames, achievements = [], isAdmin = false, children }: { games: LibraryGame[]; achievements?: Achievement[]; isAdmin?: boolean; children?: ReactNode }) {
   const { playSfx } = useUIEffects();
   async function completeGameWithSound(data: FormData) {
     const result = unwrapActionResult(await completeGame(data));
@@ -398,11 +398,11 @@ export default function GameLibrary({ games: serverGames, achievements = [], chi
           sagaCooldown.start(result.retryAfterSeconds);
           sagaProviderCooldown.start(result.retryAfterSeconds);
         }
-        if ("debug" in result && result.debug?.status === "refresh-deferred" && result.debug.updatedAt) {
-          sagaCooldown.start(300, new Date(result.debug.updatedAt).getTime());
+        if ("refreshRetryAfterSeconds" in result && result.refreshRetryAfterSeconds > 0) {
+          sagaCooldown.start(result.refreshRetryAfterSeconds);
         }
         if (sagaFilterRef.current !== key) return;
-        if ("debug" in result && result.debug) {
+        if (isAdmin && "debug" in result && result.debug) {
           const debug = result.debug;
           setSagaDebug(current => ({ key, data: { ...debug,
             geminiPayload: debug.geminiPayload ?? (current?.key === key ? current.data.geminiPayload : undefined),
@@ -880,7 +880,7 @@ export default function GameLibrary({ games: serverGames, achievements = [], chi
           </div>
           <p className="saga-chains-hint">Unassigned games follow ranked games in release order. Use ▲ / ▼ to swap visible games, or drag table rows to reorder. Hidden saga games keep their relative positions.</p>
           {sagaNotice?.key === selectedSaga.key && <p className="saga-order-notice" role="status" data-error={sagaNotice.error}>{sagaNotice.text}</p>}
-          <SagaChronologyDebugger key={selectedSaga.key} sagaKey={selectedSaga.key} scanDebug={sagaDebug?.key === selectedSaga.key ? sagaDebug.data : null} busy={timelineBusy} cooldownSeconds={sagaProviderCooldown.seconds} onForceRefresh={() => detectSagaOrder(true)} />
+          {isAdmin && <SagaChronologyDebugger key={selectedSaga.key} sagaKey={selectedSaga.key} scanDebug={sagaDebug?.key === selectedSaga.key ? sagaDebug.data : null} busy={timelineBusy} cooldownSeconds={sagaProviderCooldown.seconds} onForceRefresh={() => detectSagaOrder(true)} />}
         </section>
       )}
 

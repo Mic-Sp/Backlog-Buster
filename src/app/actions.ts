@@ -9,6 +9,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { syncAndGetAchievements } from "@/lib/achievements";
 import { getAuthenticatedPlayerId } from "@/lib/player";
+import { AdminRequiredError, requireAdmin } from "@/lib/admin";
 import { resolveRawgPlaytime } from "@/lib/game-playtime";
 import { lookupRawgGame, type RawgGameInfo } from "@/lib/rawg";
 import { getBacklogRecommendations, getExternalRecommendations } from "@/lib/recommendations";
@@ -16,7 +17,7 @@ import { normalizeGameTitle } from "@/lib/game-title";
 import { DECK_CAPACITY } from "@/lib/deck";
 import type { Prisma } from "@/generated/prisma/client";
 import { buildSagaChains, parseChronologicalOrder } from "@/lib/sagas";
-import { inspectSagaChronologyCache, resolveCachedSagaChronology } from "@/lib/saga-chronology-cache";
+import { FRANCHISE_REFRESH_COOLDOWN_MS, inspectSagaChronologyCache, resolveCachedSagaChronology } from "@/lib/saga-chronology-cache";
 import { buildSagaChronologyDebug, type SagaCacheSnapshot } from "@/lib/saga-debug";
 import { getHybridSagaChronology } from "@/lib/saga-lore";
 import { buildAssignedSagaOrder } from "@/lib/saga-chronology";
@@ -425,9 +426,10 @@ async function loadOwnedSaga(sagaKey: string) {
 
 export async function getSagaChronologyDebug(sagaKey: string) {
   return safeAction(async () => {
+    await requireAdmin();
     const { userId, chain, members } = await loadOwnedSaga(sagaKey);
     const cache = await inspectSagaChronologyCache(chain.name);
-    if (await getAuthenticatedPlayerId() !== userId) throw new InputError("Sign in again to inspect saga chronology.");
+    if ((await requireAdmin()).id !== userId) throw new InputError("Sign in again to inspect saga chronology.");
     return { debug: buildSagaChronologyDebug(cache, members) };
   });
 }
@@ -435,6 +437,8 @@ export async function getSagaChronologyDebug(sagaKey: string) {
 export async function autoDetectSagaOrder(sagaKey: string, forceRefresh = false) {
   return safeAction(async () => {
     if (typeof forceRefresh !== "boolean") throw new InputError("Choose a valid cache refresh option.");
+    // Check before any cache/provider access; a forged client flag grants nothing.
+    if (forceRefresh) await requireAdmin();
     const { userId, chain, members } = await loadOwnedSaga(sagaKey);
     let localFallback = false;
     let providerNotice: string | undefined;
@@ -454,6 +458,7 @@ export async function autoDetectSagaOrder(sagaKey: string, forceRefresh = false)
     }
     // A slow provider request must not authorize writes after logout/session expiry.
     if (await getAuthenticatedPlayerId() !== userId) throw new InputError("Sign in again before saving saga chronology.");
+    if (forceRefresh && (await requireAdmin()).id !== userId) throw new InputError("Sign in again before refreshing saga chronology.");
     const assignedOrder = buildAssignedSagaOrder(members, cacheDebug.canonicalGames, localFallback);
     try {
       // No network calls inside the transaction. Snapshot guards prevent overwriting
@@ -468,14 +473,22 @@ export async function autoDetectSagaOrder(sagaKey: string, forceRefresh = false)
       return { updatedCount: 0, error: "Your saga changed during the scan. No ranks were saved; please try again." };
     }
     revalidatePath("/");
-    const debug = buildSagaChronologyDebug(cacheDebug, members.map(game => ({ ...game,
+    // Recheck after slow provider/database work. Demoted users can still perform
+    // normal scans, but must never receive prompts, raw responses, or mappings.
+    let includeDebug = false;
+    try { includeDebug = (await requireAdmin()).id === userId; }
+    catch (error) { if (!(error instanceof AdminRequiredError)) throw error; }
+    const diagnostics = includeDebug ? { debug: buildSagaChronologyDebug(cacheDebug, members.map(game => ({ ...game,
       chronologicalOrder: assignedOrder.get(game.id) ?? null,
-    })), localFallback);
+    })), localFallback) } : {};
+    // Expose only the remaining user-facing refresh cooldown, not cache metadata.
+    const refreshRetryAfterSeconds = cacheDebug.status === "refresh-deferred" && cacheDebug.updatedAt
+      ? Math.max(0, Math.ceil((Date.parse(cacheDebug.updatedAt) + FRANCHISE_REFRESH_COOLDOWN_MS - Date.now()) / 1000)) : 0;
     const rankedCount = [...assignedOrder.values()].filter(rank => rank !== null).length;
     const tailCount = members.length - rankedCount;
     const tailNotice = tailCount ? ` ${tailCount} unmatched or unreleased games had stale ranks cleared and follow in release order.` : "";
-    if (localFallback) return { updatedCount: members.length, message: (providerNotice ?? fallbackMessage) + tailNotice, debug, retryAfterSeconds };
-    return { updatedCount: members.length, debug, retryAfterSeconds,
+    if (localFallback) return { updatedCount: members.length, message: (providerNotice ?? fallbackMessage) + tailNotice, ...diagnostics, retryAfterSeconds, refreshRetryAfterSeconds };
+    return { updatedCount: members.length, ...diagnostics, retryAfterSeconds, refreshRetryAfterSeconds,
       message: (providerNotice ? `${providerNotice} ` : "") + `Library timeline saved with ${rankedCount} sequential ranks${rankedCount ? ` (1–${rankedCount})` : ""}.` + tailNotice };
   });
 }

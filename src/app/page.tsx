@@ -127,7 +127,7 @@ async function PlayerSummary({ player }: { player: CurrentPlayer }) {
   );
 }
 
-async function SavedGames({ userId }: { userId: string }) {
+async function SavedGames({ userId, isAdmin }: { userId: string; isAdmin: boolean }) {
   await connection();
 
   const [games, achievements] = await Promise.all([
@@ -167,7 +167,7 @@ async function SavedGames({ userId }: { userId: string }) {
   }));
 
   return (
-    <GameLibrary games={serializedGames} achievements={achievements}>
+    <GameLibrary games={serializedGames} achievements={achievements} isAdmin={isAdmin}>
       <QuestRoulette games={serializedGames.filter((game) => game.status === "Backlog")} />
     </GameLibrary>
   );
@@ -211,7 +211,7 @@ async function PlayerWorkspace() {
           </section>
         }
       >
-        <SavedGames userId={player.id} />
+        <SavedGames userId={player.id} isAdmin={!player.isLocal && player.isAdmin} />
       </Suspense>
 
       <MemberCount />

@@ -9,6 +9,7 @@
     "lint": "eslint",
     "test:auth": "node --test tests/auth.test.cjs",
     "test:validation": "node --test tests/validation.test.cjs",
+    "admin:bootstrap": "node scripts/bootstrap-admin.cjs",
     "postinstall": "prisma generate"
   },
   "dependencies": {
