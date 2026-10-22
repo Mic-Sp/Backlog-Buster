@@ -19,6 +19,7 @@ import { syncAndGetAchievements } from "@/lib/achievements";
 import { getCurrentPlayer, type CurrentPlayer } from "@/lib/player";
 import { getCurrentPlayerProfile } from "@/lib/player-profile";
 import AccountControls, { AccountGate } from "@/components/AccountControls";
+import { ThemePlayerSync } from "@/components/ThemeProvider";
 
 // Share one sync promise per player during this render, without caching Server Actions.
 const getPageAchievements = cache((userId: string) => syncAndGetAchievements(userId));
@@ -178,8 +179,10 @@ async function SavedGames({ userId, isAdmin }: { userId: string; isAdmin: boolea
 async function PlayerWorkspace() {
   await connection();
   const player = await getCurrentPlayer();
-  if (!player) return <main className="page-shell"><AccountGate /><MemberCount /></main>;
+  if (!player) return <><ThemePlayerSync player={null} /><main className="page-shell"><AccountGate /><MemberCount /></main></>;
   return (
+    <>
+    <ThemePlayerSync player={player.isLocal ? null : { id: player.id, preferredLayoutMode: player.preferredLayoutMode }} />
     <WorkspaceShell key={`${player.id}-${player.isLocal}`}>
       <Suspense
         fallback={
@@ -223,6 +226,7 @@ async function PlayerWorkspace() {
         <span>YOUR PACE. YOUR PLAYTHROUGH.</span>
       </footer>
     </WorkspaceShell>
+    </>
   );
 }
 

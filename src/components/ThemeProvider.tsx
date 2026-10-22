@@ -17,7 +17,23 @@ const ThemeContext = createContext<ThemeEffects>({ layoutMode: "cyberpunk", cybe
 export function useUIEffects() { return useContext(ThemeContext); }
 
 type LayoutPlayer = { id: string; preferredLayoutMode: LayoutMode };
-export default function ThemeProvider({ children, player = null }: { children: ReactNode; player?: LayoutPlayer | null }) {
+const ThemePlayerContext = createContext<((player: LayoutPlayer | null) => void) | null>(null);
+
+// The suspended workspace supplies request-specific data after the static shell
+// renders. Keep one provider so shared controllers and audio remain mounted.
+export function ThemePlayerSync({ player }: { player: LayoutPlayer | null }) {
+  const syncPlayer = useContext(ThemePlayerContext);
+  const id = player?.id, preferredLayoutMode = player?.preferredLayoutMode;
+  useEffect(() => {
+    syncPlayer?.(id && preferredLayoutMode ? { id, preferredLayoutMode } : null);
+    return () => syncPlayer?.(null);
+  }, [syncPlayer, id, preferredLayoutMode]);
+  return null;
+}
+
+export default function ThemeProvider({ children, player: initialPlayer = null }: { children: ReactNode; player?: LayoutPlayer | null }) {
+  const [workspacePlayer, setWorkspacePlayer] = useState<LayoutPlayer | null | undefined>(undefined);
+  const player = workspacePlayer === undefined ? initialPlayer : workspacePlayer;
   const playerId = player?.id;
   const preferredLayoutMode = player?.preferredLayoutMode;
   const [layoutMode, setLayoutMode] = useState<LayoutMode>(player?.preferredLayoutMode ?? "cyberpunk");
@@ -125,10 +141,10 @@ export default function ThemeProvider({ children, player = null }: { children: R
     if (!next) audio.play("confirm");
   }
 
-  return <ThemeContext.Provider value={{ layoutMode, cyberpunkTheme: halloween ? "halloween" : "default", toggleLayout, layoutSaveError, halloween, muted, toggle, toggleMuted, playSfx: audio.play }}>
+  return <ThemePlayerContext.Provider value={setWorkspacePlayer}><ThemeContext.Provider value={{ layoutMode, cyberpunkTheme: halloween ? "halloween" : "default", toggleLayout, layoutSaveError, halloween, muted, toggle, toggleMuted, playSfx: audio.play }}>
     {children}
     {layoutMode === "cyberpunk" && halloween && <HalloweenDecorations />}
-  </ThemeContext.Provider>;
+  </ThemeContext.Provider></ThemePlayerContext.Provider>;
 }
 
 export function ThemeToggle() {
