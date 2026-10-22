@@ -1,5 +1,7 @@
 import "server-only";
 import { InputError } from "@/lib/action-result";
+import { isValidPassword } from "@/lib/password-validation";
+import { isValidEmail, normalizeEmail } from "@/lib/email-validation";
 
 import { prisma } from "@/lib/prisma";
 
@@ -8,10 +10,10 @@ export type Registration = { email: string; password: string; handle: string | n
 export function readCredentials(form: FormData, register = false): Registration {
   const emailValue = form.get("email"), password = form.get("password");
   if (typeof emailValue !== "string" || typeof password !== "string") throw new InputError("Enter your email and password.");
-  const email = emailValue.trim().toLowerCase();
-  if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new InputError("Enter a valid email address.");
+  const email = normalizeEmail(emailValue);
+  if (!isValidEmail(email)) throw new InputError("Enter a valid email address.");
   if (!password.trim()) throw new InputError("Please enter a password.");
-  if (password.length < 8 || password.length > 128) throw new InputError(register ? "Use a password of 8–128 characters." : "Incorrect email or password.");
+  if (!isValidPassword(password)) throw new InputError(register ? "Use a password of 8–128 characters." : "Incorrect email or password.");
   let handle: string | null = null, operatorName: string | null = null;
   if (register) {
     const handleValue = form.get("handle"), nameValue = form.get("operatorName");

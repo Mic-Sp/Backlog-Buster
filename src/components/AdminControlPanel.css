@@ -1,0 +1,91 @@
+.account-controls .admin-panel-trigger { border-color: #857127; color: #fcee0a; background: #211d0e; }
+.admin-modal-backdrop {
+  --admin-accent: #fcee0a;
+  --admin-signal: #94f7ff;
+  --admin-frame: #00f0ff;
+  --admin-surface: #0b101b;
+  --admin-tile: #080e18;
+  --admin-line: #2e3a52;
+  --admin-muted: #8295aa;
+  --admin-ink: #e8edf7;
+  --admin-button: #0d202a;
+  --admin-error: #ffb8cc;
+  --admin-error-bg: #251019;
+  --admin-success: #a2ffdb;
+  --admin-success-bg: #0c211b;
+  position: fixed; inset: 0; z-index: 1900; display: flex; align-items: center; justify-content: center;
+  padding: 20px; background: #05080fef;
+}
+.admin-modal { width: min(720px, 100%); max-height: calc(100dvh - 40px); overflow-y: auto; overscroll-behavior: contain; padding: 24px; border: 1px solid var(--admin-frame); border-top: 3px solid var(--admin-accent); color: var(--admin-ink); background: var(--admin-surface); font-family: "Courier New", monospace; }
+.admin-modal-heading, .admin-section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.admin-modal-heading > div { min-width: 0; }
+.admin-modal-heading p { margin: 0 0 8px; color: var(--admin-signal); font-size: 10px; letter-spacing: .08em; }
+.admin-modal-heading h2 { margin: 0; color: var(--admin-ink); font: 400 32px/1.1 var(--font-terminal), "Courier New", monospace; letter-spacing: .06em; text-transform: uppercase; }
+.admin-modal h3 { margin: 0; color: var(--admin-accent); font-size: 11px; line-height: 1.6; letter-spacing: .08em; }
+.admin-section-heading { align-items: center; flex-wrap: wrap; margin-top: 24px; }
+.admin-hint { color: var(--admin-muted); font-size: 12px; line-height: 1.7; }
+.admin-telemetry { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 18px 0 0; }
+.admin-telemetry > div { min-width: 0; padding: 16px; border: 1px solid var(--admin-line); background: var(--admin-tile); }
+.admin-telemetry dt { color: var(--admin-muted); font-size: 11px; line-height: 1.5; }
+.admin-telemetry dd { margin: 8px 0 0; color: var(--admin-signal); font: 400 36px/1.1 var(--font-terminal), "Courier New", monospace; overflow-wrap: anywhere; }
+.admin-maintenance { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--admin-line); }
+.admin-modal button { min-height: 36px; padding: 8px 12px; border: 1px solid var(--admin-line); border-radius: 2px; color: var(--admin-signal); background: var(--admin-button); font: 700 10px/1.4 "Courier New", monospace; cursor: pointer; }
+.admin-modal button:hover:not(:disabled) { background: var(--admin-frame); color: #06090f; }
+.admin-modal button:disabled { opacity: .45; cursor: wait; }
+.admin-modal button:focus-visible { outline: 2px solid var(--admin-accent); outline-offset: 3px; }
+.admin-modal button.admin-purge-button { width: 100%; min-height: 44px; border-color: var(--admin-accent); color: var(--admin-accent); background: var(--admin-tile); }
+.admin-modal button.admin-purge-button:hover:not(:disabled) { background: var(--admin-accent); color: #06090f; }
+.admin-error, .admin-confirmation { margin: 18px 0 0; padding: 12px; border: 1px solid currentColor; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.admin-error { color: var(--admin-error); background: var(--admin-error-bg); }
+.admin-confirmation { color: var(--admin-success); background: var(--admin-success-bg); }
+.admin-directory { margin-top: 24px; padding-top: 4px; border-top: 1px solid var(--admin-line); }
+.admin-player-list { display: grid; gap: 16px; padding: 0; margin: 18px 0; list-style: none; }
+.admin-player-row { min-width: 0; padding: 16px; border: 1px solid var(--admin-line); background: var(--admin-tile); }
+.admin-player-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.admin-player-heading > div { min-width: 0; }
+.admin-player-heading h4 { margin: 0; color: var(--admin-ink); font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; }
+.admin-player-identifier, .admin-player-id, .admin-player-email { margin: 5px 0 0; font-size: 11px; line-height: 1.6; overflow-wrap: anywhere; }
+.admin-player-identifier { color: var(--admin-signal); }
+.admin-player-id { color: var(--admin-muted); font-size: 10px; }
+.admin-role-badge { flex-shrink: 0; padding: 4px 6px; border: 1px solid var(--admin-line); color: var(--admin-signal); font-size: 9px; letter-spacing: .06em; }
+.admin-role-badge[data-admin="true"] { border-color: var(--admin-accent); color: var(--admin-accent); }
+.admin-player-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 18px 0; }
+.admin-player-stats dt { color: var(--admin-muted); font-size: 10px; line-height: 1.6; }
+.admin-player-stats dd { margin: 4px 0 0; color: var(--admin-ink); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.admin-player-actions, .admin-directory-pages { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.admin-directory-pages { justify-content: space-between; }
+.admin-player-actions .admin-hint { font-size: 10px; }
+:is(.admin-password-reset, .admin-email-update) { min-width: 0; margin: 18px 0 0; padding-top: 16px; border-top: 1px solid var(--admin-line); }
+:is(.admin-password-reset, .admin-email-update) label { display: block; color: var(--admin-ink); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+:is(.admin-password-reset, .admin-email-update) input { display: block; width: 100%; min-width: 0; padding: 11px 12px; margin: 10px 0 14px; border: 1px solid var(--admin-line); border-radius: 2px; color: var(--admin-ink); background: var(--admin-surface); font: 14px/1.4 "Courier New", monospace; }
+:is(.admin-password-reset, .admin-email-update) input:focus-visible { outline: 2px solid var(--admin-accent); outline-offset: 3px; }
+:is(.admin-password-reset, .admin-email-update) input:disabled { opacity: .45; }
+.admin-delete-confirmation { margin-top: 18px; padding: 12px; border: 1px solid var(--admin-error); background: var(--admin-error-bg); }
+.admin-delete-confirmation > p { margin: 0 0 14px; color: var(--admin-error); font-size: 12px; line-height: 1.7; overflow-wrap: anywhere; }
+.admin-modal button.admin-delete-button { border-color: var(--admin-error); color: var(--admin-error); background: var(--admin-error-bg); }
+.admin-modal button.admin-delete-button:hover:not(:disabled) { background: var(--admin-error); color: #06090f; }
+:root[data-theme="halloween"] .admin-modal-backdrop {
+  --admin-accent: #ffad5c;
+  --admin-signal: #b4ff72;
+  --admin-frame: #725078;
+  --admin-surface: #160e21;
+  --admin-tile: #100c18;
+  --admin-line: #70527b;
+  --admin-muted: #c0afca;
+  --admin-ink: #f4edf7;
+  --admin-button: #29192a;
+  --admin-error: #ff9bb4;
+  --admin-error-bg: #24101d;
+  --admin-success: #b4ff72;
+  --admin-success-bg: #192519;
+  background: #07040de8;
+}
+@media (max-width: 600px) {
+  .admin-modal-backdrop { padding: 12px; }
+  .admin-modal { padding: 18px; max-height: calc(100dvh - 24px); }
+  .admin-telemetry { grid-template-columns: 1fr; }
+  .admin-modal-heading h2 { font-size: 28px; }
+  .admin-player-row { padding: 12px; }
+  .admin-player-stats { grid-template-columns: 1fr; }
+  .admin-player-actions > button, .admin-directory-pages > button { flex: 1 1 100%; }
+}

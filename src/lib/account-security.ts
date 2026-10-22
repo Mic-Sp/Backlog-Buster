@@ -4,6 +4,8 @@ import { createHmac } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { getSessionSigningKey, readSessionHash } from "@/lib/auth-session";
 import { InputError } from "@/lib/action-result";
+import { isValidPassword } from "@/lib/password-validation";
+import { isValidEmail, normalizeEmail } from "@/lib/email-validation";
 
 export type AccountSecuritySummary = { email: string; handle: string | null; createdAt: string; sessionExpiresAt: string };
 
@@ -29,10 +31,10 @@ export function readCredentialChanges(data: FormData, currentEmail: string) {
   if (typeof currentPassword !== "string" || !currentPassword.trim()) throw new InputError("Enter your current password to authorize changes.");
   if (currentPassword.length < 8 || currentPassword.length > 128) throw new InputError("Current password is incorrect.");
   if ((emailValue !== null && typeof emailValue !== "string") || (passwordValue !== null && typeof passwordValue !== "string")) throw new InputError("Provide valid account credentials.");
-  const email = typeof emailValue === "string" ? emailValue.trim().toLowerCase() : "";
+  const email = typeof emailValue === "string" ? normalizeEmail(emailValue) : "";
   const newPassword = typeof passwordValue === "string" ? passwordValue : "";
-  if (email && (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) throw new InputError("Enter a valid new email address.");
-  if (newPassword && (!newPassword.trim() || newPassword.length < 8 || newPassword.length > 128)) throw new InputError("New passwords must contain 8–128 characters and cannot be only spaces.");
+  if (email && !isValidEmail(email)) throw new InputError("Enter a valid new email address.");
+  if (newPassword && !isValidPassword(newPassword)) throw new InputError("New passwords must contain 8–128 characters and cannot be only spaces.");
   const newEmail = email && email !== currentEmail.toLowerCase() ? email : null;
   if (!newEmail && !newPassword) throw new InputError("Provide a changed email or a new password.");
   return { currentPassword, newEmail, newPassword };

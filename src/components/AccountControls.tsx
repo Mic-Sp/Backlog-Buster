@@ -4,6 +4,7 @@ import { useActionState, useCallback, useEffect, useId, useRef, useState } from 
 import { createPortal, useFormStatus } from "react-dom";
 import { authenticate, logout, type AuthState } from "@/app/auth-actions";
 import AccountSecurity from "@/components/AccountSecurity";
+import AdminControlPanel from "@/components/AdminControlPanel";
 import SafeForm from "@/components/SafeForm";
 import type { CurrentPlayer } from "@/lib/player";
 import "./AccountControls.css";
@@ -121,6 +122,7 @@ export default function AccountControls({ player }: { player: CurrentPlayer }) {
     {player.isLocal ? <button className="account-claim-button" type="button" aria-haspopup="dialog" onClick={() => setIsOpen(true)}>⚡ CLAIM NETRUNNER ACCOUNT // SIGN IN</button> : <>
       <p className="account-operator"><span>CONNECTED //</span> {player.operatorName}{player.handle && <small>@{player.handle}</small>}</p>
       <AccountSecurity />
+      {player.isAdmin && <AdminControlPanel />}
       <SafeForm action={logout}><LogoutButton /></SafeForm>
     </>}
     <ThemeToggle />
