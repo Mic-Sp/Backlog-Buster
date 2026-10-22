@@ -37,14 +37,34 @@ async function main() {
   neonConfig.webSocketConstructor = require("ws");
   const prisma = new PrismaClient({ adapter: new PrismaNeon({ connectionString: process.env.DATABASE_URL }) });
   try {
-    console.log(JSON.stringify(await bootstrapAdmin(prisma, process.env.ADMIN_BOOTSTRAP_PLAYER_ID)));
+    console.log(JSON.stringify(await bootstrapOwner(prisma, process.env.OWNER_BOOTSTRAP_PLAYER_ID || process.env.ADMIN_BOOTSTRAP_PLAYER_ID)));
   } finally {
     await prisma.$disconnect();
   }
 }
 
-module.exports = { bootstrapAdmin };
+// Separate durable latch upgrades an already-bootstrapped admin without reopening
+// the legacy admin bootstrap. No request handler invokes either function.
+async function bootstrapOwner(prisma, playerId) {
+  return prisma.$transaction(async tx => {
+    await tx.$executeRaw`LOCK TABLE "Player" IN SHARE ROW EXCLUSIVE MODE`;
+    const id = "initial-owner-v1";
+    if (await tx.adminBootstrap.findUnique({ where: { id } })) return { status: "already-completed" };
+    if (await tx.player.findFirst({ where: { isOwner: true }, select: { id: true } })) {
+      await tx.adminBootstrap.create({ data: { id } });
+      return { status: "owner-already-exists" };
+    }
+    if (typeof playerId !== "string" || !playerId.trim()) throw new Error("Set OWNER_BOOTSTRAP_PLAYER_ID to an existing registered Player.id.");
+    const player = await tx.player.findUnique({ where: { id: playerId.trim() }, select: { id: true, email: true, passwordHash: true } });
+    if (!player?.email || !player.passwordHash) throw new Error("Owner bootstrap requires an existing registered account.");
+    await tx.player.update({ where: { id: player.id }, data: { isAdmin: true, isOwner: true }, select: { id: true } });
+    await tx.adminBootstrap.create({ data: { id } });
+    return { status: "owner-promoted", playerId: player.id };
+  }, { timeout: 15000 });
+}
+
+module.exports = { bootstrapAdmin, bootstrapOwner };
 if (require.main === module) main().catch(() => {
-  console.error("Admin bootstrap failed. Verify database connectivity and ADMIN_BOOTSTRAP_PLAYER_ID; no partial promotion was committed.");
+  console.error("Owner bootstrap failed. Verify database connectivity, owner constraints and OWNER_BOOTSTRAP_PLAYER_ID; no partial promotion was committed.");
   process.exitCode = 1;
 });

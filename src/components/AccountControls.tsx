@@ -122,7 +122,7 @@ export default function AccountControls({ player }: { player: CurrentPlayer }) {
     {player.isLocal ? <button className="account-claim-button" type="button" aria-haspopup="dialog" onClick={() => setIsOpen(true)}>⚡ CLAIM NETRUNNER ACCOUNT // SIGN IN</button> : <>
       <p className="account-operator"><span>CONNECTED //</span> {player.operatorName}{player.handle && <small>@{player.handle}</small>}</p>
       <AccountSecurity />
-      {player.isAdmin && <AdminControlPanel />}
+      {player.isAdmin && <AdminControlPanel currentPlayerId={player.id} currentPlayerIsOwner={player.isOwner} />}
       <SafeForm action={logout}><LogoutButton /></SafeForm>
     </>}
     <ThemeToggle />

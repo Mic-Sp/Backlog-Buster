@@ -16,17 +16,19 @@ function loader(mocks = {}) {
 }
 const crypto = loader()("src/lib/auth-crypto.ts");
 
-function fixture({ realHash = false } = {}) {
+function fixture({ realHash = false, owner = false } = {}) {
   class AuthenticationRequiredError extends Error { constructor() { super("Sign in"); this.name = "AuthenticationRequiredError"; } }
   const state = { active: true, admin: true, failRevocation: false, failDelete: false, failUpdateCode: null, onHash: () => {}, onLock: () => {}, onDelete: () => {} };
+  const actorId = owner ? "primary-owner" : "admin";
   let db = {
     players: [
-      { id: "admin", email: "admin@example.com", passwordHash: "old-admin-hash", isAdmin: true, handle: "main" },
-      { id: "member", email: "member@example.com", passwordHash: "old-member-hash", isAdmin: false, handle: "test-user" },
-      { id: "other-admin", email: "other@example.com", passwordHash: "old-other-hash", isAdmin: true, handle: null },
-      { id: "default-player", email: null, passwordHash: null, isAdmin: false, handle: null },
+      { id: "primary-owner", email: "primary@example.com", passwordHash: "owner-hash", isAdmin: true, isOwner: true, handle: "primary" },
+      { id: "admin", email: "admin@example.com", passwordHash: "old-admin-hash", isAdmin: true, isOwner: false, handle: "main" },
+      { id: "member", email: "member@example.com", passwordHash: "old-member-hash", isAdmin: false, isOwner: false, handle: "test-user" },
+      { id: "other-admin", email: "other@example.com", passwordHash: "old-other-hash", isAdmin: true, isOwner: false, handle: null },
+      { id: "default-player", email: null, passwordHash: null, isAdmin: false, isOwner: false, handle: null },
     ],
-    sessions: ["admin", "member", "member", "other-admin"].map((userId, id) => ({ userId, id })),
+    sessions: ["primary-owner", "admin", "member", "member", "other-admin"].map((userId, id) => ({ userId, id, expiresAt: new Date(Date.now() + 600000) })),
     games: ["member", "admin"].map(userId => ({ userId })), achievements: [{ userId: "member" }],
     cache: [{ slug: "public-saga" }], bootstrap: { id: "initial-admin-v1" },
   };
@@ -40,9 +42,10 @@ function fixture({ realHash = false } = {}) {
     $executeRaw: async strings => { assert.match(strings.join(""), /backlogbuster-account-registration/); state.onLock(); },
     player: {
       findUnique: async ({ where, select }) => {
-        assert(["isAdmin", "email"].includes(Object.keys(select)[0])); assert.equal(Object.keys(select).length, 1);
+        assert.deepEqual(select, { id: true, email: true, isAdmin: true, isOwner: true });
         const p = target(where); return p ? Object.fromEntries(Object.keys(select).map(key => [key, p[key]])) : null;
       },
+      count: async () => db.players.filter(p => p.isAdmin && p.email && p.passwordHash).length,
       findFirst: async ({ where, select }) => {
         assert.deepEqual(select, { id: true }); assert.equal(where.email.mode, "insensitive");
         const literal = where.email.equals.replace(/\\([\\%_])/g, "$1");
@@ -51,14 +54,14 @@ function fixture({ realHash = false } = {}) {
         return p ? { id: p.id } : null;
       },
       update: async ({ where, data, select }) => {
-        assert.deepEqual(select, { id: true }); assert.equal(Object.keys(data).length, 1); assert(["passwordHash", "email"].includes(Object.keys(data)[0]));
+        assert.deepEqual(select, { id: true }); assert.equal(Object.keys(data).length, 1); assert(["passwordHash", "email", "isAdmin"].includes(Object.keys(data)[0]));
         const p = target(where); if (!p) missing();
         if (state.failUpdateCode) throw Object.assign(new Error("PRIVATE update failed"), { code: state.failUpdateCode });
         if (data.email) assert.equal(where.email, p.email, "Email update guards the current credential snapshot");
         calls.writes++; Object.assign(p, data); return { id: p.id };
       },
       delete: async ({ where, select }) => {
-        assert.equal(where.isAdmin, false); assert.deepEqual(select, { handle: true }); state.onDelete();
+        assert.equal(where.isOwner, false); if (!owner) assert.equal(where.isAdmin, false); assert.deepEqual(select, { handle: true }); state.onDelete();
         const p = target(where); if (!p) missing(); if (state.failDelete) throw Error("PRIVATE delete failed"); calls.writes++;
         db.players = db.players.filter(row => row.id !== p.id);
         // Model the schema's ON DELETE CASCADE, rather than manual unrelated deletes.
@@ -67,14 +70,16 @@ function fixture({ realHash = false } = {}) {
       },
     },
     playerSession: { deleteMany: async ({ where }) => {
-      assert.deepEqual(Object.keys(where), ["userId"]); if (state.failRevocation) throw Error("PRIVATE revocation failed");
-      db.sessions = db.sessions.filter(row => row.userId !== where.userId);
+      assert.deepEqual(Object.keys(where).sort(), ["userId", "player", ...(where.expiresAt ? ["expiresAt"] : [])].sort()); assert.equal(where.player.isOwner, false); if (state.failRevocation) throw Error("PRIVATE revocation failed");
+      const before = db.sessions.length;
+      db.sessions = db.sessions.filter(row => row.userId !== where.userId || (where.expiresAt && row.expiresAt <= where.expiresAt.gt));
+      return { count: before - db.sessions.length };
     } },
   };
   const prisma = {
     playerSession: { findUnique: async ({ where }) => {
       assert(where.expiresAt.gt instanceof Date); assert.deepEqual(where.player, { email: { not: null }, passwordHash: { not: null } });
-      return state.active && db.sessions.some(s => s.userId === "admin") ? { player: { id: "admin", isAdmin: state.admin } } : null;
+      return state.active && db.sessions.some(s => s.userId === actorId) ? { player: { id: actorId, isAdmin: state.admin, isOwner: owner } } : null;
     } },
     $transaction: async (work, options) => {
       assert.equal(options.timeout, 15000); calls.transactions++; const before = structuredClone(db);
@@ -134,7 +139,7 @@ test("reset rolls back its hash when session revocation fails, and rejects missi
   assert.equal(typeof failed.error, "string"); assert(!JSON.stringify(failed).includes("PRIVATE")); assert.deepEqual(f.db, f.initial);
   f.state.failRevocation = false;
   for (const id of ["missing", "default-player"]) {
-    assert.match((await f.actions.adminResetPlayerPassword(id, "new password")).error, /unavailable or changed/);
+    assert.match((await f.actions.adminResetPlayerPassword(id, "new password")).error, /existing registered/);
     assert.deepEqual(f.db, f.initial);
   }
 });
@@ -150,7 +155,7 @@ test("deletion cascades target-owned data, preserves other accounts/shared state
 
 test("deletion blocks self, all other admins, missing accounts, unclaimed local archives and concurrent promotions", async () => {
   const f = fixture();
-  for (const [id, pattern] of [["admin", /own active admin/], ["other-admin", /Admin accounts/], ["missing", /existing registered/], ["default-player", /local archives/]]) {
+  for (const [id, pattern] of [["admin", /own active admin/], ["other-admin", /Only the Owner/], ["missing", /existing registered/], ["default-player", /local archives/]]) {
     assert.match((await f.actions.adminDeletePlayerAccount(id)).error, pattern); assert.deepEqual(f.db, f.initial);
   }
   f.state.onDelete = () => { f.db.players.find(p => p.id === "member").isAdmin = true; };
@@ -172,15 +177,14 @@ test("admin authorization is rechecked after password hashing and lock waits, an
   assert.equal(typeof result.error, "string"); assert(!JSON.stringify(result).includes("PRIVATE")); assert.deepEqual(broken.db, broken.initial);
 });
 
-test("claimed default-player is treated as a registered account and self-reset revokes the admin's own sessions", async () => {
+test("claimed default-player is treated as a registered account and self-reset through admin tools is blocked", async () => {
   const claimed = fixture(), player = claimed.db.players.find(p => p.id === "default-player");
   player.email = "claimed@example.com"; player.passwordHash = "claimed-hash";
   assert.deepEqual(await claimed.actions.adminResetPlayerPassword("default-player", "new password"), { success: true });
   assert.deepEqual(await claimed.actions.adminDeletePlayerAccount("default-player"), { success: true });
   const self = fixture();
-  assert.deepEqual(await self.actions.adminResetPlayerPassword("admin", "new password"), { success: true });
-  assert(self.db.sessions.every(s => s.userId !== "admin"));
-  assert.match((await self.actions.adminDeletePlayerAccount("member")).error, /Sign in/);
+  assert.match((await self.actions.adminResetPlayerPassword("admin", "new password")).error, /Only the Owner/);
+  assert.deepEqual(self.db, self.initial);
 });
 
 test("an in-flight login cannot create a session with credentials superseded by a password reset", async () => {
@@ -262,15 +266,55 @@ test("email unique-constraint races, stale targets and session-revocation failur
   assert.equal(typeof result.error, "string"); assert(!JSON.stringify(result).includes("PRIVATE")); assert.deepEqual(f.db, f.initial);
 });
 
-test("email changes recheck admin authorization after lock waits; self-updates revoke the caller's sessions", async () => {
+test("email changes recheck admin authorization after lock waits; self-updates through admin tools are blocked", async () => {
   for (const change of [{ active: false }, { admin: false }]) {
     const f = fixture(); f.state.onLock = () => Object.assign(f.state, change);
     assert.match((await f.actions.adminUpdatePlayerEmail("member", "new@example.com")).error, change.active === false ? /Sign in/ : /Admin access required/);
     assert.deepEqual(f.db, f.initial);
   }
   const f = fixture();
-  assert.deepEqual(await f.actions.adminUpdatePlayerEmail("admin", "new-admin@example.com"), { success: true, email: "new-admin@example.com" });
-  assert.equal(f.db.players.find(player => player.id === "admin").isAdmin, true);
-  assert(f.db.sessions.every(session => session.userId !== "admin"));
-  assert.match((await f.actions.adminUpdatePlayerEmail("member", "new@example.com")).error, /Sign in/);
+  assert.match((await f.actions.adminUpdatePlayerEmail("admin", "new-admin@example.com")).error, /Only the Owner/);
+  assert.deepEqual(f.db, f.initial);
+});
+
+test("standard admins cannot mutate the Owner or peer admins, or promote ordinary users", async () => {
+  for (const id of ["primary-owner", "other-admin"]) {
+    for (const run of [
+      a => a.adminResetPlayerPassword(id, "new password"),
+      a => a.adminUpdatePlayerEmail(id, "new@example.com"),
+      a => a.adminRevokePlayerSessions(id),
+      a => a.adminSetPlayerAdmin(id, false),
+      a => a.adminSetPlayerAdmin(id, true),
+      a => a.adminDeletePlayerAccount(id),
+    ]) {
+      const f = fixture(), result = await run(f.actions);
+      assert.match(result.error, id === "primary-owner" ? /Owner account is protected/ : /Only the Owner/);
+      assert.deepEqual(f.db, f.initial); assert.equal(f.calls.writes, 0);
+    }
+  }
+  const f = fixture();
+  assert.match((await f.actions.adminSetPlayerAdmin("member", true)).error, /Only the Owner/);
+  assert.deepEqual(f.db, f.initial);
+});
+
+test("Owner can manage admins, but cannot target the Owner through any admin mutation", async () => {
+  const f = fixture({ owner: true }), a = f.actions;
+  assert.deepEqual(await a.adminResetPlayerPassword("other-admin", "new password"), { success: true });
+  assert.deepEqual(await a.adminUpdatePlayerEmail("other-admin", "Updated@Example.com"), { success: true, email: "updated@example.com" });
+  assert.deepEqual(await a.adminRevokePlayerSessions("admin"), { success: true, revokedCount: 1 });
+  assert.deepEqual(await a.adminSetPlayerAdmin("other-admin", false), { success: true, isAdmin: false, changed: true });
+  assert.deepEqual(await a.adminSetPlayerAdmin("member", true), { success: true, isAdmin: true, changed: true });
+  assert.deepEqual(await a.adminDeletePlayerAccount("admin"), { success: true });
+  const owner = f.db.players.find(p => p.id === "primary-owner");
+  assert(owner.isOwner && owner.isAdmin); assert(f.db.sessions.some(s => s.userId === owner.id));
+  for (const run of [
+    a => a.adminResetPlayerPassword(owner.id, "new password"),
+    a => a.adminUpdatePlayerEmail(owner.id, "new@example.com"),
+    a => a.adminRevokePlayerSessions(owner.id),
+    a => a.adminSetPlayerAdmin(owner.id, false),
+    a => a.adminSetPlayerAdmin(owner.id, true),
+    a => a.adminDeletePlayerAccount(owner.id),
+  ]) {
+    const before = structuredClone(f.db); assert.equal(typeof (await run(a)).error, "string"); assert.deepEqual(f.db, before);
+  }
 });

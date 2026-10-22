@@ -29,6 +29,7 @@
 .admin-telemetry dt { color: var(--admin-muted); font-size: 11px; line-height: 1.5; }
 .admin-telemetry dd { margin: 8px 0 0; color: var(--admin-signal); font: 400 36px/1.1 var(--font-terminal), "Courier New", monospace; overflow-wrap: anywhere; }
 .admin-maintenance { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--admin-line); }
+.admin-maintenance-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .admin-modal button { min-height: 36px; padding: 8px 12px; border: 1px solid var(--admin-line); border-radius: 2px; color: var(--admin-signal); background: var(--admin-button); font: 700 10px/1.4 "Courier New", monospace; cursor: pointer; }
 .admin-modal button:hover:not(:disabled) { background: var(--admin-frame); color: #06090f; }
 .admin-modal button:disabled { opacity: .45; cursor: wait; }
@@ -41,6 +42,7 @@
 .admin-directory { margin-top: 24px; padding-top: 4px; border-top: 1px solid var(--admin-line); }
 .admin-player-list { display: grid; gap: 16px; padding: 0; margin: 18px 0; list-style: none; }
 .admin-player-row { min-width: 0; padding: 16px; border: 1px solid var(--admin-line); background: var(--admin-tile); }
+.admin-player-row[data-owner="true"] { border-color: var(--admin-accent); border-left-width: 3px; }
 .admin-player-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .admin-player-heading > div { min-width: 0; }
 .admin-player-heading h4 { margin: 0; color: var(--admin-ink); font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; }
@@ -49,12 +51,19 @@
 .admin-player-id { color: var(--admin-muted); font-size: 10px; }
 .admin-role-badge { flex-shrink: 0; padding: 4px 6px; border: 1px solid var(--admin-line); color: var(--admin-signal); font-size: 9px; letter-spacing: .06em; }
 .admin-role-badge[data-admin="true"] { border-color: var(--admin-accent); color: var(--admin-accent); }
+.admin-role-badge[data-owner="true"] { border-color: var(--admin-accent); color: var(--admin-tile); background: var(--admin-accent); font-weight: 700; }
+.admin-account-protection { padding-top: 12px; border-top: 1px solid var(--admin-line); }
 .admin-player-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 18px 0; }
 .admin-player-stats dt { color: var(--admin-muted); font-size: 10px; line-height: 1.6; }
 .admin-player-stats dd { margin: 4px 0 0; color: var(--admin-ink); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
 .admin-player-actions, .admin-directory-pages { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .admin-directory-pages { justify-content: space-between; }
 .admin-player-actions .admin-hint { font-size: 10px; }
+.admin-session-actions { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--admin-line); }
+.admin-role-confirmation { margin-top: 18px; padding: 12px; border: 1px solid var(--admin-accent); background: var(--admin-surface); }
+.admin-role-confirmation > p { margin: 0 0 14px; color: var(--admin-ink); font-size: 12px; line-height: 1.7; overflow-wrap: anywhere; }
+.admin-modal button.admin-role-button { border-color: var(--admin-accent); color: var(--admin-accent); }
+.admin-modal button.admin-role-button:hover:not(:disabled) { background: var(--admin-accent); color: #06090f; }
 :is(.admin-password-reset, .admin-email-update) { min-width: 0; margin: 18px 0 0; padding-top: 16px; border-top: 1px solid var(--admin-line); }
 :is(.admin-password-reset, .admin-email-update) label { display: block; color: var(--admin-ink); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
 :is(.admin-password-reset, .admin-email-update) input { display: block; width: 100%; min-width: 0; padding: 11px 12px; margin: 10px 0 14px; border: 1px solid var(--admin-line); border-radius: 2px; color: var(--admin-ink); background: var(--admin-surface); font: 14px/1.4 "Courier New", monospace; }
@@ -84,6 +93,7 @@
   .admin-modal-backdrop { padding: 12px; }
   .admin-modal { padding: 18px; max-height: calc(100dvh - 24px); }
   .admin-telemetry { grid-template-columns: 1fr; }
+  .admin-maintenance-actions { grid-template-columns: 1fr; }
   .admin-modal-heading h2 { font-size: 28px; }
   .admin-player-row { padding: 12px; }
   .admin-player-stats { grid-template-columns: 1fr; }

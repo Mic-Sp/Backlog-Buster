@@ -28,7 +28,7 @@ test('credential validation trims email, preserves exact passwords, rejects blan
 test('security actions require a live session, verify current password, enforce rate/ownership and rotate atomically', async () => {
   let token='session-hash', wrong=false, taken=false, revoked=false, stale=false, race=false, quota=0;
   let verifies=0, hashes=0, rotations=0, writes=0, refreshes=0;
-  let player={id:'owner-id',email:'owner@example.com',passwordHash:'private-hash',handle:'owner',createdAt:new Date('2020-01-01Z')};
+  let player={isOwner:true,isAdmin:true,id:'owner-id',email:'owner@example.com',passwordHash:'private-hash',handle:'owner',createdAt:new Date('2020-01-01Z')};
   const expiry=new Date(Date.now()+60000);
   const tx={
     $executeRaw:async()=>{},
@@ -75,6 +75,7 @@ test('account wipe requires intent and password, shares rate limits, cascades on
   const revalidated = [];
   const db = { players: ['owner-id', 'other-id'], games: [{userId:'owner-id',pinnedOrder:1,backlogOrder:2},{userId:'other-id'}], achievements: [{userId:'owner-id'},{userId:'other-id'}], sessions: [{userId:'owner-id'},{userId:'owner-id'},{userId:'other-id'}] };
   const tx = { $executeRaw: async () => {}, playerSession: { findUnique: async ({where}) => { assert.equal(where.userId,'owner-id'); assert.equal(where.tokenHash,'active-hash'); return revoked ? null : {tokenHash:'active-hash'}; } }, player: { delete: async ({where}) => {
+    assert.equal(where.isAdmin, false, 'A promotion racing account wipe must prevent deletion');
     assert.equal(where.id,'owner-id'); assert.equal(where.passwordHash,'secret-hash'); assert.equal(where.email,'owner@example.test');
     if(changed)throw {code:'P2025'};
     db.players=db.players.filter(id=>id!==where.id);

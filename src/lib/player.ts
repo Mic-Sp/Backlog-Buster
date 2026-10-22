@@ -3,7 +3,7 @@ import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 import { readSessionHash } from "@/lib/auth-session";
 
-export type CurrentPlayer = { id: string; operatorName: string; handle: string | null; isLocal: boolean; isAdmin: boolean };
+export type CurrentPlayer = { id: string; operatorName: string; handle: string | null; isLocal: boolean; isAdmin: boolean; isOwner: boolean };
 export class AuthenticationRequiredError extends Error {
   constructor() { super("Sign in to access your library."); this.name = "AuthenticationRequiredError"; }
 }
@@ -14,7 +14,7 @@ export const getCurrentPlayer = cache(async (): Promise<CurrentPlayer | null> =>
   if (tokenHash) {
     const session = await prisma.playerSession.findUnique({
       where: { tokenHash, expiresAt: { gt: new Date() }, player: { email: { not: null }, passwordHash: { not: null } } },
-      select: { player: { select: { id: true, operatorName: true, handle: true, isAdmin: true } } },
+      select: { player: { select: { id: true, operatorName: true, handle: true, isAdmin: true, isOwner: true } } },
     });
     if (session) return { ...session.player, isLocal: false };
   }
@@ -23,7 +23,7 @@ export const getCurrentPlayer = cache(async (): Promise<CurrentPlayer | null> =>
     select: { id: true, operatorName: true, handle: true, email: true, passwordHash: true },
   });
   if (!local || local.email !== null || local.passwordHash !== null) return null;
-  return { id: local.id, operatorName: local.operatorName, handle: local.handle, isLocal: true, isAdmin: false };
+  return { id: local.id, operatorName: local.operatorName, handle: local.handle, isLocal: true, isAdmin: false, isOwner: false };
 });
 
 export async function getCurrentPlayerId(): Promise<string> {

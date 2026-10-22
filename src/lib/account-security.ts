@@ -14,7 +14,7 @@ export async function getCredentialSession() {
   if (!tokenHash) throw new InputError("Sign in to manage your account security.");
   const session = await prisma.playerSession.findUnique({
     where: { tokenHash, expiresAt: { gt: new Date() }, player: { email: { not: null }, passwordHash: { not: null } } },
-    select: { expiresAt: true, player: { select: { id: true, email: true, passwordHash: true, handle: true, createdAt: true } } },
+    select: { expiresAt: true, player: { select: { id: true, email: true, passwordHash: true, handle: true, createdAt: true, isAdmin: true, isOwner: true } } },
   });
   if (!session?.player.email || !session.player.passwordHash) throw new InputError("Sign in to manage your account security.");
   return { tokenHash, session, player: session.player };

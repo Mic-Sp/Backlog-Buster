@@ -44,7 +44,7 @@ function fixture({ admin = false, active = true, status = "hit", localFallback =
       assert.equal(where.tokenHash, "verified-token-hash");
       assert(where.expiresAt.gt instanceof Date);
       assert.deepEqual(where.player, { email: { not: null }, passwordHash: { not: null } });
-      assert.deepEqual(select, { player: { select: { id: true, isAdmin: true } } });
+      assert.deepEqual(select, { player: { select: { id: true, isAdmin: true, isOwner: true } } });
       return state.active ? { player: { id: "owner", isAdmin: state.admin } } : null;
     } },
     game: {

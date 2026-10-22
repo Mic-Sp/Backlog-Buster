@@ -2,7 +2,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs"), path = require("node:path"), Module = require("node:module"), ts = require("typescript");
-const { bootstrapAdmin } = require("../scripts/bootstrap-admin.cjs");
+const { bootstrapAdmin, bootstrapOwner } = require("../scripts/bootstrap-admin.cjs");
 
 function loadGuard(mocks) {
   const filename = path.resolve(__dirname, "../src/lib/admin.ts");
@@ -30,7 +30,7 @@ test("admin guard checks fresh authenticated database state and never uses local
       assert.equal(where.tokenHash, "signed-session-hash");
       assert(where.expiresAt.gt instanceof Date);
       assert.deepEqual(where.player, { email: { not: null }, passwordHash: { not: null } });
-      assert.deepEqual(select, { player: { select: { id: true, isAdmin: true } } });
+      assert.deepEqual(select, { player: { select: { id: true, isAdmin: true, isOwner: true } } });
       return active ? { player: { id: "registered-player", isAdmin } } : null;
     } } } },
   });
@@ -39,7 +39,7 @@ test("admin guard checks fresh authenticated database state and never uses local
   tokenHash = "signed-session-hash";
   await assert.rejects(requireAdmin, AdminRequiredError);
   isAdmin = true;
-  assert.deepEqual(await requireAdmin(), { id: "registered-player", isAdmin: true });
+  assert.deepEqual(await requireAdmin(), { id: "registered-player", isAdmin: true, isOwner: false });
   isAdmin = false;
   await assert.rejects(requireAdmin, AdminRequiredError, "Demotion applies on the next check");
   isAdmin = true; active = false;
@@ -113,5 +113,57 @@ test("bootstrap rejects absent identifiers, emails, missing players and unclaime
     await assert.rejects(() => bootstrapAdmin(db.prisma, "owner"), /existing registered account/);
     assert.equal(db.state().marker, null);
     db.state().players[0][field] = original;
+  }
+});
+
+function ownerDatabase() {
+  let state = { players: [
+    { id: "main", email: "main@test.com", passwordHash: "hash", isAdmin: true, isOwner: false },
+    { id: "other", email: "other@test.com", passwordHash: "hash", isAdmin: false, isOwner: false },
+    { id: "default-player", email: null, passwordHash: null, isAdmin: false, isOwner: false },
+  ], markers: ["initial-admin-v1"] };
+  let tail = Promise.resolve();
+  const prisma = { $transaction: async work => {
+    const previous = tail; let release; tail = new Promise(resolve => { release = resolve; });
+    await previous; const before = structuredClone(state);
+    try { return await work({
+      $executeRaw: async sql => assert.match(sql.join(""), /LOCK TABLE "Player" IN SHARE ROW EXCLUSIVE MODE/),
+      adminBootstrap: {
+        findUnique: async ({ where }) => state.markers.includes(where.id) ? { id: where.id } : null,
+        create: async ({ data }) => { assert(!state.markers.includes(data.id)); state.markers.push(data.id); },
+      },
+      player: {
+        findFirst: async ({ where }) => { assert.deepEqual(where, { isOwner: true }); return state.players.find(p => p.isOwner) ?? null; },
+        findUnique: async ({ where }) => state.players.find(p => p.id === where.id) ?? null,
+        update: async ({ where, data }) => {
+          assert.deepEqual(data, { isAdmin: true, isOwner: true });
+          assert(!state.players.some(p => p.isOwner)); Object.assign(state.players.find(p => p.id === where.id), data);
+        },
+      },
+    }); } catch (error) { state = before; throw error; } finally { release(); }
+  } };
+  return { prisma, state: () => state };
+}
+
+test("Owner bootstrap upgrades the existing admin once, preserves the legacy latch, and serializes competing claims", async () => {
+  const db = ownerDatabase();
+  const results = await Promise.all([bootstrapOwner(db.prisma, "main"), bootstrapOwner(db.prisma, "other")]);
+  assert.deepEqual(results.map(r => r.status), ["owner-promoted", "already-completed"]);
+  assert.deepEqual(db.state().markers, ["initial-admin-v1", "initial-owner-v1"]);
+  assert.equal(db.state().players.filter(p => p.isOwner).length, 1);
+  assert(db.state().players[0].isOwner && db.state().players[0].isAdmin);
+  db.state().players[0].email = "changed@test.com";
+  assert.equal((await bootstrapOwner(db.prisma, "other")).status, "already-completed");
+  assert.equal(db.state().players[1].isOwner, false);
+});
+
+test("an existing Owner seals bootstrap without a transfer; absent/unclaimed targets do not consume the latch", async () => {
+  const existing = ownerDatabase(); existing.state().players[0].isOwner = true;
+  assert.equal((await bootstrapOwner(existing.prisma, "other")).status, "owner-already-exists");
+  assert.equal(existing.state().players[1].isOwner, false);
+  for (const id of [undefined, "", "main@test.com", "missing", "default-player"]) {
+    const db = ownerDatabase(); await assert.rejects(() => bootstrapOwner(db.prisma, id));
+    assert.deepEqual(db.state().markers, ["initial-admin-v1"]);
+    assert.equal(db.state().players.filter(p => p.isOwner).length, 0);
   }
 });

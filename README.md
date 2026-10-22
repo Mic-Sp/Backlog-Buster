@@ -43,20 +43,31 @@ npx prisma db push
 npx prisma generate
 ```
 
-### One-time admin bootstrap
+### One-time Owner bootstrap
 
 After syncing the schema, use Node.js 22.18+ to run
-`ADMIN_BOOTSTRAP_PLAYER_ID="existing-player-id" npm run admin:bootstrap`.
+`OWNER_BOOTSTRAP_PLAYER_ID="existing-player-id" npm run admin:bootstrap`.
 The optional identifier can also be supplied through `.env`; it must identify an
 existing account with email/password credentials. The command accepts no email or
 handle fallback and never runs during login or profile changes.
 
-Bootstrap uses a transaction and a database lock. It promotes the selected account
-only when there are no admins and no completion marker. An existing admin seals
-bootstrap without promoting anyone. The permanent `AdminBootstrap` marker remains
-after demotion or deletion, preventing subsequent reactivation. Future admin access
-depends solely on `Player.isAdmin` and an active authenticated session, checked by
-the server-only `requireAdmin()` helper. Client `isAdmin` props are for display only.
+After each schema sync, apply the PostgreSQL Owner constraints before bootstrap:
+`npx prisma db execute --file prisma/owner-constraints.sql`. The partial unique
+index permits only one Owner; a check requires the Owner to remain an Admin; the
+trigger prevents deleting the Owner or removing/transferring its Owner status.
+Normal self-service credential changes remain available.
+
+Bootstrap uses a transaction, a database lock, and a separate permanent
+`initial-owner-v1` marker in `AdminBootstrap`. It upgrades the selected existing
+account to Owner and Admin even if the legacy admin bootstrap already completed.
+An existing Owner seals the latch without transferring ownership. The legacy
+`ADMIN_BOOTSTRAP_PLAYER_ID` remains an optional command-only fallback identifier.
+Neither bootstrap runs during login or profile edits.
+
+Server-only `requireAdmin()` checks active sessions and database flags. Admin
+mutations reject Owner targets, standard admins cannot manage peer admins, and
+only the Owner can promote or demote admins. Client role props are for display only;
+there is no application action to transfer or remove Owner status.
 
 For an existing database created before Player profiles, run the additive backfill
 before `db push` so every game and achievement owner has a Player record:

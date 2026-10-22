@@ -87,6 +87,8 @@ export async function resetOperatorLibrary(formData: FormData) {
 export async function wipeOperatorAccount(formData: FormData) {
   return safeAction(async () => {
     const { player, tokenHash } = await getCredentialSession();
+    if (player.isOwner) throw new InputError("The Owner account cannot be deleted.");
+    if (player.isAdmin) throw new InputError("Admin accounts must be demoted by the Owner before account deletion.");
     if (!(formData instanceof FormData)) throw new InputError("Confirm your password and type WIPE ARCHIVE.");
     const phrase = formData.get("confirmation");
     const password = formData.get("currentPassword");
@@ -101,7 +103,7 @@ export async function wipeOperatorAccount(formData: FormData) {
         const active = await tx.playerSession.findUnique({ where: { tokenHash, userId: player.id, expiresAt: { gt: new Date() } }, select: { tokenHash: true } });
         if (!active) throw new InputError("Your session expired. Sign in again before terminating this archive.");
         // Database cascades remove this player's games, achievements and every device session.
-        await tx.player.delete({ where: { id: player.id, passwordHash: player.passwordHash, email: player.email! }, select: { id: true } });
+        await tx.player.delete({ where: { id: player.id, passwordHash: player.passwordHash, email: player.email!, isAdmin: false, isOwner: false }, select: { id: true } });
       }, { timeout: 15000 });
     } catch (error) {
       if (error && typeof error === "object" && "code" in error && error.code === "P2025") throw new InputError("Your account changed. Reopen the security gateway and verify again.");

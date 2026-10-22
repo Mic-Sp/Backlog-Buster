@@ -2,17 +2,18 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { getAdminSystemOverview, purgeSagaChronologyCache } from "@/app/admin-actions";
+import { adminPruneExpiredSessions, getAdminSystemOverview, purgeSagaChronologyCache } from "@/app/admin-actions";
 import { actionErrorMessage, unwrapActionResult, type ActionError } from "@/lib/action-result";
 import AdminPlayerDirectory from "@/components/AdminPlayerDirectory";
 import "./AdminControlPanel.css";
 
 type SystemOverview = Exclude<Awaited<ReturnType<typeof getAdminSystemOverview>>, ActionError>;
 
-function AdminPanel({ onClose }: { onClose: () => void }) {
+function AdminPanel({ onClose, currentPlayerId, currentPlayerIsOwner }: { onClose: () => void; currentPlayerId: string; currentPlayerIsOwner: boolean }) {
   const [overview, setOverview] = useState<SystemOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [purging, setPurging] = useState(false);
+  const [pruning, setPruning] = useState(false);
   const [managingPlayers, setManagingPlayers] = useState(false);
   const [error, setError] = useState("");
   const [confirmation, setConfirmation] = useState("");
@@ -21,12 +22,12 @@ function AdminPanel({ onClose }: { onClose: () => void }) {
   const busyRef = useRef(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const titleId = useId(), descriptionId = useId();
-  const locked = purging || managingPlayers;
+  const locked = purging || pruning || managingPlayers;
   const onPlayerBusyChange = useCallback((busy: boolean) => { busyRef.current = busy; setManagingPlayers(busy); }, []);
-  const onPlayerDeleted = useCallback(async () => {
-    setOverview(null);
+  const onAccountsChanged = useCallback(async () => {
+    setOverview(null); setError("");
     try { setOverview(unwrapActionResult(await getAdminSystemOverview())); }
-    catch (cause) { setError(actionErrorMessage(cause, "Account deleted. Refresh the overview to reload system counts.")); }
+    catch (cause) { setError(actionErrorMessage(cause, "Account updated. Refresh the overview to reload system counts.")); }
   }, []);
 
   useEffect(() => {
@@ -81,6 +82,16 @@ function AdminPanel({ onClose }: { onClose: () => void }) {
     finally { busyRef.current = false; setPurging(false); }
   }
 
+  async function pruneSessions() {
+    if (loading || busyRef.current) return;
+    busyRef.current = true; setPruning(true); setError(""); setConfirmation("");
+    try {
+      const result = unwrapActionResult(await adminPruneExpiredSessions());
+      setConfirmation(`SESSION PRUNE COMPLETE // ${result.deletedCount.toLocaleString("en-US")} expired session ${result.deletedCount === 1 ? "record" : "records"} removed.`);
+    } catch (cause) { setError(actionErrorMessage(cause, "Session pruning failed. Please try again.")); }
+    finally { busyRef.current = false; setPruning(false); }
+  }
+
   return <div className="admin-modal-backdrop" onClick={event => { if (event.target === event.currentTarget && !busyRef.current) onClose(); }}>
     <div className="admin-modal" ref={panelRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={descriptionId} aria-busy={loading || locked}>
       <header className="admin-modal-heading">
@@ -99,22 +110,23 @@ function AdminPanel({ onClose }: { onClose: () => void }) {
         </dl>}
       </section>
       <section className="admin-maintenance" aria-labelledby={`${titleId}-maintenance`}>
-        <h3 id={`${titleId}-maintenance`}>02 // CACHE MAINTENANCE</h3>
+        <h3 id={`${titleId}-maintenance`}>02 // CACHE &amp; SESSION MAINTENANCE</h3>
         <p className="admin-hint">Clear all shared saga chronology caches. Saved game orders stay intact; future scans rebuild cached timelines.</p>
-        <button className="admin-purge-button" type="button" disabled={loading || locked || !overview} onClick={() => void purgeCache()}>{purging ? "CLEARING CACHE // REFRESHING TELEMETRY…" : "RESET SAGA CHRONOLOGY CACHE"}</button>
+        <div className="admin-maintenance-actions"><button className="admin-purge-button" type="button" disabled={loading || locked || !overview} onClick={() => void purgeCache()}>{purging ? "CLEARING CACHE // REFRESHING TELEMETRY…" : "RESET SAGA CHRONOLOGY CACHE"}</button><button type="button" disabled={loading || locked} onClick={() => void pruneSessions()}>{pruning ? "PRUNING EXPIRED SESSIONS…" : "PRUNE EXPIRED SESSIONS"}</button></div>
+        <p className="admin-hint">Session pruning removes expired login records across all accounts. Active sessions stay connected.</p>
       </section>
       {error && <p className="admin-error" role="alert">{error}</p>}
       {confirmation && <p className="admin-confirmation" role="status">{confirmation}</p>}
-      <AdminPlayerDirectory disabled={loading || locked} onBusyChange={onPlayerBusyChange} onDeleted={onPlayerDeleted} />
+      <AdminPlayerDirectory currentPlayerId={currentPlayerId} currentPlayerIsOwner={currentPlayerIsOwner} disabled={loading || locked} onBusyChange={onPlayerBusyChange} onAccountsChanged={onAccountsChanged} />
     </div>
   </div>;
 }
 
-export default function AdminControlPanel() {
+export default function AdminControlPanel({ currentPlayerId, currentPlayerIsOwner }: { currentPlayerId: string; currentPlayerIsOwner: boolean }) {
   const [open, setOpen] = useState(false);
   const close = useCallback(() => setOpen(false), []);
   return <>
     <button className="admin-panel-trigger" type="button" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)}>ADMIN // OVERWATCH</button>
-    {open && createPortal(<AdminPanel onClose={close} />, document.body)}
+    {open && createPortal(<AdminPanel onClose={close} currentPlayerId={currentPlayerId} currentPlayerIsOwner={currentPlayerIsOwner} />, document.body)}
   </>;
 }
