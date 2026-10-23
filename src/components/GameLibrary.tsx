@@ -198,6 +198,7 @@ function useGameLibraryController({ games: serverGames, achievements = [], isAdm
     modal?.querySelector<HTMLInputElement>('input[name="title"]')?.focus();
 
     function handleKeyDown(event: KeyboardEvent) {
+      if (event.defaultPrevented) return;
       if (event.key === "Escape") {
         event.preventDefault();
         setEditingMetaGame(null);

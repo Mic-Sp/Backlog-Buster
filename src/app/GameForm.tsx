@@ -1,22 +1,18 @@
 "use client";
 
-import useCooldown from "@/components/useCooldown";
-import { DEFAULT_COOLDOWN_SECONDS } from "@/lib/cooldown";
-import { actionErrorMessage, ActionFailure, unwrapActionResult } from "@/lib/action-result";
+import { unwrapActionResult } from "@/lib/action-result";
 
 import SafeForm from "@/components/SafeForm";
 import TitleAutocomplete from "@/components/TitleAutocomplete";
 import type { CatalogSuggestion } from "@/lib/catalog-types";
 
-import { useId, useRef, useState, useTransition } from "react";
+import { useId, useRef, useState } from "react";
 import { resolveRawgPlaytime } from "@/lib/game-playtime";
-import { createGame, searchGameInfo } from "./actions";
+import { createGame } from "./actions";
 
 const defaultPlatforms = ["PC", "Switch", "PS5", "Retro"];
 
 export default function GameForm() {
-  const cooldown = useCooldown();
-  const searchingRef = useRef(false);
   const formRef = useRef<HTMLFormElement>(null);
   const titleId = useId();
   const customizedFields = useRef(new Set<string>());
@@ -24,7 +20,6 @@ export default function GameForm() {
   const [formVersion, setFormVersion] = useState(0);
   const [platformOptions, setPlatformOptions] = useState(defaultPlatforms);
   const [lookupMessage, setLookupMessage] = useState("");
-  const [isSearching, startSearch] = useTransition();
 
   async function addGame(data: FormData) {
     const result = unwrapActionResult(await createGame(data));
@@ -53,89 +48,18 @@ export default function GameForm() {
   }
 
   function selectSuggestion(suggestion: CatalogSuggestion) {
+    const genreField = formRef.current?.elements.namedItem("genre");
+    const genre = customizedFields.current.has("genre") && genreField instanceof HTMLInputElement
+      ? genreField.value : suggestion.genre;
     fillMetadata({
       platform: suggestion.platforms[0] ?? "",
       coverUrl: suggestion.coverUrl ?? "",
       genre: suggestion.genre ?? "",
       releaseYear: suggestion.releaseYear?.toString() ?? "",
-      lengthHours: suggestion.estimatedHours?.toString() ?? "",
+      lengthHours: resolveRawgPlaytime(suggestion.estimatedHours, genre)?.toString() ?? "",
     });
     setPlatformOptions((options) => [...new Set([...options, ...suggestion.platforms])]);
     setLookupMessage("Title selected. Review or edit the suggested details.");
-  }
-
-  function searchForGame() {
-    if (searchingRef.current || cooldown.seconds > 0) return;
-    const form = formRef.current;
-    const titleField = form?.elements.namedItem("title");
-    const title = titleField instanceof HTMLInputElement
-      ? titleField.value.trim()
-      : "";
-
-    if (!title) {
-      setLookupMessage("Please input a valid title.");
-      return;
-    }
-
-    searchingRef.current = true;
-    startSearch(async () => {
-      const startedAt = Date.now();
-      try {
-        const gameInfo = unwrapActionResult(await searchGameInfo(title));
-        cooldown.start(DEFAULT_COOLDOWN_SECONDS, startedAt);
-        const currentForm = formRef.current;
-        const currentTitle = currentForm?.elements.namedItem("title");
-        if (!(currentTitle instanceof HTMLInputElement) || currentTitle.value.trim() !== title) return;
-
-        if (!gameInfo) {
-          setLookupMessage("No match found. You can still add the game manually.");
-          return;
-        }
-
-        if (currentForm) {
-          const setInputValue = (name: string, value: string) => fillMetadata({ [name]: value });
-
-          if (gameInfo.platforms[0]) {
-            setInputValue("platform", gameInfo.platforms[0]);
-          }
-          if (gameInfo.coverUrl) {
-            setInputValue("coverUrl", gameInfo.coverUrl);
-          }
-          if (gameInfo.genre) {
-            setInputValue("genre", gameInfo.genre);
-          }
-          if (gameInfo.releaseYear) {
-            setInputValue("releaseYear", String(gameInfo.releaseYear));
-          }
-          const genreField = currentForm.elements.namedItem("genre");
-          const resolvedGenre = genreField instanceof HTMLInputElement
-            ? genreField.value.trim() || gameInfo.genre
-            : gameInfo.genre;
-          const rawgLengthHours = resolveRawgPlaytime(
-            gameInfo.playtime,
-            resolvedGenre,
-          );
-          const lengthHoursField = currentForm.elements.namedItem("lengthHours");
-          if (
-            lengthHoursField instanceof HTMLInputElement &&
-            lengthHoursField.value.trim() === "" &&
-            rawgLengthHours !== null
-          ) {
-            setInputValue("lengthHours", String(rawgLengthHours));
-          }
-        }
-
-        if (gameInfo.platforms.length > 0) {
-          setPlatformOptions([
-            ...new Set([...defaultPlatforms, ...gameInfo.platforms]),
-          ]);
-        }
-        setLookupMessage("Game info found. Review or edit the suggestions.");
-      } catch (error) {
-        if (error instanceof ActionFailure) cooldown.start(error.retryAfterSeconds);
-        setLookupMessage(actionErrorMessage(error, "Lookup unavailable.") + " You can still add the game manually.");
-      } finally { searchingRef.current = false; }
-    });
   }
 
   return (
@@ -146,17 +70,7 @@ export default function GameForm() {
     }}>
       <div className="field field-title">
         <label htmlFor={titleId}>Game title</label>
-        <div className="title-search-row">
-          <TitleAutocomplete key={formVersion} id={titleId} onSelect={selectSuggestion} onTitleChange={clearAutofill} />
-          <button
-            className="search-button"
-            disabled={isSearching || cooldown.seconds > 0}
-            onClick={searchForGame}
-            type="button"
-          >
-            {cooldown.seconds > 0 ? cooldown.label : isSearching ? "Searching..." : "Search Game Info"}
-          </button>
-        </div>
+        <TitleAutocomplete key={formVersion} id={titleId} onSelect={selectSuggestion} onTitleChange={clearAutofill} />
         <span className="lookup-message" aria-live="polite">{lookupMessage}</span>
       </div>
 

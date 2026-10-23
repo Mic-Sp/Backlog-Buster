@@ -14,14 +14,16 @@ function isSuggestion(value: unknown): value is CatalogSuggestion {
     (item.coverUrl === null || (typeof item.coverUrl === "string" && /^https?:\/\//i.test(item.coverUrl)));
 }
 
-export default function TitleAutocomplete({ id, onSelect, onTitleChange }: {
+export default function TitleAutocomplete({ id, defaultValue = "", ariaLabel, onSelect, onTitleChange }: {
   id: string;
+  defaultValue?: string;
+  ariaLabel?: string;
   onSelect: (suggestion: CatalogSuggestion) => void;
   onTitleChange: () => void;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const [value, setValue] = useState("");
+  const [value, setValue] = useState(defaultValue);
   const [query, setQuery] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<CatalogSuggestion[]>([]);
   const [highlighted, setHighlighted] = useState(-1);
@@ -94,6 +96,7 @@ export default function TitleAutocomplete({ id, onSelect, onTitleChange }: {
         required
         value={value}
         role="combobox"
+        aria-label={ariaLabel}
         aria-autocomplete="list"
         aria-expanded={open}
         aria-controls={open ? listId : undefined}
@@ -117,8 +120,9 @@ export default function TitleAutocomplete({ id, onSelect, onTitleChange }: {
         onBlur={dismiss}
         onKeyDown={(event) => {
           if (event.nativeEvent.isComposing) return;
-          if (event.key === "Escape") {
+          if (event.key === "Escape" && (open || loading || query !== null)) {
             event.preventDefault();
+            event.stopPropagation();
             dismiss();
           } else if (open && (event.key === "ArrowDown" || event.key === "ArrowUp")) {
             event.preventDefault();

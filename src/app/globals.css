@@ -326,14 +326,8 @@ p {
 	grid-column: span 2;
 }
 
-.title-search-row {
-	display: flex;
-	gap: 8px;
-}
-
 .title-autocomplete {
 	position: relative;
-	flex: 1 1 auto;
 	min-width: 0;
 }
 
@@ -411,30 +405,6 @@ p {
 	overflow: hidden;
 	clip-path: inset(50%);
 	white-space: nowrap;
-}
-
-.search-button {
-	flex: 0 0 auto;
-	min-height: 44px;
-	padding: 0 11px;
-	border: 1px solid var(--line);
-	border-radius: 5px;
-	color: var(--green);
-	background: #f7faf4;
-	cursor: pointer;
-	font-size: 11px;
-	font-weight: 700;
-	white-space: nowrap;
-}
-
-.search-button:hover:not(:disabled) {
-	border-color: var(--green);
-	background: #edf4e9;
-}
-
-.search-button:disabled {
-	cursor: wait;
-	opacity: 0.7;
 }
 
 .lookup-message {
@@ -980,8 +950,6 @@ button.start-gig-badge:focus-visible {
 		grid-column: 1 / -1;
 	}
 
-	.title-search-row { flex-wrap: wrap; }
-	.title-autocomplete { flex-basis: 200px; }
 	.title-suggestions { min-width: 0; }
 
 	.add-button {
@@ -1147,19 +1115,6 @@ body {
 .difficulty-select:focus {
 	border-color: var(--blue);
 	box-shadow: 0 0 0 2px rgba(0, 229, 255, 0.16);
-}
-
-.search-button {
-	border-color: var(--blue);
-	border-radius: 2px;
-	color: var(--blue);
-	background: #0a1118;
-}
-
-.search-button:hover:not(:disabled) {
-	border-color: var(--blue);
-	color: #071014;
-	background: var(--blue);
 }
 
 .add-button {

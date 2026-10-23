@@ -57,7 +57,7 @@ const item = (title = "Portal 2", year = 2011) => ({ title, releaseYear: year, p
 const settle = () => new Promise(resolve => setImmediate(resolve));
 const deferred = () => { let resolve; const promise = new Promise(done => { resolve = done; }); return { promise, resolve }; };
 
-function autocompleteFixture(fetcher = async () => Response.json([item()])) {
+function autocompleteFixture(fetcher = async () => Response.json([item()]), initialProps = {}) {
   const original = { fetch: global.fetch, document: global.document, Node: global.Node, setTimeout: global.setTimeout, clearTimeout: global.clearTimeout };
   const timers = new Map(), listeners = new Map(), requests = [], selected = [];
   let now = 0, timerId = 0, changes = 0;
@@ -72,9 +72,9 @@ function autocompleteFixture(fetcher = async () => Response.json([item()])) {
   global.fetch = async (url, options) => { requests.push({ url, options }); return fetcher(url, options); };
   const h = hooks();
   const Component = load("src/components/TitleAutocomplete.tsx", { react: h.react }).default;
-  const props = { id: "title", onSelect: value => selected.push(value), onTitleChange: () => changes++ };
+  const props = { id: "title", onSelect: value => selected.push(value), onTitleChange: () => changes++, ...initialProps };
   const input = new FakeNode(), root = new FakeNode();
-  let focused = 0, scrolled = 0, tree;
+  let focused = 0, scrolled = 0, stopped = false, tree;
   input.focus = () => focused++;
   root.contains = target => target === input || target === root;
   root.querySelector = () => ({ scrollIntoView: () => scrolled++ });
@@ -91,12 +91,14 @@ function autocompleteFixture(fetcher = async () => Response.json([item()])) {
     get input() { return get(render(), node => node.type === "input").props; },
     get options() { return nodes(render()).filter(node => node.props?.role === "option"); },
     get changes() { return changes; }, get focused() { return focused; }, get scrolled() { return scrolled; },
+    get stopped() { return stopped; },
     change(value) { this.input.onChange({ target: { value } }); render(); },
     focus() { this.input.onFocus(); render(); },
     blur() { this.input.onBlur(); render(); },
     key(key, composing = false) {
       let prevented = false;
-      this.input.onKeyDown({ key, nativeEvent: { isComposing: composing }, preventDefault: () => { prevented = true; } });
+      stopped = false;
+      this.input.onKeyDown({ key, nativeEvent: { isComposing: composing }, preventDefault: () => { prevented = true; }, stopPropagation: () => { stopped = true; } });
       render(); return prevented;
     },
     async advance(ms) {
@@ -227,19 +229,16 @@ function formFixture({ fail = false } = {}) {
   class Input { constructor(name) { this.name = name; this.value = ""; } }
   global.HTMLInputElement = Input;
   global.window = { dispatchEvent() {} }; global.CustomEvent = class {};
-  const h = hooks(), calls = [], lookups = [], pendingLookup = deferred();
+  const h = hooks(), calls = [];
   const SafeForm = () => null, TitleAutocomplete = () => null;
   const Component = load("src/app/GameForm.tsx", {
     react: h.react,
-    "@/components/useCooldown": { default: () => ({ seconds: 0, start() {} }) },
-    "@/lib/cooldown": { DEFAULT_COOLDOWN_SECONDS: 10 },
     "@/lib/action-result": load("src/lib/action-result.ts", {}),
     "@/lib/game-playtime": load("src/lib/game-playtime.ts", {}),
     "@/components/SafeForm": { default: SafeForm },
     "@/components/TitleAutocomplete": { default: TitleAutocomplete },
     "./actions": {
       createGame: async data => { calls.push(data); return fail ? { error: "Fixture failure" } : { success: true, gameId: 42 }; },
-      searchGameInfo: async title => { lookups.push(title); return pendingLookup.promise; },
     },
   }).default;
   const fields = Object.fromEntries(["title", "platform", "genre", "lengthHours", "coverUrl", "releaseYear"].map(name => [name, new Input(name)]));
@@ -249,7 +248,7 @@ function formFixture({ fail = false } = {}) {
     return tree;
   }
   return {
-    fields, calls, lookups, pendingLookup,
+    fields, calls,
     get tree() { return render(); },
     get autocomplete() { return get(render(), node => node.type === TitleAutocomplete); },
     edit(name, value) { fields[name].value = value; render().props.onChangeCapture({ target: fields[name] }); },
@@ -291,17 +290,24 @@ test("GameForm uses canonical estimated hours and resets customization tracking 
   } finally { f.cleanup(); }
 });
 
-test("old Search Game Info responses cannot overwrite a newly typed title", async () => {
+test("selection uses local genre floors for missing/low hours without actions or AI calls", () => {
   const f = formFixture();
   try {
-    f.fields.title.value = "Portal";
-    const search = get(f.tree, node => node.type === "button" && node.props.className === "search-button");
-    const pending = search.props.onClick();
-    f.fields.title.value = "Doom";
-    f.pendingLookup.resolve({ ...item(), playtime: 10 });
-    await pending; await settle();
-    assert.deepEqual(f.lookups, ["Portal"]);
-    assert.equal(f.fields.genre.value, ""); assert.equal(f.fields.coverUrl.value, "");
+    assert.equal(nodes(f.tree).filter(node => node.type === "button").length, 1);
+    for (const [genre, estimatedHours, expected] of [
+      ["RPG", 4, "25"], ["Role-playing", null, "25"], ["RPG", 90, "90"],
+      ["Action", 4, "15"], ["Adventure", null, "15"], ["Puzzle", 2, "10"],
+      [null, null, "10"], ["Puzzle", 9, "9"],
+    ]) {
+      f.autocomplete.props.onSelect({ ...item(), genre, estimatedHours });
+      assert.equal(f.fields.lengthHours.value, expected);
+    }
+    f.edit("lengthHours", "90");
+    f.autocomplete.props.onSelect({ ...item(), genre: "RPG", estimatedHours: 2 });
+    assert.equal(f.fields.lengthHours.value, "90");
+    f.autocomplete.props.onTitleChange();
+    assert.equal(f.fields.lengthHours.value, "90");
+    assert.deepEqual(f.calls, []);
   } finally { f.cleanup(); }
 });
 
@@ -314,5 +320,89 @@ test("a failed create preserves the title component and customized metadata for 
     assert.equal(f.autocomplete.key, key);
     f.autocomplete.props.onSelect(item());
     assert.equal(f.fields.lengthHours.value, "75");
+  } finally { f.cleanup(); }
+});
+
+test("Escape dismisses suggestions before bubbling to a modal; the next Escape can close it", async () => {
+  const f = autocompleteFixture();
+  try {
+    f.change("portal"); await f.advance(275);
+    assert.equal(f.key("Escape"), true); assert.equal(f.stopped, true);
+    assert.equal(f.options.length, 0);
+    assert.equal(f.key("Escape"), false); assert.equal(f.stopped, false);
+  } finally { f.cleanup(); }
+});
+
+test("autocomplete supports an existing editor title and keeps canonical selection editable", async () => {
+  const f = autocompleteFixture(undefined, { defaultValue: "Saved title", ariaLabel: "Title for Saved title" });
+  try {
+    assert.equal(f.input.value, "Saved title"); assert.equal(f.input["aria-label"], "Title for Saved title");
+    assert.equal(f.timers.size, 0);
+    f.change("portal"); await f.advance(275); f.key("ArrowDown"); f.key("Enter");
+    assert.equal(f.input.value, "Portal 2");
+    f.change("My custom title"); assert.equal(f.input.value, "My custom title");
+  } finally { f.cleanup(); }
+});
+
+function editorFixture(layout = "cyberpunk", initial = {}) {
+  const previousInput = global.HTMLInputElement;
+  class Input { constructor(name, value) { this.name = name; this.value = String(value ?? ""); } }
+  global.HTMLInputElement = Input;
+  const game = { id: 42, title: "Saved title", platform: "Switch", genre: null, coverUrl: null, releaseYear: null,
+    lengthHours: 90, hoursPlayed: 90, difficulty: 2, status: "Completed", franchise: "Custom Saga", chronologicalOrder: 7, ...initial };
+  const fields = Object.fromEntries(Object.entries(game).map(([name, value]) => [name, new Input(name, value)]));
+  const TitleAutocomplete = () => null;
+  const h = hooks();
+  const Component = load("src/components/GameMetadataEditor.tsx", {
+    react: h.react,
+    "@/components/LayoutText": { useLayoutCopy: () => (cyberpunk, fantasy) => layout === "fantasy" ? fantasy : cyberpunk },
+    "@/components/FantasyAccents": { FantasyCorners: () => null },
+    "@/components/SafeForm": { default: () => null },
+    "@/components/TitleAutocomplete": { default: TitleAutocomplete },
+  }).default;
+  const calls = [];
+  const controller = { editingMetaGame: game, closeMetadata: () => {}, metadataModalRef: { current: { elements: { namedItem: name => fields[name] } } }, actions: { updateGame: async data => calls.push(data) } };
+  const tree = Component({ controller });
+  const element = get(tree, node => node.type?.name === "MetadataFields");
+  function render() { return h.render(element.type, element.props); }
+  return {
+    tree, fields, calls,
+    get autocomplete() { return get(render(), node => node.type === TitleAutocomplete).props; },
+    edit(name, value) { fields[name].value = value; render().props.onChangeCapture({ target: fields[name] }); },
+    cleanup() { global.HTMLInputElement = previousInput; },
+  };
+}
+
+test("metadata autocomplete preserves saved metadata and 90-hour completions in both layouts", () => {
+  for (const layout of ["cyberpunk", "fantasy"]) {
+    const f = editorFixture(layout);
+    try {
+      assert.equal(f.autocomplete.defaultValue, "Saved title");
+      f.autocomplete.onSelect(item());
+      assert.equal(f.fields.platform.value, "Switch"); assert.equal(f.fields.genre.value, "Puzzle");
+      assert.equal(f.fields.coverUrl.value, item().coverUrl); assert.equal(f.fields.releaseYear.value, "2011");
+      assert.equal(f.fields.lengthHours.value, "90"); assert.equal(f.fields.hoursPlayed.value, "90");
+      assert.equal(f.fields.franchise.value, "Custom Saga"); assert.equal(f.fields.chronologicalOrder.value, "7");
+      const hours = get(f.tree, node => node.props?.name === "lengthHours");
+      assert.equal(hours.props.value, 90); assert.equal(hours.props.type, "hidden");
+      assert.deepEqual(f.calls, []);
+    } finally { f.cleanup(); }
+  }
+});
+
+test("editor fills only blank/previously autofilled fields and preserves edits, including intentionally blank metadata", () => {
+  const f = editorFixture("fantasy", { platform: "", genre: "My custom genre" });
+  try {
+    f.edit("releaseYear", "");
+    f.autocomplete.onSelect(item());
+    assert.equal(f.fields.platform.value, "PC"); assert.equal(f.fields.genre.value, "My custom genre");
+    assert.equal(f.fields.releaseYear.value, "");
+    f.edit("coverUrl", "https://example.com/custom.png");
+    f.autocomplete.onSelect({ ...item(), platforms: ["PS5"], genre: "RPG" });
+    assert.equal(f.fields.platform.value, "PS5"); assert.equal(f.fields.genre.value, "My custom genre");
+    assert.equal(f.fields.coverUrl.value, "https://example.com/custom.png");
+    f.autocomplete.onTitleChange();
+    assert.equal(f.fields.platform.value, ""); assert.equal(f.fields.genre.value, "My custom genre");
+    assert.equal(f.fields.coverUrl.value, "https://example.com/custom.png"); assert.equal(f.fields.lengthHours.value, "90");
   } finally { f.cleanup(); }
 });
