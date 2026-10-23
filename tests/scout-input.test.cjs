@@ -150,3 +150,49 @@ test("caps seeds, ownership and session titles, and budgets serialized Unicode d
   assert.equal(new Set(large.payload.excludedTitles.map(normalizeGameTitle)).size, large.payload.excludedTitles.length);
   assert.deepEqual(buildScoutInput([]).payload.seeds, []);
 });
+
+const { createScoutDebug, estimateScoutCost } = load("src/lib/scout-debug.ts");
+
+test("admin telemetry captures schema issues, safe raw preview, and provider usage without thoughts or credentials", async (t) => {
+  const values = [pick("A"), pick("B"), { ...pick("C"), reason: "", lengthHours: 501 }];
+  const scout = mockScout(t, async () => Response.json({
+    ...envelope(JSON.stringify(values)), usageMetadata: { promptTokenCount: 120, candidatesTokenCount: 80, thoughtsTokenCount: 10 },
+  }));
+  const debug = createScoutDebug();
+  await assert.rejects(scout.getAIScoutCandidates([game("Seed")], [], debug), /invalid recommendation data/);
+  assert.equal(debug.schemaStatus, "failed");
+  assert(debug.validationIssues.some(issue => issue.path === "2.reason"));
+  assert(debug.validationIssues.some(issue => /lengthHours/.test(issue.message)));
+  assert.equal(debug.inputTokens, 120); assert.equal(debug.outputTokens, 90);
+  assert.equal(debug.tokenBasis, "provider");
+  assert.equal(debug.attemptedCallCostUsd, estimateScoutCost("gemini-3.5-flash-lite", 120, 90));
+  assert.equal(estimateScoutCost("custom-model", 120, 90), null);
+  assert.deepEqual(debug.anchors, [{ title: "Seed", rating: 5 }]);
+  assert.equal(debug.fallbackReason, "The AI scout returned invalid recommendation data.");
+  const preview = load("src/lib/scout-debug-server.ts").scoutDebugPreview;
+  assert(!preview("scout-test-key" + "x".repeat(5000)).includes("scout-test-key"));
+  assert.equal(preview("x".repeat(5000)).length, 3000);
+});
+
+test("telemetry distinguishes excluded titles, timeouts, malformed JSON, and incomplete output", async (t) => {
+  let fail = false;
+  let response = envelope(JSON.stringify(["Seed", "Seen", "Good"].map(pick)));
+  const scout = mockScout(t, async () => {
+    if (fail) throw new DOMException("private network details", "TimeoutError");
+    return Response.json(response);
+  });
+  let debug = createScoutDebug();
+  assert.equal((await scout.getAIScoutCandidates([game("Seed")], ["Seen"], debug)).length, 1);
+  assert.equal(debug.filteredCount, 2); assert.equal(debug.schemaStatus, "passed");
+  assert(debug.inputTokens > 512); // Includes the system prompt, unlike the payload budget.
+  response = envelope("bad json"); debug = createScoutDebug();
+  await assert.rejects(scout.getAIScoutCandidates([game("Seed")], [], debug));
+  assert.equal(debug.schemaStatus, "failed"); assert.match(debug.fallbackReason, /invalid JSON/);
+  response = envelope("partial answer", { finishReason: "MAX_TOKENS" }); debug = createScoutDebug();
+  await assert.rejects(scout.getAIScoutCandidates([game("Seed")], [], debug));
+  assert.equal(debug.responsePreview, "partial answer");
+  fail = true; debug = createScoutDebug();
+  await assert.rejects(scout.getAIScoutCandidates([game("Seed")], [], debug));
+  assert.match(debug.fallbackReason, /timed out/);
+  assert(!JSON.stringify(debug).includes("private network details"));
+});

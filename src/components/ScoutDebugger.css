@@ -1,0 +1,27 @@
+.scout-debugger > summary {
+  padding: 10px;
+  border: 1px solid #32616a;
+  color: #94f7ff;
+  background: #0b1823;
+  cursor: pointer;
+  font-size: 12px;
+}
+.scout-debugger > summary span { margin-left: 10px; font-size: 10px; }
+.scout-debugger summary:focus-visible { outline: 2px solid #00f0ff; outline-offset: 3px; }
+.scout-debugger .scout-debug-badges > div { padding: 8px; border: 1px solid #285461; }
+.scout-debugger .saga-debug-readout { overflow-wrap: anywhere; }
+.scout-debugger .saga-debug-payload pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+:root[data-layout-mode="fantasy"] .scout-debugger > summary {
+  color: #435432;
+  background: #decda1;
+  border-color: #a18a55;
+  font-family: Georgia, serif;
+}
+:root[data-layout-mode="fantasy"] .scout-debugger .saga-debug-readout {
+  color: #493d29;
+  background: #decda1;
+  border-color: #b79d66;
+}
+:root[data-layout-mode="fantasy"] .scout-debugger :is(dt, dd, h4, .saga-debug-payload summary) { color: #435432; }
+:root[data-layout-mode="fantasy"] .scout-debugger .scout-debug-badges > div { border-color: #a18a55; }
+:root[data-layout-mode="fantasy"] .scout-debugger .saga-debug-payload pre { color: #413c2a; background: #cbb88a; border-color: #a18a55; }

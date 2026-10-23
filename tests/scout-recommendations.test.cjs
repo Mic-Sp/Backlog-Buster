@@ -85,3 +85,29 @@ test("fallback skips ineligible metadata and returns fewer only when no valid po
   assert.deepEqual(await noSeeds.getExternalRecommendations(), []);
   assert.deepEqual(noSeeds.lookups, []);
 });
+
+function telemetry() {
+  return { picks: [], anchors: [], excludedCount: 0, filteredCount: 0, metadataRejectedCount: 0,
+    fallbackReason: null, fallbackTriggered: false, attemptedCallCostUsd: 0.001 };
+}
+
+test("optional telemetry preserves picks and reports mixed/fallback provenance with exact catalog anchors", async () => {
+  const debug = telemetry();
+  const context = fixture({ ai: async () => [candidate("Good"), candidate("Seed")] });
+  const result = await context.getExternalRecommendations("player", ["Seen"], debug);
+  assert.equal(result.length, 3);
+  assert.equal(debug.source, "mixed"); assert.equal(debug.fallbackTriggered, true);
+  assert.equal(debug.excludedCount, 2); assert.equal(debug.filteredCount, 1);
+  assert.deepEqual(debug.picks.map(pick => pick.source), ["live-ai", "deterministic-fallback", "deterministic-fallback"]);
+  assert.deepEqual(debug.picks[1].anchor, { title: "Seed", rating: 5 });
+  assert.match(debug.playtimeStatus, /RAWG/);
+  const fallback = telemetry();
+  const failed = fixture({ ai: async (_games, _excluded, trace) => {
+    trace.fallbackReason = "Schema validation failed: missing rationale";
+    throw new Error("private error");
+  } });
+  await failed.getExternalRecommendations("player", [], fallback);
+  assert.equal(fallback.source, "deterministic-fallback");
+  assert.equal(fallback.estimatedCostUsd, 0); assert.equal(fallback.attemptedCallCostUsd, 0.001);
+  assert.match(fallback.fallbackReason, /missing rationale/);
+});

@@ -20,7 +20,9 @@ const { validateGameForm } = load("src/lib/form-validation.ts");
 
 test("external scout validates and bounds client exclusions inside authenticated request protection", async () => {
   const calls = [], inputs = [];
+  class AdminRequiredError extends Error {}
   const scoped = loader({
+    "@/lib/admin": { AdminRequiredError, requireAdmin: async () => { throw new AdminRequiredError(); } },
     "next/cache": { revalidatePath() {} },
     "@/lib/prisma": {},
     "@/lib/player": { getAuthenticatedPlayerId: async () => "scout-player" },
@@ -30,10 +32,10 @@ test("external scout validates and bounds client exclusions inside authenticated
     "@/lib/recommendations": { getExternalRecommendations: async (...args) => { calls.push(args); return []; } },
   });
   const { fetchExternalScout } = scoped("src/app/actions.ts");
-  assert.deepEqual(await fetchExternalScout(), []);
+  assert.deepEqual(await fetchExternalScout(), { recommendations: [] });
   assert.deepEqual(calls[0], ["scout-player", []]);
   const titles = [" Tunic ", "TUNIC", " ", "Dark Souls III", "dark souls 3", "x".repeat(200)];
-  assert.deepEqual(await fetchExternalScout(titles), []);
+  assert.deepEqual(await fetchExternalScout(titles), { recommendations: [] });
   assert.deepEqual(calls[1], ["scout-player", ["Tunic", "Dark Souls III", "x".repeat(120)]]);
   assert.equal(titles[0], " Tunic ");
   assert.notEqual(inputs[0], inputs[1]);

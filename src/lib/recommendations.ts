@@ -7,6 +7,7 @@ import { resolveRawgPlaytime } from "@/lib/game-playtime";
 import { normalizeGameTitle } from "@/lib/game-title";
 import { isReleasedYear } from "@/lib/game-release";
 import { franchiseAffinities, genreNeighbors, generalDiscovery } from "@/lib/scout-catalog";
+import type { ScoutAnchor, ScoutDebug } from "@/lib/scout-debug";
 import { getAIScoutCandidates } from "@/lib/scout-ai";
 
 import { selectBacklogRecommendations, type AdvisorGame, type BacklogRecommendations } from "@/lib/backlog-advisor";
@@ -43,7 +44,7 @@ export async function getBacklogRecommendations(userId?: string, excludedGameIds
 }
 
 type ScoutLibraryGame = Pick<AdvisorGame, "title" | "platform" | "genre" | "status" | "rating" | "earnedXp">;
-type ScoutCandidate = { title: string; reason: string; preferredPlatform: string };
+type ScoutCandidate = { title: string; reason: string; preferredPlatform: string; anchor?: ScoutAnchor };
 
 // Pure deterministic fallback selection; RAWG enrichment remains in the caller.
 function selectStaticScoutCandidates(
@@ -94,7 +95,7 @@ function selectStaticScoutCandidates(
       selectedTitles.add(key);
       const inspiration = seed.rating !== null ? `Recommended because you rated ${seed.title} ${seed.rating}★.`
         : `Recommended from your completed ${seed.title} (${seed.earnedXp.toLocaleString("en-US")} earned XP; unrated).`;
-      selected.push({ title: candidate.title, reason: `${inspiration} ${candidate.basis}`, preferredPlatform: seed.platform });
+      selected.push({ title: candidate.title, reason: `${inspiration} ${candidate.basis}`, preferredPlatform: seed.platform, anchor: { title: seed.title, rating: seed.rating } });
       if (selected.length === candidateLimit) break;
     }
   }
@@ -105,6 +106,7 @@ function selectStaticScoutCandidates(
 export async function getExternalRecommendations(
   userId?: string,
   extraExcludedTitles: readonly string[] = [],
+  debug?: ScoutDebug,
 ): Promise<ExternalRecommendation[]> {
   userId ??= await getCurrentPlayerId();
   const games = await prisma.game.findMany({
@@ -115,11 +117,16 @@ export async function getExternalRecommendations(
   const recommendations: ExternalRecommendation[] = [];
   const excluded = new Set([...games.map((game) => game.title), ...extraExcludedTitles].map(normalizeGameTitle));
   const attemptedTitles: string[] = [];
+  if (debug) debug.excludedCount = excluded.size;
 
   async function appendEnrichedCandidates(candidates: ScoutCandidate[], tolerateLookupErrors: boolean) {
+    const source: "live-ai" | "deterministic-fallback" = tolerateLookupErrors ? "live-ai" : "deterministic-fallback";
     const selected = candidates.filter((candidate) => {
       const key = normalizeGameTitle(candidate.title);
-      if (!key || excluded.has(key)) return false;
+      if (!key || excluded.has(key)) {
+        if (debug) debug.filteredCount++;
+        return false;
+      }
       excluded.add(key);
       attemptedTitles.push(candidate.title);
       return true;
@@ -129,7 +136,11 @@ export async function getExternalRecommendations(
       const batch = await Promise.all(selected.slice(offset, offset + 3).map(async (candidate): Promise<ExternalRecommendation | null> => {
         try {
           const lookup = await lookupRawgGame(candidate.title, true);
-          if (!lookup || !isReleasedYear(lookup.releaseYear, currentYear)) return null;
+          if (!lookup || !isReleasedYear(lookup.releaseYear, currentYear)) {
+            if (debug) debug.metadataRejectedCount++;
+            return null;
+          }
+          if (debug) debug.playtimeStatus = "RAWG estimates normalized with genre floors and a 1–10,000-hour clamp; AI playtime is not accepted.";
           return {
             title: candidate.title,
             platform: lookup.platforms.find((platform) => normalize(platform) === normalize(candidate.preferredPlatform)) ?? lookup.platforms[0] ?? "PC",
@@ -142,22 +153,42 @@ export async function getExternalRecommendations(
           };
         } catch (error) {
           if (!tolerateLookupErrors) throw error;
+          if (debug) debug.metadataRejectedCount++;
           return null;
         }
       }));
-      recommendations.push(...batch.filter((pick): pick is ExternalRecommendation => pick !== null).slice(0, 3 - recommendations.length));
+      const accepted = batch.filter((pick): pick is ExternalRecommendation => pick !== null).slice(0, 3 - recommendations.length);
+      recommendations.push(...accepted);
+      if (debug) debug.picks.push(...accepted.map(pick => {
+        const anchor = candidates.find(candidate => candidate.title === pick.title)?.anchor;
+        return { title: pick.title, source, ...(anchor ? { anchor } : {}) };
+      }));
     }
   }
 
   try {
-    await appendEnrichedCandidates(await getAIScoutCandidates(games, extraExcludedTitles), true);
+    const candidates = debug ? await getAIScoutCandidates(games, extraExcludedTitles, debug)
+      : await getAIScoutCandidates(games, extraExcludedTitles);
+    await appendEnrichedCandidates(candidates, true);
   } catch {
     // Missing configuration, timeouts, quota errors, and invalid AI output all
     // fall back to the deterministic catalog without exposing provider details.
   }
+  // DEMO TALKING POINT: Deterministic fallback if Gemini fails schema validation or yields fewer than three usable picks.
   if (recommendations.length < 3) {
+    if (debug) {
+      debug.fallbackTriggered = true;
+      debug.fallbackReason ??= "Fewer than three usable AI picks after ownership/session exclusions and RAWG release/lookup checks.";
+    }
     const fallback = selectStaticScoutCandidates(games, [...extraExcludedTitles, ...attemptedTitles]);
     await appendEnrichedCandidates(fallback, false);
+  }
+  if (debug) {
+    const aiCount = debug.picks.filter(pick => pick.source === "live-ai").length;
+    const fallbackCount = debug.picks.length - aiCount;
+    debug.source = aiCount && fallbackCount ? "mixed" : aiCount ? "live-ai" : fallbackCount ? "deterministic-fallback" : "none";
+    // Serving the catalog costs zero; failed Gemini attempts can still incur usage.
+    debug.estimatedCostUsd = aiCount ? debug.attemptedCallCostUsd : 0;
   }
   return recommendations.slice(0, 3);
 }

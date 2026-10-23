@@ -13,6 +13,7 @@ import { AdminRequiredError, requireAdmin } from "@/lib/admin";
 import { resolveRawgPlaytime } from "@/lib/game-playtime";
 import { lookupRawgGame, type RawgGameInfo } from "@/lib/rawg";
 import { getBacklogRecommendations, getExternalRecommendations } from "@/lib/recommendations";
+import { createScoutDebug } from "@/lib/scout-debug";
 import { MAX_ADVISOR_HISTORY } from "@/lib/backlog-advisor";
 import { normalizeGameTitle } from "@/lib/game-title";
 import { DECK_CAPACITY } from "@/lib/deck";
@@ -410,7 +411,22 @@ export async function fetchExternalScout(excludedTitles: readonly string[] = [])
     // Distinct exclusions must not share an in-flight response. The feature key
     // stays "scout", preserving the per-player cooldown across all lists.
     const input = sanitizedTitles.length ? JSON.stringify(sanitizedTitles) : "external";
-    return guardedRequest(playerId, "scout", input, () => getExternalRecommendations(playerId, sanitizedTitles));
+    return guardedRequest(playerId, "scout", input, async () => {
+      let includeDebug = false;
+      try { includeDebug = (await requireAdmin()).id === playerId; }
+      catch (error) { if (!(error instanceof AdminRequiredError)) throw error; }
+      const debug = includeDebug ? createScoutDebug() : undefined;
+      const recommendations = debug
+        ? await getExternalRecommendations(playerId, sanitizedTitles, debug)
+        : await getExternalRecommendations(playerId, sanitizedTitles);
+      // Recheck the live session/role after slow provider calls (logout/demotion).
+      if (debug) {
+        try {
+          if ((await requireAdmin()).id === playerId) return { recommendations, debug };
+        } catch (error) { if (!(error instanceof AdminRequiredError)) throw error; }
+      }
+      return { recommendations };
+    });
   });
 }
 

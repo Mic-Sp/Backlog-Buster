@@ -1,6 +1,8 @@
 import "server-only";
 
 import { z } from "zod";
+import { estimateScoutCost, type ScoutDebug } from "@/lib/scout-debug";
+import { scoutDebugPreview } from "@/lib/scout-debug-server";
 import { normalizeGameTitle } from "@/lib/game-title";
 import { resilientFetch, retryAfterSeconds } from "@/lib/api-resilience";
 import { RateLimitError } from "@/lib/action-result";
@@ -157,15 +159,32 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 export async function getAIScoutCandidates(
   games: readonly ScoutLibraryGame[],
   recentlyExcludedTitles: readonly string[] = [],
+  debug?: ScoutDebug,
 ): Promise<ScoutCandidate[]> {
   const { payload, prompt } = buildScoutInput(games, recentlyExcludedTitles);
-  if (!payload.seeds.length) return [];
+  if (debug) {
+    debug.anchors = payload.seeds.map(({ title, rating }) => ({ title, rating }));
+    debug.promptPreview = scoutDebugPreview(prompt);
+  }
+  if (!payload.seeds.length) {
+    if (debug) debug.fallbackReason = "No eligible completed favorites or unrated completions to seed Gemini.";
+    return [];
+  }
 
   const apiKey = process.env.GEMINI_API_KEY?.trim();
-  if (!apiKey) throw new ScoutAIError("AI scouting is unavailable: GEMINI_API_KEY is not configured on the server.");
+  if (!apiKey) {
+    if (debug) debug.fallbackReason = "Missing server Gemini configuration.";
+    throw new ScoutAIError("AI scouting is unavailable: GEMINI_API_KEY is not configured on the server.");
+  }
   const model = process.env.GEMINI_MODEL?.trim() || "gemini-3.5-flash-lite";
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
+  if (debug) debug.model = model;
   try {
+    if (debug) {
+      debug.liveCallAttempted = true;
+      debug.inputTokens = estimateScoutTokens(SCOUT_SYSTEM_PROMPT + prompt);
+      debug.attemptedCallCostUsd = estimateScoutCost(model, debug.inputTokens, 0);
+    }
     const response = await resilientFetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
@@ -181,25 +200,62 @@ export async function getAIScoutCandidates(
     if (!response.ok) throw new ScoutAIError("The AI scouting service is unavailable. Please retry shortly.");
 
     const result: unknown = await response.json();
-    const candidate = isRecord(result) && Array.isArray(result.candidates) ? result.candidates[0] : null;
-    if (isRecord(candidate) && candidate.finishReason != null && candidate.finishReason !== "STOP") {
-      throw new ScoutAIError("The AI scout did not return a complete recommendation list.");
+    if (debug && isRecord(result) && isRecord(result.usageMetadata)) {
+      const usage = result.usageMetadata;
+      const validCount = (value: unknown): value is number => typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+      if (validCount(usage.promptTokenCount) && validCount(usage.candidatesTokenCount)) {
+        debug.inputTokens = usage.promptTokenCount;
+        debug.outputTokens = usage.candidatesTokenCount + (validCount(usage.thoughtsTokenCount) ? usage.thoughtsTokenCount : 0);
+        debug.tokenBasis = "provider";
+        debug.attemptedCallCostUsd = estimateScoutCost(model, debug.inputTokens, debug.outputTokens);
+      }
     }
+    const candidate = isRecord(result) && Array.isArray(result.candidates) ? result.candidates[0] : null;
     const content = isRecord(candidate) && isRecord(candidate.content) ? candidate.content : null;
     const parts: unknown[] = content && Array.isArray(content.parts) ? content.parts : [];
     const text = parts.flatMap((part) => isRecord(part) && part.thought !== true && typeof part.text === "string" ? [part.text] : []).join("").trim();
+    if (debug) {
+      debug.responsePreview = scoutDebugPreview(text);
+      if (debug.tokenBasis === "estimate") debug.outputTokens = estimateScoutTokens(text);
+      debug.attemptedCallCostUsd = estimateScoutCost(model, debug.inputTokens, debug.outputTokens);
+    }
+    if (isRecord(candidate) && candidate.finishReason != null && candidate.finishReason !== "STOP") {
+      throw new ScoutAIError("The AI scout did not return a complete recommendation list.");
+    }
     if (!text || text.length > 12000) throw new ScoutAIError("The AI scout returned an empty or oversized response.");
 
     let parsed: unknown;
     try { parsed = JSON.parse(text); }
-    catch { throw new ScoutAIError("The AI scout returned invalid JSON."); }
+    catch {
+      if (debug) debug.schemaStatus = "failed";
+      throw new ScoutAIError("The AI scout returned invalid JSON.");
+    }
     const validated = scoutOutputSchema.safeParse(parsed);
-    if (!validated.success) throw new ScoutAIError("The AI scout returned invalid recommendation data.");
+    if (!validated.success) {
+      if (debug) {
+        debug.schemaStatus = "failed";
+        debug.validationIssues = validated.error.issues.slice(0, 12).map(issue => ({
+          path: scoutDebugPreview(issue.path.join(".")), message: scoutDebugPreview(issue.message),
+        }));
+      }
+      throw new ScoutAIError("The AI scout returned invalid recommendation data.");
+    }
+    if (debug) debug.schemaStatus = "passed";
 
     // Use the full original lists, never the sanitized/truncated prompt subset.
     const excluded = new Set([...games.map((game) => game.title), ...recentlyExcludedTitles].map(normalizeGameTitle));
-    return validated.data.filter((pick) => !excluded.has(normalizeGameTitle(pick.title)));
+    return validated.data.filter((pick) => {
+      const blocked = excluded.has(normalizeGameTitle(pick.title));
+      if (blocked && debug) debug.filteredCount++;
+      return !blocked;
+    });
   } catch (error) {
+    if (debug) {
+      debug.fallbackReason = error instanceof ScoutAIError ? error.message
+        : error instanceof RateLimitError ? "Provider quota/rate limit or upstream cooldown."
+        : error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError") ? "Gemini request timed out."
+        : "Gemini provider/network error.";
+    }
     if (error instanceof ScoutAIError || error instanceof RateLimitError) throw error;
     if (error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError")) {
       throw new ScoutAIError("AI scouting timed out. Please try again.");

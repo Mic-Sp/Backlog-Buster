@@ -660,7 +660,7 @@ function useGameLibraryController({ games: serverGames, achievements = [], isAdm
   function closeMetadata() { setEditingMetaGame(null); }
 
   const drafts = useGameDrafts(games);
-  const advisor = useTacticalAdvisorController({ games });
+  const advisor = useTacticalAdvisorController({ games, isAdmin });
   const vault = useLibraryDataVaultController({ games });
   const roulette = useQuestRouletteController({ games: games.filter(game => game.status === "Backlog") });
   const deck = useUpNextDeckController({ startAction: startGameAndShowPlaying, games, draggedGame: deckDraggedGame, onDragGameChange: changeDeckDrag, onDragPointerDown: rememberDragOrigin, onGameDragStart: startLibraryDrag, disabled: rowReorderBusy });

@@ -12,13 +12,15 @@ import { createPortal } from "react-dom";
 import { acceptQuest, addExternalScoutGame, fetchBacklogAdvisor, fetchExternalScout } from "@/app/actions";
 import type { BacklogRecommendation, BacklogRecommendations, ExternalRecommendation } from "@/lib/recommendations";
 import type { LibraryGame } from "@/components/GameLibrary";
+import ScoutDebugger from "@/components/ScoutDebugger";
+import type { ScoutDebug } from "@/lib/scout-debug";
 import { normalizeGameTitle } from "@/lib/game-title";
 import { buildTrailerUrl } from "@/lib/trailers";
 import DeckPinButton from "@/components/DeckPinButton";
 import AgentBriefing from "@/components/AgentBriefing";
 import { useUIEffects } from "@/components/ThemeProvider";
 
-export function useTacticalAdvisorController({ games }: { games: Pick<LibraryGame, "id" | "title" | "status" | "pinnedOrder" | "hoursPlayed" | "lengthHours">[] }) {
+export function useTacticalAdvisorController({ games, isAdmin = false }: { isAdmin?: boolean; games: Pick<LibraryGame, "id" | "title" | "status" | "pinnedOrder" | "hoursPlayed" | "lengthHours">[] }) {
   const copy = useLayoutCopy();
   const { playSfx } = useUIEffects();
   const scoutCooldown = useCooldown();
@@ -33,6 +35,7 @@ export function useTacticalAdvisorController({ games }: { games: Pick<LibraryGam
   const [scoutUnlocked, setScoutUnlocked] = useState(false);
   const [scoutOverride, setScoutOverride] = useState(false);
   const [externalPicks, setExternalPicks] = useState<ExternalRecommendation[] | null>(null);
+  const [scoutDebug, setScoutDebug] = useState<ScoutDebug | null>(null);
   const [externalError, setExternalError] = useState("");
   const [addedTitles, setAddedTitles] = useState<Set<string>>(new Set());
   const [addingTitle, setAddingTitle] = useState<string | null>(null);
@@ -60,6 +63,7 @@ export function useTacticalAdvisorController({ games }: { games: Pick<LibraryGam
     playSfx("scan");
     const request = ++scoutRequestId.current;
     setExternalPicks(null);
+    setScoutDebug(null);
     setExternalError("");
     startScouting(async () => {
       const startedAt = Date.now();
@@ -67,7 +71,10 @@ export function useTacticalAdvisorController({ games }: { games: Pick<LibraryGam
         const result = unwrapActionResult(await fetchExternalScout([...seenExternalTitles.current.values()]));
         scoutCooldown.start(DEFAULT_COOLDOWN_SECONDS, startedAt);
         if (request === scoutRequestId.current) {
-          for (const pick of result) {
+          // Accept legacy array payloads and responses that omit diagnostics.
+          const recommendations = Array.isArray(result) ? result : result.recommendations;
+          setScoutDebug(isAdmin && !Array.isArray(result) ? result.debug ?? null : null);
+          for (const pick of recommendations) {
             const key = normalizeGameTitle(pick.title);
             seenExternalTitles.current.delete(key);
             seenExternalTitles.current.set(key, pick.title);
@@ -77,7 +84,7 @@ export function useTacticalAdvisorController({ games }: { games: Pick<LibraryGam
             if (oldest === undefined) break;
             seenExternalTitles.current.delete(oldest);
           }
-          setExternalPicks(result);
+          setExternalPicks(recommendations);
         }
       } catch (error) {
         if (error instanceof ActionFailure) scoutCooldown.start(error.retryAfterSeconds);
@@ -89,6 +96,7 @@ export function useTacticalAdvisorController({ games }: { games: Pick<LibraryGam
   function openAdvisor() {
     setIsOpen(true);
     setExternalPicks(null);
+    setScoutDebug(null);
     setExternalError("");
     setAddedTitles(new Set());
     setScoutOverride(false);
@@ -194,7 +202,8 @@ export function useTacticalAdvisorController({ games }: { games: Pick<LibraryGam
       }
       if (event.key !== "Tab") return;
       const dialog = dialogRef.current;
-      const controls = dialog?.querySelectorAll<HTMLElement>('button:not(:disabled), a[href]');
+      const controls = Array.from(dialog?.querySelectorAll<HTMLElement>('button:not(:disabled), a[href], summary') ?? [])
+        .filter(control => control.getClientRects().length > 0);
       const first = controls?.[0];
       const last = controls?.[controls.length - 1];
       if (!first) {
@@ -247,6 +256,8 @@ export function useTacticalAdvisorController({ games }: { games: Pick<LibraryGam
   }
 
   return {
+    isAdmin,
+    scoutDebug,
     scoutCooldown,
     isOpen,
     picks,
@@ -285,6 +296,8 @@ export default function TacticalAdvisor(props: Parameters<typeof useTacticalAdvi
 export function TacticalAdvisorView({ controller, part = "all" }: { controller: TacticalAdvisorController; part?: "all" | "trigger" | "overlay" }) {
   const copy = useLayoutCopy();
   const {
+    isAdmin,
+    scoutDebug,
     scoutCooldown,
     isOpen,
     picks,
@@ -386,6 +399,7 @@ export function TacticalAdvisorView({ controller, part = "all" }: { controller: 
                   <p className="advisor-scout-status" role="status" aria-live="polite">{addedTitles.size > 0 ? `${addedTitles.size} new contract${addedTitles.size === 1 ? "" : "s"} added to backlog.` : ""}</p>
                 </>
               )}
+              {isAdmin && <ScoutDebugger debug={scoutDebug} busy={isScouting} />}
             </section>
           </div>
         </div>, document.body,

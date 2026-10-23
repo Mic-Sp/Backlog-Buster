@@ -41,7 +41,7 @@ test('local backlog advice can repeat immediately while external scouting stays 
   });
   const { fetchBacklogAdvisor, fetchExternalScout } = load('src/app/actions.ts');
   assert.equal((await fetchBacklogAdvisor()).revision, 1);
-  assert.deepEqual(await fetchExternalScout(), []);
+  assert.deepEqual(await fetchExternalScout(), { recommendations: [] });
   // Neither an internal repeat nor the scout's active cooldown can lock local advice.
   assert.equal((await fetchBacklogAdvisor([10, 20, 10])).revision, 2);
   assert.deepEqual(histories, [[], [10, 20]]);
