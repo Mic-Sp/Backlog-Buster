@@ -1,3 +1,5 @@
+import { baseChronologyTitle, compareChronologyTitles } from "@/lib/chronology-titles";
+
 type SagaGame = {
   id: number;
   title: string;
@@ -29,15 +31,16 @@ export function compareSagaGames(
   right: { id: number; title: string; releaseYear: number | null; chronologicalOrder?: number | null },
   mode: SagaOrderMode,
 ) {
+  const leftRank = left.chronologicalOrder ?? Infinity;
+  const rightRank = right.chronologicalOrder ?? Infinity;
   if (mode === "timeline") {
-    const leftRank = left.chronologicalOrder ?? Infinity;
-    const rightRank = right.chronologicalOrder ?? Infinity;
     if (leftRank !== rightRank) return leftRank - rightRank;
   }
   const leftYear = left.releaseYear ?? Infinity;
   const rightYear = right.releaseYear ?? Infinity;
   if (leftYear !== rightYear) return leftYear - rightYear;
-  return left.title.localeCompare(right.title) || left.id - right.id;
+  if (leftRank !== rightRank) return leftRank - rightRank;
+  return compareChronologyTitles(left.title, right.title) || left.id - right.id;
 }
 
 const knownSeries: [RegExp, string][] = [
@@ -66,13 +69,13 @@ function normalize(value: string) {
 export function getSagaName(game: Pick<SagaGame, "title" | "franchise">): string | null {
   const manual = game.franchise?.trim().replace(/\s+/g, " ");
   if (manual) return manual;
-  const normalizedTitle = normalize(game.title);
+  const baseTitle = baseChronologyTitle(game.title);
+  const normalizedTitle = normalize(baseTitle);
   const known = knownSeries.find(([pattern]) => pattern.test(normalizedTitle));
   if (known) return known[1];
 
-  const stem = game.title.split(/[:：]|\s[-–—]\s/)[0]
+  const stem = baseTitle.split(/[:：]|\s[-–—]\s/)[0]
     .replace(/\s+(?:\d+(?:\.\d+)?|xviii|xvii|xvi|xv|xiv|xiii|xii|xi|ix|viii|vii|vi|iv|iii|ii|xx|x|v|i)\b.*$/i, "")
-    .replace(/\s+(?:(?:the )?(?:definitive|complete|ultimate|game of the year|goty) edition|remastered|remake)\s*$/i, "")
     .trim();
   return normalize(stem).length >= 2 ? stem : null;
 }
@@ -99,7 +102,7 @@ export function buildSagaChains(games: readonly SagaGame[]) {
   }
   const chains: SagaChain[] = [...groups.values()].filter((group) => group.total >= 2)
     .map(({ key, name, total, completed, gameIds }) => ({ key, name, total, completed, gameIds }))
-    .sort((left, right) => left.name.localeCompare(right.name));
+    .sort((left, right) => compareChronologyTitles(left.name, right.name));
   const byGameId = new Map<number, SagaChain>();
   for (const chain of chains) for (const id of chain.gameIds) byGameId.set(id, chain);
   return { chains, byGameId };

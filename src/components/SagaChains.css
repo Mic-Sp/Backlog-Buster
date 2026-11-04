@@ -337,9 +337,20 @@ button.saga-badge[data-layout="trophy"] {
 }
 
 .trophy-badge > button.saga-badge {
-	max-width: 60%;
+	max-width: 100%;
+	height: auto;
+	min-height: 22px;
+	flex-wrap: wrap;
+	line-height: 1.4;
+	white-space: normal;
+	overflow-wrap: anywhere;
 	font-size: 8px;
 	letter-spacing: 0;
+}
+
+.trophy-badge .saga-badge-name {
+	overflow: visible;
+	text-overflow: clip;
 }
 
 button.saga-badge:hover,

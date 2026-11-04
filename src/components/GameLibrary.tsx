@@ -11,6 +11,7 @@ import { DECK_CAPACITY, DECK_DRAG_TYPE, readDeckDrag, type DeckDragGame } from "
 import { isReleasedYear } from "@/lib/game-release";
 import type { SagaChronologyDebug } from "@/lib/saga-debug";
 import { buildSagaChains, compareSagaGames, type SagaOrderMode } from "@/lib/sagas";
+import { compareChronologyTitles } from "@/lib/chronology-titles";
 import { useEffect, useMemo, useOptimistic, useRef, useState, useTransition, type DragEvent, type ReactNode } from "react";
 import FantasySubscreenView from "@/components/FantasySubscreenView";
 import { useSubscreen } from "@/components/WorkspaceShell";
@@ -279,18 +280,17 @@ function useGameLibraryController({ games: serverGames, achievements = [], isAdm
           return sortableXp(right) - sortableXp(left);
         case "xp-asc":
           return sortableXp(left) - sortableXp(right);
-        case "year-desc":
         case "year-asc":
-          if (left.releaseYear === null && right.releaseYear === null) return 0;
-          if (left.releaseYear === null) return 1;
-          if (right.releaseYear === null) return -1;
-          return sortBy === "year-desc"
-            ? right.releaseYear - left.releaseYear
-            : left.releaseYear - right.releaseYear;
+          return compareSagaGames(left, right, "release");
+        case "year-desc":
+          if (left.releaseYear !== null && right.releaseYear !== null && left.releaseYear !== right.releaseYear) {
+            return right.releaseYear - left.releaseYear;
+          }
+          return compareSagaGames(left, right, "release");
         case "title-asc":
-          return left.title.localeCompare(right.title);
+          return compareChronologyTitles(left.title, right.title) || left.id - right.id;
         case "title-desc":
-          return right.title.localeCompare(left.title);
+          return compareChronologyTitles(right.title, left.title) || left.id - right.id;
         case "platform-asc":
           return left.platform.localeCompare(right.platform);
         case "platform-desc":

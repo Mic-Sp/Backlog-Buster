@@ -1,7 +1,7 @@
 import "server-only";
 import { queryIgdb } from "@/lib/igdb-api";
 import { normalizeFranchiseKey } from "@/lib/franchise-key";
-import { collapseChronologyGames, preservesChronologySequence, type CanonicalGame, type FranchiseCanon } from "@/lib/chronology-titles";
+import { collapseChronologyGames, compareChronologyTitles, preservesChronologySequence, type CanonicalGame, type FranchiseCanon } from "@/lib/chronology-titles";
 
 function record(value: unknown): value is Record<string, unknown> { return value !== null && typeof value === "object" && !Array.isArray(value); }
 function id(value: unknown): value is number { return typeof value === "number" && Number.isSafeInteger(value) && value > 0; }
@@ -47,7 +47,7 @@ export function buildIgdbCanon(rows: unknown[]): CanonicalGame[] {
     }
   }
   const compare = (a: IgdbEntry, b: IgdbEntry) =>
-    a.date - b.date || a.title.localeCompare(b.title, "en") || a.id - b.id;
+    a.date - b.date || compareChronologyTitles(a.title, b.title) || a.id - b.id;
   function original(game: IgdbEntry): IgdbEntry {
     const visited = new Set<number>();
     let current = game;

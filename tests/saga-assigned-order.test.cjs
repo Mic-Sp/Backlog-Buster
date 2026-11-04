@@ -75,3 +75,62 @@ test('compacting and clearing ranks remain authenticated, operator-scoped and pr
  const f=fixture();f.setActive(false);assert.match((await f.run()).error,/Sign in/);assert.equal(f.writes.length,0);
  f.setActive(true);f.setStale(true);assert.match((await f.run()).error,/saga changed/);assert.equal(f.writes.length,0);assert.deepEqual(f.members,f.initial);assert.deepEqual(f.row,f.initialCache);
 });
+
+test('release and timeline sorting are numeric, deterministic and keep unranked undated games last',()=>{
+ const {compareSagaGames}=loader()('src/lib/sagas.ts');
+ const games=[
+  {id:1,title:'Game 10',releaseYear:2000,chronologicalOrder:null},
+  {id:2,title:'Game 2',releaseYear:2000,chronologicalOrder:null},
+  {id:3,title:'Zulu',releaseYear:2000,chronologicalOrder:2},
+  {id:4,title:'Earlier',releaseYear:1999,chronologicalOrder:50},
+  {id:5,title:'Undated',releaseYear:null,chronologicalOrder:null},
+  {id:6,title:'Undated ranked',releaseYear:null,chronologicalOrder:1},
+  {id:7,title:'game 02',releaseYear:2000,chronologicalOrder:null},
+ ];
+ for(const [mode,expected] of [['release',[4,3,2,7,1,6,5]],['timeline',[6,3,4,2,7,1,5]]]){
+  for(const input of [games,[...games].reverse()])assert.deepEqual([...input].sort((a,b)=>compareSagaGames(a,b,mode)).map(g=>g.id),expected);
+  for(const a of games)for(const b of games){const comparison=compareSagaGames(a,b,mode);assert(!Number.isNaN(comparison));assert.equal(Math.sign(comparison)+Math.sign(compareSagaGames(b,a,mode)),0);}
+ }
+});
+
+test('local and assigned chronology ranks use natural numeric title ties',()=>{
+ const {buildReleaseYearOrder,buildAssignedSagaOrder}=loader()('src/lib/saga-chronology.ts');
+ const games=[{id:10,title:'Game 10',releaseYear:2000},{id:9,title:'Game IX',releaseYear:2000},{id:2,title:'Game 2',releaseYear:2000}];
+ assert.deepEqual([...buildReleaseYearOrder(games).keys()],[2,9,10]);
+ const numeric=games.filter(g=>g.id!==9),canon=numeric.map(g=>({title:g.title,releaseYear:g.releaseYear,chronologicalRank:1}));
+ const assigned=buildAssignedSagaOrder(numeric,canon);
+ assert.equal(assigned.get(2),1);assert.equal(assigned.get(10),2);
+});
+
+// Execute the actual UI sort callback without mounting its unrelated provider hooks.
+function clientComparator(sortBy){
+ const filename=path.resolve(__dirname,'../src/components/GameLibrary.tsx');
+ const source=ts.createSourceFile(filename,fs.readFileSync(filename,'utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
+ let callback;
+ function visit(node){
+  if(ts.isArrowFunction(node)&&ts.isBlock(node.body)&&node.body.statements.some(statement=>ts.isSwitchStatement(statement)&&statement.expression.getText(source)==='sortBy'))callback=node;
+  ts.forEachChild(node,visit);
+ }
+ visit(source);assert(callback,'Library sort callback must be present');
+ const code=ts.transpileModule(`module.exports = ${callback.getText(source)};`,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText;
+ const load=loader(),compiled={exports:{}};
+ new Function('module','sortBy','compareSagaGames','compareChronologyTitles',code)(compiled,sortBy,load('src/lib/sagas.ts').compareSagaGames,load('src/lib/chronology-titles.ts').compareChronologyTitles);
+ return compiled.exports;
+}
+
+test('client release sorting uses saved rank, natural title and ID ties in either direction with nulls last',()=>{
+ const games=[
+  {id:1,title:'Game 10',releaseYear:2000,chronologicalOrder:null},
+  {id:2,title:'Game 2',releaseYear:2000,chronologicalOrder:null},
+  {id:3,title:'Zulu',releaseYear:2000,chronologicalOrder:1},
+  {id:4,title:'Earlier',releaseYear:1999,chronologicalOrder:99},
+  {id:5,title:'Undated',releaseYear:null,chronologicalOrder:null},
+  {id:6,title:'Undated ranked',releaseYear:null,chronologicalOrder:1},
+  {id:7,title:'game 02',releaseYear:2000,chronologicalOrder:null},
+ ];
+ for(const [mode,expected] of [['year-asc',[4,3,2,7,1,6,5]],['year-desc',[3,2,7,1,4,6,5]]]){
+  for(const input of [games,[...games].reverse()])assert.deepEqual([...input].sort(clientComparator(mode)).map(g=>g.id),expected);
+ }
+ assert.deepEqual(games.slice(0,2).sort(clientComparator('title-asc')).map(g=>g.id),[2,1]);
+ assert.deepEqual(games.slice(0,2).sort(clientComparator('title-desc')).map(g=>g.id),[1,2]);
+});

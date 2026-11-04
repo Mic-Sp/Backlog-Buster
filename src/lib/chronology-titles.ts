@@ -3,8 +3,12 @@ import { normalizeFranchiseKey } from "@/lib/franchise-key";
 export type CanonicalGame = { title: string; releaseYear: number | null; chronologicalRank: number; aliases?: string[] };
 export type FranchiseCanon = { games: CanonicalGame[]; source: string };
 
+export function compareChronologyTitles(left: string, right: string): number {
+  return left.localeCompare(right, "en", { numeric: true, sensitivity: "base" });
+}
+
 // Only explicit edition suffixes can be removed. Sequence markers are never removed.
-const editionSuffix = /(?:\s+|\s*[-–—:]\s*|\s*\(\s*|\s*\[\s*)(?:(?:game of the year|goty|definitive|ultimate|deluxe|complete|enhanced|special) edition|director['’]?s cut|hd(?:\s+remaster(?:ed)?)?|remaster(?:ed)?|remake)\s*[)\]]?$/i;
+const editionSuffix = /(?:\s+|\s*[-–—:]\s*|\s*\(\s*|\s*\[\s*)(?:(?:the )?(?:game of the year|goty|definitive|ultimate|deluxe|complete|enhanced|special) edition|director['’]?s cut|hd(?:\s+remaster(?:ed)?)?|remaster(?:ed)?|remake)\s*[)\]]?$/i;
 function formattedTitle(title: string): string {
   return title.trim()
     .replace(/\s*(?:[-–—]\s*|\(|\[|\bfor\s+)(?:pc|steam|nintendo switch|switch|ps[1-5]|playstation\s*[1-5]?|xbox(?:\s+(?:one|360|series [xs]))?)\s*[)\]]?\s*$/i, "")
@@ -32,7 +36,7 @@ export function preservesChronologySequence(title: string, base: string): boolea
 
 export function collapseChronologyGames(games: readonly CanonicalGame[], compactRanks = true): CanonicalGame[] {
   const grouped = new Map<string, CanonicalGame>();
-  for (const game of [...games].sort((a, b) => a.chronologicalRank - b.chronologicalRank || (a.releaseYear ?? Infinity) - (b.releaseYear ?? Infinity) || a.title.localeCompare(b.title, "en"))) {
+  for (const game of [...games].sort((a, b) => a.chronologicalRank - b.chronologicalRank || (a.releaseYear ?? Infinity) - (b.releaseYear ?? Infinity) || compareChronologyTitles(a.title, b.title))) {
     const title = baseChronologyTitle(game.title), titleKey = normalizeChronologyTitle(title);
     if (!titleKey) continue;
     const editionProof = [game.title, ...(game.aliases ?? [])].some(alias => hasExplicitChronologyEdition(alias) &&

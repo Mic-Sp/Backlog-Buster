@@ -99,12 +99,17 @@ select {
 	line-height: 0.9;
 }
 
+.summary-total-xp {
+	min-width: 0;
+}
+
 .summary-total-xp > strong {
 	display: block;
 	font-family: Georgia, "Times New Roman", serif;
 	font-size: 26px;
 	font-weight: 400;
-	white-space: nowrap;
+	white-space: normal;
+	overflow-wrap: anywhere;
 }
 
 .summary-progress {
@@ -1290,6 +1295,10 @@ body {
 		column-gap: 12px;
 	}
 
+	.summary-total-xp > strong {
+		font-size: clamp(16px, 4.8vw, 24px);
+	}
+
 	.game-row:not(.game-row-head) {
 		margin-inline: 2px;
 	}
@@ -2202,6 +2211,13 @@ a.trailer-link-button:focus-visible {
 	color: #fcee0a;
 	background: #1b1b12;
 	box-shadow: 0 0 16px rgba(252, 238, 10, 0.08);
+	overflow-wrap: anywhere;
+}
+
+.trophy-room-banner > *,
+.trophy-room-banner dl > div {
+	min-width: 0;
+	max-width: 100%;
 }
 
 .trophy-room-banner .eyebrow {
@@ -2248,10 +2264,11 @@ a.trailer-link-button:focus-visible {
 
 .trophy-badge {
 	display: flex;
+	flex-wrap: wrap;
 	align-items: center;
 	justify-content: space-between;
 	gap: 8px;
-	height: 38px;
+	min-height: 38px;
 	flex-shrink: 0;
 	margin: 0;
 	padding: 8px 12px;
@@ -2260,8 +2277,9 @@ a.trailer-link-button:focus-visible {
 }
 
 .trophy-badge > span {
-	flex-shrink: 0;
-	white-space: nowrap;
+	min-width: 0;
+	white-space: normal;
+	overflow-wrap: anywhere;
 }
 
 .trophy-card > .trophy-cover {
@@ -2391,7 +2409,19 @@ button.trophy-rating-trigger:focus-visible {
 	grid-template-columns: minmax(0, 1fr);
 }
 
-@media (min-width: 560px) {
+@media (max-width: 640px) {
+	.trophy-room-banner {
+		gap: 16px;
+		margin-bottom: 16px;
+		padding: 16px;
+	}
+
+	.trophy-room-banner dl {
+		gap: 12px 16px;
+	}
+}
+
+@media (min-width: 768px) {
 	.trophy-grid {
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 	}
@@ -2871,6 +2901,7 @@ textarea.field-log-textarea:focus-visible {
 
 .milestone-card {
 	min-width: 0;
+	overflow-wrap: anywhere;
 	padding: 16px;
 	border: 1px solid #353f4c;
 	border-top-width: 3px;

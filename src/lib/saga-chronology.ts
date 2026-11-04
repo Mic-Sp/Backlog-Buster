@@ -1,4 +1,4 @@
-import { matchChronologyGame, normalizeChronologyTitle, type CanonicalGame } from "@/lib/chronology-titles";
+import { compareChronologyTitles, matchChronologyGame, normalizeChronologyTitle, type CanonicalGame } from "@/lib/chronology-titles";
 import { isReleasedYear } from "@/lib/game-release";
 
 type SagaGame = { id: number; title: string; releaseYear: number | null };
@@ -10,7 +10,7 @@ export function buildReleaseYearOrder(games: readonly SagaGame[]): Map<number, n
     const leftYear = year(left.releaseYear), rightYear = year(right.releaseYear);
     if (leftYear !== rightYear) return leftYear - rightYear;
     const leftTitle = normalizeChronologyTitle(left.title), rightTitle = normalizeChronologyTitle(right.title);
-    return (leftTitle < rightTitle ? -1 : leftTitle > rightTitle ? 1 : 0) || left.id - right.id;
+    return compareChronologyTitles(leftTitle, rightTitle) || left.id - right.id;
   });
   return new Map(ordered.map((game, index) => [game.id, index + 1]));
 }
@@ -27,7 +27,7 @@ export function buildAssignedSagaOrder(games: readonly SagaGame[], canon: Canoni
     const entry = matchChronologyGame(canon, game);
     return entry ? [{ game, canonicalRank: entry.chronologicalRank }] : [];
   }).sort((a, b) => a.canonicalRank - b.canonicalRank ||
-    a.game.releaseYear! - b.game.releaseYear! || a.game.title.localeCompare(b.game.title, "en") || a.game.id - b.game.id);
+    a.game.releaseYear! - b.game.releaseYear! || compareChronologyTitles(a.game.title, b.game.title) || a.game.id - b.game.id);
   matched.forEach(({ game }, index) => assigned.set(game.id, index + 1));
   return assigned;
 }

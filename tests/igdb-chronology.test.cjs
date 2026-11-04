@@ -20,6 +20,33 @@ const titles=loader()('src/lib/chronology-titles.ts');
 const stamp=year=>Date.UTC(year,0,1)/1000;
 const row=(id,name,year,type='Main Game',extra={})=>({id,name,slug:name.toLowerCase().replaceAll(' ','-'),first_release_date:stamp(year),game_type:{type},...extra});
 
+test('edition suffixes share one implementation for franchise inference and chronology matching',()=>{
+ const {getSagaName,buildSagaChains}=loader()('src/lib/sagas.ts');
+ const suffixes=['Remake','Remaster','Remastered','HD Remastered','Definitive Edition','The Definitive Edition','Complete Edition','Ultimate Edition','Deluxe Edition','Enhanced Edition','Special Edition','Game of the Year Edition','GOTY Edition',"Director's Cut",'Director’s Cut','(Remastered)','[Remake]','Remastered Deluxe Edition'];
+ for(const suffix of suffixes){
+  const title=`Unknown Adventure ${suffix}`;
+  assert.equal(titles.baseChronologyTitle(title),'Unknown Adventure',title);
+  assert.equal(getSagaName({title}),'Unknown Adventure',title);
+  assert.equal(getSagaName({title:`Unknown Adventure 2 ${suffix}`}),'Unknown Adventure',title);
+  assert.equal(titles.matchChronologyGame([{title:'Unknown Adventure 2',releaseYear:2000,chronologicalRank:1}],{title:`Unknown Adventure 2 ${suffix}`})?.chronologicalRank,1,title);
+ }
+ assert.equal(getSagaName({title:'Unknown Adventure: Director’s Cut (Switch)'}),'Unknown Adventure');
+ assert.equal(getSagaName({title:'Unknown Adventure Remake',franchise:'  Custom Remake  '}),'Custom Remake','Explicit franchise overrides remain literal');
+ const games=suffixes.map((suffix,index)=>({id:index+1,title:`Unknown Adventure ${suffix}`,status:'Backlog'}));
+ assert.equal(buildSagaChains(games).chains.length,1);
+ assert.equal(buildSagaChains(games).chains[0].total,suffixes.length);
+});
+
+test('IGDB release-date ties and canonical rank ties use natural numeric title order',()=>{
+ const {buildIgdbCanon}=loader({'@/lib/igdb-api':{}})('src/lib/igdb-chronology.ts');
+ const rows=[row(10,'Game 10',2000),row(2,'Game 2',2000)];
+ assert.deepEqual(buildIgdbCanon(rows).map(g=>g.title),['Game 2','Game 10']);
+ assert.deepEqual(buildIgdbCanon([...rows].reverse()),buildIgdbCanon(rows));
+ const games=rows.map(r=>({title:r.name,releaseYear:2000,chronologicalRank:1}));
+ assert.deepEqual(titles.collapseChronologyGames(games).map(g=>g.title),['Game 2','Game 10']);
+ assert.equal(titles.compareChronologyTitles('Épisode 2','episode 2'),0);
+});
+
 test('title matching handles Roman/Arabic, editions, subtitles, platforms and official aliases conservatively',()=>{
  const games=[{title:'Final Fantasy IX',releaseYear:2000,chronologicalRank:1,aliases:['FFIX']},{title:'Resident Evil 4',releaseYear:2005,chronologicalRank:2},{title:'Resident Evil 4',releaseYear:2023,chronologicalRank:3,aliases:['Resident Evil 4 Remake']},{title:'Resident Evil VIII: Village',releaseYear:2021,chronologicalRank:4,aliases:['Resident Evil 8']}];
  for(const title of ['Final Fantasy 9','FINAL FANTASY IX (PC)','Final Fantasy IX Remastered','FFIX'])assert.equal(titles.matchChronologyGame(games,{title})?.chronologicalRank,1,title);

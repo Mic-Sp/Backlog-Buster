@@ -193,3 +193,65 @@ test('coalesced concurrent scans retain the same raw response for success and va
   assert.equal(f.requests.length,1);assert(a.geminiPayload.rawResponse);assert.equal(b.geminiPayload.rawResponse,a.geminiPayload.rawResponse);assert.equal(b.geminiPayload.requestBody,a.geminiPayload.requestBody);
  }
 }));
+
+test('same-title reboots get separate Gemini keys and retain plain title/year cache records',async()=>environment(async()=>{
+ const games=[{title:'Tomb Raider',releaseYear:1996,chronologicalRank:1},{title:'Tomb Raider',releaseYear:2013,chronologicalRank:2}];
+ const owned=games.map(({title,releaseYear},index)=>({id:index+1,title,releaseYear}));
+ const order={'Tomb Raider (1996)':2,'Tomb Raider (2013)':1};
+ const f=fixture({igdb:{source:'igdb',games},order});
+ const result=await f.run('Tomb Raider',owned,'owner');
+ assert.equal(result.source,'igdb+gemini',result.geminiError);
+ assert.deepEqual(result.games.map(g=>[g.title,g.releaseYear,g.chronologicalRank]),[['Tomb Raider',2013,1],['Tomb Raider',1996,2]]);
+ const request=f.requests[0].body,schema=request.generationConfig.responseFormat.text.schema;
+ assert.deepEqual(schema.required,['Tomb Raider (1996)','Tomb Raider (2013)']);
+ assert.deepEqual(Object.keys(schema.properties),schema.required);assert.equal(schema.additionalProperties,false);
+ const text=request.contents[0].parts[0].text;
+ const payload=JSON.parse(text.slice('<untrusted_saga_data>'.length,-'</untrusted_saga_data>'.length));
+ assert.deepEqual(payload.games,[{key:'Tomb Raider (1996)',title:'Tomb Raider',originalReleaseYear:1996},{key:'Tomb Raider (2013)',title:'Tomb Raider',originalReleaseYear:2013}]);
+ const reversed=fixture({igdb:{source:'igdb',games:[...games].reverse()},order});await reversed.run('Tomb Raider',[...owned].reverse(),'owner');
+ assert.deepEqual(reversed.requests[0].body,request,'Schema and prompt keys must not depend on database order');
+
+ let row=null;const table={findUnique:async()=>row,upsert:async({create})=>{row={...create,updatedAt:new Date()};return{updatedAt:row.updatedAt};}};
+ const cache=loader({'@/lib/prisma':{prisma:{franchiseChronology:table,$transaction:async work=>work({franchiseChronology:table,$executeRaw:async()=>{}})}}})('src/lib/saga-chronology-cache.ts');
+ await cache.resolveCachedSagaChronology('Tomb Raider',owned,async()=>result);
+ assert.deepEqual(row.games,result.games);assert(row.games.every(g=>!Object.hasOwn(g,'key')));
+ const hit=await cache.resolveCachedSagaChronology('Tomb Raider',owned,()=>assert.fail('Existing title/year records must remain valid cache hits'));
+ assert.equal(hit.cacheHit,true);
+ const {buildAssignedSagaOrder}=loader()('src/lib/saga-chronology.ts');
+ assert.deepEqual(Object.fromEntries(buildAssignedSagaOrder(owned,hit.debug.canonicalGames)),{1:2,2:1});
+ const cachedOnly=fixture({igdb:null,order});
+ const refreshed=await cachedOnly.run('Tomb Raider',owned,'owner',{source:'gemini-canon',games:row.games});
+ assert.equal(refreshed.source,'gemini-canon');
+ assert.deepEqual(refreshed.games.map(({title,releaseYear,chronologicalRank})=>({title,releaseYear,chronologicalRank})),row.games);
+ assert(refreshed.games.every(g=>!Object.hasOwn(g,'key')));
+}));
+
+test('Gemini parser rejects ambiguous bare reboot titles and repeated, missing or invented keys',()=>{
+ const {normalizeGeminiStoryOrder}=fixture().load('src/lib/saga-lore.ts');
+ const games=[{title:'Tomb Raider',releaseYear:1996,chronologicalRank:1},{title:'Tomb Raider',releaseYear:2013,chronologicalRank:2}];
+ for(const raw of[
+  {'Tomb Raider':1,'Tomb Raider (2013)':2},
+  {'Tomb Raider (1996)':1},
+  {'Tomb Raider (1996)':1,'Tomb Raider (2020)':2},
+  [{key:'Tomb Raider (1996)',rank:1},{key:'Tomb Raider (1996)',rank:2}],
+ ])assert.throws(()=>normalizeGeminiStoryOrder(raw,games),/schema validation failed/);
+ for(const raw of[
+  {'Tomb Raider (1996)':1,'Tomb Raider (2013)':1},
+  [{key:'Tomb Raider (2013)',rank:1},{key:'Tomb Raider (1996)',rank:1}],
+  {games:[{title:'Tomb Raider (2013)',chronologicalRank:1},{title:'Tomb Raider (1996)',chronologicalRank:1}]},
+ ])assert.deepEqual(normalizeGeminiStoryOrder(raw,games).map(g=>g.releaseYear),[1996,2013]);
+ const nullable=[games[0],{...games[1],releaseYear:null}];
+ assert.deepEqual(normalizeGeminiStoryOrder({'Tomb Raider (undated)':1,'Tomb Raider (1996)':1},nullable).map(g=>g.releaseYear),[1996,null]);
+ const collision=[...games,{title:'Tomb Raider (1996)',releaseYear:2000,chronologicalRank:3}];
+ const resolved=normalizeGeminiStoryOrder({'Tomb Raider (1996) [2]':1,'Tomb Raider (2013)':2,'Tomb Raider (1996)':3},collision);
+ assert.deepEqual(resolved.map(g=>[g.title,g.releaseYear]),[['Tomb Raider',1996],['Tomb Raider',2013],['Tomb Raider (1996)',2000]]);
+});
+
+test('Gemini prompt ordering and equal-rank normalization use natural numeric titles',async()=>environment(async()=>{
+ const games=[{title:'Game 10',releaseYear:2000,chronologicalRank:1},{title:'Game 2',releaseYear:2000,chronologicalRank:2}];
+ const f=fixture({igdb:{source:'igdb',games},order:{'Game 10':1,'Game 2':1}});
+ const result=await f.run('Game',games,'owner');
+ assert.equal(result.source,'igdb+gemini');assert.deepEqual(result.games.map(g=>g.title),['Game 2','Game 10']);
+ assert.deepEqual(f.requests[0].body.generationConfig.responseFormat.text.schema.required,['Game 2','Game 10']);
+ assert.deepEqual(result.geminiPayload.candidates.map(g=>g.title),['Game 2','Game 10']);
+}));

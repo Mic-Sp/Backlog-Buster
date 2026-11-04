@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Achievement } from "@/lib/achievements";
 import "./HudMilestones.css";
@@ -12,6 +12,7 @@ export default function HudMilestones({ achievements }: { achievements: Achievem
   const tooltipRef = useRef<HTMLDivElement>(null);
   const ribbonRef = useRef<HTMLDivElement>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pinnedKey = useRef<string | null>(null);
   const tooltipId = useId();
   const activeAchievement = achievements.find((achievement) => achievement.key === activeKey);
 
@@ -20,11 +21,18 @@ export default function HudMilestones({ achievements }: { achievements: Achievem
     closeTimer.current = null;
   }
 
+  const closeTooltip = useCallback(() => {
+    if (closeTimer.current !== null) clearTimeout(closeTimer.current);
+    closeTimer.current = null;
+    pinnedKey.current = null;
+    setActiveKey(null);
+  }, []);
+
   function closeAfterHover() {
     cancelClose();
-    if (document.activeElement === triggerRef.current) return;
+    if (pinnedKey.current || document.activeElement === triggerRef.current) return;
     // Allow the pointer to cross the gap into the tooltip without dismissing it.
-    closeTimer.current = setTimeout(() => setActiveKey(null), 150);
+    closeTimer.current = setTimeout(closeTooltip, 150);
   }
 
   function showTooltip(button: HTMLButtonElement, key: string) {
@@ -49,7 +57,7 @@ export default function HudMilestones({ achievements }: { achievements: Achievem
       const anchor = trigger.getBoundingClientRect();
       const bounds = ribbon.getBoundingClientRect();
       if (anchor.right <= bounds.left || anchor.left >= bounds.right || anchor.bottom <= 0 || anchor.top >= window.innerHeight) {
-        setActiveKey(null);
+        closeTooltip();
         return;
       }
       const { width, height } = tooltip.getBoundingClientRect();
@@ -61,19 +69,28 @@ export default function HudMilestones({ achievements }: { achievements: Achievem
     }
 
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") setActiveKey(null);
+      if (event.key === "Escape") closeTooltip();
+    }
+
+    function handleOutsidePointerDown(event: PointerEvent) {
+      if (event.target instanceof Node &&
+        !triggerRef.current?.contains(event.target) && !tooltipRef.current?.contains(event.target)) {
+        closeTooltip();
+      }
     }
 
     updatePosition();
     window.addEventListener("resize", updatePosition);
     window.addEventListener("scroll", updatePosition, true);
     document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("pointerdown", handleOutsidePointerDown, true);
     return () => {
       window.removeEventListener("resize", updatePosition);
       window.removeEventListener("scroll", updatePosition, true);
       document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("pointerdown", handleOutsidePointerDown, true);
     };
-  }, [activeAchievement]);
+  }, [activeAchievement, closeTooltip]);
 
   return (
     <div className="hud-achievements-bar" aria-label="Player achievements">
@@ -87,10 +104,23 @@ export default function HudMilestones({ achievements }: { achievements: Achievem
             data-unlocked={achievement.unlocked}
             aria-label={`${achievement.title}, ${achievement.unlocked ? "unlocked" : "locked"}`}
             aria-describedby={activeKey === achievement.key ? tooltipId : undefined}
-            onMouseEnter={(event) => showTooltip(event.currentTarget, achievement.key)}
-            onMouseLeave={closeAfterHover}
-            onFocus={(event) => showTooltip(event.currentTarget, achievement.key)}
-            onBlur={() => { cancelClose(); setActiveKey(null); }}
+            onPointerEnter={(event) => {
+              if (event.pointerType === "mouse" && !pinnedKey.current) showTooltip(event.currentTarget, achievement.key);
+            }}
+            onPointerLeave={closeAfterHover}
+            onFocus={(event) => {
+              // Pointer activation is handled by click; keyboard focus still previews details.
+              if (event.currentTarget.matches(":focus-visible")) showTooltip(event.currentTarget, achievement.key);
+            }}
+            onClick={(event) => {
+              // Track explicit activation separately from hover/focus so the first tap always opens.
+              if (pinnedKey.current === achievement.key) closeTooltip();
+              else {
+                pinnedKey.current = achievement.key;
+                showTooltip(event.currentTarget, achievement.key);
+              }
+            }}
+            onBlur={closeTooltip}
           >
             <span className="hud-achievement-icon" aria-hidden="true">{achievement.key === "second-heart" ? "🫀" : achievement.icon}</span>
           </button>
@@ -109,7 +139,7 @@ export default function HudMilestones({ achievements }: { achievements: Achievem
         >
           <div className="hud-milestone-tooltip-heading">
             <strong>{activeAchievement.title}</strong>
-            <span>+{activeAchievement.xpBonus.toLocaleString("en-US")} XP</span>
+            <span>+{(activeAchievement.unlocked ? activeAchievement.xpAwarded : activeAchievement.xpBonus).toLocaleString("en-US")} XP</span>
           </div>
           <p>{activeAchievement.description}</p>
           <span className="hud-milestone-tooltip-status">
