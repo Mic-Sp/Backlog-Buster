@@ -120,7 +120,7 @@ export function parseRawgCatalogGame(value: unknown): ProviderCatalogGame | null
 }
 
 /** Multi-result title search, separate from the existing single-game enrichment. */
-export async function searchRawgGames(title: string, reportErrors = false): Promise<ProviderCatalogGame[]> {
+export async function searchRawgGames(title: string, reportErrors = false, options: { signal?: AbortSignal; retry?: boolean } = {}): Promise<ProviderCatalogGame[]> {
   const apiKey = process.env.RAWG_API_KEY?.trim();
   if (!apiKey) {
     if (reportErrors) throw new Error("RAWG catalog lookup requires server configuration.");
@@ -128,8 +128,10 @@ export async function searchRawgGames(title: string, reportErrors = false): Prom
   }
   try {
     const query = new URLSearchParams({ key: apiKey, search: title, page_size: "8" });
-    const response = await resilientFetch(`https://api.rawg.io/api/games?${query}`, {
-      cache: "no-store", signal: AbortSignal.timeout(5000),
+    // Autocomplete gets one attempt: a 5xx must immediately hand off to IGDB.
+    const request = options.retry === false ? fetch : resilientFetch;
+    const response = await request(`https://api.rawg.io/api/games?${query}`, {
+      cache: "no-store", signal: AbortSignal.any([AbortSignal.timeout(5000), ...(options.signal ? [options.signal] : [])]),
     });
     if (!response.ok) throw new Error("RAWG catalog lookup unavailable.");
     const payload: unknown = await response.json();

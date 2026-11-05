@@ -2,7 +2,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { withIgdbAuth, type IgdbHeaders } from "@/lib/igdb-auth";
-import { coalesce, retryAfterSeconds } from "@/lib/api-resilience";
+import { coalesce, retryAfterSeconds, withAbortSignal } from "@/lib/api-resilience";
 
 const base = "https://api.igdb.com/v4";
 type Endpoint = "collections" | "franchises" | "games";
@@ -36,6 +36,7 @@ async function dispatchSlot(clientId: string, signal: AbortSignal) {
 async function post(endpoint: Endpoint, body: string, headers: IgdbHeaders, signal: AbortSignal): Promise<Response> {
   for (let attempt = 0; ; attempt++) {
     await dispatchSlot(headers["Client-ID"], signal);
+    signal.throwIfAborted();
     const response = await fetch(`${base}/${endpoint}`, {
       method: "POST", body, headers: { ...headers, Accept: "application/json", "Content-Type": "text/plain" },
       cache: "no-store", redirect: "error", signal: AbortSignal.any([signal, AbortSignal.timeout(8000)]),
@@ -62,12 +63,12 @@ export async function queryIgdb(endpoint: Endpoint, body: string, parentSignal?:
   if (!["collections", "franchises", "games"].includes(endpoint) || body.length > 30000) return null;
   const signal = AbortSignal.any([...(parentSignal ? [parentSignal] : []), AbortSignal.timeout(20000)]);
   try {
-    const rows = await coalesce(`igdb-public:${endpoint}:${body}`, async () => {
-      const response = await withIgdbAuth(headers => post(endpoint, body, headers, signal));
+    const rows = await withAbortSignal(signal, () => coalesce(`igdb-public:${endpoint}:${body}`, () => withAbortSignal(signal, async () => {
+      const response = await withIgdbAuth(headers => post(endpoint, body, headers, signal), signal);
       if (!response?.ok) { await response?.body?.cancel(); return null; }
       const result: unknown = await response.json();
       return Array.isArray(result) && result.length <= 500 ? result : null;
-    });
+    })));
     return rows ? structuredClone(rows) : null;
   } catch { return null; }
 }

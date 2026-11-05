@@ -90,6 +90,18 @@ test('IGDB uses the real token manager for one 401 recovery and honors long Retr
  const limited=apiFixture();let calls=0;global.fetch=async()=>{calls++;return new Response(null,{status:429,headers:{'Retry-After':'120'}});};assert.equal(await limited.api.queryIgdb('games','fields name;'),null);assert.equal(await limited.api.queryIgdb('games','fields id;'),null);assert.equal(calls,1);
 }));
 
+test('a timed out IGDB body releases its shared flight so a later query can recover',async()=>environment(async()=>{
+ const f=apiFixture();let calls=0;
+ global.fetch=async()=>++calls===1?{ok:true,json:()=>new Promise(()=>{})}:Response.json([{name:'Recovered'}]);
+ const controller=new AbortController();
+ const timer=setTimeout(()=>controller.abort(),20);
+ try{assert.equal(await f.api.queryIgdb('games','fields name;',controller.signal),null);}finally{clearTimeout(timer);}
+ // Allow the aborted shared flight's finally handler to settle before the next request.
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.deepEqual(await f.api.queryIgdb('games','fields name;'),[{name:'Recovered'}]);
+ assert.equal(calls,2);
+}));
+
 test('auto-order prefers complete IGDB canon, reuses it for another operator, and falls back safely',async()=>{
  let cached=null,operator='owner-a',primaryCalls=0,primaryWorks=true,providerFails=false;const writes=[];
  const members=[{id:1,title:'Final Fantasy 7',status:'Backlog',franchise:'Final Fantasy',releaseYear:1997,chronologicalOrder:null},{id:2,title:'Final Fantasy 9 Remastered',status:'Backlog',franchise:'Final Fantasy',releaseYear:2000,chronologicalOrder:null}];

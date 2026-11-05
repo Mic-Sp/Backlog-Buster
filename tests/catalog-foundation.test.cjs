@@ -75,6 +75,36 @@ test("a vector write failure rolls the metadata transaction back", async () => {
   assert.equal(staged, true); assert.equal(committed, false);
 });
 
+test("IGDB updates preserve cached duration, RAWG identity and feature evidence, and rebuild the matching vector", async () => {
+  const calls = [];
+  const previous = provider();
+  const incoming = loader({ "@/lib/igdb-api": {} })("src/lib/igdb-catalog.ts").parseIgdbCatalogGame({
+    id: 73, name: "Portal 2", first_release_date: Date.UTC(2011, 3, 19) / 1000,
+  });
+  const store = loader({ "@/lib/prisma": { prisma: { $transaction: work => work({
+    $executeRaw: async (sql, ...values) => { calls.push([sql.join("?"), values]); return 1; },
+    gameCatalog: {
+      findUnique: async () => { calls.push(["read"]); return previous; },
+      upsert: async args => calls.push(["upsert", args]),
+    },
+  }) } } })("src/lib/catalog-store.ts");
+  await store.upsertCatalogGame(incoming);
+  assert.match(calls[0][0], /pg_advisory_xact_lock/);
+  assert.equal(calls[1][0], "read");
+  const update = calls.find(call => call[0] === "upsert")[1].update;
+  for (const field of ["estimatedHours", "tags", "seriesHints", "multiplayer", "coop", "onlineCoop", "localCoop", "genres", "platforms"]) {
+    assert.deepEqual(update[field], previous[field]);
+  }
+  assert(!Object.hasOwn(update, "rawgId"));
+  assert(!Object.hasOwn(update, "rawgSlug"));
+  assert.equal(update.metadataSource, "igdb");
+  const vector = calls.find(call => /UPDATE "GameCatalog"/.test(call[0]))[1];
+  const expected = loader()("src/lib/catalog-vector.ts").buildCatalogVector(update);
+  assert.deepEqual(JSON.parse(vector[0]), expected.values);
+  assert.equal(vector[2], expected.contentHash);
+  assert.equal(await store.tryUpsertCatalogGame({ ...incoming, igdbId: 0 }), false);
+});
+
 test("single RAWG lookup persists canonical enrichment but preserves its legacy return shape on cache failure", async () => {
   const before = process.env.RAWG_API_KEY;
   process.env.RAWG_API_KEY = "fixture";

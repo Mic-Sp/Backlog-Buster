@@ -1,7 +1,8 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
-import { coalesce } from "@/lib/api-resilience";
+import { coalesce, withAbortSignal } from "@/lib/api-resilience";
 import { searchRawgGames } from "@/lib/rawg";
+import { searchIgdbGames } from "@/lib/igdb-catalog";
 import type { CatalogSuggestion } from "@/lib/catalog-types";
 import { catalogIdentity, catalogSuggestion, tryUpsertCatalogGame } from "@/lib/catalog-store";
 
@@ -10,6 +11,11 @@ export type { CatalogSuggestion } from "@/lib/catalog-types";
 const LIMIT = 8;
 const TTL_MS = 30_000;
 const MAX_CACHE_ENTRIES = 256;
+const PROVIDER_TIMEOUT_MS = 2000;
+function providerAttempt<T>(work: (signal: AbortSignal) => Promise<T>): Promise<T> {
+  const signal = AbortSignal.timeout(PROVIDER_TIMEOUT_MS);
+  return withAbortSignal(signal, () => work(signal));
+}
 // Process-local by design; bounds memory and shares work across players on this instance.
 const cache = new Map<string, { expiresAt: number; items: CatalogSuggestion[] }>();
 const select = { title: true, releaseYear: true, platforms: true, genre: true, estimatedHours: true, coverUrl: true } as const;
@@ -32,7 +38,13 @@ export async function searchCatalog(query: string): Promise<CatalogSuggestion[]>
           select, take: LIMIT, orderBy: [{ title: "asc" }, { releaseYear: "desc" }],
         });
       } catch { /* A missing table or offline database must not block search. */ }
-      const remote = local.length >= LIMIT ? [] : await searchRawgGames(clean).catch(() => []);
+      let remote = [] as Awaited<ReturnType<typeof searchRawgGames>>;
+      if (local.length < LIMIT) {
+        remote = await providerAttempt(signal => searchRawgGames(clean, true, { signal, retry: false })).catch(() => []);
+        if (!remote.length) {
+          remote = await providerAttempt(signal => searchIgdbGames(clean, signal)).catch(() => []);
+        }
+      }
       const unique = new Map<string, CatalogSuggestion>();
       for (const game of [...local, ...remote]) {
         if (!unique.has(identity(game))) unique.set(identity(game), game);

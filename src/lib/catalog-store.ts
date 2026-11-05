@@ -12,20 +12,38 @@ export function catalogSuggestion(game: CatalogSuggestion): CatalogSuggestion {
 
 /** Only call with parsed, canonical provider records, never with player-entered metadata. */
 export async function upsertCatalogGame(game: ProviderCatalogGame): Promise<void> {
-  if (!Number.isSafeInteger(game.rawgId) || game.rawgId! <= 0 || !game.title.trim()) throw new Error("Catalog ingestion requires a canonical RAWG game.");
+  const source = game.metadataSource ?? "rawg";
+  const providerId = source === "igdb" ? game.igdbId : game.rawgId;
+  if (!Number.isSafeInteger(providerId) || providerId! <= 0 || !game.title.trim()) throw new Error("Catalog ingestion requires a canonical provider game.");
   const key = catalogIdentity(game);
-  const embedding = buildCatalogVector(game);
   const now = new Date();
-  // Explicit projection ensures callers can never accidentally spread user IDs, notes, or ratings.
-  const data = { ...catalogSuggestion(game), rawgId: game.rawgId, rawgSlug: game.rawgSlug,
-    genres: game.genres, tags: game.tags, seriesHints: game.seriesHints, multiplayer: game.multiplayer,
-    coop: game.coop, onlineCoop: game.onlineCoop, localCoop: game.localCoop,
-    metadataSource: "rawg", metadataUpdatedAt: now,
-  };
   await prisma.$transaction(async tx => {
     // Serialize same-key updates so concurrent writers cannot leave stale vectors beside new metadata.
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`backlogbuster-catalog:${key}`}, 0))`;
-    await tx.gameCatalog.upsert({ where: { key }, create: { key, ...data }, update: data });
+    // IGDB's sparse autocomplete fields must not erase richer, previously cached evidence.
+    const previous = source === "igdb" ? await tx.gameCatalog.findUnique({ where: { key }, select: {
+      estimatedHours: true, coverUrl: true, genre: true, genres: true, platforms: true,
+      tags: true, seriesHints: true, multiplayer: true, coop: true, onlineCoop: true, localCoop: true,
+    } }) : null;
+    const merged = previous ? { ...game,
+      estimatedHours: game.estimatedHours ?? previous.estimatedHours, coverUrl: game.coverUrl ?? previous.coverUrl,
+      genre: game.genre ?? previous.genre, genres: game.genres.length ? game.genres : previous.genres,
+      platforms: game.platforms.length ? game.platforms : previous.platforms,
+      tags: [...new Set([...previous.tags, ...game.tags])], seriesHints: [...new Set([...previous.seriesHints, ...game.seriesHints])],
+      multiplayer: game.multiplayer ?? previous.multiplayer, coop: game.coop ?? previous.coop,
+      onlineCoop: game.onlineCoop ?? previous.onlineCoop, localCoop: game.localCoop ?? previous.localCoop,
+    } : game;
+    const embedding = buildCatalogVector(merged);
+    // Explicit projection ensures callers can never spread user IDs, notes, or ratings.
+    const data = { ...catalogSuggestion(merged), rawgId: game.rawgId, rawgSlug: game.rawgSlug,
+      genres: merged.genres, tags: merged.tags, seriesHints: merged.seriesHints, multiplayer: merged.multiplayer,
+      coop: merged.coop, onlineCoop: merged.onlineCoop, localCoop: merged.localCoop,
+      metadataSource: source, metadataUpdatedAt: now,
+    };
+    // IGDB has no RAWG identity: preserve any previously cached RAWG identifiers.
+    const { rawgId, rawgSlug, ...publicMetadata } = data;
+    await tx.gameCatalog.upsert({ where: { key }, create: { key, ...data },
+      update: source === "igdb" ? publicMetadata : { ...publicMetadata, rawgId, rawgSlug } });
     await tx.$executeRaw`
       UPDATE "GameCatalog"
       SET "featureVector" = ${vectorLiteral(embedding.values)}::vector,
@@ -36,7 +54,7 @@ export async function upsertCatalogGame(game: ProviderCatalogGame): Promise<void
   });
 }
 
-/** Optional cache writes must not break RAWG enrichment/autocomplete before schema deployment. */
+/** Optional cache writes must not break provider enrichment/autocomplete before schema deployment. */
 export async function tryUpsertCatalogGame(game: ProviderCatalogGame): Promise<boolean> {
   try { await upsertCatalogGame(game); return true; }
   catch { return false; }

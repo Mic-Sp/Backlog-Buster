@@ -7,6 +7,18 @@ const flights = new Map<string, Promise<unknown>>();
 const cooldowns = new Map<string, number>();
 const upstreamCooldowns = new Map<string, number>();
 
+/** Bound waits too (auth, dispatch, shared flights), even when work cannot be cancelled. */
+export async function withAbortSignal<T>(signal: AbortSignal, work: () => Promise<T>): Promise<T> {
+  signal.throwIfAborted();
+  let abort: () => void = () => {};
+  const aborted = new Promise<never>((_, reject) => {
+    abort = () => reject(signal.reason);
+    signal.addEventListener("abort", abort, { once: true });
+  });
+  try { return await Promise.race([aborted, work()]); }
+  finally { signal.removeEventListener("abort", abort); }
+}
+
 export function retryAfterSeconds(value: string | null, fallback = 10): number {
   const seconds = value == null ? NaN : /^\d+(\.\d+)?$/.test(value.trim())
     ? Number(value) : (Date.parse(value) - Date.now()) / 1000;

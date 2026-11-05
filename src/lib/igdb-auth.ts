@@ -37,15 +37,16 @@ function headers(auth: IgdbAuth): IgdbHeaders {
   return { "Client-ID": auth.clientId, Authorization: `Bearer ${auth.accessToken}` };
 }
 
-async function exchange(config: Credentials): Promise<TokenRow | null> {
+async function exchange(config: Credentials, signal?: AbortSignal): Promise<TokenRow | null> {
   try {
+    signal?.throwIfAborted();
     const requestedAt = Date.now();
     const response = await resilientFetch(tokenEndpoint, {
       method: "POST", cache: "no-store", redirect: "error",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       // Secrets belong in the server-side POST body, never a URL or log message.
       body: new URLSearchParams({ client_id: config.clientId, client_secret: config.clientSecret, grant_type: "client_credentials" }).toString(),
-      signal: AbortSignal.timeout(8000),
+      signal: AbortSignal.any([AbortSignal.timeout(8000), ...(signal ? [signal] : [])]),
     });
     if (!response.ok) return null;
     const data: unknown = await response.json();
@@ -65,8 +66,9 @@ async function exchange(config: Credentials): Promise<TokenRow | null> {
   }
 }
 
-async function load(config: Credentials, rejectedToken?: string): Promise<IgdbAuth | null> {
+async function load(config: Credentials, rejectedToken?: string, signal?: AbortSignal): Promise<IgdbAuth | null> {
   try {
+    signal?.throwIfAborted();
     if (!rejectedToken) {
       const cached = await prisma.externalOAuthToken.findUnique({ where: { provider }, select: { accessToken: true, expiresAt: true } });
       if (reusable(cached)) return { clientId: config.clientId, ...cached };
@@ -75,10 +77,11 @@ async function load(config: Credentials, rejectedToken?: string): Promise<IgdbAu
     // renewals across serverless instances, which recheck the winner's persisted token.
     return await prisma.$transaction(async tx => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended('backlogbuster-oauth:igdb', 0))`;
+      signal?.throwIfAborted();
       const cached = await tx.externalOAuthToken.findUnique({ where: { provider }, select: { accessToken: true, expiresAt: true } });
       if (reusable(cached, rejectedToken)) return { clientId: config.clientId, ...cached };
       if (rejectedToken) await tx.externalOAuthToken.deleteMany({ where: { provider, accessToken: rejectedToken } });
-      const token = await exchange(config);
+      const token = await exchange(config, signal);
       if (!token || token.accessToken === rejectedToken) return null;
       await tx.externalOAuthToken.upsert({ where: { provider }, create: { provider, ...token }, update: token, select: { provider: true } });
       return { clientId: config.clientId, ...token };
@@ -88,14 +91,15 @@ async function load(config: Credentials, rejectedToken?: string): Promise<IgdbAu
   }
 }
 
-async function obtain(config: Credentials, rejectedToken?: string): Promise<IgdbAuth | null> {
+async function obtain(config: Credentials, rejectedToken?: string, signal?: AbortSignal): Promise<IgdbAuth | null> {
+  signal?.throwIfAborted();
   if (memory?.key === config.key && reusable(memory.auth, rejectedToken)) return copy(memory.auth);
   while (inFlight?.key === config.key) {
     const pending = await inFlight.promise;
     // A delayed 401 must not discard a new token another request just refreshed.
     if (!pending || pending.accessToken !== rejectedToken) return pending ? copy(pending) : null;
   }
-  const promise = load(config, rejectedToken);
+  const promise = load(config, rejectedToken, signal);
   inFlight = { key: config.key, promise };
   try {
     const auth = await promise;
@@ -107,9 +111,9 @@ async function obtain(config: Credentials, rejectedToken?: string): Promise<Igdb
 }
 
 /** Server-only: returns credentials for IGDB or null so callers can use their fallback. */
-export async function getIgdbAuth(): Promise<IgdbAuth | null> {
+export async function getIgdbAuth(signal?: AbortSignal): Promise<IgdbAuth | null> {
   const config = credentials();
-  return config ? obtain(config) : null;
+  return config ? obtain(config, undefined, signal) : null;
 }
 
 export async function getIgdbHeaders(): Promise<IgdbHeaders | null> {
@@ -118,11 +122,11 @@ export async function getIgdbHeaders(): Promise<IgdbHeaders | null> {
 }
 
 /** Recover from one rejected token without invalidating a newer cache entry. */
-export async function refreshIgdbAuth(rejectedAccessToken: string): Promise<IgdbAuth | null> {
+export async function refreshIgdbAuth(rejectedAccessToken: string, signal?: AbortSignal): Promise<IgdbAuth | null> {
   if (!validToken(rejectedAccessToken)) return null;
   if (memory?.auth.accessToken === rejectedAccessToken) memory = null;
   const config = credentials();
-  return config ? obtain(config, rejectedAccessToken) : null;
+  return config ? obtain(config, rejectedAccessToken, signal) : null;
 }
 
 async function invalidate(rejectedAccessToken: string) {
@@ -132,14 +136,16 @@ async function invalidate(rejectedAccessToken: string) {
 }
 
 /** Request callbacks must be replayable; a 401 is retried exactly once with fresh auth. */
-export async function withIgdbAuth(request: (authHeaders: IgdbHeaders) => Promise<Response>): Promise<Response | null> {
+export async function withIgdbAuth(request: (authHeaders: IgdbHeaders) => Promise<Response>, signal?: AbortSignal): Promise<Response | null> {
   try {
-    let auth = await getIgdbAuth();
+    let auth = await getIgdbAuth(signal);
+    signal?.throwIfAborted();
     if (!auth) return null;
     const response = await request(headers(auth));
     if (response.status !== 401) return response;
     await response.body?.cancel();
-    auth = await refreshIgdbAuth(auth.accessToken);
+    auth = await refreshIgdbAuth(auth.accessToken, signal);
+    signal?.throwIfAborted();
     if (!auth) return null;
     const retry = await request(headers(auth));
     if (retry.status === 401) await invalidate(auth.accessToken);

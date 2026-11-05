@@ -19,8 +19,13 @@ function loader(mocks) {
 }
 
 const game = (title, releaseYear = 2020) => ({ title, releaseYear, platforms: ["PC"], genre: "Puzzle", estimatedHours: 12, coverUrl: null });
-function fixture({ local = [], remote = [], readError = false, writeError = false, providerError = false } = {}) {
-  const reads = [], searches = [], writes = [];
+const canonical = (games, source = "rawg") => structuredClone(games).map((game, index) => ({ ...game,
+  rawgId: source === "rawg" ? index + 1 : null, rawgSlug: null,
+  ...(source === "igdb" ? { metadataSource: "igdb", igdbId: index + 1 } : {}),
+  genres: [game.genre].filter(Boolean), tags: [], seriesHints: [], multiplayer: null, coop: null, onlineCoop: null, localCoop: null }));
+function fixture({ local = [], remote = [], igdbRemote = [], readError = false, writeError = false,
+  providerError = false, igdbError = false, rawgSearch, igdbSearch } = {}) {
+  const reads = [], searches = [], igdbSearches = [], writes = [], vectors = [];
   const load = loader({
     "@/lib/prisma": { prisma: {
       gameCatalog: {
@@ -29,18 +34,24 @@ function fixture({ local = [], remote = [], readError = false, writeError = fals
       },
       $transaction: async (work) => {
         if (writeError) throw Error("db offline");
-        return work({ $executeRaw: async () => 1, gameCatalog: {
+        return work({ $executeRaw: async (sql, ...values) => { if (sql.join("").includes("UPDATE")) vectors.push(values); return 1; }, gameCatalog: {
+          findUnique: async () => null,
           upsert: async (args) => { writes.push(args); return args.create; },
         } });
       },
     } },
-    "@/lib/rawg": { searchRawgGames: async (query) => {
+    "@/lib/rawg": { searchRawgGames: async (query, reportErrors, options) => {
       searches.push(query); if (providerError) throw Error("provider failed");
-      return structuredClone(remote).map((game, index) => ({ ...game, rawgId: index + 1, rawgSlug: null,
-        genres: [game.genre].filter(Boolean), tags: [], seriesHints: [], multiplayer: null, coop: null, onlineCoop: null, localCoop: null }));
+      if (rawgSearch) return rawgSearch(query, reportErrors, options);
+      return canonical(remote);
+    } },
+    "@/lib/igdb-catalog": { searchIgdbGames: async (query, signal) => {
+      igdbSearches.push(query); if (igdbError) throw Error("IGDB failed");
+      if (igdbSearch) return igdbSearch(query, signal);
+      return canonical(igdbRemote, "igdb");
     } },
   });
-  return { ...load("src/lib/catalog-search.ts"), reads, searches, writes };
+  return { ...load("src/lib/catalog-search.ts"), reads, searches, igdbSearches, writes, vectors };
 }
 
 test("invalid, short and oversized queries return [] without DB/provider calls", async () => {
@@ -73,6 +84,7 @@ test("full local hits avoid provider calls and results stop at eight", async () 
   const f = fixture({ local });
   assert.equal((await f.searchCatalog("portal")).length, 8);
   assert.deepEqual(f.searches, []);
+  assert.deepEqual(f.igdbSearches, []);
   assert.deepEqual(f.writes, []);
   const partial = fixture({ local: local.slice(0, 3), remote: Array.from({ length: 8 }, (_, i) => game(`Portal other ${i}`)) });
   assert.equal((await partial.searchCatalog("portal")).length, 8);
@@ -133,6 +145,81 @@ test("provider and database errors preserve local/remote successes and cache emp
   assert.equal(empty.searches.length, 1);
 });
 
+// Speed up the actual timeout path while asserting the production budget is 2000ms.
+async function shortProviderTimeouts(work) {
+  const original = AbortSignal.timeout, timers = [], budgets = [];
+  AbortSignal.timeout = ms => {
+    budgets.push(ms);
+    if (ms !== 2000) return original(ms);
+    const controller = new AbortController();
+    timers.push(setTimeout(() => controller.abort(new DOMException("Timed out", "TimeoutError")), 20));
+    return controller.signal;
+  };
+  try { return await work(budgets); }
+  finally { AbortSignal.timeout = original; timers.forEach(clearTimeout); }
+}
+
+test("RAWG timeout aborts its request and falls back to IGDB with a fresh two-second budget", async () => shortProviderTimeouts(async budgets => {
+  let rawgSignal;
+  const f = fixture({ local: [game("Portal")], igdbRemote: [game("portal"), game("Portal 2")],
+    rawgSearch: (_query, reportErrors, options) => {
+      assert.equal(reportErrors, true);
+      assert.equal(options.retry, false);
+      rawgSignal = options.signal;
+      // An uncooperative upstream must not keep autocomplete waiting either.
+      return new Promise(() => {});
+    }, igdbSearch: (_query, signal) => {
+      assert(rawgSignal.aborted);
+      assert.equal(signal.aborted, false);
+      return canonical([game("portal"), game("Portal 2")], "igdb");
+    } });
+  assert.deepEqual(await f.searchCatalog("portal"), [game("Portal"), game("Portal 2")]);
+  assert.deepEqual(budgets, [2000, 2000]);
+  assert.deepEqual(f.igdbSearches, ["portal"]);
+  assert.equal(f.writes.length, 2);
+  assert(f.writes.every(write => write.create.metadataSource === "igdb" && write.create.rawgId === null));
+  assert(f.writes.every(write => !Object.hasOwn(write.update, "rawgId")));
+  assert.equal(f.vectors.length, 2);
+  assert(f.vectors.every(values => JSON.parse(values[0]).length === 128));
+  await f.searchCatalog("PORTAL");
+  assert.equal(f.searches.length, 1);
+  assert.equal(f.igdbSearches.length, 1);
+}));
+
+test("RAWG failures and empty/unconfigured results use IGDB; RAWG successes skip IGDB", async () => {
+  for (const providerError of [true, false]) {
+    const f = fixture({ providerError, igdbRemote: [game("Portal 2")] });
+    assert.deepEqual(await f.searchCatalog("portal"), [game("Portal 2")]);
+    assert.deepEqual(f.igdbSearches, ["portal"]);
+  }
+  const success = fixture({ remote: [game("Portal 2")], igdbError: true });
+  assert.deepEqual(await success.searchCatalog("portal"), [game("Portal 2")]);
+  assert.deepEqual(success.igdbSearches, []);
+});
+
+test("both provider timeouts return local matches and cache the graceful fallback", async () => shortProviderTimeouts(async budgets => {
+  const signals = [];
+  const never = signal => { signals.push(signal); return new Promise(() => {}); };
+  const f = fixture({ local: [game("Portal")], rawgSearch: (_q, _r, options) => never(options.signal),
+    igdbSearch: (_q, signal) => never(signal) });
+  assert.deepEqual(await f.searchCatalog("portal"), [game("Portal")]);
+  assert.deepEqual(budgets, [2000, 2000]);
+  assert(signals.every(signal => signal.aborted));
+  assert.deepEqual(await f.searchCatalog("PORTAL"), [game("Portal")]);
+  assert.equal(f.searches.length, 1);
+  assert.equal(f.igdbSearches.length, 1);
+  assert.equal(f.writes.length, 0);
+}));
+
+test("both provider errors preserve local matches; database errors and IGDB write errors are optional", async () => {
+  for (const local of [[], [game("Portal")]]) {
+    const f = fixture({ local, providerError: true, igdbError: true });
+    assert.deepEqual(await f.searchCatalog("portal"), local);
+  }
+  const offline = fixture({ readError: true, writeError: true, providerError: true, igdbRemote: [game("Portal")] });
+  assert.deepEqual(await offline.searchCatalog("portal"), [game("Portal")]);
+});
+
 async function rawgFixture(work) {
   const previous = process.env.RAWG_API_KEY;
   process.env.RAWG_API_KEY = "fixture-key";
@@ -187,6 +274,136 @@ test("missing/blank RAWG keys skip requests; auth, quota, timeout, network and m
     assert.deepEqual(await rawg.searchRawgGames("portal"), []);
   }
 }));
+
+test("IGDB normalizes canonical metadata and safely quotes name searches", async () => {
+  const calls = [];
+  const load = loader({ "@/lib/igdb-api": { queryIgdb: async (endpoint, body, signal) => {
+    calls.push({ endpoint, body, signal });
+    return [{ id: 73, name: "  Portal   2 ", first_release_date: Date.UTC(2011, 3, 19) / 1000,
+      cover: { image_id: "co_123" }, genres: [null, { name: "Puzzle" }, { name: "Adventure" }],
+      platforms: [null, { name: "PC" }, { name: "PC" }] },
+    { id: 74, name: "Unknown", first_release_date: Infinity, cover: { image_id: "../unsafe" } },
+    null, {}, { id: 0, name: "Bad" }, { id: 75, name: "a".repeat(121) }, { id: 76, name: "bad\u0000name" }];
+  } } });
+  const api = load("src/lib/igdb-catalog.ts"), signal = new AbortController().signal;
+  const results = await api.searchIgdbGames('Portal "; fields *;', signal);
+  assert.equal(results.length, 2);
+  assert.deepEqual(results[0], { title: "Portal 2", releaseYear: 2011, genre: "Puzzle", genres: ["adventure", "puzzle"],
+    platforms: ["PC"], estimatedHours: null, coverUrl: "https://images.igdb.com/igdb/image/upload/t_cover_big/co_123.jpg",
+    metadataSource: "igdb", igdbId: 73, rawgId: null, rawgSlug: null, tags: [], seriesHints: [],
+    multiplayer: null, coop: null, onlineCoop: null, localCoop: null });
+  assert.equal(results[1].releaseYear, null);
+  assert.equal(results[1].coverUrl, null);
+  assert.equal(calls[0].endpoint, "games");
+  assert(calls[0].body.startsWith('search "Portal \\"; fields *;";'));
+  assert(calls[0].body.includes("cover.image_id,first_release_date,genres.name,platforms.name; limit 8;"));
+  assert.equal(calls[0].signal, signal);
+});
+
+function integratedFixture({ token = { accessToken: "cached-token", expiresAt: new Date(Date.now() + 5e9) }, tokenRead } = {}) {
+  const writes = [], local = [game("Portal")];
+  const tokenTable = { findUnique: tokenRead ?? (async () => token), upsert: async () => ({}), deleteMany: async () => ({ count: 0 }) };
+  const prisma = { gameCatalog: { findMany: async () => local }, externalOAuthToken: tokenTable,
+    $queryRaw: async () => [{ key: "claimed" }],
+    $transaction: async work => work({ $executeRaw: async () => 1, externalOAuthToken: tokenTable,
+      gameCatalog: { findUnique: async () => null, upsert: async args => { writes.push(args); } } }),
+  };
+  return { ...loader({ "@/lib/prisma": { prisma } })("src/lib/catalog-search.ts"), writes, local };
+}
+async function configuredProviders(work) {
+  const before = [process.env.RAWG_API_KEY, process.env.TWITCH_CLIENT_ID, process.env.TWITCH_CLIENT_SECRET, global.fetch];
+  process.env.RAWG_API_KEY = "fixture-key";
+  process.env.TWITCH_CLIENT_ID = "fixture-client";
+  process.env.TWITCH_CLIENT_SECRET = "fixture-secret";
+  try { return await work(); }
+  finally {
+    for (const [i, key] of ["RAWG_API_KEY", "TWITCH_CLIENT_ID", "TWITCH_CLIENT_SECRET"].entries()) {
+      if (before[i] === undefined) delete process.env[key]; else process.env[key] = before[i];
+    }
+    global.fetch = before[3];
+  }
+}
+
+test("real RAWG failures immediately fall through to authenticated IGDB and persist its public metadata", async () => configuredProviders(async () => {
+  for (const upstream of [
+    ...[500, 503, 401, 429].map(status => async () => new Response(null, { status })),
+    async () => { throw Error("network unavailable"); }, async () => Response.json({}),
+  ]) {
+    const f = integratedFixture(), calls = [];
+    global.fetch = async (url, options) => {
+      calls.push(url);
+      if (url.startsWith("https://api.rawg.io/")) return upstream();
+      assert.equal(url, "https://api.igdb.com/v4/games");
+      assert.equal(options.headers["Client-ID"], "fixture-client");
+      assert.equal(options.headers.Authorization, "Bearer cached-token");
+      return Response.json([{ id: 73, name: "Portal 2", first_release_date: Date.UTC(2011, 0, 1) / 1000,
+        genres: [{ name: "Puzzle" }], platforms: [{ name: "PC" }], cover: { image_id: "co123" } }]);
+    };
+    const result = await f.searchCatalog("portal");
+    assert.deepEqual(result.map(row => row.title), ["Portal", "Portal 2"]);
+    assert.equal(calls.length, 2, "RAWG 503/429 must not retry before IGDB fallback");
+    assert.equal(f.writes[0].create.metadataSource, "igdb");
+    assert(!Object.hasOwn(result[1], "igdbId"));
+    assert(!Object.hasOwn(result[1], "metadataSource"));
+  }
+}));
+
+test("unconfigured RAWG uses IGDB; both providers unconfigured or unreachable return local matches", async () => configuredProviders(async () => {
+  delete process.env.RAWG_API_KEY;
+  let calls = 0;
+  global.fetch = async () => { calls++; return Response.json([{ id: 73, name: "Portal 2" }]); };
+  assert.equal((await integratedFixture().searchCatalog("portal")).length, 2);
+  assert.equal(calls, 1);
+  delete process.env.TWITCH_CLIENT_SECRET;
+  const missing = integratedFixture();
+  assert.deepEqual(await missing.searchCatalog("portal"), missing.local);
+  assert.equal(calls, 1);
+  process.env.RAWG_API_KEY = "fixture-key";
+  process.env.TWITCH_CLIENT_SECRET = "fixture-secret";
+  global.fetch = async () => { throw Error("offline"); };
+  const offline = integratedFixture();
+  assert.deepEqual(await offline.searchCatalog("portal"), offline.local);
+}));
+
+test("the real RAWG fetch is aborted at two seconds before successful IGDB fallback", async () => configuredProviders(async () => shortProviderTimeouts(async () => {
+  const f = integratedFixture();
+  let rawgSignal;
+  global.fetch = async (url, options) => {
+    if (url.includes("api.rawg.io")) {
+      rawgSignal = options.signal;
+      return new Promise((_, reject) => options.signal.addEventListener("abort", () => reject(options.signal.reason), { once: true }));
+    }
+    assert(rawgSignal.aborted);
+    return Response.json([{ id: 73, name: "Portal 2" }]);
+  };
+  assert.equal((await f.searchCatalog("portal")).length, 2);
+})));
+
+test("slow Twitch refresh, shared auth waits, and IGDB response bodies cannot exceed the fallback budget", async () => configuredProviders(async () => shortProviderTimeouts(async () => {
+  delete process.env.RAWG_API_KEY;
+  let tokenSignal;
+  global.fetch = async (url, options) => {
+    assert.equal(url, "https://id.twitch.tv/oauth2/token");
+    tokenSignal = options.signal;
+    return new Promise((_, reject) => options.signal.addEventListener("abort", () => reject(options.signal.reason), { once: true }));
+  };
+  const refresh = integratedFixture({ token: null });
+  assert.deepEqual(await refresh.searchCatalog("portal"), refresh.local);
+  assert(tokenSignal.aborted);
+
+  global.fetch = async () => assert.fail("Expired auth waits must not issue later game requests");
+  const waiting = integratedFixture({ tokenRead: () => new Promise(() => {}) });
+  assert.deepEqual(await waiting.searchCatalog("portal"), waiting.local);
+
+  let bodySignal;
+  global.fetch = async (_url, options) => {
+    bodySignal = options.signal;
+    return { ok: true, json: () => new Promise(() => {}) };
+  };
+  const body = integratedFixture();
+  assert.deepEqual(await body.searchCatalog("portal"), body.local);
+  assert(bodySignal.aborted);
+})));
 
 test("endpoint reads q, returns the lightweight array, and disables HTTP caching", async () => {
   const queries = [];
