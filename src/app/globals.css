@@ -1511,6 +1511,15 @@ button.vault-trigger-button:hover {
 .vault-modal button.vault-import-button { border-color: #fcee0a; color: #fcee0a; }
 .vault-section .vault-message { color: #05ffa1; }
 .vault-section .vault-error { color: #ff6b8b; }
+.vault-steam-options { display: grid; gap: 12px; margin: 16px 0; }
+.vault-steam-options label { display: flex; align-items: flex-start; gap: 10px; min-width: 0; color: #d5e2ef; font-size: 12px; line-height: 1.5; cursor: pointer; }
+.vault-steam-options input { flex: 0 0 auto; width: 18px; height: 18px; margin: 0; accent-color: #00f0ff; }
+.vault-steam-options small { display: block; color: #aebcd0; font-size: 11px; }
+.vault-steam-summary { padding: 12px; border: 1px solid #2e3a52; background: #111827; }
+.vault-steam-summary dl { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 0; }
+.vault-steam-summary dt { color: #aebcd0; font-size: 11px; overflow-wrap: anywhere; }
+.vault-steam-summary dd { margin: 6px 0 0; color: #05ffa1; font: 700 22px "Courier New", monospace; overflow-wrap: anywhere; }
+.vault-steam-summary p { margin-bottom: 0; }
 button.vault-trigger-button:focus-visible, .vault-modal :is(button, input, textarea):focus-visible {
 	outline: 2px solid #fcee0a;
 	outline-offset: 3px;

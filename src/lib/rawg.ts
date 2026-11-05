@@ -106,7 +106,7 @@ export async function searchRawgGames(title: string): Promise<CatalogSuggestion[
   } catch { return []; }
 }
 
-export async function lookupRawgGame(title: string, reportRateLimit = false): Promise<RawgGameInfo | null> {
+export async function lookupRawgGame(title: string, reportRateLimit = false, signal?: AbortSignal): Promise<RawgGameInfo | null> {
   const apiKey = process.env.RAWG_API_KEY;
 
   if (!apiKey || title.trim() === "") {
@@ -121,7 +121,7 @@ export async function lookupRawgGame(title: string, reportRateLimit = false): Pr
     });
     const response = await resilientFetch(`https://api.rawg.io/api/games?${query}`, {
       cache: "no-store",
-      signal: AbortSignal.timeout(5000),
+      signal: AbortSignal.any([AbortSignal.timeout(5000), ...(signal ? [signal] : [])]),
     });
 
     if (!response.ok) {

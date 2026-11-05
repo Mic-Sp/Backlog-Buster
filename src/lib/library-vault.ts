@@ -6,6 +6,10 @@ import { lookupRawgGame } from "@/lib/rawg";
 import { resolveRawgPlaytime } from "@/lib/game-playtime";
 import { serializeLibraryBackup } from "@/lib/library-backup";
 import { MAX_TITLE_ROWS, parseBackupRecords, sanitizeImportedGame, validateImportPayload, type LibraryImportPayload } from "@/lib/library-import";
+import { fetchSteamLibrary, parseSteamIdentifier, type SteamOwnedGame } from "@/lib/steam";
+import { guardedRequest } from "@/lib/api-resilience";
+import { normalizeGameTitle } from "@/lib/game-title";
+import type { Prisma } from "@/generated/prisma/client";
 
 async function requireVaultSession() {
   const tokenHash = await readSessionHash();
@@ -88,4 +92,136 @@ export async function importLibraryGames(payload: LibraryImportPayload) {
     return { importedCount: result.count, duplicateCount, invalidCount, skippedCount: duplicateCount + invalidCount };
   }, { timeout: 15000 });
   return { userId: player.id, counts };
+}
+
+export type SteamSyncPayload = {
+  identifier: string;
+  includeUnplayed?: boolean;
+  updateHoursPlayed?: boolean;
+};
+export type SteamSyncSummary = { steamId: string; addedCount: number; updatedCount: number; skippedCount: number };
+const STEAM_WRITE_BATCH_SIZE = 500;
+const STEAM_RAWG_LIMIT = 3;
+const STEAM_METADATA_BUDGET_MS = 2000;
+const steamExistingSelect = { id: true, title: true, platform: true, steamAppId: true, hoursPlayed: true } as const;
+type SteamExistingGame = Prisma.GameGetPayload<{ select: typeof steamExistingSelect }>;
+type SteamMetadata = { genre: string | null; releaseYear: number | null; coverUrl: string | null; estimatedHours: number | null };
+
+function steamMatches(existing: SteamExistingGame[], incoming: SteamOwnedGame[]) {
+  const byAppId = new Map(existing.filter(game => game.steamAppId !== null).map(game => [game.steamAppId!, game]));
+  const legacy = new Map<string, SteamExistingGame[]>();
+  for (const game of [...existing].sort((a, b) => a.id - b.id)) {
+    if (game.steamAppId !== null || !["pc", "steam", "windows", "microsoft windows", "pc (windows)", "pc (steam)"].includes(game.platform.trim().toLowerCase())) continue;
+    const key = normalizeGameTitle(game.title);
+    const copies = legacy.get(key) ?? [];
+    copies.push(game);
+    legacy.set(key, copies);
+  }
+  return incoming.map(game => ({ game, existing: byAppId.get(game.steamAppId) ?? legacy.get(normalizeGameTitle(game.title))?.shift() }));
+}
+
+async function steamMetadata(games: SteamOwnedGame[]): Promise<Map<string, SteamMetadata>> {
+  const metadata = new Map<string, SteamMetadata>();
+  const titles = [...new Set(games.map(game => game.title))];
+  const candidates = new Map<string, SteamMetadata[]>();
+  // Batch the cache reads too; neither the query size nor RAWG traffic scales per row.
+  for (let index = 0; index < titles.length; index += STEAM_WRITE_BATCH_SIZE) {
+    try {
+      const rows = await prisma.gameCatalog.findMany({
+        where: { title: { in: titles.slice(index, index + STEAM_WRITE_BATCH_SIZE), mode: "insensitive" } },
+        select: { title: true, genre: true, releaseYear: true, coverUrl: true, estimatedHours: true },
+      });
+      for (const row of rows) {
+        const key = normalizeGameTitle(row.title);
+        const matches = candidates.get(key) ?? [];
+        matches.push(row);
+        candidates.set(key, matches);
+      }
+    } catch { /* Optional cache failures must not block Steam's native metadata. */ }
+  }
+  for (const [key, matches] of candidates) {
+    // Steam has no release year here; do not choose arbitrarily between remakes.
+    if (matches.length === 1) metadata.set(key, matches[0]);
+  }
+  const missing = [...new Map(games.filter(game => !metadata.has(normalizeGameTitle(game.title)))
+    .map(game => [normalizeGameTitle(game.title), game.title])).entries()].slice(0, STEAM_RAWG_LIMIT);
+  const signal = AbortSignal.timeout(STEAM_METADATA_BUDGET_MS);
+  // Even an already coalesced RAWG request must not extend the bulk-sync budget.
+  await Promise.race([
+    Promise.all(missing.map(async ([key, title]) => {
+      const result = await lookupRawgGame(title, false, signal).catch(() => null);
+      if (result && !signal.aborted) metadata.set(key, { ...result, estimatedHours: result.playtime });
+    })),
+    new Promise<void>(resolve => signal.addEventListener("abort", () => resolve(), { once: true })),
+  ]);
+  return metadata;
+}
+
+/** Lifetime Steam hours are floored/capped to the existing whole-hour progress field. */
+function persistedSteamHours(game: SteamOwnedGame) { return Math.min(10000, Math.floor(game.hoursPlayed)); }
+
+export async function syncSteamLibraryGames(payload: SteamSyncPayload): Promise<{ userId: string; summary: SteamSyncSummary }> {
+  const { player, tokenHash } = await requireVaultSession();
+  if (!payload || typeof payload !== "object" || Array.isArray(payload) ||
+    (payload.includeUnplayed !== undefined && typeof payload.includeUnplayed !== "boolean") ||
+    (payload.updateHoursPlayed !== undefined && typeof payload.updateHoursPlayed !== "boolean")) {
+    throw new InputError("Provide a Steam profile and valid sync options.");
+  }
+  const identifier = parseSteamIdentifier(payload.identifier);
+  const includeUnplayed = payload.includeUnplayed ?? true;
+  const updateHoursPlayed = payload.updateHoursPlayed ?? false;
+  return guardedRequest(player.id, "steam-sync", JSON.stringify([identifier, includeUnplayed, updateHoursPlayed]), async () => {
+    const [library, initial] = await Promise.all([
+      fetchSteamLibrary(payload.identifier),
+      prisma.game.findMany({ where: { userId: player.id }, select: steamExistingSelect }),
+    ]);
+    const incoming = library.games.filter(game => (includeUnplayed || game.playtimeMinutes > 0) &&
+      game.title.length <= 120 && normalizeGameTitle(game.title));
+    const newGames = steamMatches(initial, incoming).filter(match => !match.existing).map(match => match.game);
+    const metadata = await steamMetadata(newGames);
+    const summary = await prisma.$transaction(async tx => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`backlogbuster-deck:${player.id}`}, 0))`;
+      const active = await tx.playerSession.findUnique({
+        where: { tokenHash, userId: player.id, expiresAt: { gt: new Date() }, player: { email: { not: null }, passwordHash: { not: null } } },
+        select: { tokenHash: true },
+      });
+      if (!active) throw new InputError("Your session expired. Sign in again before syncing Steam.");
+      // A parallel import may have linked/created rows while metadata was loading.
+      const existing = await tx.game.findMany({ where: { userId: player.id }, select: steamExistingSelect });
+      const additions: Prisma.GameCreateManyInput[] = [];
+      const updates: { id: number; steamAppId: string; hoursPlayed: number | null }[] = [];
+      for (const match of steamMatches(existing, incoming)) {
+        const { game, existing: saved } = match;
+        const hoursPlayed = persistedSteamHours(game);
+        if (saved) {
+          const higherHours = updateHoursPlayed && hoursPlayed > saved.hoursPlayed;
+          if (saved.steamAppId === null || higherHours) updates.push({ id: saved.id, steamAppId: game.steamAppId, hoursPlayed: higherHours ? hoursPlayed : null });
+          continue;
+        }
+        const info = metadata.get(normalizeGameTitle(game.title));
+        additions.push({ userId: player.id, steamAppId: game.steamAppId, title: game.title, platform: "PC", status: "Backlog",
+          hoursPlayed, earnedXp: 0, difficulty: 2, lengthHours: resolveRawgPlaytime(info?.estimatedHours, info?.genre) ?? 10,
+          genre: info?.genre ?? null, releaseYear: info?.releaseYear ?? null, coverUrl: info?.coverUrl || game.coverUrl });
+      }
+      let addedCount = 0, updatedCount = 0;
+      for (let index = 0; index < additions.length; index += STEAM_WRITE_BATCH_SIZE) {
+        addedCount += (await tx.game.createMany({ data: additions.slice(index, index + STEAM_WRITE_BATCH_SIZE) })).count;
+      }
+      for (let index = 0; index < updates.length; index += STEAM_WRITE_BATCH_SIZE) {
+        // One parameterized update per batch. GREATEST preserves concurrently logged
+        // hours; status, earnedXp, personal metadata and ratings are never rewritten.
+        updatedCount += await tx.$executeRaw`
+          UPDATE "Game" AS game
+          SET "steamAppId" = change."steamAppId",
+              "hoursPlayed" = GREATEST(game."hoursPlayed", COALESCE(change."hoursPlayed", game."hoursPlayed"))
+          FROM jsonb_to_recordset(${JSON.stringify(updates.slice(index, index + STEAM_WRITE_BATCH_SIZE))}::jsonb)
+            AS change("id" integer, "steamAppId" text, "hoursPlayed" integer)
+          WHERE game."id" = change."id" AND game."userId" = ${player.id}
+        `;
+      }
+      await tx.player.update({ where: { id: player.id }, data: { steamId: library.steamId }, select: { id: true } });
+      return { steamId: library.steamId, addedCount, updatedCount, skippedCount: library.games.length - addedCount - updatedCount };
+    }, { timeout: 15000 });
+    return { userId: player.id, summary };
+  });
 }

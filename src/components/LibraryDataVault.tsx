@@ -3,17 +3,24 @@
 import { useLayoutCopy } from "@/components/LayoutText";
 import { FantasyCorners } from "@/components/FantasyAccents";
 
-import { unwrapActionResult } from "@/lib/action-result";
+import { ActionFailure, unwrapActionResult } from "@/lib/action-result";
+import useCooldown from "@/components/useCooldown";
+import { DEFAULT_COOLDOWN_SECONDS } from "@/lib/cooldown";
+import type { SteamSyncSummary } from "@/lib/library-vault";
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
-import { bulkImportGames, exportLibraryBackup } from "@/app/actions";
+import { bulkImportGames, exportLibraryBackup, syncSteamLibrary } from "@/app/actions";
 import type { LibraryGame } from "@/components/GameLibrary";
 import { MAX_IMPORT_BYTES } from "@/lib/library-import";
 
-export function useLibraryDataVaultController({ games }: { games: LibraryGame[] }) {
+export function useLibraryDataVaultController({ games, savedSteamId }: { games: LibraryGame[]; savedSteamId?: string | null }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [mode, setMode] = useState<"titles" | "json" | "csv">("titles");
+  const [mode, setMode] = useState<"titles" | "json" | "csv" | "steam">("titles");
+  const [steamIdentifier, setSteamIdentifier] = useState(savedSteamId ?? "");
+  const [includeUnplayed, setIncludeUnplayed] = useState(true);
+  const [updateHoursPlayed, setUpdateHoursPlayed] = useState(false);
+  const [steamSummary, setSteamSummary] = useState<SteamSyncSummary | null>(null);
   const [titles, setTitles] = useState("");
   const [json, setJson] = useState("");
   const [defaultPlatform, setDefaultPlatform] = useState("");
@@ -23,9 +30,11 @@ export function useLibraryDataVaultController({ games }: { games: LibraryGame[] 
   const [isExporting, setIsExporting] = useState(false);
   const requestInFlight = useRef(false);
   const [isImporting, startImporting] = useTransition();
+  const [isSyncing, startSyncing] = useTransition();
+  const steamCooldown = useCooldown();
   const triggerRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
-  const busy = isImporting || isReading || isExporting;
+  const busy = isImporting || isReading || isExporting || isSyncing;
 
   useEffect(() => {
     if (!isOpen) return;
@@ -93,17 +102,42 @@ export function useLibraryDataVaultController({ games }: { games: LibraryGame[] 
   }
 
   function importGames() {
-    if (busy || requestInFlight.current) return;
+    if (mode === "steam" || busy || requestInFlight.current) return;
+    const importMode = mode;
     requestInFlight.current = true;
     setMessage("");
     setError("");
+    setSteamSummary(null);
     startImporting(async () => {
       try {
-        const result = unwrapActionResult(await bulkImportGames({ mode, content: mode === "titles" ? titles : json, defaultPlatform }));
+        const result = unwrapActionResult(await bulkImportGames({ mode: importMode, content: importMode === "titles" ? titles : json, defaultPlatform }));
         setMessage(`Imported ${result.importedCount} games (${result.duplicateCount} duplicates skipped, ${result.invalidCount} invalid/blank rows skipped)`);
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : "Import failed. Please try again.");
       } finally { requestInFlight.current = false; }
+    });
+  }
+
+  function syncSteam() {
+    if (busy || requestInFlight.current || steamCooldown.seconds > 0) return;
+    const identifier = steamIdentifier.trim();
+    setMessage(""); setError(""); setSteamSummary(null);
+    if (!identifier) { setError("Enter a Steam ID, profile URL, or vanity handle."); return; }
+    requestInFlight.current = true;
+    const startedAt = Date.now();
+    startSyncing(async () => {
+      try {
+        const result = unwrapActionResult(await syncSteamLibrary({ identifier, includeUnplayed, updateHoursPlayed }));
+        setSteamIdentifier(result.steamId);
+        setSteamSummary(result);
+        setMessage("Steam library synced.");
+      } catch (cause) {
+        if (cause instanceof ActionFailure && cause.retryAfterSeconds) steamCooldown.start(cause.retryAfterSeconds);
+        setError(cause instanceof Error ? cause.message : "Steam sync failed. Please try again.");
+      } finally {
+        steamCooldown.start(DEFAULT_COOLDOWN_SECONDS, startedAt);
+        requestInFlight.current = false;
+      }
     });
   }
 
@@ -118,6 +152,17 @@ export function useLibraryDataVaultController({ games }: { games: LibraryGame[] 
     setIsOpen,
     mode,
     setMode,
+    steamIdentifier,
+    setSteamIdentifier,
+    includeUnplayed,
+    setIncludeUnplayed,
+    updateHoursPlayed,
+    setUpdateHoursPlayed,
+    steamSummary,
+    setSteamSummary,
+    isSyncing,
+    steamCooldown,
+    syncSteam,
     titles,
     setTitles,
     json,
@@ -156,6 +201,17 @@ export function LibraryDataVaultView({ controller, part = "all" }: { controller:
     setIsOpen,
     mode,
     setMode,
+    steamIdentifier,
+    setSteamIdentifier,
+    includeUnplayed,
+    setIncludeUnplayed,
+    updateHoursPlayed,
+    setUpdateHoursPlayed,
+    steamSummary,
+    setSteamSummary,
+    isSyncing,
+    steamCooldown,
+    syncSteam,
     titles,
     setTitles,
     json,
@@ -199,15 +255,31 @@ export function LibraryDataVaultView({ controller, part = "all" }: { controller:
               </div>
             </section>
             <section className="vault-section" aria-labelledby="vault-import-title">
-              <h3 id="vault-import-title">{copy("02 // BULK IMPORT", "II · RESTORE YOUR QUEST SCROLLS")}</h3>
-              <div className="vault-tabs" role="group" aria-label="Import format">
-                {(["titles", "json", "csv"] as const).map((value) => (
-                  <button key={value} type="button" disabled={busy} aria-pressed={mode === value} onClick={() => { setMode(value); setMessage(""); setError(""); }}>
-                    {value === "titles" ? "Quick Title List" : value === "json" ? "Restore JSON Backup" : "Restore CSV Backup"}
+              <h3 id="vault-import-title">{copy("02 // IMPORT & SYNC", "II · RESTORE & GATHER YOUR QUESTS")}</h3>
+              <div className="vault-tabs" role="group" aria-label="Import or sync method">
+                {(["titles", "json", "csv", "steam"] as const).map((value) => (
+                  <button key={value} type="button" disabled={busy} aria-pressed={mode === value} onClick={() => { setMode(value); setMessage(""); setError(""); setSteamSummary(null); }}>
+                    {value === "titles" ? "Quick Title List" : value === "json" ? "Restore JSON Backup" : value === "csv" ? "Restore CSV Backup" : "Direct Steam Sync"}
                   </button>
                 ))}
               </div>
-              {mode === "titles" ? (
+              {mode === "steam" ? (
+                <form className="vault-steam-form" onSubmit={event => { event.preventDefault(); syncSteam(); }}>
+                  <p>Sync your owned Steam games directly. Set your Steam profile and Game details to Public so your library is visible.</p>
+                  <label className="vault-field">Steam ID / Profile URL / Vanity handle
+                    <input name="steamIdentifier" value={steamIdentifier} onChange={event => setSteamIdentifier(event.target.value)} maxLength={512} placeholder="76561198… or steamcommunity.com/id/your-handle" autoComplete="off" autoCapitalize="none" spellCheck={false} disabled={busy} required />
+                  </label>
+                  <div className="vault-steam-options">
+                    <label><input type="checkbox" checked={includeUnplayed} onChange={event => setIncludeUnplayed(event.target.checked)} disabled={busy} /><span>Include unplayed (0h) games<small>Add games you own but haven’t started.</small></span></label>
+                    <label><input type="checkbox" checked={updateHoursPlayed} onChange={event => setUpdateHoursPlayed(event.target.checked)} disabled={busy} /><span>Update playtime on existing games<small>Only increase logged hours; keep completed-game XP.</small></span></label>
+                  </div>
+                  <p className="vault-steam-hint">New games join Backlog. Your statuses, ratings, and completion XP are kept. Steam playtime is saved in whole hours.</p>
+                  <button className="vault-import-button" type="submit" disabled={busy || steamCooldown.seconds > 0 || !steamIdentifier.trim()}>
+                    {isSyncing ? "SYNCING STEAM LIBRARY…" : steamCooldown.seconds > 0 ? `RETRY IN ${steamCooldown.seconds}s` : "SYNC STEAM LIBRARY"}
+                  </button>
+                  {isSyncing && <p role="status" aria-live="polite">Fetching your library and matching existing games…</p>}
+                </form>
+              ) : mode === "titles" ? (
                 <>
                   <p>One Title or Title | Platform per line. Maximum 25 rows per batch; metadata is fetched automatically.</p>
                   <label className="vault-field">Default Platform (optional)
@@ -238,10 +310,14 @@ export function LibraryDataVaultView({ controller, part = "all" }: { controller:
                   </label>
                 </>
               )}
-              <button className="vault-import-button" type="button" onClick={importGames} disabled={busy || !(mode === "titles" ? titles : json).trim()}>
+              {mode !== "steam" && <button className="vault-import-button" type="button" onClick={importGames} disabled={busy || !(mode === "titles" ? titles : json).trim()}>
                 {isReading ? "READING BACKUP…" : isImporting ? "IMPORTING GAMES…" : "IMPORT GAMES"}
-              </button>
+              </button>}
               <p className="vault-message" role="status" aria-live="polite">{message}</p>
+              {mode === "steam" && steamSummary && <div className="vault-steam-summary">
+                <dl><div><dt>Added</dt><dd>{steamSummary.addedCount}</dd></div><div><dt>Updated / linked</dt><dd>{steamSummary.updatedCount}</dd></div><div><dt>Skipped</dt><dd>{steamSummary.skippedCount}</dd></div></dl>
+                <p>Synced Steam ID: {steamSummary.steamId}</p>
+              </div>}
               {error && <p className="vault-error" role="alert">{error}</p>}
             </section>
           </div>

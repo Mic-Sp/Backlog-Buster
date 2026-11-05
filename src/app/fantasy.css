@@ -409,6 +409,10 @@
 }
 :root[data-layout-mode="fantasy"] :is(.advisor-modal-backdrop, .quest-modal-backdrop, .metadata-modal-backdrop, .vault-modal-backdrop, .security-modal-backdrop, .admin-modal-backdrop, .dossier-modal-backdrop, .auth-modal-backdrop) { background: #102832e8; }
 :root[data-layout-mode="fantasy"] .metadata-community-stats { border-color: #b79d66; background: #e5d5ae; }
+:root[data-layout-mode="fantasy"] .vault-steam-summary { border-color: #b79d66; background: #e0d0a7; }
+:root[data-layout-mode="fantasy"] .vault-steam-summary dd { color: #34503d; font-family: Georgia, serif; }
+:root[data-layout-mode="fantasy"] .vault-steam-options input { accent-color: #4d6b55; }
+:root[data-layout-mode="fantasy"] .vault-modal .vault-message { color: #34503d; }
 :root[data-layout-mode="fantasy"] .metadata-community-stats .community-readout,
 :root[data-layout-mode="fantasy"] .metadata-community-stats .community-rating-count > span { color: #665332; font-family: Georgia, serif; }
 :root[data-layout-mode="fantasy"] .metadata-community-stats :is(.community-readout-label, .community-rating-average, .community-star-label, .community-rating-count) { color: #34503d; }

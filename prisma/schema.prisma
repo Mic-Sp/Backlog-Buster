@@ -17,6 +17,8 @@ model Player {
   // Singleton and immutable-owner constraints live in owner-constraints.sql.
   isOwner           Boolean           @default(false)
   handle            String?           @unique
+  // Public profile identifier only; this is not proof of Steam account ownership.
+  steamId           String?
   operatorName      String            @default("ANONYMOUS NETRUNNER")
   tagline           String            @default("One more gig. One more legend.")
   neonAccent        String            @default("CYAN")
@@ -120,7 +122,11 @@ model Game {
   chronologicalOrder Int?
   releaseYear Int?
 
+  // Decimal AppID string avoids signed-Int limits; null for non-Steam copies.
+  steamAppId  String?
+
   @@index([userId])
+  @@unique([userId, steamAppId])
 }
 
 model UserAchievement {

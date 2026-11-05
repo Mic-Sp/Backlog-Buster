@@ -81,7 +81,7 @@ function comparePinnedGames(left: LibraryGame, right: LibraryGame) {
 }
 
 
-function useGameLibraryController({ games: serverGames, achievements = [], isAdmin = false, children }: { games: LibraryGame[]; achievements?: Achievement[]; isAdmin?: boolean; children?: ReactNode }) {
+function useGameLibraryController({ games: serverGames, achievements = [], isAdmin = false, steamId, children }: { games: LibraryGame[]; achievements?: Achievement[]; isAdmin?: boolean; steamId?: string | null; children?: ReactNode }) {
   const { playSfx, layoutMode } = useUIEffects();
   const { showPane } = useSubscreen();
   const [selectedGameId, setSelectedGameId] = useState<number | null>(null);
@@ -665,7 +665,7 @@ function useGameLibraryController({ games: serverGames, achievements = [], isAdm
 
   const drafts = useGameDrafts(games);
   const advisor = useTacticalAdvisorController({ games, isAdmin });
-  const vault = useLibraryDataVaultController({ games });
+  const vault = useLibraryDataVaultController({ games, savedSteamId: steamId });
   const roulette = useQuestRouletteController({ games: games.filter(game => game.status === "Backlog") });
   const deck = useUpNextDeckController({ startAction: startGameAndShowPlaying, games, draggedGame: deckDraggedGame, onDragGameChange: changeDeckDrag, onDragPointerDown: rememberDragOrigin, onGameDragStart: startLibraryDrag, disabled: rowReorderBusy });
   const debuggerController = useSagaDebuggerController({ enabled: isAdmin && Boolean(selectedSaga), sagaKey: selectedSaga?.key ?? "", scanDebug: sagaDebug?.key === selectedSaga?.key ? sagaDebug?.data ?? null : null, busy: timelineBusy, cooldownSeconds: sagaProviderCooldown.seconds, onForceRefresh: () => detectSagaOrder(true) });

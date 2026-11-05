@@ -136,12 +136,13 @@ async function PlayerSummary({ player }: { player: CurrentPlayer }) {
 async function SavedGames({ userId, isAdmin }: { userId: string; isAdmin: boolean }) {
   await connection();
 
-  const [games, achievements] = await Promise.all([
+  const [games, achievements, steamProfile] = await Promise.all([
     prisma.game.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
     }),
     getPageAchievements(userId),
+    prisma.player.findUnique({ where: { id: userId }, select: { steamId: true } }),
   ]);
   const libraryKeys = new Set(games.map(game => getCommunityGameKey(game.title, game.releaseYear)));
   // Canonical titles are not persisted on Game. Narrow by year, then normalize
@@ -193,7 +194,7 @@ async function SavedGames({ userId, isAdmin }: { userId: string; isAdmin: boolea
   }));
 
   return (
-    <GameLibrary games={serializedGames} achievements={achievements} isAdmin={isAdmin} />
+    <GameLibrary games={serializedGames} achievements={achievements} isAdmin={isAdmin} steamId={steamProfile?.steamId} />
   );
 }
 

@@ -1,6 +1,6 @@
 "use server";
 
-import { getLibraryExport, importLibraryGames } from "@/lib/library-vault";
+import { getLibraryExport, importLibraryGames, syncSteamLibraryGames, type SteamSyncPayload } from "@/lib/library-vault";
 import type { LibraryImportPayload } from "@/lib/library-import";
 import { guardedRequest } from "@/lib/api-resilience";
 import { safeAction, InputError } from "@/lib/action-result";
@@ -543,6 +543,15 @@ export async function bulkImportGames(payload: LibraryImportPayload) {
     await syncAndGetAchievements(userId);
     revalidatePath("/");
     return counts;
+  });
+}
+
+export async function syncSteamLibrary(payload: SteamSyncPayload) {
+  return safeAction(async () => {
+    const { userId, summary } = await syncSteamLibraryGames(payload);
+    await syncAndGetAchievements(userId);
+    revalidatePath("/");
+    return summary;
   });
 }
 
