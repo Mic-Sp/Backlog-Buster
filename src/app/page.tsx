@@ -4,7 +4,7 @@ import Link from "next/link";
 import { FantasyCorners } from "@/components/FantasyAccents";
 import LayoutText from "@/components/LayoutText";
 import OperatorAvatar from "@/components/OperatorAvatar";
-import { connection } from "next/server";
+import { after, connection } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { resizeRawgImageUrl } from "@/lib/rawg";
 import GameForm from "./GameForm";
@@ -21,6 +21,10 @@ import { getCurrentPlayer, type CurrentPlayer } from "@/lib/player";
 import { getCurrentPlayerProfile } from "@/lib/player-profile";
 import AccountControls, { AccountGate } from "@/components/AccountControls";
 import { ThemePlayerSync } from "@/components/ThemeProvider";
+import { readSessionHash } from "@/lib/auth-session";
+import { autoSyncSteamLibrary } from "@/lib/steam-auto-sync";
+
+export const maxDuration = 60;
 
 // Share one sync promise per player during this render, without caching Server Actions.
 const getPageAchievements = cache((userId: string) => syncAndGetAchievements(userId));
@@ -202,6 +206,12 @@ async function PlayerWorkspace() {
   await connection();
   const player = await getCurrentPlayer();
   if (!player) return <><ThemePlayerSync player={null} /><main className="page-shell"><AccountGate /><MemberCount /></main></>;
+  if (!player.isLocal) {
+    // Capture request data during rendering; after() cannot read cookies from a
+    // Server Component. Eligibility checks and all sync I/O start after response.
+    const tokenHash = await readSessionHash();
+    if (tokenHash) after(async () => { await autoSyncSteamLibrary(player.id, tokenHash); });
+  }
   return (
     <>
     <ThemePlayerSync player={player.isLocal ? null : { id: player.id, preferredLayoutMode: player.preferredLayoutMode }} />

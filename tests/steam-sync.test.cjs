@@ -25,7 +25,8 @@ const saved = (id, extra = {}) => ({ id, userId: "owner", title: `Steam Game ${i
 const request = (extra = {}) => ({ identifier: steamId, ...extra });
 
 function fixture(initial = [], snapshot = [], options = {}) {
-  let games = structuredClone(initial), player = { id: "owner", steamId: null }, token = "owner-token", revoked = false;
+  let games = structuredClone(initial), player = { id: "owner", steamId: options.linkedSteamId ?? null,
+    steamAutoSyncAttemptedAt: options.attemptedAt ?? null, steamLastSyncedAt: null }, token = "owner-token", revoked = false;
   let inTransaction = false, sequence = Promise.resolve(), providerCalls = 0, nextId = 10000;
   const rawgCalls = [], cacheCalls = [], locks = [], updateBatches = [], createBatches = [], guardCalls = [];
   const selectRows = ({ where, select }) => {
@@ -64,7 +65,9 @@ function fixture(initial = [], snapshot = [], options = {}) {
     playerSession: { findUnique: async ({ where }) => {
       assert(inTransaction); assert.equal(where.tokenHash, "owner-token"); assert.equal(where.userId, "owner");
       assert(where.expiresAt.gt instanceof Date); assert(where.player.email.not === null);
-      return revoked ? null : { tokenHash: "owner-token" };
+      const automatic = where.player.steamAutoSyncAttemptedAt;
+      const staleLink = automatic && (where.player.steamId !== player.steamId || automatic.getTime() !== player.steamAutoSyncAttemptedAt?.getTime());
+      return revoked || staleLink ? null : { tokenHash: "owner-token" };
     } },
     game: { findMany: async args => selectRows(args), createMany: async ({ data }) => {
       assert(inTransaction); createBatches.push(data);
@@ -77,7 +80,8 @@ function fixture(initial = [], snapshot = [], options = {}) {
     } },
     player: { update: async ({ where, data, select }) => {
       assert(inTransaction); assert.deepEqual(where, { id: "owner" }); assert.deepEqual(select, { id: true });
-      assert.deepEqual(Object.keys(data), ["steamId"]); Object.assign(player, data); return { id: "owner" };
+      assert.deepEqual(Object.keys(data), ["steamId", "steamLastSyncedAt"]); assert(data.steamLastSyncedAt instanceof Date);
+      Object.assign(player, data); return { id: "owner" };
     } },
   };
   const prisma = {
@@ -109,7 +113,7 @@ function fixture(initial = [], snapshot = [], options = {}) {
   const load = loader({
     "@/lib/prisma": { prisma }, "@/lib/auth-session": { readSessionHash: async () => token },
     "@/lib/api-resilience": { guardedRequest: async (id, feature, input, work) => {
-      assert.equal(id, "owner"); assert.equal(feature, "steam-sync"); guardCalls.push(JSON.parse(input)); return work();
+      assert.equal(id, "owner"); assert(["steam-sync", "steam-auto-sync"].includes(feature)); guardCalls.push({ feature, input: JSON.parse(input) }); return work();
     } },
     "@/lib/steam": { parseSteamIdentifier, fetchSteamLibrary: async identifier => {
       assert(!inTransaction); assert.equal(identifier, steamId); providerCalls++;
@@ -125,7 +129,7 @@ function fixture(initial = [], snapshot = [], options = {}) {
   });
   return { vault: load("src/lib/library-vault.ts"), rawgCalls, cacheCalls, locks, updateBatches, createBatches, guardCalls,
     get games() { return games; }, get player() { return player; }, get providerCalls() { return providerCalls; },
-    signOut: () => { token = null; }, revoke: () => { revoked = true; } };
+    signOut: () => { token = null; }, revoke: () => { revoked = true; }, relink: id => { player.steamId = id; } };
 }
 
 test("650-game sync batches writes/cache reads and caps RAWG at three lookups; repeats are idempotent", async () => {
@@ -134,6 +138,7 @@ test("650-game sync batches writes/cache reads and caps RAWG at three lookups; r
   assert.equal(f.rawgCalls.length, 3); assert.equal(f.cacheCalls.length, 2);
   assert.deepEqual(f.createBatches.map(batch => batch.length), [500, 150]); assert.equal(f.updateBatches.length, 0);
   assert.equal(f.player.steamId, steamId);
+  assert(f.player.steamLastSyncedAt instanceof Date);
   assert(f.games.every(game => game.platform === "PC" && game.status === "Backlog" && game.hoursPlayed === 1 && game.earnedXp === 0 && game.lengthHours === 10));
   assert.equal(f.games[0].coverUrl, incoming(1).coverUrl);
   assert.deepEqual((await f.vault.syncSteamLibraryGames(request())).summary, { steamId, addedCount: 0, updatedCount: 0, skippedCount: 650 });
@@ -263,4 +268,28 @@ test("server action syncs achievements once, revalidates once and exposes only t
   assert.deepEqual(calls, [["achievements", "owner"], ["refresh", "/"]]);
   fail = true; const result = await actions.syncSteamLibrary(request()); assert(result.error); assert(!result.error.includes("private"));
   assert.equal(calls.length, 2);
+});
+
+test("background sync reuses safe writes and has a separate short cooldown from manual sync", async () => {
+  const attemptedAt = new Date();
+  const original = saved(1, { steamAppId: "1", status: "Completed", hoursPlayed: 3, earnedXp: 400 });
+  const f = fixture([original], [incoming(1, "Steam Game 1", 600), incoming(2, "Newly played", 60), incoming(3, "Unplayed", 0)], { linkedSteamId: steamId, attemptedAt });
+  const result = await f.vault.syncSteamLibraryForSession(request({ includeUnplayed: false, updateHoursPlayed: true }),
+    { userId: "owner", tokenHash: "owner-token" }, { steamId, attemptedAt });
+  assert.deepEqual(result.summary, { steamId, addedCount: 1, updatedCount: 1, skippedCount: 1 });
+  assert.deepEqual(f.games[0], { ...original, hoursPlayed: 10 });
+  assert.equal(f.guardCalls[0].feature, "steam-auto-sync");
+  assert.equal(f.games[1].status, "Backlog"); assert.equal(f.games[1].earnedXp, 0);
+  await f.vault.syncSteamLibraryGames(request());
+  assert.equal(f.guardCalls[1].feature, "steam-sync", "manual sync ignores the daily attempt window");
+});
+
+test("logout or a relink while automatic work is pending stops all background writes", async () => {
+  const attemptedAt = new Date();
+  for (const change of [f => f.revoke(), f => f.relink("76561198000000001")]) {
+    const f = fixture([], [incoming(1)], { linkedSteamId: steamId, attemptedAt });
+    change(f);
+    await assert.rejects(f.vault.syncSteamLibraryForSession(request(), { userId: "owner", tokenHash: "owner-token" }, { steamId, attemptedAt }), /session expired/);
+    assert.equal(f.games.length, 0); assert.equal(f.player.steamLastSyncedAt, null);
+  }
 });

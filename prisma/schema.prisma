@@ -19,6 +19,9 @@ model Player {
   handle            String?           @unique
   // Public profile identifier only; this is not proof of Steam account ownership.
   steamId           String?
+  steamLastSyncedAt  DateTime?
+  // Claim attempts too, so private/unreachable profiles do not retry every visit.
+  steamAutoSyncAttemptedAt DateTime?
   operatorName      String            @default("ANONYMOUS NETRUNNER")
   tagline           String            @default("One more gig. One more legend.")
   neonAccent        String            @default("CYAN")

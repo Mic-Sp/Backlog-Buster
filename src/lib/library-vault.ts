@@ -100,6 +100,8 @@ export type SteamSyncPayload = {
   updateHoursPlayed?: boolean;
 };
 export type SteamSyncSummary = { steamId: string; addedCount: number; updatedCount: number; skippedCount: number };
+export type SteamSyncSession = { userId: string; tokenHash: string };
+export type SteamAutoSyncClaim = { steamId: string; attemptedAt: Date };
 const STEAM_WRITE_BATCH_SIZE = 500;
 const STEAM_RAWG_LIMIT = 3;
 const STEAM_METADATA_BUDGET_MS = 2000;
@@ -162,6 +164,12 @@ function persistedSteamHours(game: SteamOwnedGame) { return Math.min(10000, Math
 
 export async function syncSteamLibraryGames(payload: SteamSyncPayload): Promise<{ userId: string; summary: SteamSyncSummary }> {
   const { player, tokenHash } = await requireVaultSession();
+  return syncSteamLibraryForSession(payload, { userId: player.id, tokenHash });
+}
+
+/** Server-only entry for an already authenticated request, including after() work. */
+export async function syncSteamLibraryForSession(payload: SteamSyncPayload, session: SteamSyncSession, automatic?: SteamAutoSyncClaim): Promise<{ userId: string; summary: SteamSyncSummary }> {
+  const { userId, tokenHash } = session;
   if (!payload || typeof payload !== "object" || Array.isArray(payload) ||
     (payload.includeUnplayed !== undefined && typeof payload.includeUnplayed !== "boolean") ||
     (payload.updateHoursPlayed !== undefined && typeof payload.updateHoursPlayed !== "boolean")) {
@@ -170,24 +178,28 @@ export async function syncSteamLibraryGames(payload: SteamSyncPayload): Promise<
   const identifier = parseSteamIdentifier(payload.identifier);
   const includeUnplayed = payload.includeUnplayed ?? true;
   const updateHoursPlayed = payload.updateHoursPlayed ?? false;
-  return guardedRequest(player.id, "steam-sync", JSON.stringify([identifier, includeUnplayed, updateHoursPlayed]), async () => {
+  // Automatic work never consumes the manual vault's short request cooldown.
+  return guardedRequest(userId, automatic ? "steam-auto-sync" : "steam-sync", JSON.stringify([identifier, includeUnplayed, updateHoursPlayed]), async () => {
     const [library, initial] = await Promise.all([
       fetchSteamLibrary(payload.identifier),
-      prisma.game.findMany({ where: { userId: player.id }, select: steamExistingSelect }),
+      prisma.game.findMany({ where: { userId }, select: steamExistingSelect }),
     ]);
     const incoming = library.games.filter(game => (includeUnplayed || game.playtimeMinutes > 0) &&
       game.title.length <= 120 && normalizeGameTitle(game.title));
     const newGames = steamMatches(initial, incoming).filter(match => !match.existing).map(match => match.game);
     const metadata = await steamMetadata(newGames);
     const summary = await prisma.$transaction(async tx => {
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`backlogbuster-deck:${player.id}`}, 0))`;
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`backlogbuster-deck:${userId}`}, 0))`;
       const active = await tx.playerSession.findUnique({
-        where: { tokenHash, userId: player.id, expiresAt: { gt: new Date() }, player: { email: { not: null }, passwordHash: { not: null } } },
+        where: { tokenHash, userId, expiresAt: { gt: new Date() }, player: { email: { not: null }, passwordHash: { not: null },
+          // A manual relink/logout during the fetch must invalidate this background job.
+          ...(automatic ? { steamId: automatic.steamId, steamAutoSyncAttemptedAt: automatic.attemptedAt } : {}),
+        } },
         select: { tokenHash: true },
       });
       if (!active) throw new InputError("Your session expired. Sign in again before syncing Steam.");
       // A parallel import may have linked/created rows while metadata was loading.
-      const existing = await tx.game.findMany({ where: { userId: player.id }, select: steamExistingSelect });
+      const existing = await tx.game.findMany({ where: { userId }, select: steamExistingSelect });
       const additions: Prisma.GameCreateManyInput[] = [];
       const updates: { id: number; steamAppId: string; hoursPlayed: number | null }[] = [];
       for (const match of steamMatches(existing, incoming)) {
@@ -199,7 +211,7 @@ export async function syncSteamLibraryGames(payload: SteamSyncPayload): Promise<
           continue;
         }
         const info = metadata.get(normalizeGameTitle(game.title));
-        additions.push({ userId: player.id, steamAppId: game.steamAppId, title: game.title, platform: "PC", status: "Backlog",
+        additions.push({ userId, steamAppId: game.steamAppId, title: game.title, platform: "PC", status: "Backlog",
           hoursPlayed, earnedXp: 0, difficulty: 2, lengthHours: resolveRawgPlaytime(info?.estimatedHours, info?.genre) ?? 10,
           genre: info?.genre ?? null, releaseYear: info?.releaseYear ?? null, coverUrl: info?.coverUrl || game.coverUrl });
       }
@@ -216,12 +228,12 @@ export async function syncSteamLibraryGames(payload: SteamSyncPayload): Promise<
               "hoursPlayed" = GREATEST(game."hoursPlayed", COALESCE(change."hoursPlayed", game."hoursPlayed"))
           FROM jsonb_to_recordset(${JSON.stringify(updates.slice(index, index + STEAM_WRITE_BATCH_SIZE))}::jsonb)
             AS change("id" integer, "steamAppId" text, "hoursPlayed" integer)
-          WHERE game."id" = change."id" AND game."userId" = ${player.id}
+          WHERE game."id" = change."id" AND game."userId" = ${userId}
         `;
       }
-      await tx.player.update({ where: { id: player.id }, data: { steamId: library.steamId }, select: { id: true } });
+      await tx.player.update({ where: { id: userId }, data: { steamId: library.steamId, steamLastSyncedAt: new Date() }, select: { id: true } });
       return { steamId: library.steamId, addedCount, updatedCount, skippedCount: library.games.length - addedCount - updatedCount };
     }, { timeout: 15000 });
-    return { userId: player.id, summary };
+    return { userId, summary };
   });
 }
