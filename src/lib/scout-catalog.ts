@@ -29,3 +29,8 @@ export const genreNeighbors: Record<string, string[]> = {
 };
 
 export const generalDiscovery = ["Hades", "Portal 2", "Hollow Knight", "Disco Elysium", "Control", "Tunic"];
+
+/** Seed inputs only; affinity neighbors must never be treated as franchise membership. */
+export function getScoutCatalogTitles(): string[] {
+  return [...new Set([...Object.values(franchiseAffinities).flat(), ...Object.values(genreNeighbors).flat(), ...generalDiscovery])].sort();
+}

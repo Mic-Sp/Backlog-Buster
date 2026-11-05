@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { coalesce } from "@/lib/api-resilience";
 import { searchRawgGames } from "@/lib/rawg";
 import type { CatalogSuggestion } from "@/lib/catalog-types";
+import { catalogIdentity, catalogSuggestion, tryUpsertCatalogGame } from "@/lib/catalog-store";
 
 export type { CatalogSuggestion } from "@/lib/catalog-types";
 
@@ -12,7 +13,7 @@ const MAX_CACHE_ENTRIES = 256;
 // Process-local by design; bounds memory and shares work across players on this instance.
 const cache = new Map<string, { expiresAt: number; items: CatalogSuggestion[] }>();
 const select = { title: true, releaseYear: true, platforms: true, genre: true, estimatedHours: true, coverUrl: true } as const;
-const identity = (game: CatalogSuggestion) => JSON.stringify([game.title.toLowerCase(), game.releaseYear]);
+const identity = catalogIdentity;
 
 export async function searchCatalog(query: string): Promise<CatalogSuggestion[]> {
   if (typeof query !== "string") return [];
@@ -42,16 +43,18 @@ export async function searchCatalog(query: string): Promise<CatalogSuggestion[]>
       if (remote.length) {
         try {
           // Only canonical provider results are persisted, never player library data.
-          await prisma.$transaction(remote.map((game) => prisma.gameCatalog.upsert({
-            where: { key: identity(game) }, create: { key: identity(game), ...game }, update: game,
-          })));
+          // Bounded batches; metadata and each vector commit together.
+          for (let offset = 0; offset < remote.length; offset += 3) {
+            await Promise.all(remote.slice(offset, offset + 3).map(tryUpsertCatalogGame));
+          }
         } catch { /* Cache writes are optional, including before schema deployment. */ }
       }
       for (const [entry, value] of cache) if (value.expiresAt <= now) cache.delete(entry);
       if (cache.size >= MAX_CACHE_ENTRIES) cache.delete(cache.keys().next().value!);
       // Cache fallbacks and empty results too, avoiding retries on every backspace.
-      cache.set(key, { expiresAt: Date.now() + TTL_MS, items: results });
-      return results;
+      const suggestions = results.map(catalogSuggestion);
+      cache.set(key, { expiresAt: Date.now() + TTL_MS, items: suggestions });
+      return suggestions;
     });
     return structuredClone(items);
   } catch { return []; }

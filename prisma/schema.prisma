@@ -97,9 +97,28 @@ model GameCatalog {
   genre          String?
   estimatedHours Int?
   coverUrl       String?
+  rawgId         Int?
+  rawgSlug       String?
+  genres         String[] @default([])
+  tags           String[] @default([])
+  // Curated prefix hints from the provider's canonical title, not confirmed franchise membership.
+  seriesHints    String[] @default([])
+  // Positive tag evidence only; missing evidence is null, never false.
+  multiplayer    Boolean?
+  coop           Boolean?
+  onlineCoop     Boolean?
+  localCoop      Boolean?
+  metadataSource String?
+  metadataUpdatedAt DateTime?
+  // Managed atomically with metadata via catalog-store.ts; enable vector before db push.
+  featureVector Unsupported("vector(128)")?
+  featureVectorVersion String?
+  featureContentHash String?
+  featureVectorUpdatedAt DateTime?
   updatedAt      DateTime @updatedAt
 
   @@index([title])
+  @@index([rawgId])
 }
 
 model Game {

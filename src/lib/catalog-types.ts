@@ -7,3 +7,16 @@ export type CatalogSuggestion = {
   estimatedHours: number | null;
   coverUrl: string | null;
 };
+
+/** Server catalog ingestion only. Project to CatalogSuggestion before returning autocomplete results. */
+export type ProviderCatalogGame = CatalogSuggestion & {
+  rawgId: number | null;
+  rawgSlug: string | null;
+  genres: string[];
+  tags: string[];
+  seriesHints: string[];
+  multiplayer: boolean | null;
+  coop: boolean | null;
+  onlineCoop: boolean | null;
+  localCoop: boolean | null;
+};

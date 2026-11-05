@@ -1,8 +1,25 @@
 // Serializable diagnostics only; collection and delivery are authorized by the Server Action.
 export type ScoutAnchor = { title: string; rating: number | null };
+export type ScoutVectorDebug = {
+  status: "not-run" | "passed" | "failed";
+  latencyMs: number | null;
+  queryLatencyMs: number | null;
+  vectorVersion: string | null;
+  tasteSource: "completed-favorites" | "active-pinned" | "cold-start" | null;
+  anchorCount: number;
+  candidateCount: number;
+  filteredCount: number;
+  returnedCount: number;
+  coverage: { total: number; embedded: number; current: number; released: number; eligible: number } | null;
+  fallbackReason: string | null;
+  picks: { title: string; cosineSimilarity: number; score: number;
+    scores: { cosine: number; series: number; genre: number; playtime: number } }[];
+};
 export type ScoutDebug = {
   requestedAt: string;
-  source: "live-ai" | "deterministic-fallback" | "mixed" | "none";
+  source: "vector" | "live-ai" | "deterministic-fallback" | "mixed" | "none";
+  engineSource: "vector" | "gemini-fallback" | "mixed" | "none";
+  vector: ScoutVectorDebug;
   schemaStatus: "not-run" | "passed" | "failed";
   playtimeStatus: string;
   fallbackTriggered: boolean;
@@ -21,13 +38,19 @@ export type ScoutDebug = {
   attemptedCallCostUsd: number | null;
   promptPreview: string;
   responsePreview: string;
-  picks: { title: string; source: "live-ai" | "deterministic-fallback"; anchor?: ScoutAnchor }[];
+  picks: { title: string; source: "vector" | "live-ai" | "deterministic-fallback"; anchor?: ScoutAnchor }[];
 };
+
+export function createScoutVectorDebug(): ScoutVectorDebug {
+  return { status: "not-run", latencyMs: null, queryLatencyMs: null, vectorVersion: null, tasteSource: null,
+    anchorCount: 0, candidateCount: 0, filteredCount: 0, returnedCount: 0, coverage: null, fallbackReason: null, picks: [] };
+}
 
 export function createScoutDebug(): ScoutDebug {
   return {
     requestedAt: new Date().toISOString(), source: "none", schemaStatus: "not-run",
-    playtimeStatus: "Not run; playtime comes from RAWG, not Gemini (no 1–500-hour AI check).",
+    engineSource: "none", vector: createScoutVectorDebug(),
+    playtimeStatus: "Not run; catalog/RAWG estimates are normalized with genre floors; Gemini estimates are not accepted.",
     fallbackTriggered: false, fallbackReason: null, validationIssues: [], anchors: [],
     excludedCount: 0, filteredCount: 0, metadataRejectedCount: 0, model: null,
     liveCallAttempted: false, inputTokens: 0, outputTokens: 0, tokenBasis: "estimate",

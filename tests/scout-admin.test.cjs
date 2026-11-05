@@ -37,7 +37,13 @@ function fixture({ admin = false, owner = false, active = true } = {}) {
     "@/lib/api-resilience": { guardedRequest: async (_id, _feature, _input, work) => work() },
     "@/lib/recommendations": { getExternalRecommendations: async (...args) => {
       calls.push(args);
-      if (args[2]) args[2].responsePreview = "ADMIN PRIVATE DIAGNOSTIC";
+      if (args[2]) {
+        args[2].responsePreview = "ADMIN PRIVATE DIAGNOSTIC";
+        args[2].engineSource = "vector";
+        args[2].vector.status = "passed";
+        args[2].vector.coverage = { total: 89, embedded: 89, current: 89, released: 85, eligible: 82 };
+        args[2].vector.queryLatencyMs = 2;
+      }
       state.afterScan();
       return [{ title: "Good" }];
     } },
@@ -60,6 +66,8 @@ test("active admins and owners receive Scout telemetry with a UTC request timest
     const f = fixture({ admin: true, owner });
     const result = await f.run([]);
     assert.equal(result.debug.responsePreview, "ADMIN PRIVATE DIAGNOSTIC");
+    assert.equal(result.debug.engineSource, "vector");
+    assert.equal(result.debug.vector.coverage.total, 89);
     assert.match(result.debug.requestedAt, /^\d{4}-\d{2}-\d{2}T.*Z$/);
     assert.equal(f.calls[0][0], "player");
   }

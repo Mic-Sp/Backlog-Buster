@@ -27,9 +27,18 @@ function fixture({ local = [], remote = [], readError = false, writeError = fals
         findMany: async (args) => { reads.push(args); if (readError) throw Error("db offline"); return structuredClone(local); },
         upsert: (args) => { writes.push(args); return Promise.resolve(args.create); },
       },
-      $transaction: async (operations) => { if (writeError) throw Error("db offline"); return Promise.all(operations); },
+      $transaction: async (work) => {
+        if (writeError) throw Error("db offline");
+        return work({ $executeRaw: async () => 1, gameCatalog: {
+          upsert: async (args) => { writes.push(args); return args.create; },
+        } });
+      },
     } },
-    "@/lib/rawg": { searchRawgGames: async (query) => { searches.push(query); if (providerError) throw Error("provider failed"); return structuredClone(remote); } },
+    "@/lib/rawg": { searchRawgGames: async (query) => {
+      searches.push(query); if (providerError) throw Error("provider failed");
+      return structuredClone(remote).map((game, index) => ({ ...game, rawgId: index + 1, rawgSlug: null,
+        genres: [game.genre].filter(Boolean), tags: [], seriesHints: [], multiplayer: null, coop: null, onlineCoop: null, localCoop: null }));
+    } },
   });
   return { ...load("src/lib/catalog-search.ts"), reads, searches, writes };
 }
@@ -143,7 +152,8 @@ test("RAWG search normalizes canonical titles, optional metadata, platforms, and
     ] });
   } } });
   const results = await load("src/lib/rawg.ts").searchRawgGames("portal & 2");
-  assert.deepEqual(results, [
+  assert.deepEqual(results.map(({ title, releaseYear, estimatedHours, platforms, genre, coverUrl }) =>
+    ({ title, releaseYear, estimatedHours, platforms, genre, coverUrl })), [
     { title: "Portal 2", releaseYear: 2011, estimatedHours: 9, platforms: ["PC"], genre: "Puzzle", coverUrl: "https://media.rawg.io/media/resize/640/-/games/portal.jpg" },
     { title: "Unknown", releaseYear: null, estimatedHours: null, platforms: [], genre: null, coverUrl: null },
     { title: "Negative", releaseYear: null, estimatedHours: null, platforms: [], genre: null, coverUrl: null },

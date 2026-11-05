@@ -9,14 +9,17 @@ const ts = require("typescript");
 const seed = { title: "Seed", platform: "PC", genre: "Action", status: "Completed", rating: 5, earnedXp: 100 };
 const candidate = (title) => ({ title, preferredPlatform: "PC", reason: `AI rationale for ${title}.` });
 const metadata = { platforms: ["Console", "PC"], genre: "Action", releaseYear: 2020, coverUrl: "https://example.com/cover.jpg", playtime: 4 };
-function fixture({ ai = async () => [], lookup = async () => metadata, games = [seed] } = {}) {
-  const lookups = [], aiCalls = [];
+function fixture({ ai = async () => [], lookup = async () => metadata, games = [seed], vector = async () => ({
+  recommendations: [], tasteSource: "cold-start", anchorCount: 0, vectorVersion: "catalog-features-v1",
+}) } = {}) {
+  const lookups = [], aiCalls = [], vectorCalls = [];
   const mocks = {
     "server-only": {},
     "@/lib/player": { getCurrentPlayerId: async () => "player" },
     "@/lib/prisma": { prisma: { game: { findMany: async ({ where }) => { assert.equal(where.userId, "player"); return games; } } } },
     "@/lib/scout-ai": { getAIScoutCandidates: async (...args) => { aiCalls.push(args); return ai(...args); } },
-    "@/lib/rawg": { lookupRawgGame: async (title, reportRateLimit) => { assert.equal(reportRateLimit, true); lookups.push(title); return lookup(title); } },
+    "@/lib/vector-recommendations": { recommendCatalogGames: async (...args) => { vectorCalls.push(args); return vector(...args); } },
+    "@/lib/rawg": { resizeRawgImageUrl: value => value, lookupRawgGame: async (title, reportRateLimit) => { assert.equal(reportRateLimit, true); lookups.push(title); return lookup(title); } },
     "@/lib/scout-catalog": { franchiseAffinities: {}, genreNeighbors: {}, generalDiscovery: ["Fallback 1", "Fallback 2", "Fallback 3", "Fallback 4", "Fallback 5", "Fallback 6"] },
   };
   const cache = new Map();
@@ -30,16 +33,92 @@ function fixture({ ai = async () => [], lookup = async () => metadata, games = [
     cache.set(file, instance.exports);
     return instance.exports;
   }
-  return { ...load("src/lib/recommendations.ts"), lookups, aiCalls };
+  return { ...load("src/lib/recommendations.ts"), lookups, aiCalls, vectorCalls };
 }
 
-test("AI is primary, keeps its reasons, and uses existing metadata/playtime mapping", async () => {
+test("empty vector results use Gemini fallback, retain its reasons, and preserve metadata/playtime mapping", async () => {
   const input = ["AI A", "AI B", "AI C"].map(candidate);
   const context = fixture({ ai: async () => input });
   const result = await context.getExternalRecommendations("player", ["Seen"]);
   assert.deepEqual(context.aiCalls, [[[seed], ["Seen"]]]);
   assert.deepEqual(context.lookups, input.map((pick) => pick.title));
   assert.deepEqual(result, input.map((pick) => ({ title: pick.title, platform: "PC", genre: "Action", releaseYear: 2020, coverUrl: metadata.coverUrl, lengthHours: 15, difficulty: 2, reason: pick.reason })));
+});
+
+const vectorPick = (title, fields = {}) => ({ key: title, title, platforms: ["Console", "PC"], genre: "Action", releaseYear: 2020,
+  estimatedHours: 4, coverUrl: "https://example.com/cover.jpg", reason: `Vector rationale for ${title}.`, distance: .1,
+  cosineSimilarity: .9, score: .8, scores: { cosine: .63, series: .1, genre: .05, playtime: .02 }, ...fields });
+const vectorResult = picks => ({ recommendations: picks, tasteSource: "completed-favorites", anchorCount: 1, vectorVersion: "catalog-features-v1",
+  diagnostics: { queryLatencyMs: 2.5, candidateCount: 20, filteredCount: 1,
+    coverage: { total: 89, embedded: 89, current: 89, released: 85, eligible: 84 }, anchors: [{ title: "Seed", rating: 5 }] } });
+
+test("three vector picks are primary, skip all providers and preserve the exact public card contract", async () => {
+  const picks = ["Vector A", "Vector B", "Vector C"].map(title => vectorPick(title));
+  const context = fixture({ vector: async () => vectorResult(picks) });
+  const result = await context.getExternalRecommendations("player", ["Seen"]);
+  assert.deepEqual(result, picks.map(pick => ({ title: pick.title, platform: "PC", genre: "Action", releaseYear: 2020,
+    coverUrl: pick.coverUrl, lengthHours: 15, difficulty: 2, reason: pick.reason })));
+  assert.equal(context.aiCalls.length, 0); assert.equal(context.lookups.length, 0);
+  assert.deepEqual(context.vectorCalls[0][1], ["Seen"]);
+  assert.deepEqual(context.vectorCalls[0][2], { collectDiagnostics: false });
+  for (const pick of result) assert.deepEqual(Object.keys(pick).sort(), ["title", "platform", "genre", "releaseYear", "coverUrl", "lengthHours", "difficulty", "reason"].sort());
+});
+
+test("partial vector results stay first and Gemini receives those titles as exclusions while filling only remaining slots", async () => {
+  const context = fixture({ vector: async () => vectorResult([vectorPick("Vector A"), vectorPick("Vector B")]),
+    ai: async () => [candidate("Vector A"), candidate("New C"), candidate("New D")] });
+  const debug = telemetry();
+  const result = await context.getExternalRecommendations("player", ["Seen"], debug);
+  assert.deepEqual(result.map(pick => pick.title), ["Vector A", "Vector B", "New C"]);
+  assert.deepEqual(context.aiCalls[0][1], ["Seen", "Vector A", "Vector B"]);
+  assert(!context.lookups.includes("Vector A"));
+  assert.equal(debug.engineSource, "mixed"); assert.equal(debug.vector.returnedCount, 2);
+  assert.equal(debug.source, "mixed"); assert.equal(debug.fallbackTriggered, true);
+  assert.deepEqual(debug.picks.map(pick => pick.source), ["vector", "vector", "live-ai"]);
+});
+
+test("vector errors fall back without leaking raw database details", async () => {
+  const context = fixture({ vector: async () => { throw Error("postgresql://secret-credentials/private-query"); },
+    ai: async () => ["A", "B", "C"].map(candidate) });
+  const debug = telemetry();
+  assert.equal((await context.getExternalRecommendations("player", [], debug)).length, 3);
+  assert.equal(debug.engineSource, "gemini-fallback"); assert.equal(debug.vector.status, "failed");
+  assert.equal(debug.vector.coverage, null); assert(debug.vector.latencyMs >= 0);
+  assert(!JSON.stringify(debug).includes("secret-credentials"));
+});
+
+test("vector results are defensively filtered for owned, seen, duplicate, and unreleased titles before provider backfill", async () => {
+  const context = fixture({ vector: async () => vectorResult([
+    vectorPick("Seed"), vectorPick("Seen"), vectorPick("Future", { releaseYear: new Date().getFullYear() + 1 }),
+    vectorPick("Undated", { releaseYear: null }), vectorPick("New II"), vectorPick("New 2"),
+  ]), ai: async () => [candidate("Fill A"), candidate("Fill B")] });
+  const debug = telemetry();
+  const result = await context.getExternalRecommendations("player", ["Seen"], debug);
+  assert.deepEqual(result.map(pick => pick.title), ["New II", "Fill A", "Fill B"]);
+  assert.equal(debug.vector.filteredCount, 6); // One engine-side rejection plus five defensive rejections.
+});
+
+test("RAWG failures in both provider and curated fallback preserve successful vector cards", async () => {
+  const context = fixture({ vector: async () => vectorResult([vectorPick("Vector A")]), ai: async () => [candidate("Provider B")],
+    lookup: async () => { throw Error("private provider outage"); } });
+  const debug = telemetry();
+  const result = await context.getExternalRecommendations("player", [], debug);
+  assert.deepEqual(result.map(pick => pick.title), ["Vector A"]);
+  assert.equal(debug.engineSource, "vector"); assert.equal(debug.fallbackTriggered, true);
+  assert(debug.metadataRejectedCount > 0); assert(!JSON.stringify(debug).includes("private provider outage"));
+});
+
+test("admin vector telemetry records provenance, score components, latency and coverage without provider charges", async () => {
+  const context = fixture({ vector: async () => vectorResult(["A", "B", "C"].map(title => vectorPick(title))) });
+  const debug = telemetry();
+  await context.getExternalRecommendations("player", [], debug);
+  assert.deepEqual(context.vectorCalls[0][2], { collectDiagnostics: true });
+  assert.equal(debug.engineSource, "vector"); assert.equal(debug.source, "vector");
+  assert.equal(debug.fallbackTriggered, false); assert.equal(debug.vector.status, "passed");
+  assert.equal(debug.vector.queryLatencyMs, 2.5); assert(debug.vector.latencyMs >= 0);
+  assert.deepEqual(debug.vector.coverage, { total: 89, embedded: 89, current: 89, released: 85, eligible: 84 });
+  assert.equal(debug.vector.picks[0].cosineSimilarity, .9); assert.deepEqual(debug.vector.picks[0].scores, vectorPick("A").scores);
+  assert.equal(debug.estimatedCostUsd, 0); assert.equal(context.aiCalls.length, 0);
 });
 
 test("partial AI results fill from static catalog without owned, excluded or duplicate titles", async () => {

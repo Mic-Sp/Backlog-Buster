@@ -11,6 +11,13 @@
 .scout-debugger .scout-debug-badges > div { padding: 8px; border: 1px solid #285461; }
 .scout-debugger .saga-debug-readout { overflow-wrap: anywhere; }
 .scout-debugger .saga-debug-payload pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+.scout-vector-metrics { margin-block: 16px; }
+.scout-vector-table-scroll { overflow-x: auto; max-width: 100%; }
+.scout-vector-table-scroll:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.scout-vector-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+.scout-vector-table caption { text-align: left; padding-block: 8px; }
+.scout-vector-table :is(th, td) { padding: 8px; border: 1px solid currentColor; text-align: left; vertical-align: top; }
+.scout-vector-table td { font-variant-numeric: tabular-nums; }
 :root[data-layout-mode="fantasy"] .scout-debugger > summary {
   color: #435432;
   background: #decda1;

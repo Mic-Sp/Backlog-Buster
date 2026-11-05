@@ -18,8 +18,10 @@ export type BacklogRecommendations = {
   seenGameIds: number[];
 };
 const normalize = (value: string | null) => value?.trim().toLowerCase() ?? "";
-const lineage = (game: AdvisorGame) => normalize(game.franchise) || normalize(game.title)
+export const isPositiveTasteRating = (rating: number | null): rating is number => Number.isInteger(rating) && rating! >= 4 && rating! <= 5;
+export const gameLineage = (game: Pick<AdvisorGame, "franchise" | "title">) => normalize(game.franchise) || normalize(game.title)
   .split(/[:–—-]/)[0].replace(/\b(?:remastered|remake|viii|vii|iii|vi|iv|ix|ii|i|v|x)\b|\d+/g, " ").replace(/\s+/g, " ").trim();
+const lineage = gameLineage;
 const newest = (a: AdvisorGame, b: AdvisorGame) => b.createdAt.getTime() - a.createdAt.getTime() || b.id - a.id;
 
 function weightedPick(candidates: AdvisorGame[], score: (game: AdvisorGame) => number, random: () => number) {
@@ -49,7 +51,7 @@ export function selectBacklogRecommendations(games: readonly AdvisorGame[], excl
   const eligibleIds = new Set(backlog.map(game => game.id));
   let history = [...new Set(excludedGameIds.filter(id => eligibleIds.has(id)))];
   const completed = games.filter(game => game.status === "Completed").sort(newest);
-  const favorites = completed.filter(game => game.rating !== null && game.rating >= 4)
+  const favorites = completed.filter(game => isPositiveTasteRating(game.rating))
     .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0) || newest(a, b));
   const affinityHistory = favorites.length ? favorites : completed.filter(game => game.rating === null);
   const genres = new Map<string, { sum: number; count: number }>();

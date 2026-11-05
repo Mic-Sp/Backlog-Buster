@@ -351,7 +351,7 @@ export function TacticalAdvisorView({ controller, part = "all" }: { controller: 
             {!isFetching && <button className="advisor-refresh" type="button" disabled={isStarting || isAdding} onClick={loadPicks}>{error ? copy("RETRY SCAN", "SEEK GUIDANCE AGAIN") : copy("REFRESH SCAN", "CONSULT THE FAIRY AGAIN")}</button>}
             <section className="advisor-external-section" aria-labelledby="external-scout-title">
               <h3 id="external-scout-title">{copy("02 // EXTERNAL SCOUT (NEW CONTRACTS)", "BEYOND THE MAP · NEW QUESTS")}</h3>
-              <p className="advisor-intro">Curated affinity picks from your completed favorites, enriched with RAWG metadata.</p>
+              <p className="advisor-intro">Discover new games shaped by your favorites, current games, and pinned picks.</p>
               {!scoutUnlocked ? (
                 <div className="advisor-scout-locked">
                   <p>{copy(`🔒 EXTERNAL SCOUTING STANDBY // Backlog at ${backlogCount} gigs (Target: <= 5 gigs)`, `✧ Beyond the map is resting · ${backlogCount} quests in your Backlog (Target: <= 5 quests)`)}</p>

@@ -14,6 +14,7 @@ import { resolveRawgPlaytime } from "@/lib/game-playtime";
 import { lookupRawgGame, type RawgGameInfo } from "@/lib/rawg";
 import { getBacklogRecommendations, getExternalRecommendations } from "@/lib/recommendations";
 import { createScoutDebug } from "@/lib/scout-debug";
+import { sanitizeScoutDebug } from "@/lib/scout-debug-server";
 import { MAX_ADVISOR_HISTORY } from "@/lib/backlog-advisor";
 import { normalizeGameTitle } from "@/lib/game-title";
 import { DECK_CAPACITY } from "@/lib/deck";
@@ -422,7 +423,7 @@ export async function fetchExternalScout(excludedTitles: readonly string[] = [])
       // Recheck the live session/role after slow provider calls (logout/demotion).
       if (debug) {
         try {
-          if ((await requireAdmin()).id === playerId) return { recommendations, debug };
+          if ((await requireAdmin()).id === playerId) return { recommendations, debug: sanitizeScoutDebug(debug) };
         } catch (error) { if (!(error instanceof AdminRequiredError)) throw error; }
       }
       return { recommendations };

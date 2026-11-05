@@ -8,10 +8,23 @@ import { normalizeGameTitle } from "@/lib/game-title";
 import { isReleasedYear } from "@/lib/game-release";
 import { franchiseAffinities, genreNeighbors, generalDiscovery } from "@/lib/scout-catalog";
 import type { ScoutAnchor, ScoutDebug } from "@/lib/scout-debug";
+import { createScoutVectorDebug } from "@/lib/scout-debug";
+import type { VectorRecommendationOptions } from "@/lib/vector-recommendations";
 import { getAIScoutCandidates } from "@/lib/scout-ai";
 
 import { selectBacklogRecommendations, type AdvisorGame, type BacklogRecommendations } from "@/lib/backlog-advisor";
 export type { BacklogRecommendation, BacklogRecommendations } from "@/lib/backlog-advisor";
+
+/** Catalog discovery; diagnostics are opt-in and authorized by the calling Scout action. */
+export async function getVectorRecommendations(userId?: string, excludedTitles: readonly string[] = [], options: VectorRecommendationOptions = {}) {
+  userId ??= await getCurrentPlayerId();
+  const games = await prisma.game.findMany({ where: { userId }, select: {
+    id: true, title: true, releaseYear: true, status: true, rating: true, pinnedOrder: true,
+    platform: true, franchise: true, earnedXp: true,
+  } });
+  const { recommendCatalogGames } = await import("@/lib/vector-recommendations");
+  return recommendCatalogGames(games, excludedTitles, options);
+}
 
 export type ExternalRecommendation = {
   title: string;
@@ -117,10 +130,54 @@ export async function getExternalRecommendations(
   const recommendations: ExternalRecommendation[] = [];
   const excluded = new Set([...games.map((game) => game.title), ...extraExcludedTitles].map(normalizeGameTitle));
   const attemptedTitles: string[] = [];
-  if (debug) debug.excludedCount = excluded.size;
+  if (debug) { debug.excludedCount = excluded.size; debug.vector = createScoutVectorDebug(); }
 
-  async function appendEnrichedCandidates(candidates: ScoutCandidate[], tolerateLookupErrors: boolean) {
-    const source: "live-ai" | "deterministic-fallback" = tolerateLookupErrors ? "live-ai" : "deterministic-fallback";
+  const vectorStarted = performance.now();
+  try {
+    const result = await getVectorRecommendations(userId, extraExcludedTitles, { collectDiagnostics: Boolean(debug) });
+    if (debug) {
+      debug.vector.status = "passed";
+      debug.vector.vectorVersion = result.vectorVersion;
+      debug.vector.tasteSource = result.tasteSource;
+      debug.vector.anchorCount = result.anchorCount;
+      if (result.diagnostics) {
+        debug.vector.queryLatencyMs = result.diagnostics.queryLatencyMs;
+        debug.vector.candidateCount = result.diagnostics.candidateCount;
+        debug.vector.filteredCount = result.diagnostics.filteredCount;
+        debug.vector.coverage = result.diagnostics.coverage;
+        debug.anchors = result.diagnostics.anchors;
+      }
+    }
+    const preferredPlatforms = new Set(games.map(game => normalize(game.platform)));
+    for (const pick of result.recommendations) {
+      if (recommendations.length >= 3) break;
+      const key = normalizeGameTitle(pick.title);
+      if (!key || excluded.has(key) || !isReleasedYear(pick.releaseYear, currentYear)) {
+        if (debug) debug.vector.filteredCount++;
+        continue;
+      }
+      excluded.add(key); attemptedTitles.push(pick.title);
+      // Preserve the exact public card contract: vector scores and diagnostics stay server/admin-only.
+      recommendations.push({ title: pick.title,
+        platform: pick.platforms.find(platform => preferredPlatforms.has(normalize(platform))) ?? pick.platforms[0] ?? "PC",
+        genre: pick.genre, releaseYear: pick.releaseYear, coverUrl: pick.coverUrl ? resizeRawgImageUrl(pick.coverUrl) : null,
+        lengthHours: resolveRawgPlaytime(pick.estimatedHours, pick.genre) ?? 10, difficulty: 2, reason: pick.reason });
+      if (debug) {
+        debug.picks.push({ title: pick.title, source: "vector" });
+        debug.vector.picks.push({ title: pick.title, cosineSimilarity: pick.cosineSimilarity, score: pick.score, scores: pick.scores });
+      }
+    }
+  } catch {
+    if (debug) { debug.vector.status = "failed"; debug.vector.fallbackReason = "Vector discovery unavailable; using the provider fallback."; }
+  } finally {
+    if (debug) { debug.vector.latencyMs = performance.now() - vectorStarted; debug.vector.returnedCount = recommendations.length; }
+  }
+  if (recommendations.length < 3 && debug) {
+    debug.fallbackTriggered = true;
+    debug.vector.fallbackReason ??= `Vector catalog supplied ${recommendations.length} eligible picks; filling remaining slots via the provider fallback.`;
+  }
+
+  async function appendEnrichedCandidates(candidates: ScoutCandidate[], source: "live-ai" | "deterministic-fallback") {
     const selected = candidates.filter((candidate) => {
       const key = normalizeGameTitle(candidate.title);
       if (!key || excluded.has(key)) {
@@ -151,8 +208,7 @@ export async function getExternalRecommendations(
             difficulty: 2,
             reason: candidate.reason,
           };
-        } catch (error) {
-          if (!tolerateLookupErrors) throw error;
+        } catch {
           if (debug) debug.metadataRejectedCount++;
           return null;
         }
@@ -166,13 +222,15 @@ export async function getExternalRecommendations(
     }
   }
 
-  try {
-    const candidates = debug ? await getAIScoutCandidates(games, extraExcludedTitles, debug)
-      : await getAIScoutCandidates(games, extraExcludedTitles);
-    await appendEnrichedCandidates(candidates, true);
-  } catch {
-    // Missing configuration, timeouts, quota errors, and invalid AI output all
-    // fall back to the deterministic catalog without exposing provider details.
+  if (recommendations.length < 3) {
+    try {
+      const providerExclusions = [...extraExcludedTitles, ...recommendations.map(pick => pick.title)];
+      const candidates = debug ? await getAIScoutCandidates(games, providerExclusions, debug)
+        : await getAIScoutCandidates(games, providerExclusions);
+      await appendEnrichedCandidates(candidates, "live-ai");
+    } catch {
+      // Keep any vector successes through missing configuration, invalid AI output or provider outages.
+    }
   }
   // DEMO TALKING POINT: Deterministic fallback if Gemini fails schema validation or yields fewer than three usable picks.
   if (recommendations.length < 3) {
@@ -181,12 +239,17 @@ export async function getExternalRecommendations(
       debug.fallbackReason ??= "Fewer than three usable AI picks after ownership/session exclusions and RAWG release/lookup checks.";
     }
     const fallback = selectStaticScoutCandidates(games, [...extraExcludedTitles, ...attemptedTitles]);
-    await appendEnrichedCandidates(fallback, false);
+    await appendEnrichedCandidates(fallback, "deterministic-fallback");
   }
   if (debug) {
     const aiCount = debug.picks.filter(pick => pick.source === "live-ai").length;
-    const fallbackCount = debug.picks.length - aiCount;
-    debug.source = aiCount && fallbackCount ? "mixed" : aiCount ? "live-ai" : fallbackCount ? "deterministic-fallback" : "none";
+    const vectorCount = debug.picks.filter(pick => pick.source === "vector").length;
+    const fallbackCount = debug.picks.length - aiCount - vectorCount;
+    const providerCount = aiCount + fallbackCount;
+    debug.source = vectorCount ? providerCount ? "mixed" : "vector"
+      : aiCount && fallbackCount ? "mixed" : aiCount ? "live-ai" : fallbackCount ? "deterministic-fallback" : "none";
+    debug.engineSource = vectorCount ? providerCount ? "mixed" : "vector" : providerCount ? "gemini-fallback" : "none";
+    if (vectorCount) debug.playtimeStatus = "Catalog and RAWG estimates normalized with genre floors and a 1–10,000-hour clamp; Gemini playtime is not accepted.";
     // Serving the catalog costs zero; failed Gemini attempts can still incur usage.
     debug.estimatedCostUsd = aiCount ? debug.attemptedCallCostUsd : 0;
   }
