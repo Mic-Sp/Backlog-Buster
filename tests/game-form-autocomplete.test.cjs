@@ -357,6 +357,7 @@ function editorFixture(layout = "cyberpunk", initial = {}) {
     react: h.react,
     "@/components/LayoutText": { useLayoutCopy: () => (cyberpunk, fantasy) => layout === "fantasy" ? fantasy : cyberpunk },
     "@/components/FantasyAccents": { FantasyCorners: () => null },
+    "@/components/CommunityGameStats": { CommunityStatsReadout: () => null, CommunityRatingDistribution: () => null },
     "@/components/SafeForm": { default: () => null },
     "@/components/TitleAutocomplete": { default: TitleAutocomplete },
   }).default;

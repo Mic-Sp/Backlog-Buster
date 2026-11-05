@@ -2858,6 +2858,20 @@ textarea.field-log-textarea:focus-visible {
 .telemetry-bar-track > span { display: block; height: 100%; }
 .telemetry-hours-fill { background: #00f0ff; }
 .telemetry-completion-fill { background: #fcee0a; }
+.community-readout { display: grid; gap: 4px; min-width: 0; margin-block: 10px; color: #a4b5ca; font-size: 11px; line-height: 1.5; font-weight: 400; white-space: normal; overflow-wrap: anywhere; }
+.community-readout-label { color: #00f0ff; font-size: 9px; letter-spacing: .08em; text-transform: uppercase; }
+.community-rating-average { color: #fcee0a; }
+.game-title-stack .community-readout { margin-block: 4px; font-size: 10px; }
+.metadata-community-stats { min-width: 0; margin-bottom: 20px; padding: 12px; border: 1px solid #2e3a52; background: #0b101b; }
+.metadata-community-stats .community-readout { margin-top: 0; }
+.community-rating-chart { min-width: 0; }
+.community-rating-chart h3 { margin: 12px 0 4px; color: #e8edf7; font-size: 12px; }
+.community-rating-note { margin: 0 0 10px; color: #a4b5ca; font-size: 11px; line-height: 1.5; }
+.community-rating-chart ul { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
+.community-rating-chart li { display: grid; grid-template-columns: 24px minmax(0, 1fr) max-content; align-items: center; gap: 8px; font-size: 11px; }
+.community-star-label { color: #fcee0a; }
+.community-rating-count { color: #e8edf7; font-variant-numeric: tabular-nums; }
+.community-rating-count > span { color: #a4b5ca; }
 .telemetry-breakdown > .telemetry-empty { margin: 0; padding: 14px; }
 .telemetry-drawer > summary:focus-visible, .telemetry-sort button:focus-visible { outline: 2px solid #fcee0a; outline-offset: 3px; }
 

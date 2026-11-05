@@ -2,6 +2,7 @@
 
 import { useLayoutCopy } from "@/components/LayoutText";
 import { FantasyCorners } from "@/components/FantasyAccents";
+import { CommunityRatingDistribution, CommunityStatsReadout } from "@/components/CommunityGameStats";
 import type { GameLibraryController, LibraryGame } from "@/components/GameLibrary";
 import SafeForm from "@/components/SafeForm";
 import TitleAutocomplete from "@/components/TitleAutocomplete";
@@ -105,6 +106,10 @@ export default function GameMetadataEditor({ controller }: { controller: GameLib
             <input type="hidden" name="status" value={editingMetaGame.status} />
             <input type="hidden" name="lengthHours" value={editingMetaGame.lengthHours} />
             <input type="hidden" name="difficulty" value={editingMetaGame.difficulty} />
+            <div className="metadata-community-stats">
+              <CommunityStatsReadout game={editingMetaGame} />
+              <CommunityRatingDistribution game={editingMetaGame} />
+            </div>
             <MetadataFields game={editingMetaGame} formRef={metadataModalRef} />
             <div className="metadata-modal-actions">
               <button className="metadata-save-btn" type="submit">{copy("SAVE METADATA", "SAVE QUEST DETAILS")}</button>

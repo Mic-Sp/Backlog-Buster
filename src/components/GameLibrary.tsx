@@ -6,6 +6,7 @@ import { actionErrorMessage, unwrapActionResult } from "@/lib/action-result";
 import { DEFAULT_COOLDOWN_SECONDS } from "@/lib/cooldown";
 import { autoDetectSagaOrder, completeGame, logPlaySession, reorderBacklogGames, reorderSagaTimeline, returnDeckGameToBacklog, startGame } from "@/app/actions";
 import type { Achievement } from "@/lib/achievements";
+import type { CommunityGameStats } from "@/lib/community-stats";
 import { compareBacklogPriority, getBacklogInsertionOrder } from "@/lib/backlog-order";
 import { DECK_CAPACITY, DECK_DRAG_TYPE, readDeckDrag, type DeckDragGame } from "@/lib/deck";
 import { isReleasedYear } from "@/lib/game-release";
@@ -47,6 +48,9 @@ export type LibraryGame = {
   franchise: string | null;
   chronologicalOrder: number | null;
   releaseYear: number | null;
+  communityStats?: Pick<CommunityGameStats,
+    "ratingAvg" | "ratingCount" | "ratingDistribution" |
+    "completionAvgHours" | "completionMedianHours" | "completionCount">;
 };
 
 type LibraryView = "Backlog" | "Playing" | "Completed" | "Flatlined" | "All";

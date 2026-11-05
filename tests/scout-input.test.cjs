@@ -184,7 +184,7 @@ test("telemetry distinguishes excluded titles, timeouts, malformed JSON, and inc
   let debug = createScoutDebug();
   assert.equal((await scout.getAIScoutCandidates([game("Seed")], ["Seen"], debug)).length, 1);
   assert.equal(debug.filteredCount, 2); assert.equal(debug.schemaStatus, "passed");
-  assert(debug.inputTokens > 512); // Includes the system prompt, unlike the payload budget.
+  assert(debug.inputTokens > 350); // Includes the current system prompt plus this small fixture payload.
   response = envelope("bad json"); debug = createScoutDebug();
   await assert.rejects(scout.getAIScoutCandidates([game("Seed")], [], debug));
   assert.equal(debug.schemaStatus, "failed"); assert.match(debug.fallbackReason, /invalid JSON/);

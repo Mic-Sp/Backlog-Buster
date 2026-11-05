@@ -8,6 +8,7 @@ import DeckPinButton from "@/components/DeckPinButton";
 import SafeForm, { SafeActionButton } from "@/components/SafeForm";
 import StarRatingInput from "@/components/StarRatingInput";
 import AgentBriefing from "@/components/AgentBriefing";
+import { CommunityStatsReadout } from "@/components/CommunityGameStats";
 import { SagaBadge, SagaOrderControls } from "@/components/SagaChains";
 import { SagaChronologyDebuggerView } from "@/components/SagaChronologyDebugger";
 import { useSubscreen } from "@/components/WorkspaceShell";
@@ -141,6 +142,7 @@ function FantasyQuestDialogue({ controller: c, game, onSelectSaga }: { controlle
   return <section className="fantasy-dialogue" aria-label={`Quest details for ${game.title}`}>
     <div className="fantasy-dialogue-heading"><span className="fantasy-dialogue-gem" aria-hidden="true">◆</span><div><p className="fantasy-kicker">YOU FOUND A QUEST</p><h4>{game.title}</h4><p>{game.platform} · {game.genre?.trim() || "Unknown discipline"} · {game.releaseYear ?? "Year unknown"} · {game.status === "Flatlined" ? "Abandoned" : game.status}</p></div><QuestRating rating={game.rating} /></div>
     <div className="fantasy-quest-facts"><span>{game.hoursPlayed} / {game.lengthHours}h played</span><span>Difficulty {game.difficulty}</span><span>{game.status === "Completed" ? game.earnedXp : game.status === "Flatlined" ? 0 : game.lengthHours * game.difficulty * 10} {game.status === "Completed" ? "XP earned" : "potential XP"}</span>{game.wasFlatlined && <span>Revived from abandonment</span>}</div>
+    <CommunityStatsReadout game={game} />
     {saga && <SagaBadge saga={saga} onSelect={onSelectSaga} />}
     <QuestReorderControls controller={c} game={game} />
     {game.status === "Playing" && <div className="fantasy-session-log"><span>Record your journey</span><button type="button" disabled={c.isLogging} onClick={() => c.logSession(game.id, 1)}>+1H</button><button type="button" disabled={c.isLogging} onClick={() => c.logSession(game.id, 2)}>+2H</button>{c.sessionError?.gameId === game.id && <p role="alert">{c.sessionError.message}</p>}</div>}

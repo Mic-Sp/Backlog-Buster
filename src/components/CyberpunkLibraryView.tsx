@@ -2,6 +2,7 @@
 
 import { gameRecordKey } from "@/lib/game-record";
 import AgentBriefing from "@/components/AgentBriefing";
+import { CommunityStatsReadout } from "@/components/CommunityGameStats";
 import DeckPinButton from "@/components/DeckPinButton";
 import type { GameLibraryController, LibraryGame, SortColumn } from "@/components/GameLibrary";
 import { LibraryDataVaultView } from "@/components/LibraryDataVault";
@@ -388,6 +389,7 @@ export default function CyberpunkLibraryView({ controller }: { controller: GameL
                     )}
                     {renderSagaBadge(game)}
                   </p>
+                  <CommunityStatsReadout game={game} />
                   <div className="gig-progress-block">
                     <div className="gig-progress-header">
                       <span>{game.status === "Flatlined" ? "ARCHIVED GIG PROGRESS" : "ACTIVE GIG PROGRESS"}</span>
@@ -433,6 +435,7 @@ export default function CyberpunkLibraryView({ controller }: { controller: GameL
                   {game.wasFlatlined && <p className="trophy-revived-badge">⚡ REVIVED FROM FLATLINE</p>}
                   <p className="library-card-metadata">{game.platform} · {game.genre?.trim() || "Unknown genre"} · {game.releaseYear ?? "Unknown year"}</p>
                   <p className="trophy-record">{game.hoursPlayed}h played · {game.lengthHours}h length · Tier {game.difficulty} / {difficultyLabels[game.difficulty]}</p>
+                  <CommunityStatsReadout game={game} />
                   {game.notes?.trim() && (
                     <div className="trophy-field-log">
                       <span>NETRUNNER FIELD LOG</span>
@@ -524,6 +527,7 @@ export default function CyberpunkLibraryView({ controller }: { controller: GameL
                     </span>
                     <span className="game-title-stack">
                       <span className="game-title-heading"><strong title={game.title}>{game.title}</strong>{renderTimelinePill(game)}</span>
+                      <CommunityStatsReadout game={game} />
                       <span className="game-title-actions">
                         {(game.status === "Backlog" || game.status === "Flatlined") && (
                           <SafeActionButton className="start-gig-badge" formAction={startGameAndShowPlaying} type="submit">{game.status === "Flatlined" ? "▶ REVIVE GIG" : "▶ START GIG"}</SafeActionButton>

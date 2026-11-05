@@ -227,6 +227,9 @@
 :root[data-layout-mode="fantasy"] .fantasy-dialogue .fantasy-kicker { color: #a3be9a; font-size: 9px; }
 :root[data-layout-mode="fantasy"] .fantasy-dialogue-gem { color: #88e0df; font-size: 29px; }
 :root[data-layout-mode="fantasy"] .fantasy-quest-facts { display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 11px; color: #d0cda5; margin: 14px 0; }
+:root[data-layout-mode="fantasy"] .fantasy-dialogue .community-readout { padding: 10px 12px; border: 1px solid #8e8751; background: #183e40; color: #e0dbb9; font-family: Georgia, serif; }
+:root[data-layout-mode="fantasy"] .fantasy-dialogue .community-readout-label { color: #92e3e4; }
+:root[data-layout-mode="fantasy"] .fantasy-dialogue .community-rating-average { color: #f1d77e; }
 :root[data-layout-mode="fantasy"] .fantasy-dialogue .saga-badge { margin-block: 4px 12px; }
 :root[data-layout-mode="fantasy"] .fantasy-reorder-controls { display: inline-flex; align-items: center; gap: 8px; font-size: 10px; margin: 5px 0 12px; }
 :root[data-layout-mode="fantasy"] .fantasy-reorder-controls button { min-height: 28px; padding: 4px 8px; }
@@ -405,6 +408,12 @@
   font-family: Georgia, "Times New Roman", serif;
 }
 :root[data-layout-mode="fantasy"] :is(.advisor-modal-backdrop, .quest-modal-backdrop, .metadata-modal-backdrop, .vault-modal-backdrop, .security-modal-backdrop, .admin-modal-backdrop, .dossier-modal-backdrop, .auth-modal-backdrop) { background: #102832e8; }
+:root[data-layout-mode="fantasy"] .metadata-community-stats { border-color: #b79d66; background: #e5d5ae; }
+:root[data-layout-mode="fantasy"] .metadata-community-stats .community-readout,
+:root[data-layout-mode="fantasy"] .metadata-community-stats .community-rating-count > span { color: #665332; font-family: Georgia, serif; }
+:root[data-layout-mode="fantasy"] .metadata-community-stats :is(.community-readout-label, .community-rating-average, .community-star-label, .community-rating-count) { color: #34503d; }
+:root[data-layout-mode="fantasy"] .community-rating-chart .telemetry-bar-track { background: #c5b381; }
+:root[data-layout-mode="fantasy"] .community-rating-chart .telemetry-completion-fill { background: #4d6b55; }
 :root[data-layout-mode="fantasy"] :is(.advisor-modal, .quest-modal, .metadata-modal, .vault-modal, .security-modal, .admin-modal, .dossier-modal, .auth-panel) :is(h2, h3, h4) { color: #34503d; font-family: Georgia, "Times New Roman", serif; text-shadow: none; font-weight: 500; letter-spacing: .02em; text-transform: none; }
 :root[data-layout-mode="fantasy"] :is(.advisor-modal, .quest-modal, .metadata-modal, .vault-modal, .security-modal, .admin-modal, .dossier-modal, .auth-panel) h2 { font-size: clamp(23px, 3vw, 30px); line-height: 1.25; }
 :root[data-layout-mode="fantasy"] :is(.advisor-modal, .quest-modal, .metadata-modal, .vault-modal, .security-modal, .admin-modal, .dossier-modal, .auth-panel) :is(h3, h4) { line-height: 1.5; }

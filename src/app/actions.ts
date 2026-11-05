@@ -663,8 +663,6 @@ export async function updateGame(formData: FormData) {
     if (statusValue === "Backlog") {
       progress.hoursPlayed = 0;
       progress.rating = null;
-    } else if (statusValue === "Completed" && existing.status !== "Completed") {
-      progress.hoursPlayed = Math.max(lengthHours, progress.hoursPlayed ?? existing.hoursPlayed);
     } else if (statusValue === "Playing" && existing.status === "Completed" &&
       (progress.hoursPlayed === undefined || progress.hoursPlayed === existing.hoursPlayed)) {
       progress.hoursPlayed = 0;
@@ -786,11 +784,11 @@ export async function completeGame(formData: FormData) {
     }
 
     const userId = await getAuthenticatedPlayerId();
-    const recordedHours = progress.hoursPlayed ?? (await prisma.game.findUniqueOrThrow({
+    // Zero means unmeasured; never replace logged progress with the length estimate.
+    const hoursPlayed = progress.hoursPlayed ?? (await prisma.game.findUniqueOrThrow({
       where: { id, userId },
       select: { hoursPlayed: true },
     })).hoursPlayed;
-    const hoursPlayed = recordedHours === 0 ? lengthHours : recordedHours;
     const finalLengthHours = Math.max(lengthHours, hoursPlayed);
 
     await prisma.game.update({

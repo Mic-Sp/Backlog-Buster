@@ -15,6 +15,7 @@ import AchievementToast from "@/components/AchievementToast";
 import HudMilestones from "@/components/HudMilestones";
 import NetrunnerDossier from "@/components/NetrunnerDossier";
 import { calculateLibraryTelemetry } from "@/lib/library-telemetry";
+import { aggregateCommunityStats, getCommunityGameKey } from "@/lib/community-stats";
 import { syncAndGetAchievements } from "@/lib/achievements";
 import { getCurrentPlayer, type CurrentPlayer } from "@/lib/player";
 import { getCurrentPlayerProfile } from "@/lib/player-profile";
@@ -142,6 +143,25 @@ async function SavedGames({ userId, isAdmin }: { userId: string; isAdmin: boolea
     }),
     getPageAchievements(userId),
   ]);
+  const libraryKeys = new Set(games.map(game => getCommunityGameKey(game.title, game.releaseYear)));
+  // Canonical titles are not persisted on Game. Narrow by year, then normalize
+  // on the server so punctuation/numeral variants match without merging remakes.
+  const communityGames = games.length ? await prisma.game.findMany({
+    where: {
+      userId: { not: userId },
+      AND: [
+        { OR: [...new Set(games.map(game => game.releaseYear))].map(releaseYear => ({ releaseYear })) },
+        { OR: [{ rating: { gte: 1, lte: 5 } }, { status: "Completed", hoursPlayed: { gt: 0 } }] },
+      ],
+    },
+    select: { id: true, userId: true, title: true, releaseYear: true, status: true, rating: true, hoursPlayed: true },
+  }) : [];
+  const communityStats = new Map(aggregateCommunityStats([
+    ...games,
+    ...communityGames.filter(game => libraryKeys.has(getCommunityGameKey(game.title, game.releaseYear))),
+  ]).map(({ key, ratingAvg, ratingCount, ratingDistribution, completionAvgHours, completionMedianHours, completionCount }) => [
+    key, { ratingAvg, ratingCount, ratingDistribution, completionAvgHours, completionMedianHours, completionCount },
+  ]));
   games.sort((left, right) => {
     const priorityDifference =
       (statusPriority[left.status] ?? 4) - (statusPriority[right.status] ?? 4);
@@ -169,6 +189,7 @@ async function SavedGames({ userId, isAdmin }: { userId: string; isAdmin: boolea
     franchise: game.franchise,
     chronologicalOrder: game.chronologicalOrder,
     releaseYear: game.releaseYear,
+    communityStats: communityStats.get(getCommunityGameKey(game.title, game.releaseYear)),
   }));
 
   return (
