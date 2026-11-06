@@ -11,6 +11,7 @@ import type { ScoutAnchor, ScoutDebug } from "@/lib/scout-debug";
 import { createScoutVectorDebug } from "@/lib/scout-debug";
 import type { VectorRecommendationOptions } from "@/lib/vector-recommendations";
 import { getAIScoutCandidates } from "@/lib/scout-ai";
+import { getDismissedRecommendationTitles } from "@/lib/recommendation-dismissals";
 
 import { selectBacklogRecommendations, type AdvisorGame, type BacklogRecommendations } from "@/lib/backlog-advisor";
 export type { BacklogRecommendation, BacklogRecommendations } from "@/lib/backlog-advisor";
@@ -18,12 +19,14 @@ export type { BacklogRecommendation, BacklogRecommendations } from "@/lib/backlo
 /** Catalog discovery; diagnostics are opt-in and authorized by the calling Scout action. */
 export async function getVectorRecommendations(userId?: string, excludedTitles: readonly string[] = [], options: VectorRecommendationOptions = {}) {
   userId ??= await getCurrentPlayerId();
+  const dismissed = await getDismissedRecommendationTitles(userId);
+  const exclusions = [...new Set([...excludedTitles, ...dismissed])];
   const games = await prisma.game.findMany({ where: { userId }, select: {
     id: true, title: true, releaseYear: true, status: true, rating: true, pinnedOrder: true,
     platform: true, franchise: true, earnedXp: true,
   } });
   const { recommendCatalogGames } = await import("@/lib/vector-recommendations");
-  return recommendCatalogGames(games, excludedTitles, options);
+  return recommendCatalogGames(games, exclusions, options);
 }
 
 export type ExternalRecommendation = {
@@ -122,6 +125,10 @@ export async function getExternalRecommendations(
   debug?: ScoutDebug,
 ): Promise<ExternalRecommendation[]> {
   userId ??= await getCurrentPlayerId();
+  // Permanent preferences join the full exclusion list before ANY provider or
+  // static reserve selection. They are never capped to the client history limit.
+  const dismissed = await getDismissedRecommendationTitles(userId);
+  extraExcludedTitles = [...new Set([...extraExcludedTitles, ...dismissed])];
   const games = await prisma.game.findMany({
     where: { userId },
     select: { title: true, platform: true, genre: true, status: true, rating: true, earnedXp: true },
@@ -241,7 +248,12 @@ export async function getExternalRecommendations(
     const fallback = selectStaticScoutCandidates(games, [...extraExcludedTitles, ...attemptedTitles]);
     await appendEnrichedCandidates(fallback, "deterministic-fallback");
   }
+  // A dismissal can be saved in another tab while an upstream scan is running.
+  const latestDismissals = new Set(await getDismissedRecommendationTitles(userId));
+  const visible = recommendations.filter(pick => !latestDismissals.has(normalizeGameTitle(pick.title)));
   if (debug) {
+    debug.picks = debug.picks.filter(pick => !latestDismissals.has(normalizeGameTitle(pick.title)));
+    debug.vector.picks = debug.vector.picks.filter(pick => !latestDismissals.has(normalizeGameTitle(pick.title)));
     const aiCount = debug.picks.filter(pick => pick.source === "live-ai").length;
     const vectorCount = debug.picks.filter(pick => pick.source === "vector").length;
     const fallbackCount = debug.picks.length - aiCount - vectorCount;
@@ -253,5 +265,5 @@ export async function getExternalRecommendations(
     // Serving the catalog costs zero; failed Gemini attempts can still incur usage.
     debug.estimatedCostUsd = aiCount ? debug.attemptedCallCostUsd : 0;
   }
-  return recommendations.slice(0, 3);
+  return visible.slice(0, 3);
 }

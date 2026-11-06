@@ -82,12 +82,12 @@ function sanitizeScoutText(value: string, maxLength: number): string {
 /**
  * Builds JSON data only. Sanitization reduces formatting/control injection; it
  * cannot make natural-language instructions harmless. Keep the system prompt's
- * untrusted-data rule and validate output against the FULL library/session list,
+ * untrusted-data rule and validate output against the FULL library/session/permanent-dismissal list,
  * because both count limits and the prompt budget can omit exclusions here.
  */
 export function buildScoutInput(
   games: readonly ScoutLibraryGame[],
-  recentlyExcludedTitles: readonly string[] = [],
+  excludedTitles: readonly string[] = [],
 ): { payload: ScoutInputPayload; prompt: string; estimatedTokens: number } {
   const completed = games.filter((game) => game.status === "Completed");
   const favorites = completed.filter((game) => game.rating !== null && game.rating >= 4 && game.rating <= 5)
@@ -122,7 +122,8 @@ export function buildScoutInput(
     return result;
   }
   const ownedTitles = collectTitles(games.map((game) => game.title), 75);
-  const sessionTitles = collectTitles(recentlyExcludedTitles, 30);
+  // The prompt has a budget; the output filter below always uses ALL exclusions.
+  const sessionTitles = collectTitles(excludedTitles, 30);
   const payload: ScoutInputPayload = {
     currentDate: new Date().toISOString().slice(0, 10), seeds, excludedTitles: [],
   };
@@ -158,10 +159,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 /** Server helper only; the calling Server Action must authenticate and rate-limit. */
 export async function getAIScoutCandidates(
   games: readonly ScoutLibraryGame[],
-  recentlyExcludedTitles: readonly string[] = [],
+  excludedTitles: readonly string[] = [],
   debug?: ScoutDebug,
 ): Promise<ScoutCandidate[]> {
-  const { payload, prompt } = buildScoutInput(games, recentlyExcludedTitles);
+  const { payload, prompt } = buildScoutInput(games, excludedTitles);
   if (debug) {
     debug.anchors = payload.seeds.map(({ title, rating }) => ({ title, rating }));
     debug.promptPreview = scoutDebugPreview(prompt);
@@ -243,7 +244,7 @@ export async function getAIScoutCandidates(
     if (debug) debug.schemaStatus = "passed";
 
     // Use the full original lists, never the sanitized/truncated prompt subset.
-    const excluded = new Set([...games.map((game) => game.title), ...recentlyExcludedTitles].map(normalizeGameTitle));
+    const excluded = new Set([...games.map((game) => game.title), ...excludedTitles].map(normalizeGameTitle));
     return validated.data.filter((pick) => {
       const blocked = excluded.has(normalizeGameTitle(pick.title));
       if (blocked && debug) debug.filteredCount++;

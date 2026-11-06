@@ -9,14 +9,14 @@ const ts = require("typescript");
 const seed = { title: "Seed", platform: "PC", genre: "Action", status: "Completed", rating: 5, earnedXp: 100 };
 const candidate = (title) => ({ title, preferredPlatform: "PC", reason: `AI rationale for ${title}.` });
 const metadata = { platforms: ["Console", "PC"], genre: "Action", releaseYear: 2020, coverUrl: "https://example.com/cover.jpg", playtime: 4 };
-function fixture({ ai = async () => [], lookup = async () => metadata, games = [seed], vector = async () => ({
+function fixture({ ai = async () => [], lookup = async () => metadata, games = [seed], dismissed = () => [], vector = async () => ({
   recommendations: [], tasteSource: "cold-start", anchorCount: 0, vectorVersion: "catalog-features-v1",
 }) } = {}) {
   const lookups = [], aiCalls = [], vectorCalls = [];
   const mocks = {
     "server-only": {},
     "@/lib/player": { getCurrentPlayerId: async () => "player" },
-    "@/lib/prisma": { prisma: { game: { findMany: async ({ where }) => { assert.equal(where.userId, "player"); return games; } } } },
+    "@/lib/prisma": { prisma: { recommendationDismissal: { findMany: async ({ where, select }) => { assert.equal(where.userId, "player"); assert.deepEqual(select, { titleKey: true }); return dismissed().map(titleKey => ({ titleKey })); } }, game: { findMany: async ({ where }) => { assert.equal(where.userId, "player"); return games; } } } },
     "@/lib/scout-ai": { getAIScoutCandidates: async (...args) => { aiCalls.push(args); return ai(...args); } },
     "@/lib/vector-recommendations": { recommendCatalogGames: async (...args) => { vectorCalls.push(args); return vector(...args); } },
     "@/lib/rawg": { resizeRawgImageUrl: value => value, lookupRawgGame: async (title, reportRateLimit) => { assert.equal(reportRateLimit, true); lookups.push(title); return lookup(title); } },
@@ -51,6 +51,50 @@ const vectorPick = (title, fields = {}) => ({ key: title, title, platforms: ["Co
 const vectorResult = picks => ({ recommendations: picks, tasteSource: "completed-favorites", anchorCount: 1, vectorVersion: "catalog-features-v1",
   diagnostics: { queryLatencyMs: 2.5, candidateCount: 20, filteredCount: 1,
     coverage: { total: 89, embedded: 89, current: 89, released: 85, eligible: 84 }, anchors: [{ title: "Seed", rating: 5 }] } });
+
+test("persisted dismissals filter vector, live-AI, and static fallback picks across fresh sessions", async () => {
+  const dismissed = ["cafe adventure 2", "ai rejected", "fallback 1"];
+  for (let session = 0; session < 2; session++) {
+    const context = fixture({ dismissed: () => dismissed,
+      vector: async () => vectorResult([vectorPick("Café Adventure II™"), vectorPick("Safe Vector")]),
+      ai: async () => [candidate("AI: Rejected")],
+    });
+    const result = await context.getExternalRecommendations("player");
+    assert.deepEqual(result.map(pick => pick.title), ["Safe Vector", "Fallback 2", "Fallback 3"]);
+    for (const key of dismissed) {
+      assert(context.vectorCalls[0][1].includes(key));
+      assert(context.aiCalls[0][1].includes(key));
+    }
+    assert(!context.lookups.includes("AI: Rejected")); assert(!context.lookups.includes("Fallback 1"));
+  }
+});
+
+test("permanent dismissals are not capped to the client's 30-title session history", async () => {
+  const dismissed = [...Array.from({ length: 50 }, (_, index) => `old dismissal ${index}`), "fallback 1", "last rejected"];
+  const context = fixture({ dismissed: () => dismissed,
+    vector: async () => vectorResult([vectorPick("Last: Rejected")]),
+    ai: async () => [candidate("Old Dismissal 49")],
+  });
+  const result = await context.getExternalRecommendations("player", ["Session Seen"]);
+  assert.deepEqual(result.map(pick => pick.title), ["Fallback 2", "Fallback 3", "Fallback 4"]);
+  assert.equal(context.vectorCalls[0][1].length, 53);
+  assert(context.aiCalls[0][1].includes("last rejected"));
+});
+
+test("a dismissal saved while a provider scan is running is removed before returning results", async () => {
+  const dismissed = [];
+  const context = fixture({ dismissed: () => dismissed, ai: async () => {
+    dismissed.push("late dismissal");
+    return ["Late Dismissal", "Safe A", "Safe B"].map(candidate);
+  } });
+  assert.deepEqual((await context.getExternalRecommendations("player")).map(pick => pick.title), ["Safe A", "Safe B"]);
+});
+
+test("a failed preference read stops discovery rather than recommending dismissed games", async () => {
+  const context = fixture({ dismissed: () => { throw Error("database unavailable"); } });
+  await assert.rejects(context.getExternalRecommendations("player"), /database unavailable/);
+  assert.equal(context.aiCalls.length, 0); assert.equal(context.vectorCalls.length, 0);
+});
 
 test("three vector picks are primary, skip all providers and preserve the exact public card contract", async () => {
   const picks = ["Vector A", "Vector B", "Vector C"].map(title => vectorPick(title));

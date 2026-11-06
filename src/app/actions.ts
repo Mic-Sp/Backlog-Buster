@@ -27,6 +27,13 @@ import { buildAssignedSagaOrder } from "@/lib/saga-chronology";
 import { isUnreleasedYear } from "@/lib/game-release";
 import { getBacklogInsertionOrder } from "@/lib/backlog-order";
 import { activityGameSelect, updateGameWithActivity } from "@/lib/activity-events";
+import { saveRecommendationDismissal } from "@/lib/recommendation-dismissals";
+
+export async function dismissScoutRecommendation(title: string) {
+  // This preference needs no route refresh: the client removes the card, and
+  // every future scan reads the persisted exclusions directly.
+  return safeAction(() => saveRecommendationDismissal(title));
+}
 
 const allowedStatuses = new Set(["Backlog", "Playing", "Completed", "Flatlined"]);
 

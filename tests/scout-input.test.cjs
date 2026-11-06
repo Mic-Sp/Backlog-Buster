@@ -79,6 +79,12 @@ test("Gemini caller filters FULL ownership/session lists including omitted title
   assert.deepEqual((await scout.getAIScoutCandidates(owned, excluded)).map((item) => item.title), ["Tunic"]);
 });
 
+test("Gemini output cannot bypass permanent normalized dismissals omitted by the prompt budget", async (t) => {
+  const dismissed = [...Array.from({ length: 50 }, (_, index) => `Dismissed ${index}`), "cafe adventure 2"];
+  const scout = mockScout(t, async () => Response.json(envelope(JSON.stringify(["Café Adventure II™", "Dismissed 49", "Safe"].map(pick)))));
+  assert.deepEqual((await scout.getAIScoutCandidates([game("Seed")], dismissed)).map(item => item.title), ["Safe"]);
+});
+
 test("Gemini caller rejects invalid, blocked, incomplete and malformed output cleanly", async (t) => {
   let response;
   const scout = mockScout(t, async () => response);

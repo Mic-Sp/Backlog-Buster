@@ -48,9 +48,9 @@ export async function retrieveCosineCandidates(values: readonly number[], exclud
 }
 
 export function filterVectorCandidates<T extends Pick<CosineCandidate, "title" | "releaseYear" | "distance">>(
-  candidates: readonly T[], ownedTitles: readonly string[], recentlySeen: readonly string[], currentYear = new Date().getFullYear(),
+  candidates: readonly T[], ownedTitles: readonly string[], excludedTitles: readonly string[], currentYear = new Date().getFullYear(),
 ): T[] {
-  const excluded = new Set([...ownedTitles, ...recentlySeen].map(normalizeGameTitle));
+  const excluded = new Set([...ownedTitles, ...excludedTitles].map(normalizeGameTitle));
   // Choose the closest copy before collapsing normalized-title duplicates.
   return [...candidates].filter(candidate => Number.isFinite(candidate.distance) && isReleasedYear(candidate.releaseYear, currentYear))
     .sort((a, b) => a.distance - b.distance || a.title.localeCompare(b.title) || a.releaseYear! - b.releaseYear!)
@@ -89,8 +89,8 @@ export function rerankVectorCandidates(candidates: readonly CosineCandidate[], t
   }).sort((a, b) => b.score - a.score || a.distance - b.distance || a.key.localeCompare(b.key));
 }
 
-/** Server-only engine. Callers supply their authenticated player's library; this function never writes or calls providers. */
-export async function recommendCatalogGames(games: readonly TasteLibraryGame[], recentlySeen: readonly string[] = [],
+/** Server-only engine. Callers supply their authenticated player's library and full session/permanent exclusions; this function never writes or calls providers. */
+export async function recommendCatalogGames(games: readonly TasteLibraryGame[], excludedTitles: readonly string[] = [],
   { limit = 3, currentYear = new Date().getFullYear(), collectDiagnostics = false }: VectorRecommendationOptions = {}): Promise<VectorRecommendationResult> {
   bounds(limit, currentYear, 20);
   // Initial catalog is small (89 rows). Build the normalization index in JS to reuse the exact
@@ -111,13 +111,13 @@ export async function recommendCatalogGames(games: readonly TasteLibraryGame[], 
   ` : [];
   const taste = buildPlayerTasteProfile(games, stored);
   const ownedTitles = games.map(game => game.title);
-  const blocked = new Set([...ownedTitles, ...recentlySeen].map(normalizeGameTitle));
+  const blocked = new Set([...ownedTitles, ...excludedTitles].map(normalizeGameTitle));
   const excludedKeys = (titles as CatalogTitle[]).filter(game => blocked.has(normalizeGameTitle(game.title))).map(game => game.key);
-  // Exclusions enter SQL BEFORE LIMIT, so an owned/seen-heavy top tier cannot starve the reserve pool.
+  // Exclusions enter SQL BEFORE LIMIT, so an owned/seen/dismissed-heavy top tier cannot starve the reserve pool.
   const queryStarted = performance.now();
   const candidates = await retrieveCosineCandidates(taste.values, excludedKeys, { limit: Math.max(30, limit * 5), currentYear });
   const queryLatencyMs = performance.now() - queryStarted;
-  const eligible = filterVectorCandidates(candidates, ownedTitles, recentlySeen, currentYear);
+  const eligible = filterVectorCandidates(candidates, ownedTitles, excludedTitles, currentYear);
   let diagnostics: VectorRetrievalDiagnostics | undefined;
   if (collectDiagnostics) {
     let coverage: VectorCatalogCoverage | null = null;

@@ -118,6 +118,23 @@ test("cold start skips anchor-vector queries, remains read-only, and handles an 
   assert.equal(queries, 1);
 });
 
+test("dismissal keys exclude every normalized catalog variant before SQL LIMIT and at postfilter", async () => {
+  const api = loader({ "@/lib/prisma": { prisma: {
+    gameCatalog: { findMany: async () => [
+      { key: "dismissed-a", title: "Café Adventure II", releaseYear: 2020 },
+      { key: "dismissed-b", title: "CAFE Adventure 2™", releaseYear: 2021 },
+      { key: "safe", title: "Safe", releaseYear: 2020 },
+    ] },
+    $queryRaw: async (strings, ...values) => {
+      assert.deepEqual(JSON.parse(values[3]), ["dismissed-a", "dismissed-b"]);
+      // Defense in depth even if a stale/provider adapter returns an excluded row.
+      return [candidate("Café Adventure II", .01), candidate("Safe", .2)];
+    },
+  } } })("src/lib/vector-recommendations.ts");
+  const result = await api.recommendCatalogGames([], ["cafe adventure 2"]);
+  assert.deepEqual(result.recommendations.map(game => game.title), ["Safe"]);
+});
+
 test("optional diagnostics count vector coverage using version/release/exclusion guards and tolerate metric failures", async () => {
   for (const fail of [false, true]) {
     let coverageQueries = 0;
@@ -148,13 +165,13 @@ test("server entry resolves player identity and reads only that player's taste/o
   const calls = [];
   const api = loader({
     "@/lib/player": { getCurrentPlayerId: async () => "current-player" },
-    "@/lib/prisma": { prisma: { game: { findMany: async args => { calls.push(args); return [favorite]; } } } },
+    "@/lib/prisma": { prisma: { recommendationDismissal: { findMany: async ({ where }) => [{ titleKey: `${where.userId} dismissed` }] }, game: { findMany: async args => { calls.push(args); return [favorite]; } } } },
     "@/lib/vector-recommendations": { recommendCatalogGames: async (games, excluded) => { assert.deepEqual(games, [favorite]); return { excluded }; } },
     "@/lib/rawg": {}, "@/lib/scout-ai": {},
   })("src/lib/recommendations.ts");
-  assert.deepEqual(await api.getVectorRecommendations(undefined, ["Seen"]), { excluded: ["Seen"] });
+  assert.deepEqual(await api.getVectorRecommendations(undefined, ["Seen"]), { excluded: ["Seen", "current-player dismissed"] });
   assert.deepEqual(calls[0].where, { userId: "current-player" });
   assert(!calls[0].select.notes); assert(!calls[0].select.passwordHash);
-  await api.getVectorRecommendations("trusted-server-player");
+  assert.deepEqual(await api.getVectorRecommendations("trusted-server-player"), { excluded: ["trusted-server-player dismissed"] });
   assert.deepEqual(calls[1].where, { userId: "trusted-server-player" });
 });

@@ -9,7 +9,7 @@ import { actionErrorMessage, ActionFailure, unwrapActionResult } from "@/lib/act
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
-import { acceptQuest, addExternalScoutGame, fetchBacklogAdvisor, fetchExternalScout } from "@/app/actions";
+import { acceptQuest, addExternalScoutGame, dismissScoutRecommendation, fetchBacklogAdvisor, fetchExternalScout } from "@/app/actions";
 import type { BacklogRecommendation, BacklogRecommendations, ExternalRecommendation } from "@/lib/recommendations";
 import type { LibraryGame } from "@/components/GameLibrary";
 import ScoutDebugger from "@/components/ScoutDebugger";
@@ -41,6 +41,8 @@ export function useTacticalAdvisorController({ games, isAdmin = false }: { isAdm
   const [addingTitle, setAddingTitle] = useState<string | null>(null);
   const [isScouting, startScouting] = useTransition();
   const [isAdding, startAdding] = useTransition();
+  const [, startDismissing] = useTransition();
+  const [dismissalNotice, setDismissalNotice] = useState("");
   const triggerRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const requestId = useRef(0);
@@ -48,6 +50,10 @@ export function useTacticalAdvisorController({ games, isAdmin = false }: { isAdm
   const scoutRequestId = useRef(0);
   // Keep session history across modal opens; match the action's 30-title cap.
   const seenExternalTitles = useRef(new Map<string, string>());
+  // Also retain failed/guest saves for this workspace session. Never let an
+  // in-flight scan resurrect a card removed while its request was running.
+  const dismissedTitles = useRef(new Map<string, string>());
+  const dismissalRequestId = useRef(0);
   const seenInternalIds = useRef<number[]>([]);
   const backlogCount = useMemo(() => games.filter((game) => game.status === "Backlog").length, [games]);
   const pinnedCount = games.filter((game) => game.status === "Backlog" && game.pinnedOrder != null).length;
@@ -68,11 +74,13 @@ export function useTacticalAdvisorController({ games, isAdmin = false }: { isAdm
     startScouting(async () => {
       const startedAt = Date.now();
       try {
-        const result = unwrapActionResult(await fetchExternalScout([...seenExternalTitles.current.values()]));
+        const sessionExclusions = new Map([...seenExternalTitles.current, ...dismissedTitles.current]);
+        const result = unwrapActionResult(await fetchExternalScout([...sessionExclusions.values()].slice(-30)));
         scoutCooldown.start(DEFAULT_COOLDOWN_SECONDS, startedAt);
         if (request === scoutRequestId.current) {
           // Accept legacy array payloads and responses that omit diagnostics.
-          const recommendations = Array.isArray(result) ? result : result.recommendations;
+          const recommendations = (Array.isArray(result) ? result : result.recommendations)
+            .filter(pick => !dismissedTitles.current.has(normalizeGameTitle(pick.title)));
           setScoutDebug(isAdmin && !Array.isArray(result) ? result.debug ?? null : null);
           for (const pick of recommendations) {
             const key = normalizeGameTitle(pick.title);
@@ -98,6 +106,7 @@ export function useTacticalAdvisorController({ games, isAdmin = false }: { isAdm
     setExternalPicks(null);
     setScoutDebug(null);
     setExternalError("");
+    setDismissalNotice("");
     setAddedTitles(new Set());
     setScoutOverride(false);
     setScoutUnlocked(backlogCount <= 5);
@@ -128,6 +137,29 @@ export function useTacticalAdvisorController({ games, isAdmin = false }: { isAdm
       } finally {
         startingRef.current = false;
         setAddingTitle(null);
+      }
+    });
+  }
+
+  function dismissContract(pick: ExternalRecommendation) {
+    const key = normalizeGameTitle(pick.title);
+    if (dismissedTitles.current.has(key)) return;
+    dismissedTitles.current.set(key, pick.title);
+    setExternalPicks(current => current?.filter(game => normalizeGameTitle(game.title) !== key) ?? null);
+    setDismissalNotice(`${pick.title} hidden. Saving your preference…`);
+    const request = ++dismissalRequestId.current;
+    // Move keyboard focus to the next card action (or rescan when none remain).
+    requestAnimationFrame(() => {
+      if (document.activeElement === document.body) {
+        dialogRef.current?.querySelector<HTMLButtonElement>(".advisor-dismiss-button:not(:disabled), .advisor-refresh:not(:disabled)")?.focus();
+      }
+    });
+    startDismissing(async () => {
+      try {
+        unwrapActionResult(await dismissScoutRecommendation(pick.title));
+        if (request === dismissalRequestId.current) setDismissalNotice(`${pick.title} won’t appear in future Scout recommendations. Rescan to find more.`);
+      } catch {
+        if (request === dismissalRequestId.current) setDismissalNotice(`${pick.title} is hidden for this session only. Sign in and try again later to save your preference.`);
       }
     });
   }
@@ -269,6 +301,7 @@ export function useTacticalAdvisorController({ games, isAdmin = false }: { isAdm
     setScoutOverride,
     externalPicks,
     externalError,
+    dismissalNotice,
     addedTitles,
     addingTitle,
     isScouting,
@@ -280,6 +313,7 @@ export function useTacticalAdvisorController({ games, isAdmin = false }: { isAdm
     loadExternalPicks,
     openAdvisor,
     addContract,
+    dismissContract,
     loadPicks,
     close,
     renderPick,
@@ -309,6 +343,7 @@ export function TacticalAdvisorView({ controller, part = "all" }: { controller: 
     setScoutOverride,
     externalPicks,
     externalError,
+    dismissalNotice,
     addedTitles,
     addingTitle,
     isScouting,
@@ -320,6 +355,7 @@ export function TacticalAdvisorView({ controller, part = "all" }: { controller: 
     loadExternalPicks,
     openAdvisor,
     addContract,
+    dismissContract,
     loadPicks,
     close,
     renderPick,
@@ -387,6 +423,7 @@ export function TacticalAdvisorView({ controller, part = "all" }: { controller: 
                                   {added ? "✓ ADDED TO BACKLOG" : addingTitle === key ? copy("ADDING CONTRACT…", "INSCRIBING QUEST…") : "+ ADD TO BACKLOG"}
                                 </button>
                                 <a className="trailer-link-button" href={buildTrailerUrl(pick.title, pick.releaseYear)} target="_blank" rel="noopener noreferrer">🎬 WATCH TRAILER ↗</a>
+                                <button className="advisor-dismiss-button" type="button" disabled={added || isStarting || isAdding} aria-label={`Not interested in ${pick.title}`} onClick={() => dismissContract(pick)}>× NOT INTERESTED</button>
                               </div>
                               <AgentBriefing game={pick} />
                             </div>
@@ -397,6 +434,7 @@ export function TacticalAdvisorView({ controller, part = "all" }: { controller: 
                   ) : <p className="advisor-empty" role="status">{copy("No new affinity picks with a confirmed release year of this year or earlier are available. Complete and rate a gig 4–5 stars to guide scouting; games already in your library are excluded.", "No new released adventures were found. Complete and rate a quest 4–5 stars to guide the fairy; quests already in your journal are excluded.")}</p>)}
                   <button className="advisor-refresh" type="button" disabled={isScouting || isStarting || isAdding || scoutCooldown.seconds > 0} aria-busy={isScouting} onClick={() => loadExternalPicks()}>{isScouting ? copy("SCANNING NEURAL NET…", "FOLLOWING THE FAIRY LIGHT…") : scoutCooldown.seconds > 0 ? scoutCooldown.label : externalError ? copy("RETRY EXTERNAL SCAN", "RETRY THE SEARCH") : copy("RESCAN NEW CONTRACTS", "SEEK NEW QUESTS")}</button>
                   <p className="advisor-scout-status" role="status" aria-live="polite">{addedTitles.size > 0 ? `${addedTitles.size} new contract${addedTitles.size === 1 ? "" : "s"} added to backlog.` : ""}</p>
+                  <p className="advisor-scout-status advisor-dismiss-status" role="status" aria-live="polite">{dismissalNotice}</p>
                 </>
               )}
               {isAdmin && <ScoutDebugger debug={scoutDebug} busy={isScouting} />}

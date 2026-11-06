@@ -1368,6 +1368,10 @@ button.advisor-trigger-button:hover { border-color: #00f0ff; color: #00f0ff; bac
 .advisor-modal button:hover:not(:disabled) { border-color: #00f0ff; color: #06090f; background: #00f0ff; }
 .advisor-modal button:disabled { opacity: 0.5; cursor: wait; }
 .advisor-modal button.advisor-refresh { margin-top: 18px; }
+.advisor-modal .advisor-card-actions > button.advisor-dismiss-button { grid-column: 1 / -1; min-height: 40px; color: #a4b5ca; background: transparent; border-color: #4a5870; }
+.advisor-modal .advisor-card-actions > button.advisor-dismiss-button:hover:not(:disabled) { color: #ffd5e3; background: #301c30; border-color: #ff6b9a; }
+.advisor-modal button.advisor-dismiss-button:focus-visible { outline: 2px solid #00f0ff; outline-offset: 3px; }
+.advisor-dismiss-status:empty { display: none; }
 .advisor-loading, .advisor-empty { margin: 0; padding: 20px; border: 1px solid #2e3a52; color: #a4b5ca; font-family: "Courier New", monospace; font-size: 12px; line-height: 1.7; }
 .advisor-error { margin: 0 0 16px; color: #ff6b8b; font-size: 12px; line-height: 1.6; }
 .advisor-external-section { margin-top: 26px; padding-top: 20px; border-top: 1px solid #514c24; }

@@ -59,6 +59,18 @@ model Player {
   friendshipsLow    Friendship[]      @relation("FriendshipLow")
   friendshipsHigh   Friendship[]      @relation("FriendshipHigh")
   activityEvents    ActivityEvent[]
+  recommendationDismissals RecommendationDismissal[]
+}
+
+// Discovery preferences are independent of library ownership. Adding a dismissed
+// title manually remains allowed; deleting the player removes these preferences.
+model RecommendationDismissal {
+  userId    String
+  player    Player   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  titleKey  String
+  createdAt DateTime @default(now())
+
+  @@id([userId, titleKey])
 }
 
 // Append-only apart from deletion of source data/account resets. Apply
