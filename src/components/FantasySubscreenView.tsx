@@ -2,7 +2,7 @@
 import { SocialHubTrigger } from "@/components/SocialHub";
 
 import { FantasyCorners, NaviFairy, SlotBrackets } from "@/components/FantasyAccents";
-import type { DragEvent, CSSProperties } from "react";
+import { useId, useState, type DragEvent, type CSSProperties } from "react";
 import type { GameLibraryController, LibraryGame } from "@/components/GameLibrary";
 import FantasyEquipmentDeck from "@/components/FantasyEquipmentDeck";
 import DeckPinButton from "@/components/DeckPinButton";
@@ -38,10 +38,21 @@ export default function FantasySubscreenView({ controller: c }: { controller: Ga
   const { triggerRef: vaultTriggerRef } = vault;
   const { showPane } = useSubscreen();
   const { playSfx } = useUIEffects();
-  const selected = c.visibleGames.find(game => game.id === c.selectedGameId) ?? c.visibleGames[0];
-  function selectGame(game: LibraryGame) {
-    if (game.id !== (c.selectedGameId ?? selected?.id)) playSfx("click");
-    c.setSelectedGameId(game.id);
+  const [previewGameId, setPreviewGameId] = useState<number | null>(null);
+  const inspectionHelpId = useId();
+  const locked = c.visibleGames.find(game => game.id === c.selectedGameId);
+  const selected = locked ?? c.visibleGames.find(game => game.id === previewGameId) ?? c.visibleGames[0];
+  function previewGame(game: LibraryGame) {
+    if (locked) return;
+    // Browsing a filtered view releases a lock whose slot is no longer visible.
+    if (c.selectedGameId !== null) c.setSelectedGameId(null);
+    if (game.id !== selected?.id) playSfx("click");
+    if (previewGameId !== game.id) setPreviewGameId(game.id);
+  }
+  function toggleGameLock(game: LibraryGame) {
+    playSfx("click");
+    setPreviewGameId(game.id);
+    c.setSelectedGameId(locked?.id === game.id ? null : game.id);
   }
   function selectSaga(key: string) { c.selectSaga(key); showPane("chronicle"); }
   function dragOver(event: DragEvent<HTMLElement>, game: LibraryGame) { c.dragOverLibraryGame(event, game.id); }
@@ -80,21 +91,24 @@ export default function FantasySubscreenView({ controller: c }: { controller: Ga
       </div>
       {c.backlogNotice && <p className="fantasy-notice" role="status" data-error={c.backlogNotice.error}>{c.backlogNotice.text}</p>}
       {c.deckReturnNotice && <p className="fantasy-notice" role="status" data-error={c.deckReturnNotice.error}>{c.deckReturnNotice.text}</p>}
+      <p className="fantasy-inventory-mode" id={inspectionHelpId} aria-live="polite">{locked
+        ? <><strong>Locked: {locked.title}.</strong> Click or activate its slot again to resume previews.</>
+        : <>Preview mode · hover or focus a quest to inspect it. Click, Enter or Space to lock.</>}</p>
       <div className="fantasy-inventory-return" data-deck-return-active={c.canReturnToBacklog || undefined} data-deck-return-hover={c.backlogReturnHover || undefined} onDragOver={c.dragOverBacklog} onDragLeave={c.leaveBacklog} onDrop={c.dropDeckIntoBacklog} aria-busy={c.rowReorderBusy}>
         <ul className="fantasy-inventory-grid" aria-label="Quest inventory slots">{c.visibleGames.map(game => <li key={game.id}
-          data-library-game-id={game.id} data-reorder-row-id={game.id} data-status={game.status} data-selected={selected?.id === game.id} data-equipped={game.pinnedOrder !== null} data-active={game.status === "Playing"}
+          data-library-game-id={game.id} data-reorder-row-id={game.id} data-status={game.status} data-selected={locked?.id === game.id} data-preview={!locked && selected?.id === game.id} data-equipped={game.pinnedOrder !== null} data-active={game.status === "Playing"}
           data-dragging={c.dragSourceId === game.id || undefined} data-drop-target={c.dropTargetId === game.id || c.backlogReturnTarget === game.id || undefined}
           draggable={(c.isReorderableRow(game.id) || c.canDragToDeck(game)) && !c.rowReorderBusy}
           onPointerDownCapture={event => c.rememberDragOrigin({ gameId: game.id, source: "table" }, event.target instanceof Element && Boolean(event.target.closest(".fantasy-inventory-quick-pin")))} onDragStart={event => c.startLibraryDrag(event, { gameId: game.id, source: "table" })} onDragEnd={c.endRowDrag}
           onDragOver={event => dragOver(event, game)} onDragLeave={event => c.leaveLibraryGame(event, game.id)} onDrop={event => c.dropRowGame(event, game.id)}>
-          <button type="button" className="fantasy-inventory-slot" data-ui-sound="custom" aria-pressed={selected?.id === game.id} aria-label={`Inspect ${game.title}${game.pinnedOrder !== null ? `, equipped C-Button ${game.pinnedOrder}` : ""}${game.status === "Playing" ? ", active quest" : ""}`} onClick={() => selectGame(game)} onMouseEnter={() => selectGame(game)} onFocus={() => selectGame(game)}>
+          <button type="button" className="fantasy-inventory-slot" data-ui-sound="custom" aria-pressed={locked?.id === game.id} aria-describedby={inspectionHelpId} aria-label={`Inspect ${game.title}${game.pinnedOrder !== null ? `, equipped C-Button ${game.pinnedOrder}` : ""}${game.status === "Playing" ? ", active quest" : ""}`} onClick={() => toggleGameLock(game)} onMouseEnter={() => previewGame(game)} onMouseMove={() => previewGame(game)} onFocus={() => previewGame(game)}>
             {game.coverUrl ?
               // eslint-disable-next-line @next/next/no-img-element
               <img src={game.coverUrl} alt="" loading="lazy" decoding="async" width={160} height={160} draggable={false} /> : <span className="fantasy-item-icon" aria-hidden="true">{game.status === "Completed" ? "♜" : game.status === "Flatlined" ? "☠" : "⚔"}</span>}
             <span className="fantasy-slot-title">{game.title}</span><span className="fantasy-slot-status">{game.pinnedOrder !== null ? `C ${game.pinnedOrder} · Equipped` : game.status === "Playing" ? "Active quest" : game.status === "Backlog" && !c.canDragToDeck(game) ? "Sealed · Unreleased" : game.status}</span>
             <QuestRating rating={game.rating} />
           </button>
-          {c.canDragToDeck(game) && <span className="fantasy-inventory-quick-pin" onClick={event => event.stopPropagation()} onFocus={() => selectGame(game)}>
+          {c.canDragToDeck(game) && <span className="fantasy-inventory-quick-pin" onClick={event => event.stopPropagation()} onFocus={() => previewGame(game)}>
             <DeckPinButton gameId={game.id} pinnedOrder={game.pinnedOrder} pinnedCount={c.pinnedCount} releaseYear={game.releaseYear} disabled={c.rowReorderBusy} />
           </span>}
           <SlotBrackets />
