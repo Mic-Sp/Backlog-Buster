@@ -38,9 +38,9 @@ export async function savePlayerProfile(input: PlayerProfileInput) {
         const selected = data.featuredTrophyIds.filter((gameId): gameId is number => gameId !== null);
         if (selected.length) {
           const eligible = await tx.game.findMany({
-            where: { id: { in: selected }, userId: id, status: "Completed", rating: 5 }, select: { id: true },
+            where: { id: { in: selected }, userId: id }, select: { id: true },
           });
-          if (eligible.length !== selected.length) throw new InputError("Showcase trophies must be your completed, five-star games.");
+          if (eligible.length !== selected.length) throw new InputError("Pinned profile favorites must belong to your library. A selected game may have been removed.");
         }
         return tx.player.upsert({ where: { id }, create: { id, ...data }, update: data, select: publicProfileSelect });
       });

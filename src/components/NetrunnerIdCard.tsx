@@ -3,7 +3,7 @@
 import { useId, type Ref } from "react";
 import type { LayoutMode } from "@/lib/appearance";
 import FantasyCodexCard from "@/components/FantasyCodexCard";
-import { dossierAccents, dossierTitleLines, getStreetCred, type DossierCardData, type DossierIdentity } from "@/lib/dossier";
+import { dossierAccents, dossierTitleLines, getStreetCred, resolveDossierShowcase, type DossierCardData, type DossierIdentity } from "@/lib/dossier";
 import OperatorEmblem from "@/components/OperatorEmblem";
 import { customAvatarUrl, DEFAULT_AVATAR_URL, resolveAvatarPreset } from "@/lib/operator-avatar";
 import DossierMilestoneGlyph from "@/components/DossierMilestoneGlyph";
@@ -24,6 +24,8 @@ export default function NetrunnerIdCard({ layoutMode = "cyberpunk", ...props }: 
 function CyberpunkIdCard({ data, identity, timestamp, artwork, cardRef, artworkLoading = false }: DossierCardProps) {
   const prefix = useId().replace(/[^a-zA-Z0-9_-]/g, "");
   const accent = dossierAccents[identity.accent];
+  const showcase = resolveDossierShowcase(identity.showcase, data.showcaseGames ?? data.trophies, data.trophies);
+  const curated = showcase.some(slot => slot?.pinned);
   const unlocked = data.achievements.filter((achievement) => achievement.unlocked);
   const signature = [...unlocked].sort((left, right) => (right.unlockedAt ?? "").localeCompare(left.unlockedAt ?? "") || right.xpAwarded - left.xpAwarded)[0];
   const stats = [
@@ -101,9 +103,10 @@ function CyberpunkIdCard({ data, identity, timestamp, artwork, cardRef, artworkL
         ))}
         {!unlocked.length && <text x="32" y="412" fontSize="11" fill="#7f95aa">NO MILESTONES YET // THE FIRST CONTRACT AWAITS</text>}
 
-        <text x="32" y="442" fontSize="11" fontWeight="700" fill={accent} letterSpacing="1">TOP CLEARED GIGS // FIVE-STAR TROPHIES</text>
+        <text x="32" y="442" fontSize="11" fontWeight="700" fill={accent} letterSpacing="1">{curated ? "HALL OF FAME // PINNED PROFILE FAVORITES" : "TOP CLEARED GIGS // FIVE-STAR TROPHIES"}</text>
         {Array.from({ length: 3 }, (_, index) => {
-          const game = data.trophies.find((entry) => entry.id === identity.showcase[index]);
+          const slot = showcase[index];
+          const game = slot?.game;
           const x = 32 + index * 314;
           const cover = game?.coverUrl ? artwork[game.coverUrl] : null;
           return (
@@ -118,12 +121,12 @@ function CyberpunkIdCard({ data, identity, timestamp, artwork, cardRef, artworkL
                   <text x={x + 154} y="500" textAnchor="middle" fontSize="11" fill="#91a4b9">{game.coverUrl ? artworkLoading ? "SYNCING ARTWORK…" : "ARTWORK OFFLINE" : "NO COVER ON FILE"}</text>
                 </>}
                 <text x={x + 12} y="559" fontSize="14" fontWeight="700" fill="#f5f7e8">{dossierTitleLines(game.title).map((line, lineIndex) => <tspan key={lineIndex} x={x + 12} dy={lineIndex === 0 ? 0 : 18}>{line}</tspan>)}</text>
-                <text x={x + 12} y="602" fontSize="16" fill="#fcee0a">★★★★★</text>
+                <text x={x + 12} y="602" fontSize={slot?.pinned ? "11" : "16"} fill="#fcee0a">{slot?.pinned ? "★ FAVORITE" : "★★★★★"}</text>
                 <text x={x + 296} y="602" textAnchor="end" fontSize="15" fontWeight="700" fill="#fcee0a">+{game.earnedXp.toLocaleString("en-US")} XP</text>
               </> : <>
                 <text x={x + 154} y="510" textAnchor="middle" fontSize="28" fill="#4a5a6c">★</text>
                 <text x={x + 154} y="544" textAnchor="middle" fontSize="11" fill="#91a4b9">SHOWCASE SLOT {String(index + 1).padStart(2, "0")}</text>
-                <text x={x + 154} y="566" textAnchor="middle" fontSize="10" fill="#71869c">{data.trophies.length ? "SELECT A FIVE-STAR TROPHY BELOW" : "RATE A COMPLETED GIG FIVE STARS"}</text>
+                <text x={x + 154} y="566" textAnchor="middle" fontSize="10" fill="#71869c">PIN A FAVORITE TO YOUR PROFILE</text>
               </>}
             </g>
           );

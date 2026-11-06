@@ -10,6 +10,7 @@ export type PlayerProfile = {
   neonAccent: "CYAN" | "GOLD" | "MAGENTA";
   preferredLayoutMode: "cyberpunk" | "fantasy";
   avatarUrl: string | null;
+  // Ordered profile favorites, independent of Game.pinnedOrder. Null = automatic trophy.
   featuredTrophyIds: (number | null)[];
   updatedAt: string;
 };

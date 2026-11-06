@@ -131,6 +131,7 @@ async function PlayerSummary({ player }: { player: CurrentPlayer }) {
           counts: { Backlog: backlogCount, Playing: playingCount, Completed: completedCount, Flatlined: flatlinedCount },
           activeHours: telemetry.activeHours, completionRate: telemetry.completionRate, avgRating: telemetry.avgRating,
           achievements, trophies,
+          showcaseGames: games.map(game => ({ id: game.id, title: game.title, platform: game.platform, earnedXp: game.earnedXp, coverUrl: game.coverUrl ? resizeRawgImageUrl(game.coverUrl) : null })),
         }} />
       </div>
     </section>

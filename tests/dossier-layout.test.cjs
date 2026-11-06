@@ -34,7 +34,7 @@ test('Cyberpunk default and explicit modes produce the original neon card', () =
 
 test('Fantasy SVG contains its own parchment palette, crest, serif font, and quest terminology for export/print', () => {
   const html = render({ layoutMode: 'fantasy' });
-  for (const text of ['fantasy-codex-card', 'CODEX', 'HERO', 'RANK 7', 'QUESTS COMPLETED', 'SAGE MEDALLIONS', 'LEGENDARY QUESTS', 'CHRONICLED', 'Georgia', '#f5e8c6', '#233f43', '#d9bf70']) assert(html.includes(text), text);
+  for (const text of ['fantasy-codex-card', 'CODEX', 'HERO', 'RANK 7', 'QUESTS COMPLETED', 'SAGE MEDALLIONS', 'HALL OF FAME', 'CHRONICLED', 'Georgia', '#f5e8c6', '#233f43', '#d9bf70']) assert(html.includes(text), text);
   for (const text of ['NETRUNNER', 'NIGHT CITY', 'GIGS CLEARED', 'FLATLINED', '#00f0ff', '#ff2a6d', 'Courier New', 'BB-2077']) assert(!html.includes(text), text);
   assert.match(html, /viewBox="0 0 1000 680"/);
   assert.match(html, /href="data:image\/png;base64,fixture"/);
@@ -67,5 +67,18 @@ test('download names follow the selected layout and preserve the Cyberpunk defau
     URL.createObjectURL = create; URL.revokeObjectURL = revoke;
     if (originalDocument === undefined) delete global.document; else global.document = originalDocument;
     if (originalWindow === undefined) delete global.window; else global.window = originalWindow;
+  }
+});
+
+
+test('both themes show curated and automatic tiles without claiming favorites have five stars', () => {
+  for (const layoutMode of ['cyberpunk', 'fantasy']) {
+    const favorite = { id: 2, title: 'Unrated active favorite', platform: 'PC', coverUrl: null, earnedXp: 0 };
+    const html = render({ layoutMode, identity: { ...props.identity, showcase: [2, null, null] }, data: { ...props.data, showcaseGames: [favorite] } });
+    for (const text of ['PINNED PROFILE FAVORITES', 'Unrated active favorite', 'FAVORITE', 'Quest &amp; &lt;Escape&gt;']) assert(html.includes(text), text);
+    assert.equal((html.match(layoutMode === 'fantasy' ? /♥♥♥♥♥/g : /★★★★★/g) || []).length, 1);
+    const auto = render({ layoutMode, identity: { ...props.identity, showcase: [null, null, null] } });
+    assert(auto.includes(layoutMode === 'fantasy' ? 'LEGENDARY QUESTS' : 'TOP CLEARED GIGS'));
+    assert(!auto.includes('PINNED PROFILE FAVORITES'));
   }
 });

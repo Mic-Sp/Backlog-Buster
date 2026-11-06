@@ -11,7 +11,7 @@ import { createPortal } from "react-dom";
 import OperatorAvatar from "@/components/OperatorAvatar";
 import { avatarPresets, customAvatarUrl, DEFAULT_AVATAR_URL, resolveAvatarPreset } from "@/lib/operator-avatar";
 import NetrunnerIdCard from "@/components/NetrunnerIdCard";
-import { dossierAccents, dossierIdentityFromProfile, type DossierAccent, type DossierData, type DossierIdentity } from "@/lib/dossier";
+import { dossierAccents, dossierIdentityFromProfile, resolveDossierShowcase, type DossierAccent, type DossierData, type DossierIdentity } from "@/lib/dossier";
 import { savePlayerProfile } from "@/app/profile-actions";
 import type { PlayerProfile } from "@/lib/player-profile-types";
 import { HANDLE_HELP, HANDLE_INPUT_PATTERN, HANDLE_MAX_LENGTH } from "@/lib/handle-validation";
@@ -22,8 +22,10 @@ import "./NetrunnerDossier.css";
 export default function NetrunnerDossier({ data, socialEnabled = true }: { data: DossierData; socialEnabled?: boolean }) {
   const copy = useLayoutCopy();
   const { layoutMode } = useUIEffects();
+  const choices = data.showcaseGames ?? data.trophies;
+  const sortedChoices = useMemo(() => [...choices].sort((a, b) => a.title.localeCompare(b.title) || a.platform.localeCompare(b.platform) || a.id - b.id), [choices]);
   const [isOpen, setIsOpen] = useState(false);
-  const [identity, setIdentity] = useState<DossierIdentity>(() => dossierIdentityFromProfile(data.profile, data.trophies));
+  const [identity, setIdentity] = useState<DossierIdentity>(() => dossierIdentityFromProfile(data.profile, choices));
   const identityRef = useRef(identity);
   const savedIdentityKey = useRef(JSON.stringify(identity));
   const savedProfile = useRef<PlayerProfile>(data.profile);
@@ -46,23 +48,24 @@ export default function NetrunnerDossier({ data, socialEnabled = true }: { data:
   const triggerRef = useRef<HTMLButtonElement>(null);
   const cardRef = useRef<SVGSVGElement>(null);
   const titleId = useId();
+  const showcase = useMemo(() => resolveDossierShowcase(identity.showcase, choices, data.trophies), [identity.showcase, choices, data.trophies]);
   const artworkKey = useMemo(() => JSON.stringify([...new Set([
     DEFAULT_AVATAR_URL,
     ...(customAvatarUrl(identity.avatarUrl) ? [customAvatarUrl(identity.avatarUrl)!] : []),
-    ...identity.showcase.flatMap((id) => {
-      const cover = data.trophies.find((game) => game.id === id)?.coverUrl;
+    ...showcase.flatMap((slot) => {
+      const cover = slot?.game.coverUrl;
       return cover ? [cover] : [];
     }),
-  ])]), [identity.showcase, data.trophies, identity.avatarUrl]);
+  ])]), [showcase, identity.avatarUrl]);
   const artworkReady = artworkState.key === artworkKey;
-  const missingArtwork = artworkReady && identity.showcase.some(id => {
-    const game = data.trophies.find(trophy => trophy.id === id);
+  const missingArtwork = artworkReady && showcase.some(slot => {
+    const game = slot?.game;
     return game && (!game.coverUrl || !artworkState.images[game.coverUrl]);
   });
 
   function openDossier() {
     const profile = data.profile.updatedAt >= savedProfile.current.updatedAt ? data.profile : savedProfile.current;
-    const next = dossierIdentityFromProfile(profile, data.trophies);
+    const next = dossierIdentityFromProfile(profile, choices);
     identityRef.current = next;
     savedIdentityKey.current = JSON.stringify(next);
     setIdentity(next);
@@ -284,25 +287,51 @@ export default function NetrunnerDossier({ data, socialEnabled = true }: { data:
                   <label>Personal tagline<input name="tagline" value={identity.tagline} maxLength={64} onChange={(event) => customize({ ...identity, tagline: event.target.value })} /></label>
                   <label>{copy("Neon accent", "Heraldic accent")}<select aria-label={copy("Neon accent", "Heraldic accent")} value={identity.accent} onChange={(event) => customize({ ...identity, accent: event.target.value as DossierAccent })}>{Object.keys(dossierAccents).map((accent) => <option key={accent} value={accent}>{accent.toUpperCase()}</option>)}</select></label>
                 </div>
-                <div className="dossier-showcase-fields">
-                  {Array.from({ length: 3 }, (_, index) => <label key={index}>Featured trophy {String(index + 1).padStart(2, "0")}
-                    <select aria-label={`Featured trophy ${String(index + 1).padStart(2, "0")}`} value={data.trophies.some((game) => game.id === identity.showcase[index]) ? identity.showcase[index] ?? "" : ""} onChange={(event) => {
-                      const showcase = [...identity.showcase];
-                      showcase[index] = event.target.value ? Number(event.target.value) : null;
-                      customize({ ...identity, showcase });
-                    }}>
-                      <option value="">Empty slot</option>
-                      {data.trophies.map((game) => <option key={game.id} value={game.id} disabled={identity.showcase.some((id, otherIndex) => otherIndex !== index && id === game.id)}>{game.title}</option>)}
-                    </select>
-                  </label>)}
+                <div className="dossier-showcase-heading">
+                  <h3>{copy("Hall of Fame // Pinned Profile Favorites", "Hall of Fame · Pinned Profile Favorites")}</h3>
+                  <p>{copy("Choose up to three all-time favorites from your library, in card order. These profile pins are separate from On Deck / Up Next queue pins.", "Choose up to three all-time favorites from your quest journal, in card order. These codex pins are separate from equipped C-Button quests.")}</p>
+                  <p>Unpinned slots automatically show your top completed five-star {copy("gigs", "quests")}. Any library game can be a favorite, regardless of status or rating.</p>
                 </div>
+                <div className="dossier-showcase-fields">
+                  {Array.from({ length: 3 }, (_, index) => <div className="dossier-favorite-slot" key={index}>
+                    <label>Pinned favorite {String(index + 1).padStart(2, "0")}
+                      <select aria-label={`Pinned favorite ${String(index + 1).padStart(2, "0")}`} value={identity.showcase[index] ?? ""} onChange={(event) => {
+                        const showcase = [...identity.showcase];
+                        showcase[index] = event.target.value ? Number(event.target.value) : null;
+                        customize({ ...identity, showcase });
+                      }}>
+                        <option value="">Automatic five-star trophy</option>
+                        {sortedChoices.map((game) => <option key={game.id} value={game.id} disabled={identity.showcase.some((id, otherIndex) => otherIndex !== index && id === game.id)}>{game.title} · {game.platform}</option>)}
+                      </select>
+                    </label>
+                    <div className="dossier-favorite-order">
+                      <button type="button" aria-label={`Move favorite ${index + 1} left`} disabled={index === 0} onClick={() => {
+                        const showcase = [...identity.showcase];
+                        [showcase[index - 1], showcase[index]] = [showcase[index], showcase[index - 1]];
+                        customize({ ...identity, showcase });
+                      }}>←</button>
+                      <button type="button" aria-label={`Move favorite ${index + 1} right`} disabled={index === 2} onClick={() => {
+                        const showcase = [...identity.showcase];
+                        [showcase[index + 1], showcase[index]] = [showcase[index], showcase[index + 1]];
+                        customize({ ...identity, showcase });
+                      }}>→</button>
+                      <button type="button" disabled={identity.showcase[index] == null} aria-label={`Unpin favorite ${index + 1}`} onClick={() => {
+                        const showcase = [...identity.showcase];
+                        showcase[index] = null;
+                        customize({ ...identity, showcase });
+                      }}>Unpin</button>
+                    </div>
+                    <small>{showcase[index]?.pinned ? "★ Pinned favorite" : showcase[index] ? `Auto · ${showcase[index]!.game.title}` : "Pin a favorite to fill this slot"}</small>
+                  </div>)}
+                </div>
+                <button className="dossier-favorites-reset" type="button" disabled={identity.showcase.every(id => id == null)} onClick={() => customize({ ...identity, showcase: [null, null, null] })}>Use automatic trophies in all slots</button>
               </fieldset>
               <button className="dossier-save-identity" type="button" disabled={busy || closing || saveStatus === "saving"} onClick={saveIdentity}>{saveStatus === "saving" ? "SAVING IDENTITY…" : copy("💾 SAVE IDENTITY TO ARCHIVE", "✦ SAVE TO THE ROYAL REGISTER")}</button>
               <div className="dossier-profile-status" data-state={saveStatus}>
                 <span role={saveStatus === "error" ? "alert" : "status"}>{saveStatus === "saved" ? copy("✓ IDENTITY SAVED TO OPERATOR CLOUD ARCHIVE", "✓ IDENTITY SAVED TO THE ROYAL REGISTER") : saveStatus === "error" ? saveError : saveStatus === "pending" ? copy("UNSAVED IDENTITY CHANGES", "UNSAVED CODEX CHANGES") : copy("SYNCING PLAYER IDENTITY…", "INSCRIBING YOUR IDENTITY…")}</span>
                 {saveStatus === "error" && <button type="button" onClick={saveIdentity}>RETRY SAVE</button>}
               </div>
-              <p>{copy("Identity preferences are saved to your operator’s cloud archive and follow your account across browsers. Showcase slots feature completed games rated five stars.", "Your identity is saved to the royal register and follows your account across browsers. Showcase slots feature completed quests rated five stars.")}</p>
+              <p>{copy("Identity preferences are saved to your operator’s cloud archive and follow your account across browsers. Your pinned favorites lead the showcase, with automatic five-star trophies filling unpinned slots.", "Your identity is saved to the royal register and follows your account across browsers. Your pinned favorites lead the reliquary, with automatic five-heart trophies filling unpinned slots.")}</p>
             </details>
             {publicHandle && <div className="dossier-share-preview"><span>PUBLIC ARCHIVE // <code>/dossier/{publicHandle}</code></span><a className="dossier-public-open" href={`/dossier/${encodeURIComponent(publicHandle)}`} target="_blank" rel="noopener noreferrer">↗ OPEN PUBLIC PAGE</a></div>}
             <div className="dossier-export-actions">

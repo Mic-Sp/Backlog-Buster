@@ -12,6 +12,8 @@ export type DossierData = {
   avgRating: number | null;
   achievements: Achievement[];
   trophies: DossierGame[];
+  // All owned choices locally; only displayed tiles on the public DTO.
+  showcaseGames?: DossierGame[];
 };
 
 export type DossierCardData = Omit<DossierData, "profile">;
@@ -28,15 +30,35 @@ export function getStreetCred(level: number) {
   return "Street Kid";
 }
 
-export function defaultDossierIdentity(trophies: DossierGame[]): DossierIdentity {
-  return { avatarUrl: null, handle: "", callsign: "ANONYMOUS NETRUNNER", tagline: "One more gig. One more legend.", accent: "cyan", showcase: Array.from({ length: 3 }, (_, index) => trophies[index]?.id ?? null) };
+export const DOSSIER_SHOWCASE_CAPACITY = 3;
+
+/** Keep declared favorites separate from automatic tiles, including during saves. */
+export function resolveDossierShowcase(selections: readonly unknown[], games: readonly DossierGame[], trophies: readonly DossierGame[]) {
+  const used = new Set<number>();
+  const slots = Array.from({ length: DOSSIER_SHOWCASE_CAPACITY }, (_, index) => {
+    const game = games.find(game => game.id === selections[index]);
+    if (!game || used.has(game.id)) return null;
+    used.add(game.id);
+    return { game, pinned: true };
+  });
+  return slots.map(slot => {
+    if (slot) return slot;
+    const game = trophies.find(game => !used.has(game.id));
+    if (!game) return null;
+    used.add(game.id);
+    return { game, pinned: false };
+  });
 }
 
-export function readDossierIdentity(value: unknown, trophies: DossierGame[]): DossierIdentity {
-  const defaults = defaultDossierIdentity(trophies);
+export function defaultDossierIdentity(): DossierIdentity {
+  return { avatarUrl: null, handle: "", callsign: "ANONYMOUS NETRUNNER", tagline: "One more gig. One more legend.", accent: "cyan", showcase: Array(DOSSIER_SHOWCASE_CAPACITY).fill(null) };
+}
+
+export function readDossierIdentity(value: unknown, games: DossierGame[]): DossierIdentity {
+  const defaults = defaultDossierIdentity();
   if (!value || typeof value !== "object") return defaults;
   const saved = value as Record<string, unknown>;
-  const ids = new Set(trophies.map((game) => game.id));
+  const ids = new Set(games.map((game) => game.id));
   const used = new Set<number>();
   const selections = Array.isArray(saved.showcase) ? saved.showcase : defaults.showcase;
   return {
@@ -54,11 +76,11 @@ export function readDossierIdentity(value: unknown, trophies: DossierGame[]): Do
   };
 }
 
-export function dossierIdentityFromProfile(profile: Pick<PlayerProfile, "operatorName" | "handle" | "tagline" | "neonAccent" | "avatarUrl" | "featuredTrophyIds">, trophies: DossierGame[]): DossierIdentity {
+export function dossierIdentityFromProfile(profile: Pick<PlayerProfile, "operatorName" | "handle" | "tagline" | "neonAccent" | "avatarUrl" | "featuredTrophyIds">, games: DossierGame[]): DossierIdentity {
   return readDossierIdentity({
     avatarUrl: profile.avatarUrl, handle: profile.handle, callsign: profile.operatorName, tagline: profile.tagline, accent: profile.neonAccent.toLowerCase(),
     showcase: profile.featuredTrophyIds.length ? profile.featuredTrophyIds : undefined,
-  }, trophies);
+  }, games);
 }
 
 export function dossierTitleLines(title: string, limit = 29): string[] {

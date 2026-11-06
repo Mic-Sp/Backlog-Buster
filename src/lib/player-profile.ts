@@ -52,11 +52,11 @@ export function validatePlayerProfile(input: unknown): PlayerProfileInput {
       !Array.isArray(value.featuredTrophyIds) || value.featuredTrophyIds.length > 3 ||
       value.featuredTrophyIds.some((id: unknown) => id !== null &&
         (typeof id !== "number" || !Number.isSafeInteger(id) || id < 1 || id > 2147483647))) {
-    throw new InputError("Please provide a valid operator name, tagline, accent, and up to three trophies.");
+    throw new InputError("Please provide a valid operator name, tagline, accent, and up to three profile favorites.");
   }
   const ids = value.featuredTrophyIds as (number | null)[];
   const selected = ids.filter((id) => id !== null);
-  if (new Set(selected).size !== selected.length) throw new InputError("Choose a different trophy for each showcase slot.");
+  if (new Set(selected).size !== selected.length) throw new InputError("Choose a different game for each showcase slot.");
   const profile: PlayerProfileInput = {
     operatorName: value.operatorName.trim() || "ANONYMOUS NETRUNNER",
     tagline: value.tagline.trim() || "One more gig. One more legend.",

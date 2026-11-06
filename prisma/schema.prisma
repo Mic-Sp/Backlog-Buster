@@ -50,6 +50,8 @@ model Player {
   neonAccent        String            @default("CYAN")
   preferredLayoutMode String          @default("cyberpunk")
   avatarUrl         String?
+  // Three ordered profile favorite game IDs; null slots use automatic trophies.
+  // Legacy field name retained. Independent of the active queue's Game.pinnedOrder.
   featuredTrophyIds Json              @default("[]")
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
@@ -212,6 +214,7 @@ model Game {
   // Advances only for status/rating changes, including silent returns to Backlog.
   activityRevision Int @default(0)
   wasFlatlined Boolean @default(false)
+  // On Deck / Up Next and Fantasy C-Button queue only, never profile favorites.
   pinnedOrder Int?
   backlogOrder Int?
   lengthHours Int      @default(10)

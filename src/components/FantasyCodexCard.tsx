@@ -2,7 +2,7 @@
 
 import { useId } from "react";
 import type { DossierCardProps } from "@/components/NetrunnerIdCard";
-import { dossierTitleLines } from "@/lib/dossier";
+import { dossierTitleLines, resolveDossierShowcase } from "@/lib/dossier";
 import { customAvatarUrl, resolveAvatarPreset } from "@/lib/operator-avatar";
 import OperatorEmblem from "@/components/OperatorEmblem";
 import DossierMilestoneGlyph from "@/components/DossierMilestoneGlyph";
@@ -19,6 +19,8 @@ function Crest({ x, y, size = 70 }: { x: number; y: number; size?: number }) {
 export default function FantasyCodexCard({ data, identity, timestamp, artwork, cardRef, artworkLoading = false }: DossierCardProps) {
   const prefix = `codex-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
   const accent = { cyan: "#386b56", gold: "#937128", magenta: "#8b5369" }[identity.accent];
+  const showcase = resolveDossierShowcase(identity.showcase, data.showcaseGames ?? data.trophies, data.trophies);
+  const curated = showcase.some(slot => slot?.pinned);
   const unlocked = data.achievements.filter(achievement => achievement.unlocked);
   const callsign = !identity.callsign.trim() || identity.callsign === "ANONYMOUS NETRUNNER" ? "UNNAMED ADVENTURER" : identity.callsign.trim();
   const tagline = identity.tagline === "One more gig. One more legend." ? "One more quest. One more legend." : identity.tagline;
@@ -68,9 +70,10 @@ export default function FantasyCodexCard({ data, identity, timestamp, artwork, c
         <DossierMilestoneGlyph achievementKey={achievement.key} color="#e5cc82" />
       </g>)}
       {!unlocked.length && <text x="32" y="411" fontSize="12" fill="#776844">YOUR FIRST MEDALLION AWAITS · COMPLETE A QUEST</text>}
-      <text x="32" y="442" fontSize="13" fontWeight="700" fill={accent}>LEGENDARY QUESTS · FIVE-HEART TROPHIES</text>
+      <text x="32" y="442" fontSize="13" fontWeight="700" fill={accent}>{curated ? "HALL OF FAME · PINNED PROFILE FAVORITES" : "LEGENDARY QUESTS · FIVE-HEART TROPHIES"}</text>
       {Array.from({ length: 3 }, (_, index) => {
-        const game = data.trophies.find(entry => entry.id === identity.showcase[index]);
+        const slot = showcase[index];
+        const game = slot?.game;
         const x = 32 + index * 314;
         const cover = game?.coverUrl ? artwork[game.coverUrl] : null;
         return <g key={index}>
@@ -79,12 +82,12 @@ export default function FantasyCodexCard({ data, identity, timestamp, artwork, c
             {cover ? <image href={cover} x={x} y="454" width="308" height="84" preserveAspectRatio="xMidYMid slice" clipPath={`url(#${prefix}-cover-${index})`} />
               : <text x={x + 154} y="501" textAnchor="middle" fontSize="12" fill="#d2d8bd">{game.coverUrl ? artworkLoading ? "UNFURLING ARTWORK…" : "ARTWORK UNAVAILABLE" : "NO QUEST ARTWORK"}</text>}
             <text x={x + 12} y="559" fontSize="14" fontWeight="700" fill="#f4e6b9">{dossierTitleLines(game.title).map((line, lineIndex) => <tspan key={lineIndex} x={x + 12} dy={lineIndex === 0 ? 0 : 18}>{line}</tspan>)}</text>
-            <text x={x + 12} y="602" fontSize="17" fill="#f08086">♥♥♥♥♥</text>
+            <text x={x + 12} y="602" fontSize={slot?.pinned ? "12" : "17"} fill="#f08086">{slot?.pinned ? "♥ FAVORITE" : "♥♥♥♥♥"}</text>
             <text x={x + 296} y="602" textAnchor="end" fontSize="15" fill="#ebd897">+{game.earnedXp.toLocaleString("en-US")} XP</text>
           </> : <>
             <text x={x + 154} y="505" textAnchor="middle" fontSize="32" fill="#ddc276">◇</text>
             <text x={x + 154} y="541" textAnchor="middle" fontSize="12" fill="#eddda7">RELIQUARY {index + 1}</text>
-            <text x={x + 154} y="565" textAnchor="middle" fontSize="11" fill="#c2cfb8">{data.trophies.length ? "CHOOSE A FIVE-HEART TROPHY BELOW" : "RATE A COMPLETED QUEST FIVE HEARTS"}</text>
+            <text x={x + 154} y="565" textAnchor="middle" fontSize="11" fill="#c2cfb8">PIN A FAVORITE TO YOUR CODEX</text>
           </>}
         </g>;
       })}

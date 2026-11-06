@@ -160,6 +160,15 @@ button.dossier-trigger-button:focus-visible,
 	gap: 12px;
 }
 
+.dossier-showcase-heading { margin-top: 22px; }
+.dossier-showcase-heading h3 { font-size: 13px; margin: 0 0 8px; }
+.dossier-showcase-heading p { font-size: 12px; line-height: 1.6; margin: 6px 0; }
+.dossier-favorite-slot { min-width: 0; }
+.dossier-favorite-slot small { display: block; margin-top: 6px; font-size: 11px; overflow-wrap: anywhere; }
+.dossier-favorite-order { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.dossier-modal .dossier-favorite-order button { padding: 7px 10px; min-width: 36px; }
+.dossier-favorites-reset { margin-top: 12px; }
+
 .dossier-showcase-fields {
 	grid-template-columns: repeat(3, minmax(0, 1fr));
 	margin-top: 14px;

@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { achievementDefinitions } from "@/lib/achievements";
 import { calculateLevelProgress } from "@/lib/player-level";
 import { calculateLibraryTelemetry } from "@/lib/library-telemetry";
-import { dossierIdentityFromProfile, type DossierCardData, type DossierIdentity } from "@/lib/dossier";
+import { dossierIdentityFromProfile, resolveDossierShowcase, type DossierCardData, type DossierIdentity } from "@/lib/dossier";
 import { customAvatarUrl } from "@/lib/operator-avatar";
 import { fetchDossierArtwork } from "@/lib/dossier-artwork";
 import { resizeRawgImageUrl } from "@/lib/rawg";
@@ -35,17 +35,18 @@ export async function getPublicDossier(value: unknown): Promise<PublicDossier | 
     },
   });
   if (!profile || profile.handle?.trim().toLowerCase() !== handle) return null;
-  const hasSelections = Array.isArray(profile.featuredTrophyIds) && profile.featuredTrophyIds.length > 0;
   const selectedIds = Array.isArray(profile.featuredTrophyIds) ? profile.featuredTrophyIds.slice(0, 3).filter((id): id is number => typeof id === "number" && Number.isSafeInteger(id) && id > 0 && id <= 2147483647) : [];
-  const trophies = await prisma.game.findMany({
-    where: {
-      player: { handle: { equals: lookupHandle, mode: "insensitive" }, ...audience }, status: "Completed", rating: 5,
-      ...(hasSelections ? { id: { in: selectedIds } } : {}),
-    },
-    select: { id: true, title: true, platform: true, coverUrl: true, earnedXp: true },
-    orderBy: [{ earnedXp: "desc" }, { title: "asc" }, { id: "asc" }], take: 3,
-  });
-  const publicTrophies = trophies.map(game => ({ id: game.id, title: game.title, platform: game.platform, earnedXp: game.earnedXp, coverUrl: game.coverUrl ? resizeRawgImageUrl(game.coverUrl) : null }));
+  const owner = { player: { handle: { equals: lookupHandle, mode: "insensitive" as const }, ...audience } };
+  const select = { id: true, title: true, platform: true, coverUrl: true, earnedXp: true } as const;
+  const [favorites, trophies] = await Promise.all([
+    selectedIds.length ? prisma.game.findMany({ where: { ...owner, id: { in: selectedIds } }, select, take: 3 }) : [],
+    prisma.game.findMany({ where: { ...owner, status: "Completed", rating: 5 }, select,
+      orderBy: [{ earnedXp: "desc" }, { title: "asc" }, { id: "asc" }], take: 3 }),
+  ]);
+  // Return only the three displayed games, never the rest of the player's library.
+  const slots = resolveDossierShowcase(Array.isArray(profile.featuredTrophyIds) ? profile.featuredTrophyIds : [], favorites, trophies);
+  const publicGames = slots.flatMap(slot => slot ? [{ id: slot.game.id, title: slot.game.title, platform: slot.game.platform, earnedXp: slot.game.earnedXp, coverUrl: slot.game.coverUrl ? resizeRawgImageUrl(slot.game.coverUrl) : null }] : []);
+  const publicTrophies = publicGames.filter(game => slots.some(slot => slot?.game.id === game.id && !slot.pinned));
   const telemetry = calculateLibraryTelemetry(profile.games.map(game => ({ ...game, genre: null, platform: "" })));
   const totalXp = Math.round(profile.games.reduce((sum, game) => sum + game.earnedXp, 0) + profile.userAchievements.reduce((sum, badge) => sum + badge.xpAwarded, 0));
   const savedBadges = new Map(profile.userAchievements.map(badge => [badge.achievementKey, badge]));
@@ -60,19 +61,20 @@ export async function getPublicDossier(value: unknown): Promise<PublicDossier | 
   const identity = dossierIdentityFromProfile({
     operatorName: profile.operatorName, handle: profile.handle,
     tagline: profile.tagline, neonAccent: profile.neonAccent === "GOLD" || profile.neonAccent === "MAGENTA" ? profile.neonAccent : "CYAN",
-    avatarUrl: profile.avatarUrl, featuredTrophyIds: hasSelections ? profile.featuredTrophyIds as (number | null)[] : [],
-  }, publicTrophies);
+    avatarUrl: profile.avatarUrl, featuredTrophyIds: slots.map(slot => slot?.pinned ? slot.game.id : null),
+  }, publicGames);
   return {
     visibility: profile.profileVisibility,
     identity,
     card: { level: calculateLevelProgress(totalXp).level, totalXp, counts, activeHours: telemetry.activeHours,
-      completionRate: telemetry.completionRate, avgRating: telemetry.avgRating, achievements, trophies: publicTrophies },
+      completionRate: telemetry.completionRate, avgRating: telemetry.avgRating, achievements, trophies: publicTrophies, showcaseGames: publicGames },
   };
 }
 
 export async function getPublicDossierArtwork(dossier: PublicDossier): Promise<Record<string, string | null>> {
   const avatar = customAvatarUrl(dossier.identity.avatarUrl);
-  const urls = [...new Set([...(avatar ? [avatar] : []), ...dossier.card.trophies.flatMap(game => game.coverUrl ? [game.coverUrl] : [])])];
+  const slots = resolveDossierShowcase(dossier.identity.showcase ?? [], dossier.card.showcaseGames ?? dossier.card.trophies, dossier.card.trophies);
+  const urls = [...new Set([...(avatar ? [avatar] : []), ...slots.flatMap(slot => slot?.game.coverUrl ? [slot.game.coverUrl] : [])])];
   return Object.fromEntries(await Promise.all(urls.map(async url => {
     try {
       // Fetch only this public dossier's selected images; the authenticated arbitrary-URL proxy stays private.
