@@ -26,6 +26,7 @@ import { getHybridSagaChronology } from "@/lib/saga-lore";
 import { buildAssignedSagaOrder } from "@/lib/saga-chronology";
 import { isReleasedYear } from "@/lib/game-release";
 import { getBacklogInsertionOrder } from "@/lib/backlog-order";
+import { activityGameSelect, updateGameWithActivity } from "@/lib/activity-events";
 
 const allowedStatuses = new Set(["Backlog", "Playing", "Completed", "Flatlined"]);
 
@@ -540,8 +541,7 @@ export async function exportLibraryBackup(format: "json" | "csv") {
 
 export async function bulkImportGames(payload: LibraryImportPayload) {
   return safeAction(async () => {
-    const { userId, counts } = await importLibraryGames(payload);
-    await syncAndGetAchievements(userId);
+    const { counts } = await importLibraryGames(payload);
     revalidatePath("/");
     return counts;
   });
@@ -549,8 +549,7 @@ export async function bulkImportGames(payload: LibraryImportPayload) {
 
 export async function syncSteamLibrary(payload: SteamSyncPayload) {
   return safeAction(async () => {
-    const { userId, summary } = await syncSteamLibraryGames(payload);
-    await syncAndGetAchievements(userId);
+    const { summary } = await syncSteamLibraryGames(payload);
     revalidatePath("/");
     return summary;
   });
@@ -563,9 +562,9 @@ export async function acceptQuest(gameId: number) {
     }
 
     const userId = await getAuthenticatedPlayerId();
-    await prisma.game.update({
-      where: { id: gameId, userId, status: "Backlog" },
-      data: { status: "Playing", earnedXp: 0, pinnedOrder: null },
+    await withDeckLock(userId, async tx => {
+      const game = await tx.game.findUniqueOrThrow({ where: { id: gameId, userId, status: "Backlog" }, select: activityGameSelect });
+      await updateGameWithActivity(tx, userId, game, { status: "Playing", earnedXp: 0, pinnedOrder: null });
     });
 
     revalidatePath("/");
@@ -666,21 +665,17 @@ export async function updateGame(formData: FormData) {
     }
 
     const userId = await getAuthenticatedPlayerId();
-    const existing = await prisma.game.findUniqueOrThrow({
-      where: { id, userId },
-      select: { status: true, hoursPlayed: true },
-    });
-    if (statusValue === "Backlog") {
-      progress.hoursPlayed = 0;
-      progress.rating = null;
-    } else if (statusValue === "Playing" && existing.status === "Completed" &&
-      (progress.hoursPlayed === undefined || progress.hoursPlayed === existing.hoursPlayed)) {
-      progress.hoursPlayed = 0;
-    }
+    await withDeckLock(userId, async tx => {
+      const existing = await tx.game.findUniqueOrThrow({ where: { id, userId }, select: activityGameSelect });
+      if (statusValue === "Backlog") {
+        progress.hoursPlayed = 0;
+        progress.rating = null;
+      } else if (statusValue === "Playing" && existing.status === "Completed" &&
+        (progress.hoursPlayed === undefined || progress.hoursPlayed === existing.hoursPlayed)) {
+        progress.hoursPlayed = 0;
+      }
 
-    await prisma.game.update({
-      where: { id, userId },
-      data: {
+      await updateGameWithActivity(tx, userId, existing, {
         status: statusValue,
         ...(statusValue !== "Backlog" || (metadata.releaseYear !== undefined && !isReleasedYear(metadata.releaseYear)) ? { pinnedOrder: null } : {}),
         lengthHours,
@@ -689,7 +684,7 @@ export async function updateGame(formData: FormData) {
         ...(statusValue === "Flatlined" ? { wasFlatlined: true } : {}),
         ...metadata,
         ...progress,
-      },
+      });
     });
 
     await syncAndGetAchievements(userId);
@@ -739,11 +734,8 @@ export async function startGame(formData: FormData) {
 
     const userId = await getAuthenticatedPlayerId();
     await withDeckLock(userId, async tx => {
-      const game = await tx.game.findUniqueOrThrow({ where: { id, userId }, select: { pinnedOrder: true } });
-      await tx.game.update({
-        where: { id, userId },
-        data: { status: "Playing", lengthHours, difficulty, earnedXp: 0, pinnedOrder: null, ...progress },
-      });
+      const game = await tx.game.findUniqueOrThrow({ where: { id, userId }, select: activityGameSelect });
+      await updateGameWithActivity(tx, userId, game, { status: "Playing", lengthHours, difficulty, earnedXp: 0, pinnedOrder: null, ...progress });
       if (game.pinnedOrder !== null) {
         const remaining = await tx.game.findMany({
           where: { userId, status: "Backlog", pinnedOrder: { not: null } },
@@ -794,16 +786,13 @@ export async function completeGame(formData: FormData) {
     }
 
     const userId = await getAuthenticatedPlayerId();
-    // Zero means unmeasured; never replace logged progress with the length estimate.
-    const hoursPlayed = progress.hoursPlayed ?? (await prisma.game.findUniqueOrThrow({
-      where: { id, userId },
-      select: { hoursPlayed: true },
-    })).hoursPlayed;
-    const finalLengthHours = Math.max(lengthHours, hoursPlayed);
+    await withDeckLock(userId, async tx => {
+      const game = await tx.game.findUniqueOrThrow({ where: { id, userId }, select: activityGameSelect });
+      // Zero means unmeasured; never replace logged progress with the length estimate.
+      const hoursPlayed = progress.hoursPlayed ?? game.hoursPlayed;
+      const finalLengthHours = Math.max(lengthHours, hoursPlayed);
 
-    await prisma.game.update({
-      where: { id, userId },
-      data: {
+      await updateGameWithActivity(tx, userId, game, {
         status: "Completed",
         pinnedOrder: null,
         lengthHours: finalLengthHours,
@@ -811,7 +800,7 @@ export async function completeGame(formData: FormData) {
         earnedXp: calculateEarnedXp("Completed", finalLengthHours, difficulty),
         ...progress,
         hoursPlayed,
-      },
+      });
     });
 
     await syncAndGetAchievements(userId);

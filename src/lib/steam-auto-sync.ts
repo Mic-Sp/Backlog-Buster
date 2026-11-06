@@ -2,7 +2,6 @@ import "server-only";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { syncSteamLibraryForSession, type SteamAutoSyncClaim } from "@/lib/library-vault";
-import { syncAndGetAchievements } from "@/lib/achievements";
 
 /** Called only after the workspace response; no cookies/headers are read here. */
 export async function autoSyncSteamLibrary(userId: string, tokenHash: string): Promise<boolean> {
@@ -27,7 +26,6 @@ export async function autoSyncSteamLibrary(userId: string, tokenHash: string): P
     const claim = claims[0];
     if (!claim) return false;
     await syncSteamLibraryForSession({ identifier: claim.steamId, includeUnplayed: false, updateHoursPlayed: true }, { userId, tokenHash }, claim);
-    await syncAndGetAchievements(userId);
     revalidatePath("/");
     return true;
   } catch {

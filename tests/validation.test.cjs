@@ -62,8 +62,8 @@ test("all game actions return structured errors for invalid inputs and infrastru
   const prisma = {
     game: {
       create: async ({ data }) => { created.push(data); return { ...data, id: created.length }; },
-      findUniqueOrThrow: async () => ({ status: "Playing", hoursPlayed: 3 }),
-      update: async ({ data }) => updated.push(data),
+      findUniqueOrThrow: async () => ({ id: 42, title: "Old title", platform: "PC", status: "Playing", rating: null, activityRevision: 0, hoursPlayed: 3 }),
+      update: async ({ data }) => { updated.push(data); return { id: 42, title: "Old title", platform: "PC", status: "Playing", rating: null, activityRevision: 0, ...data }; },
       delete: async () => { throw new Error("private database connection detail"); },
     },
     $transaction: async () => { throw new Error("private database connection detail"); },
@@ -86,6 +86,8 @@ test("all game actions return structured errors for invalid inputs and infrastru
   for (const key of ["genre", "franchise", "coverUrl", "releaseYear"]) assert.equal(created[0][key], null);
   const metadata = { ...base, id: " 42 ", status: " Playing ", lengthHours: "20", difficulty: "2", hoursPlayed: " ", rating: " ", notes: " " };
   assert.deepEqual(await actions.updateGame(form({ ...metadata, title: " " })), { error: "Please input a valid title." }); assert.equal(updated.length, 0);
+  prisma.$transaction = async work => work(prisma);
+  prisma.$executeRaw = async () => 1;
   assert.deepEqual(await actions.updateGame(form(metadata)), { success: true });
   assert.equal(updated[0].title, "Alan Wake"); assert.equal(updated[0].hoursPlayed, 0); assert.equal(updated[0].rating, null); assert.equal(updated[0].notes, null);
   const failure = await actions.deleteGame(form({ id: "42" })); assert.equal(typeof failure.error, "string"); assert(!failure.error.includes("private database"));
@@ -110,13 +112,13 @@ test("AI route returns inline JSON errors for blank titles and failed authentica
 });
 
 test("starting a pinned gig atomically advances only its owner's remaining deck and rolls back on failure", async () => {
-  const initial = [1,2,3].map(id=>({id,userId:'owner',status:'Backlog',pinnedOrder:id,lengthHours:10,difficulty:1}));
+  const initial = [1,2,3].map(id=>({id,userId:'owner',status:'Backlog',pinnedOrder:id,lengthHours:10,difficulty:1,title:'Game',platform:'PC',rating:null,activityRevision:0,hoursPlayed:0}));
   initial.push({id:4,userId:'owner',status:'Backlog',pinnedOrder:null},{id:5,userId:'other',status:'Backlog',pinnedOrder:1});
   let games=structuredClone(initial), fail=false, synced=0, refreshed=0, locked=0;
-  const tx={$executeRaw:async(_sql,key)=>{assert.equal(key,'backlogbuster-deck:owner');locked++;},game:{
-    findUniqueOrThrow:async({where})=>{assert.equal(where.userId,'owner');const game=games.find(g=>g.id===where.id&&g.userId===where.userId);if(!game)throw Error('Missing game');return{pinnedOrder:game.pinnedOrder};},
+  const tx={player:{findFirst:async()=>({id:'owner'})},activityEvent:{createMany:async({data})=>({count:data.length})},$executeRaw:async(_sql,key)=>{assert.equal(key,'backlogbuster-deck:owner');locked++;},game:{
+    findUniqueOrThrow:async({where})=>{assert.equal(where.userId,'owner');const game=games.find(g=>g.id===where.id&&g.userId===where.userId);if(!game)throw Error('Missing game');return{...game};},
     findMany:async({where,orderBy})=>{assert.deepEqual(where,{userId:'owner',status:'Backlog',pinnedOrder:{not:null}});assert.deepEqual(orderBy,[{pinnedOrder:'asc'},{id:'asc'}]);return games.filter(g=>g.userId==='owner'&&g.status==='Backlog'&&g.pinnedOrder!==null).sort((a,b)=>a.pinnedOrder-b.pinnedOrder).map(g=>({id:g.id}));},
-    update:async({where,data})=>{assert.equal(where.userId,'owner');const game=games.find(g=>g.id===where.id&&g.userId===where.userId);assert(game);Object.assign(game,data);if(fail&&data.pinnedOrder===1)throw Error('Database failed');return game;},
+    update:async({where,data})=>{assert.equal(where.userId,'owner');const game=games.find(g=>g.id===where.id&&g.userId===where.userId);assert(game);const revision=game.activityRevision;Object.assign(game,data);if(data.activityRevision?.increment)game.activityRevision=revision+1;if(fail&&data.pinnedOrder===1)throw Error('Database failed');return game;},
   }};
   const actions=loader({'next/cache':{revalidatePath:()=>refreshed++},'@/lib/prisma':{prisma:{$transaction:async work=>{const before=structuredClone(games);try{return await work(tx);}catch(error){games=before;throw error;}}}},'@/lib/player':{getAuthenticatedPlayerId:async()=> 'owner'},'@/lib/achievements':{syncAndGetAchievements:async()=>synced++},'@/lib/rawg':{},'@/lib/recommendations':{}})('src/app/actions.ts');
   for(const id of [1,2,3]){

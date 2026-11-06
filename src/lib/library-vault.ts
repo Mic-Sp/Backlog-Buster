@@ -10,6 +10,9 @@ import { fetchSteamLibrary, parseSteamIdentifier, type SteamOwnedGame } from "@/
 import { guardedRequest } from "@/lib/api-resilience";
 import { normalizeGameTitle } from "@/lib/game-title";
 import type { Prisma } from "@/generated/prisma/client";
+import { randomUUID } from "node:crypto";
+import { appendActivityEvents } from "@/lib/activity-events";
+import { syncAchievementsForPlayer } from "@/lib/achievements";
 
 async function requireVaultSession() {
   const tokenHash = await readSessionHash();
@@ -88,6 +91,11 @@ export async function importLibraryGames(payload: LibraryImportPayload) {
     }
     // Construct ownership here, after validation; no uploaded ID is ever spread into a write.
     const result = unique.length ? await tx.game.createMany({ data: unique.map(game => ({ ...game, userId: player.id })) }) : { count: 0 };
+    if (result.count) {
+      await syncAchievementsForPlayer(tx, player.id, false);
+      await appendActivityEvents(tx, player.id, [{ type: "library_imported", deduplicationKey: `import:${randomUUID()}`,
+        metadata: { source: payload.mode === "titles" ? "titles" : "backup", importedCount: result.count } }]);
+    }
     const duplicateCount = records.length - unique.length;
     return { importedCount: result.count, duplicateCount, invalidCount, skippedCount: duplicateCount + invalidCount };
   }, { timeout: 15000 });
@@ -232,6 +240,8 @@ export async function syncSteamLibraryForSession(payload: SteamSyncPayload, sess
         `;
       }
       await tx.player.update({ where: { id: userId }, data: { steamId: library.steamId, steamLastSyncedAt: new Date() }, select: { id: true } });
+      // Manual and automatic Steam work stay quiet, including newly earned unlocks.
+      await syncAchievementsForPlayer(tx, userId, false);
       return { steamId: library.steamId, addedCount, updatedCount, skippedCount: library.games.length - addedCount - updatedCount };
     }, { timeout: 15000 });
     return { userId, summary };

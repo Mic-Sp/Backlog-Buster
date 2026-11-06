@@ -111,6 +111,7 @@ function fixture(initial = [], snapshot = [], options = {}) {
     },
   };
   const load = loader({
+    "@/lib/achievements": { syncAchievementsForPlayer: async (_tx, id, emit) => { assert.equal(id, "owner"); assert.equal(emit, false); } },
     "@/lib/prisma": { prisma }, "@/lib/auth-session": { readSessionHash: async () => token },
     "@/lib/api-resilience": { guardedRequest: async (id, feature, input, work) => {
       assert.equal(id, "owner"); assert(["steam-sync", "steam-auto-sync"].includes(feature)); guardCalls.push({ feature, input: JSON.parse(input) }); return work();
@@ -254,7 +255,7 @@ test("matching is repeated under the lock and batch updates retain concurrently 
   assert.deepEqual(results.map(result => result.summary.addedCount), [1, 0]); assert.equal(parallel.games.length, 1);
 });
 
-test("server action syncs achievements once, revalidates once and exposes only the summary", async () => {
+test("server action delegates quiet transactional achievement sync to the vault and exposes only the summary", async () => {
   const calls = [];
   const summary = { steamId, addedCount: 3, updatedCount: 2, skippedCount: 1 };
   let fail = false;
@@ -265,9 +266,9 @@ test("server action syncs achievements once, revalidates once and exposes only t
     "@/lib/prisma": {}, "@/lib/player": {}, "@/lib/rawg": {}, "@/lib/recommendations": {},
   })("src/app/actions.ts");
   assert.deepEqual(await actions.syncSteamLibrary(request()), summary);
-  assert.deepEqual(calls, [["achievements", "owner"], ["refresh", "/"]]);
+  assert.deepEqual(calls, [["refresh", "/"]]);
   fail = true; const result = await actions.syncSteamLibrary(request()); assert(result.error); assert(!result.error.includes("private"));
-  assert.equal(calls.length, 2);
+  assert.equal(calls.length, 1);
 });
 
 test("background sync reuses safe writes and has a separate short cooldown from manual sync", async () => {

@@ -17,13 +17,13 @@ function loader(mocks = {}) {
 
 test('public dossier only queries public fields, normalizes handles, and returns summaries without secrets', async () => {
   let lookups=0, absent=false, selections=[2,null,1];
-  const profile={id:'DO_NOT_EXPOSE_PLAYER_ID',email:'DO_NOT_EXPOSE_EMAIL',passwordHash:'DO_NOT_EXPOSE_HASH',sessions:['DO_NOT_EXPOSE_SESSION'],operatorName:'Ghost',handle:'ghost-runner',tagline:'One more gig.',neonAccent:'GOLD',avatarUrl:'preset:kitsune',
+  const profile={id:'DO_NOT_EXPOSE_PLAYER_ID',email:'DO_NOT_EXPOSE_EMAIL',passwordHash:'DO_NOT_EXPOSE_HASH',sessions:['DO_NOT_EXPOSE_SESSION'],operatorName:'Ghost',handle:'ghost-runner',profileVisibility:'public',tagline:'One more gig.',neonAccent:'GOLD',avatarUrl:'preset:kitsune',
     games:[{status:'Completed',lengthHours:20,hoursPlayed:0,rating:5,earnedXp:400},{status:'Completed',lengthHours:30,hoursPlayed:40,rating:5,earnedXp:800},{status:'Playing',lengthHours:10,hoursPlayed:3,rating:null,earnedXp:0},{status:'Backlog',lengthHours:100,hoursPlayed:99,rating:null,earnedXp:0},{status:'Flatlined',lengthHours:10,hoursPlayed:2,rating:3,earnedXp:0}],
     userAchievements:[{achievementKey:'first-blood',xpAwarded:100,unlockedAt:new Date('2026-01-01Z')}],
   };
   const inspect = select => {const text=JSON.stringify(select);for(const field of ['email','passwordHash','sessions','notes','tokenHash'])assert(!text.includes(`"${field}"`),field);};
   const prisma={player:{findFirst:async ({where,select})=>{lookups++;inspect(select);assert.deepEqual(where.handle,{equals:'ghost-runner',mode:'insensitive'});return absent?null:{...profile,featuredTrophyIds:selections};}},game:{findMany:async ({where,select,take})=>{inspect(select);assert.equal(take,3);assert.equal(where.player.handle.equals,'ghost-runner');assert.equal(where.status,'Completed');assert.equal(where.rating,5);if(selections.length)assert.deepEqual(where.id.in,selections.filter(id=>typeof id==='number'));return selections.length && selections.every(id=>id==null)?[]:[{id:1,title:'Chosen Trophy',platform:'PC',coverUrl:'https://cdn.example/one.png',earnedXp:400,notes:'DO_NOT_EXPOSE_NOTES'}];}}};
-  const load=loader({'@/lib/prisma':{prisma},'@/lib/player':{getCurrentPlayerId:()=>{throw Error('Public visitors cannot read sessions');}},'@/lib/dossier-artwork':{fetchDossierArtwork:async()=>{throw Error('offline');}}});
+  const load=loader({'@/lib/prisma':{prisma},'@/lib/player':{getOptionalAuthenticatedPlayerId:async()=>null,getCurrentPlayerId:()=>{throw Error('Public visitors cannot use the local archive identity');}},'@/lib/dossier-artwork':{fetchDossierArtwork:async()=>{throw Error('offline');}}});
   const {getPublicDossier,getPublicDossierArtwork}=load('src/lib/public-dossier.ts');
   for(const value of ['', ' ', undefined, 'not/valid', '%ZZ']) assert.equal(await getPublicDossier(value),null);assert.equal(lookups,0);
   const dossier=await getPublicDossier('%20GHOST-RUNNER%20');

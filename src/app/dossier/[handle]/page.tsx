@@ -7,11 +7,15 @@ import { notFound } from "next/navigation";
 import { getPublicDossier, getPublicDossierArtwork } from "@/lib/public-dossier";
 import PublicDossierCard from "@/components/PublicDossierCard";
 import DossierSignalLost from "@/components/DossierSignalLost";
+import { getDossierSocialContext } from "@/lib/social";
+import DossierRelationshipControls from "@/components/SocialControls";
 
+// React cache is request-scoped: access decisions must never be shared across viewers.
 const readDossier = cache(getPublicDossier);
 
 export async function generateMetadata({ params }: { params: Promise<{ handle: string }> }) {
   try {
+    await connection();
     const { handle } = await params;
     return buildDossierMetadata(await readDossier(handle));
   } catch {
@@ -26,6 +30,7 @@ async function Dossier({ params }: { params: Promise<{ handle: string }> }) {
   try { dossier = await readDossier(handle); }
   catch { return <DossierSignalLost unavailable />; }
   if (!dossier) notFound();
+  const relationship = await getDossierSocialContext(dossier.identity.handle).catch(() => null);
   const artwork = await getPublicDossierArtwork(dossier);
   return <main className="public-dossier-page">
     <section className="public-dossier-frame" aria-label={`${dossier.identity.callsign} public dossier`}>
@@ -34,6 +39,7 @@ async function Dossier({ params }: { params: Promise<{ handle: string }> }) {
         <h1>@{dossier.identity.handle}</h1>
         <ThemeToggle />
       </header>
+      {relationship && <DossierRelationshipControls key={`${relationship.target.id}:${relationship.relationship}`} context={relationship} />}
       <PublicDossierCard dossier={dossier} artwork={artwork} timestamp={new Date().toISOString()} />
       <footer className="public-dossier-footer"><Link className="public-dossier-gateway" href="/" prefetch={false}>⚡ INITIALIZE YOUR OWN ARCHIVE // BACKLOG BUSTER</Link></footer>
     </section>

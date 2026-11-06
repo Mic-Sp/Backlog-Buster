@@ -3610,3 +3610,124 @@ button.deck-start-button:focus-visible {
 }
 .member-count strong { color: #fcee0a; font-size: 16px; }
 .member-count > span { color: #00f0ff; }
+
+/* Shared social workspace. Native dialog supplies focus containment and background inertness. */
+:root { --social-bg: #0b1220; --social-card: #111d2d; --social-ink: #edf4ff; --social-muted: #a0b2c9; --social-line: #2c4056; --social-accent: #73e7da; --social-soft: #73e7da12; --social-error: #ffaaa7; }
+.social-trigger { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 9px 14px; border: 1px solid #457d80; border-radius: 4px; color: #9cf2e7; background: #0c222b; font: 700 11px/1.3 "Courier New", monospace; letter-spacing: .04em; cursor: pointer; }
+.social-trigger > span { font-size: 21px; line-height: 1; }
+.social-dialog { width: min(920px, calc(100% - 32px)); max-width: none; max-height: 96dvh; padding: 0; margin: auto; border: 1px solid var(--social-line); border-radius: 14px; background: var(--social-bg); color: var(--social-ink); box-shadow: 0 32px 100px #0009; font: 14px/1.55 "Trebuchet MS", sans-serif; }
+.social-dialog::backdrop { background: #020817da; backdrop-filter: blur(7px); }
+.social-dialog-inner { height: min(790px, 92dvh); display: flex; flex-direction: column; min-width: 0; }
+.social-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; padding: 25px 28px 22px; border-bottom: 1px solid var(--social-line); }
+.social-heading h2 { margin: 4px 0 6px; color: var(--social-ink); font-size: clamp(28px, 4vw, 36px); font-weight: 600; letter-spacing: -.025em; line-height: 1.15; }
+.social-heading p { margin: 0; color: var(--social-muted); }
+.social-dialog .social-eyebrow { margin: 0 0 5px; color: var(--social-accent); font: 700 10px/1.5 "Courier New", monospace; letter-spacing: .12em; }
+.social-dialog button, .dossier-social-controls button, .social-visibility select { min-height: 36px; padding: 7px 12px; border: 1px solid var(--social-line); border-radius: 5px; color: var(--social-ink); background: var(--social-card); font: inherit; font-size: 12px; cursor: pointer; }
+.social-dialog button:hover:not(:disabled), .dossier-social-controls button:hover:not(:disabled) { border-color: var(--social-accent); background: var(--social-soft); }
+.social-dialog button:disabled, .social-visibility select:disabled, .dossier-social-controls button:disabled { opacity: .55; cursor: wait; }
+.social-dialog :is(button, a, input, select, summary):focus-visible, .dossier-social-controls :is(button, a, summary):focus-visible, .social-visibility select:focus-visible { outline: 2px solid var(--social-accent); outline-offset: 3px; }
+.social-dialog button.social-primary, .dossier-social-controls button.social-primary { background: var(--social-accent); color: var(--social-primary-ink, var(--social-bg)); border-color: var(--social-accent); font-weight: 700; }
+.social-dialog button.social-primary:hover:not(:disabled), .dossier-social-controls button.social-primary:hover:not(:disabled) { background: var(--social-accent); color: var(--social-primary-ink, var(--social-bg)); filter: brightness(1.08); }
+.social-dialog .social-close { flex: 0 0 auto; width: 36px; padding: 4px; font-size: 19px; background: transparent; }
+.social-tabs { display: grid; grid-template-columns: repeat(3, 1fr); border-bottom: 1px solid var(--social-line); padding: 0 22px; gap: 14px; }
+.social-dialog .social-tabs button { position: relative; padding: 16px 8px; border: 0; border-radius: 0; background: transparent; color: var(--social-muted); font-size: 13px; font-weight: 700; }
+.social-dialog .social-tabs button[aria-selected="true"] { color: var(--social-accent); box-shadow: inset 0 -3px var(--social-accent); }
+.social-count { display: inline-flex; align-items: center; justify-content: center; margin-left: 6px; min-width: 19px; height: 19px; border-radius: 50%; background: var(--social-accent); color: var(--social-bg); font-size: 10px; }
+.social-content { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 25px 28px; scrollbar-color: var(--social-line) transparent; }
+.social-section-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 22px; margin-bottom: 20px; }
+.social-section-heading h3 { margin: 3px 0 6px; color: var(--social-ink); font-size: 23px; font-weight: 600; letter-spacing: -.02em; line-height: 1.3; }
+.social-section-heading p { margin: 0; color: var(--social-muted); font-size: 12px; }
+.social-visibility { max-width: 100%; color: var(--social-ink); }
+.social-section-heading .social-visibility { width: 260px; flex: 0 0 260px; padding: 12px; border: 1px solid var(--social-line); border-radius: 7px; background: var(--social-card); }
+.social-visibility label { display: grid; gap: 6px; color: var(--social-ink); font-size: 11px; font-weight: 700; }
+.social-visibility select { width: 100%; color-scheme: dark; }
+.social-visibility small { display: block; margin-top: 7px; color: var(--social-muted); font-size: 11px; font-weight: 400; line-height: 1.5; }
+.dossier-customize > .social-visibility { margin: 16px 0; }
+.social-search { display: grid; gap: 7px; font-size: 12px; color: var(--social-muted); }
+.social-dialog .social-search input { width: 100%; min-width: 0; border: 1px solid var(--social-line); border-radius: 7px; padding: 12px 14px; background: var(--social-card); color: var(--social-ink); font: inherit; }
+.social-search input::placeholder { color: var(--social-muted); opacity: .8; }
+.social-list-filters { display: flex; gap: 8px; flex-wrap: wrap; margin: 23px 0 14px; }
+.social-list-filters button { display: flex; gap: 12px; align-items: center; }
+.social-list-filters button[aria-pressed="true"] { border-color: var(--social-accent); color: var(--social-accent); background: var(--social-soft); }
+.social-list-filters button span { font-size: 11px; color: var(--social-muted); }
+.social-player-list, .social-activity-list, .social-matches > ul { list-style: none; padding: 0; margin: 0; }
+.social-player-row { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; align-items: center; gap: 13px; padding: 16px 0; border-bottom: 1px solid var(--social-line); }
+.social-avatar { width: 40px; height: 40px; object-fit: cover; border: 1px solid var(--social-line); border-radius: 10px; flex: 0 0 40px; }
+.social-player-identity { min-width: 0; display: grid; gap: 2px; overflow-wrap: anywhere; }
+.social-player-identity strong { color: var(--social-ink); font-size: 14px; font-weight: 600; }
+.social-player-identity > span, .social-player-identity > small { color: var(--social-muted); font-size: 11px; }
+.social-dialog a { color: var(--social-accent); text-underline-offset: 3px; }
+.social-player-identity a { width: fit-content; font-size: 11px; margin-top: 3px; }
+.social-row-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.social-relationship { min-width: 0; }
+.social-relationship > small { display: block; margin-top: 5px; color: var(--social-muted); font-size: 10px; }
+.social-badge { display: inline-flex; align-items: center; border: 1px solid var(--social-line); padding: 5px 9px; border-radius: 4px; font-size: 11px; line-height: 1.5; color: var(--social-muted); }
+.social-badge-friend { color: var(--social-accent); border-color: var(--social-line); background: var(--social-soft); }
+.social-manage { position: relative; }
+.social-manage > summary { padding: 7px; color: var(--social-muted); font-size: 11px; cursor: pointer; }
+.social-manage > div { position: absolute; top: 100%; right: 0; z-index: 2; display: grid; gap: 5px; width: 160px; padding: 7px; border: 1px solid var(--social-line); border-radius: 6px; background: var(--social-bg); box-shadow: 0 8px 20px #0004; }
+.social-empty { padding: 35px 20px; text-align: center; color: var(--social-muted); }
+.social-empty > span { display: block; color: var(--social-accent); font-size: 38px; line-height: 1.3; opacity: .85; }
+.social-empty h3, .social-empty h4 { margin: 10px 0 8px; color: var(--social-ink); font-size: 19px; font-weight: 500; }
+.social-empty p { max-width: 410px; margin: 0 auto 10px; font-size: 13px; }
+.social-discovery { padding: 15px 0; }
+.social-discovery h4 { margin: 0; color: var(--social-muted); font-size: 12px; }
+.social-error { padding: 11px 12px; margin: 10px 0; border: 1px solid var(--social-error); border-radius: 5px; color: var(--social-error); font-size: 12px; overflow-wrap: anywhere; }
+.social-error p { margin: 0 0 8px; }
+.social-hint, .social-loading { color: var(--social-muted); font-size: 12px; }
+.social-loading { padding: 25px 0; }
+.social-footer { display: flex; justify-content: space-between; gap: 12px; padding: 13px 28px; border-top: 1px solid var(--social-line); color: var(--social-muted); font: 10px/1.5 "Courier New", monospace; }
+.social-footer > span:first-child { color: var(--social-accent); letter-spacing: .1em; }
+.social-activity-row { display: flex; align-items: flex-start; gap: 14px; border-bottom: 1px solid var(--social-line); padding: 20px 0; }
+.social-activity-row > div { flex: 1; min-width: 0; }
+.social-activity-row p { margin: 0 0 6px; color: var(--social-ink); overflow-wrap: anywhere; font-size: 14px; }
+.social-activity-row a { font-weight: 700; }
+.social-activity-row time { color: var(--social-muted); font-size: 11px; }
+.social-activity-icon { color: var(--social-accent); font-size: 19px; }
+.social-dialog .social-load-more { display: block; margin: 20px auto 0; min-width: 160px; }
+.social-friend-picker { display: flex; flex-wrap: wrap; gap: 9px; margin: 0; padding: 15px 0; border: 0; }
+.social-friend-picker legend { font-size: 12px; color: var(--social-muted); margin-bottom: 7px; }
+.social-friend-picker label { display: flex; align-items: center; gap: 9px; max-width: 100%; padding: 9px 12px; border: 1px solid var(--social-line); border-radius: 6px; background: var(--social-card); font-size: 12px; overflow-wrap: anywhere; cursor: pointer; }
+.social-friend-picker label[data-selected="true"] { border-color: var(--social-accent); background: var(--social-soft); }
+.social-dialog input[type="checkbox"] { accent-color: var(--social-accent); width: 15px; height: 15px; flex: 0 0 15px; margin: 0; }
+.social-match-options { display: grid; gap: 11px; margin: 12px 0 20px; }
+.social-match-options label { display: flex; align-items: center; gap: 10px; color: var(--social-muted); font-size: 12px; }
+.social-compare { min-width: 180px; }
+.social-match-count { margin: 24px 0 14px; color: var(--social-muted); font-size: 12px; }
+.social-match-card { padding: 18px; margin: 0 0 14px; border: 1px solid var(--social-line); border-radius: 9px; background: var(--social-card); }
+.social-match-title { display: flex; align-items: center; gap: 15px; margin-bottom: 18px; }
+.social-match-title > img { border-radius: 5px; width: 60px; height: 80px; object-fit: cover; }
+.social-match-title > div { min-width: 0; }
+.social-match-title h4 { margin: 0 0 4px; color: var(--social-ink); font-size: 19px; font-weight: 600; overflow-wrap: anywhere; }
+.social-match-title > div > span { color: var(--social-muted); font-size: 11px; }
+.social-capabilities { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.social-capabilities > span { color: var(--social-accent); background: var(--social-soft); padding: 3px 7px; border-radius: 4px; font-size: 10px; }
+.social-capabilities > span[data-unknown] { color: var(--social-muted); }
+.social-participants { list-style: none; padding: 0; margin: 0; }
+.social-participants li { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) 85px 85px; gap: 8px; padding: 8px 0; border-top: 1px solid var(--social-line); font-size: 11px; color: var(--social-muted); overflow-wrap: anywhere; }
+.social-participants strong { color: var(--social-ink); font-weight: 600; }
+.social-match-note { margin: 13px 0 0; color: var(--social-muted); font-size: 10px; line-height: 1.5; }
+.dossier-social-controls { padding: 14px 0; }
+.dossier-social-controls .social-row-actions { justify-content: flex-start; }
+.dossier-social-controls .social-relationship { font-family: "Trebuchet MS", sans-serif; }
+@media (max-width: 600px) {
+  .social-dialog { width: calc(100% - 16px); border-radius: 10px; }
+  .social-dialog-inner { height: 94dvh; }
+  .social-heading { padding: 20px 18px 17px; }
+  .social-tabs { padding: 0 8px; gap: 3px; }
+  .social-dialog .social-tabs button { padding: 14px 3px; font-size: 11px; }
+  .social-count { margin-left: 3px; min-width: 16px; height: 16px; font-size: 9px; }
+  .social-content { padding: 20px 18px; }
+  .social-section-heading { flex-direction: column; gap: 16px; }
+  .social-section-heading .social-visibility { width: 100%; flex-basis: auto; }
+  .social-player-row { grid-template-columns: 36px minmax(0, 1fr); gap: 10px; }
+  .social-avatar { width: 36px; height: 36px; flex-basis: 36px; }
+  .social-player-row > .social-relationship { grid-column: 2; }
+  .social-row-actions { justify-content: flex-start; }
+  .social-footer { padding: 12px 18px; font-size: 9px; flex-wrap: wrap; gap: 3px 8px; }
+  .social-match-card { padding: 13px; }
+  .social-participants li { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 3px 10px; padding: 11px 0; }
+  .social-participants li > span:last-child { text-align: right; }
+  .social-empty { padding: 25px 4px; }
+  .social-empty h4 { font-size: 17px; }
+}

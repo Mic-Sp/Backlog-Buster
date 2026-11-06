@@ -3,6 +3,10 @@ import type { PublicDossier } from "@/lib/public-dossier";
 
 export function buildDossierMetadata(dossier: PublicDossier | null): Metadata {
   if (!dossier) return { title: "SIGNAL LOST // Operator Not Found — Backlog Buster", robots: { index: false, follow: false } };
+  // Share previews never include restricted identity, library summaries or activity.
+  if (dossier.visibility && dossier.visibility !== "public") return {
+    title: "Operator Dossier — Backlog Buster", robots: { index: false, follow: false },
+  };
   const { callsign, handle } = dossier.identity;
   const { level, counts, totalXp } = dossier.card;
   const title = `${callsign} (@${handle}) // LV ${level} Netrunner Dossier — Backlog Buster`;

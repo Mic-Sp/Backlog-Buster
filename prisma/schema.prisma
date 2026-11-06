@@ -9,6 +9,27 @@ datasource db {
   provider = "postgresql"
 }
 
+enum ProfileVisibility {
+  public
+  friends
+  private
+}
+
+enum FriendshipStatus {
+  pending
+  accepted
+  blocked
+}
+
+enum ActivityEventType {
+  game_started
+  game_completed
+  game_flatlined
+  rating_logged
+  achievement_unlocked
+  library_imported
+}
+
 model Player {
   id                String            @id @default(cuid())
   email             String?           @unique
@@ -17,6 +38,8 @@ model Player {
   // Singleton and immutable-owner constraints live in owner-constraints.sql.
   isOwner           Boolean           @default(false)
   handle            String?           @unique
+  // Shared audience for the dossier and future activity; private is owner-only.
+  profileVisibility ProfileVisibility @default(public)
   // Public profile identifier only; this is not proof of Steam account ownership.
   steamId           String?
   steamLastSyncedAt  DateTime?
@@ -33,6 +56,52 @@ model Player {
   games             Game[]
   userAchievements  UserAchievement[]
   sessions          PlayerSession[]
+  friendshipsLow    Friendship[]      @relation("FriendshipLow")
+  friendshipsHigh   Friendship[]      @relation("FriendshipHigh")
+  activityEvents    ActivityEvent[]
+}
+
+// Append-only apart from deletion of source data/account resets. Apply
+// activity-event-constraints.sql after db push for immutable rows and source checks.
+model ActivityEvent {
+  id               String            @id @default(cuid())
+  actorId          String
+  actor            Player            @relation(fields: [actorId], references: [id], onDelete: Cascade)
+  type             ActivityEventType
+  metadata         Json
+  createdAt        DateTime          @default(now())
+  deduplicationKey String
+  gameId           Int?
+  game             Game?             @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  achievementId    Int?
+  achievement      UserAchievement?  @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+
+  @@unique([actorId, deduplicationKey])
+  @@index([actorId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([createdAt(sort: Desc), id(sort: Desc)])
+  @@index([gameId])
+  @@index([achievementId])
+}
+
+// IDs are sorted before writes. Apply friendship-constraints.sql after db push
+// to enforce canonical ordering and valid states at the database boundary too.
+model Friendship {
+  playerLowId   String
+  playerHighId  String
+  playerLow     Player           @relation("FriendshipLow", fields: [playerLowId], references: [id], onDelete: Cascade)
+  playerHigh    Player           @relation("FriendshipHigh", fields: [playerHighId], references: [id], onDelete: Cascade)
+  status        FriendshipStatus @default(pending)
+  // Must be one of the pair for pending/accepted, and null for blocks.
+  requestedById String?
+  // Independent ownership allows reciprocal blocks without duplicate pair rows.
+  blockedByLow  Boolean          @default(false)
+  blockedByHigh Boolean          @default(false)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@id([playerLowId, playerHighId])
+  @@index([playerHighId, status])
+  @@index([playerLowId, status])
 }
 
 model PlayerSession {
@@ -128,6 +197,8 @@ model Game {
   title       String
   platform    String
   status      String   @default("Backlog")
+  // Advances only for status/rating changes, including silent returns to Backlog.
+  activityRevision Int @default(0)
   wasFlatlined Boolean @default(false)
   pinnedOrder Int?
   backlogOrder Int?
@@ -146,6 +217,7 @@ model Game {
 
   // Decimal AppID string avoids signed-Int limits; null for non-Steam copies.
   steamAppId  String?
+  activityEvents ActivityEvent[]
 
   @@index([userId])
   @@unique([userId, steamAppId])
@@ -158,6 +230,7 @@ model UserAchievement {
   achievementKey String
   xpAwarded      Int
   unlockedAt     DateTime @default(now())
+  activityEvents ActivityEvent[]
 
   @@unique([userId, achievementKey])
 }

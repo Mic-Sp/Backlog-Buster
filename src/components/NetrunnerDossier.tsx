@@ -14,10 +14,12 @@ import NetrunnerIdCard from "@/components/NetrunnerIdCard";
 import { dossierAccents, dossierIdentityFromProfile, type DossierAccent, type DossierData, type DossierIdentity } from "@/lib/dossier";
 import { savePlayerProfile } from "@/app/profile-actions";
 import type { PlayerProfile } from "@/lib/player-profile-types";
+import { HANDLE_HELP, HANDLE_INPUT_PATTERN, HANDLE_MAX_LENGTH } from "@/lib/handle-validation";
+import { ProfileVisibilityControl } from "@/components/SocialControls";
 import { captureDossierPng, downloadDossier, loadDossierArtwork } from "@/lib/dossier-snapshot";
 import "./NetrunnerDossier.css";
 
-export default function NetrunnerDossier({ data }: { data: DossierData }) {
+export default function NetrunnerDossier({ data, socialEnabled = true }: { data: DossierData; socialEnabled?: boolean }) {
   const copy = useLayoutCopy();
   const { layoutMode } = useUIEffects();
   const [isOpen, setIsOpen] = useState(false);
@@ -263,6 +265,7 @@ export default function NetrunnerDossier({ data }: { data: DossierData }) {
 
             <details className="dossier-customize" ref={customizeRef} open>
               <summary>{copy("⚙ PERSONALIZE IDENTITY", "✎ PERSONALIZE YOUR CODEX")}</summary>
+              {socialEnabled && <ProfileVisibilityControl key={data.profile.profileVisibility} initialValue={data.profile.profileVisibility} />}
               <fieldset disabled={busy || closing || saveStatus === "saving"}>
                 <legend className="dossier-sr-only">Customize your shareable identity card</legend>
                 <div className="dossier-avatar-controls">
@@ -277,7 +280,7 @@ export default function NetrunnerDossier({ data }: { data: DossierData }) {
                 </div>
                 <div className="dossier-identity-fields">
                   <label>{copy("Operator name", "Adventurer name")}<input name="callsign" value={identity.callsign} maxLength={28} placeholder={copy("ANONYMOUS NETRUNNER", "UNNAMED ADVENTURER")} onChange={(event) => customize({ ...identity, callsign: event.target.value })} /></label>
-                  <label>{copy("Handle", "Adventurer alias")} <span>(optional)</span><input ref={handleInputRef} name="handle" value={identity.handle} maxLength={32} autoComplete="off" autoCapitalize="none" spellCheck={false} placeholder={copy("night-city-runner", "hero-of-time")} aria-describedby={`${titleId}-handle-help`} onChange={(event) => customize({ ...identity, handle: event.target.value })} /><small id={`${titleId}-handle-help`}>3–32 lowercase letters, numbers or hyphens.</small>{handlePrompt && <span className="dossier-handle-prompt" role="alert">{handlePrompt}</span>}</label>
+                  <label>{copy("Handle", "Adventurer alias")} <span>(optional)</span><input ref={handleInputRef} name="handle" value={identity.handle} maxLength={HANDLE_MAX_LENGTH} pattern={HANDLE_INPUT_PATTERN} autoComplete="off" autoCapitalize="none" spellCheck={false} placeholder={copy("night-city-runner", "hero-of-time")} aria-describedby={`${titleId}-handle-help`} onChange={(event) => customize({ ...identity, handle: event.target.value })} /><small id={`${titleId}-handle-help`}>{HANDLE_HELP}</small>{handlePrompt && <span className="dossier-handle-prompt" role="alert">{handlePrompt}</span>}</label>
                   <label>Personal tagline<input name="tagline" value={identity.tagline} maxLength={64} onChange={(event) => customize({ ...identity, tagline: event.target.value })} /></label>
                   <label>{copy("Neon accent", "Heraldic accent")}<select aria-label={copy("Neon accent", "Heraldic accent")} value={identity.accent} onChange={(event) => customize({ ...identity, accent: event.target.value as DossierAccent })}>{Object.keys(dossierAccents).map((accent) => <option key={accent} value={accent}>{accent.toUpperCase()}</option>)}</select></label>
                 </div>

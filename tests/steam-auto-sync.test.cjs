@@ -68,7 +68,7 @@ test("linked players sync once per rolling 24 hours, including the exact boundar
   assert.equal(await f.run(), false);
   f.advance(DAY - 1); assert.equal(await f.run(), false);
   f.advance(1); assert.equal(await f.run(), true);
-  assert.equal(f.syncs.length, 2); assert.deepEqual(f.achievements, ["owner", "owner"]); assert.deepEqual(f.refreshes, ["/", "/"]);
+  assert.equal(f.syncs.length, 2); assert.deepEqual(f.achievements, []); assert.deepEqual(f.refreshes, ["/", "/"]);
 });
 
 test("recent manual successes and recent automatic failures independently suppress automatic refresh", async t => {
@@ -85,7 +85,7 @@ test("parallel tabs and replicas produce only one successful database claim and 
   configured(t); const f = fixture();
   const results = await Promise.all(Array.from({ length: 30 }, () => f.run()));
   assert.equal(results.filter(Boolean).length, 1); assert.equal(f.syncs.length, 1);
-  assert.equal(f.achievements.length, 1); assert.equal(f.refreshes.length, 1);
+  assert.equal(f.achievements.length, 0); assert.equal(f.refreshes.length, 1);
 });
 
 test("unlinked, local and revoked sessions never start Steam work", async t => {

@@ -68,9 +68,12 @@ export async function resetOperatorLibrary(formData: FormData) {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended('backlogbuster-account-registration', 0))`;
         const active = await tx.playerSession.findUnique({ where: { tokenHash, userId: player.id, expiresAt: { gt: new Date() } }, select: { tokenHash: true } });
         if (!active) throw new InputError("Your session expired. Sign in again before resetting this archive.");
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`backlogbuster-deck:${player.id}`}, 0))`;
         // Lock the owner and reject credentials changed since password verification.
         // Everything else on the profile, including every device session, is retained.
         await tx.player.update({ where: { id: player.id, passwordHash: player.passwordHash, email: player.email! }, data: { featuredTrophyIds: [] }, select: { id: true } });
+        // Includes compact summaries with no game/achievement source relation.
+        await tx.activityEvent.deleteMany({ where: { actorId: player.id } });
         await tx.game.deleteMany({ where: { userId: player.id } });
         await tx.userAchievement.deleteMany({ where: { userId: player.id } });
       }, { timeout: 15000 });

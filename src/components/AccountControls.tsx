@@ -12,6 +12,7 @@ import type { CurrentPlayer } from "@/lib/player";
 import "./AccountControls.css";
 import useCooldown from "@/components/useCooldown";
 import { ThemeToggle } from "@/components/ThemeProvider";
+import { HANDLE_HELP, HANDLE_INPUT_PATTERN, HANDLE_MAX_LENGTH } from "@/lib/handle-validation";
 
 function LogoutButton() {
   const { pending } = useFormStatus();
@@ -102,7 +103,7 @@ function AuthPanel({ localArchive = false, onClose }: { localArchive?: boolean; 
         </div>
         <p className="auth-hint">8–128 characters. Passwords are salted and hashed on the server.</p>
         {mode === "register" && <>
-          <label>{copy("Handle", "Adventurer alias")} <span>(optional)</span><input name="handle" autoComplete="off" maxLength={24} pattern="[A-Za-z0-9][A-Za-z0-9_-]{2,23}" title="3–24 letters, numbers, underscores or hyphens" spellCheck={false} autoCapitalize="none" placeholder={copy("night-city-runner", "hero-of-time")} /></label>
+          <label>{copy("Handle", "Adventurer alias")} <span>(optional)</span><input name="handle" autoComplete="off" maxLength={HANDLE_MAX_LENGTH} pattern={HANDLE_INPUT_PATTERN} title={HANDLE_HELP} spellCheck={false} autoCapitalize="none" placeholder={copy("night-city-runner", "hero-of-time")} /></label>
           <label>{copy("Operator name", "Adventurer name")} <span>(optional)</span><input name="operatorName" autoComplete="nickname" maxLength={28} placeholder={copy("ANONYMOUS NETRUNNER", "UNNAMED ADVENTURER")} /></label>
         </>}
       </fieldset>

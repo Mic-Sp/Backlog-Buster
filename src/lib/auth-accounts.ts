@@ -2,6 +2,7 @@ import "server-only";
 import { InputError } from "@/lib/action-result";
 import { isValidPassword } from "@/lib/password-validation";
 import { isValidEmail, normalizeEmail } from "@/lib/email-validation";
+import { escapeLike, HANDLE_HELP, isValidHandle, normalizeHandle } from "@/lib/handle-validation";
 
 import { prisma } from "@/lib/prisma";
 
@@ -20,9 +21,9 @@ export function readCredentials(form: FormData, register = false): Registration 
     if (typeof handleValue === "string" && handleValue !== "" && !handleValue.trim()) throw new InputError("Enter a valid handle or leave it empty.");
     if (typeof nameValue === "string" && nameValue !== "" && !nameValue.trim()) throw new InputError("Enter a valid operator name or leave it empty.");
     if ((handleValue !== null && typeof handleValue !== "string") || (nameValue !== null && typeof nameValue !== "string")) throw new InputError("Enter a valid handle and operator name.");
-    handle = typeof handleValue === "string" ? handleValue.trim().toLowerCase() || null : null;
+    handle = typeof handleValue === "string" ? normalizeHandle(handleValue) || null : null;
     operatorName = typeof nameValue === "string" ? nameValue.trim() || null : null;
-    if (handle && !/^[a-z0-9][a-z0-9_-]{2,23}$/.test(handle)) throw new InputError("Handles use 3–24 letters, numbers, underscores or hyphens.");
+    if (handle && !isValidHandle(handle)) throw new InputError(`Handles use ${HANDLE_HELP}`);
     if (operatorName && operatorName.length > 28) throw new InputError("Operator names can have up to 28 characters.");
   }
   return { email, password, handle, operatorName };
@@ -39,7 +40,7 @@ export async function registerPlayer(input: Omit<Registration, "password">, pass
     if (emailTaken) throw new InputError("That email is already registered. Sign in instead.");
     if (input.handle) {
       const handleTaken = await tx.player.findFirst({ where: {
-        handle: { equals: input.handle, mode: "insensitive" }, ...(claimLocal ? { id: { not: "default-player" } } : {}),
+        handle: { equals: escapeLike(input.handle), mode: "insensitive" }, ...(claimLocal ? { id: { not: "default-player" } } : {}),
       }, select: { id: true } });
       if (handleTaken) throw new InputError("That handle is already in use. Choose another.");
     }

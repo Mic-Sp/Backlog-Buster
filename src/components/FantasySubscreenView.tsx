@@ -1,4 +1,5 @@
 "use client";
+import { SocialHubTrigger } from "@/components/SocialHub";
 
 import { FantasyCorners, NaviFairy, SlotBrackets } from "@/components/FantasyAccents";
 import type { DragEvent, CSSProperties } from "react";
@@ -53,6 +54,7 @@ export default function FantasySubscreenView({ controller: c }: { controller: Ga
         <button type="button" className="fantasy-fairy-button" ref={advisorTriggerRef} aria-haspopup="dialog" aria-expanded={advisor.isOpen} onClick={advisor.openAdvisor} disabled={advisor.isFetching || advisor.isScouting}><NaviFairy /> NAVI // SEEK GUIDANCE</button>
         <button type="button" ref={rouletteTriggerRef} aria-haspopup="dialog" aria-expanded={roulette.isOpen} onClick={roulette.open}><span aria-hidden="true">▣</span> ROLL RANDOM QUEST</button>
         <button type="button" ref={vaultTriggerRef} aria-haspopup="dialog" aria-expanded={vault.isOpen} onClick={vault.open}><span aria-hidden="true">♜</span> ROYAL ARCHIVE</button>
+        <SocialHubTrigger controller={c.social} />
         {c.children}
       </div>
     </header>

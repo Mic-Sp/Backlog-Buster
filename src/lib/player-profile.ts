@@ -2,6 +2,7 @@ import "server-only";
 import { isAvatarPreset } from "@/lib/operator-avatar";
 import { InputError } from "@/lib/action-result";
 import { normalizeLayoutMode } from "@/lib/appearance";
+import { HANDLE_HELP, isValidHandle, normalizeHandle } from "@/lib/handle-validation";
 
 import { prisma } from "@/lib/prisma";
 import { getCurrentPlayerId } from "@/lib/player";
@@ -10,16 +11,19 @@ import type { PlayerProfile, PlayerProfileInput } from "@/lib/player-profile-typ
 export const publicProfileSelect = {
   id: true, operatorName: true, handle: true, tagline: true, neonAccent: true,
   avatarUrl: true, featuredTrophyIds: true, updatedAt: true, preferredLayoutMode: true,
+  profileVisibility: true,
 } as const;
 
 export function serializePlayerProfile(profile: {
   id: string; operatorName: string; handle: string | null; tagline: string; neonAccent: string;
   avatarUrl: string | null; featuredTrophyIds: unknown; updatedAt: Date; preferredLayoutMode: string;
+  profileVisibility: PlayerProfile["profileVisibility"];
 }): PlayerProfile {
   return {
     id: profile.id,
     operatorName: profile.operatorName,
     handle: profile.handle,
+    profileVisibility: profile.profileVisibility,
     tagline: profile.tagline,
     neonAccent: profile.neonAccent === "GOLD" || profile.neonAccent === "MAGENTA" ? profile.neonAccent : "CYAN",
     preferredLayoutMode: normalizeLayoutMode(profile.preferredLayoutMode),
@@ -61,8 +65,8 @@ export function validatePlayerProfile(input: unknown): PlayerProfileInput {
   };
   if (Object.hasOwn(value, "handle")) {
     if (value.handle !== null && typeof value.handle !== "string") throw new InputError("Enter a valid handle or leave it empty.");
-    const handle = typeof value.handle === "string" ? value.handle.trim().toLowerCase() : "";
-    if (handle && !/^[a-z0-9-]{3,32}$/.test(handle)) throw new InputError("Handles use 3–32 lowercase letters, numbers or hyphens.");
+    const handle = typeof value.handle === "string" ? normalizeHandle(value.handle) : "";
+    if (handle && !isValidHandle(handle)) throw new InputError(`Handles use ${HANDLE_HELP}`);
     profile.handle = handle || null;
   }
   if (Object.hasOwn(value, "avatarUrl")) {

@@ -40,7 +40,7 @@ function vaultFixture(){
   const gameQuery=async({where,select})=>{queries++;assert.deepEqual(where,{userId:'owner'});assert(!select.id&&!select.userId&&!select.email&&!select.passwordHash);return games.filter(game=>game.userId===where.userId).map(game=>selectGame(game,select));};
   const tx={$executeRaw:async(_sql,key)=>assert.equal(key,'backlogbuster-deck:owner'),playerSession:{findUnique:async({where})=>{assert.equal(where.userId,'owner');assert.equal(where.tokenHash,'owner-token');return revoked?null:{tokenHash:'owner-token'};}},game:{findMany:gameQuery,createMany:async({data})=>{writes.push(data);for(const record of data){assert.equal(record.userId,'owner');assert(!('id'in record));games.push({...record,id:games.length+1});}if(fail)throw Error('DB failure');return{count:data.length};}}};
   const prisma={playerSession:{findUnique:async({where,select})=>{assert.equal(where.tokenHash,'owner-token');assert(where.expiresAt.gt instanceof Date);assert.deepEqual(select.player.select,{id:true,handle:true,operatorName:true});assert.deepEqual(where.player,{email:{not:null},passwordHash:{not:null}});return expired?null:{player};}},game:{findMany:gameQuery},$transaction:async work=>{const before=structuredClone(games);try{return await work(tx);}catch(error){games=before;throw error;}}};
-  const load=loader({'@/lib/prisma':{prisma},'@/lib/auth-session':{readSessionHash:async()=>token},'@/lib/rawg':{lookupRawgGame:async()=>{lookups++;throw Error('429');}}});
+  const load=loader({'@/lib/achievements':{syncAchievementsForPlayer:async(_tx,id,emit)=>{assert.equal(id,'owner');assert.equal(emit,false);}},'@/lib/activity-events':{appendActivityEvents:async(_tx,id,events)=>{assert.equal(id,'owner');assert.equal(events.length,1);assert.equal(events[0].type,'library_imported');}},'@/lib/prisma':{prisma},'@/lib/auth-session':{readSessionHash:async()=>token},'@/lib/rawg':{lookupRawgGame:async()=>{lookups++;throw Error('429');}}});
   return{vault:load('src/lib/library-vault.ts'),setToken:value=>token=value,setExpired:value=>expired=value,setRevoked:value=>revoked=value,setFail:value=>fail=value,get games(){return games;},get lookups(){return lookups;},get queries(){return queries;},writes};
 }
 
@@ -76,8 +76,8 @@ test('CSV export neutralizes formula cells while retaining quoting and safe allo
   const csv=serializeLibraryBackup([{title:'=HYPERLINK("evil")',notes:'@SUM(1,2)',platform:'PC',id:1,userId:'secret'}],'csv');assert(csv.includes('"\'=HYPERLINK(""evil"")"'));assert(csv.includes('"\'@SUM(1,2)"'));assert(!csv.includes('secret'));assert(!csv.split('\r\n')[0].includes('userId'));
 });
 
-test('import server action syncs only the authenticated owner and returns structured failures',async()=>{
+test('import server action delegates quiet achievement sync to the vault and returns structured failures',async()=>{
   const calls=[];
   const actions=loader({'next/cache':{revalidatePath:path=>calls.push(['refresh',path])},'@/lib/library-vault':{importLibraryGames:async()=>({userId:'owner',counts:{importedCount:1,duplicateCount:0,invalidCount:1,skippedCount:1}}),getLibraryExport:async()=>{throw Error('private error');}},'@/lib/achievements':{syncAndGetAchievements:async id=>calls.push(['sync',id])},'@/lib/prisma':{},'@/lib/player':{},'@/lib/rawg':{},'@/lib/recommendations':{}})('src/app/actions.ts');
-  assert.deepEqual(await actions.bulkImportGames({}),{importedCount:1,duplicateCount:0,invalidCount:1,skippedCount:1});assert.deepEqual(calls,[['sync','owner'],['refresh','/']]);const result=await actions.exportLibraryBackup('json');assert(result.error);assert(!result.error.includes('private'));
+  assert.deepEqual(await actions.bulkImportGames({}),{importedCount:1,duplicateCount:0,invalidCount:1,skippedCount:1});assert.deepEqual(calls,[['refresh','/']]);const result=await actions.exportLibraryBackup('json');assert(result.error);assert(!result.error.includes('private'));
 });

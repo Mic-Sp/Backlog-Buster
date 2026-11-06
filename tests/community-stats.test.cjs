@@ -132,20 +132,25 @@ test("empty samples return null averages, zero counts and zero percentages; inva
 function completionActions() {
   let current;
   const effects = [];
+  const prisma = {
+    $transaction: async work => work(prisma), $executeRaw: async () => 1,
+    player: { findFirst: async () => ({ id: "owner" }) },
+    activityEvent: { createMany: async ({ data }) => ({ count: data.length }) },
+    game: {
+      findUniqueOrThrow: async ({ where }) => { assert.deepEqual(where, { id: 1, userId: "owner" }); return { ...current }; },
+      update: async ({ where, data }) => {
+        assert.deepEqual(where, { id: 1, userId: "owner" });
+        const revision = current.activityRevision ?? 0;
+        Object.assign(current, data);
+        if (data.activityRevision?.increment) current.activityRevision = revision + 1;
+        return current;
+      },
+    },
+  };
   const actions = loader({
     "next/cache": { revalidatePath: value => effects.push(value) },
     "@/lib/player": { getAuthenticatedPlayerId: async () => "owner" },
-    "@/lib/prisma": { prisma: { game: {
-      findUniqueOrThrow: async ({ where }) => {
-        assert.deepEqual(where, { id: 1, userId: "owner" });
-        return { ...current };
-      },
-      update: async ({ where, data }) => {
-        assert.deepEqual(where, { id: 1, userId: "owner" });
-        Object.assign(current, data);
-        return current;
-      },
-    } } },
+    "@/lib/prisma": { prisma },
     "@/lib/achievements": { syncAndGetAchievements: async userId => effects.push(userId) },
     "@/lib/library-vault": {}, "@/lib/recommendations": {}, "@/lib/rawg": {},
     "@/lib/admin": {}, "@/lib/saga-chronology-cache": {}, "@/lib/saga-lore": {},

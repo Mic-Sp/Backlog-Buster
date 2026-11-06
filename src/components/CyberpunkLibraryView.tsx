@@ -1,4 +1,5 @@
 "use client";
+import { SocialHubTrigger } from "@/components/SocialHub";
 
 import { gameRecordKey } from "@/lib/game-record";
 import AgentBriefing from "@/components/AgentBriefing";
@@ -228,6 +229,7 @@ export default function CyberpunkLibraryView({ controller }: { controller: GameL
           <QuestRouletteView controller={roulette} part="trigger" />
           <TacticalAdvisorView controller={advisor} part="trigger" />
           <LibraryDataVaultView controller={vault} part="trigger" />
+          <SocialHubTrigger controller={controller.social} />
         </div>
       </div>
 

@@ -45,6 +45,15 @@ export async function getAuthenticatedPlayerId(): Promise<string> {
   return session.userId;
 }
 
+/** Public views may be anonymous, but the unclaimed local archive is never a viewer identity. */
+export async function getOptionalAuthenticatedPlayerId(): Promise<string | null> {
+  try { return await getAuthenticatedPlayerId(); }
+  catch (error) {
+    if (error instanceof AuthenticationRequiredError) return null;
+    throw error;
+  }
+}
+
 export async function ensurePlayerExists(id?: string) {
   id ??= await getCurrentPlayerId();
   return prisma.player.upsert({ where: { id }, create: { id }, update: {}, select: { id: true } });

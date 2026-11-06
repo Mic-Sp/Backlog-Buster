@@ -7,6 +7,7 @@ import { getAuthenticatedPlayerId } from "@/lib/player";
 import { publicProfileSelect, serializePlayerProfile, validatePlayerProfile } from "@/lib/player-profile";
 import type { PlayerProfileInput } from "@/lib/player-profile-types";
 import { isLayoutMode } from "@/lib/appearance";
+import { escapeLike } from "@/lib/handle-validation";
 
 export async function savePreferredLayoutMode(mode: unknown) {
   return safeAction(async () => {
@@ -30,7 +31,7 @@ export async function savePlayerProfile(input: PlayerProfileInput) {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended('backlogbuster-account-registration', 0))`;
         if (data.handle) {
           const taken = await tx.player.findFirst({ where: {
-            handle: { equals: data.handle, mode: "insensitive" }, id: { not: id },
+            handle: { equals: escapeLike(data.handle), mode: "insensitive" }, id: { not: id },
           }, select: { id: true } });
           if (taken) throw new InputError("That handle is already claimed. Try another callsign.");
         }

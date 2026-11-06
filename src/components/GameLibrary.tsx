@@ -26,6 +26,7 @@ import { useSagaDebuggerController } from "@/components/SagaChronologyDebugger";
 import { TacticalAdvisorView, useTacticalAdvisorController } from "@/components/TacticalAdvisor";
 import { useUpNextDeckController } from "@/components/UpNextDeck";
 import { DeckPinsContext } from "@/components/useDeckPins";
+import { SocialHubOverlay, useSocialHubController } from "@/components/SocialHub";
 
 export type LibraryGame = {
   id: number;
@@ -81,7 +82,7 @@ function comparePinnedGames(left: LibraryGame, right: LibraryGame) {
 }
 
 
-function useGameLibraryController({ games: serverGames, achievements = [], isAdmin = false, steamId, children }: { games: LibraryGame[]; achievements?: Achievement[]; isAdmin?: boolean; steamId?: string | null; children?: ReactNode }) {
+function useGameLibraryController({ games: serverGames, achievements = [], isAdmin = false, socialEnabled = true, steamId, children }: { games: LibraryGame[]; achievements?: Achievement[]; isAdmin?: boolean; socialEnabled?: boolean; steamId?: string | null; children?: ReactNode }) {
   const { playSfx, layoutMode } = useUIEffects();
   const { showPane } = useSubscreen();
   const [selectedGameId, setSelectedGameId] = useState<number | null>(null);
@@ -666,6 +667,7 @@ function useGameLibraryController({ games: serverGames, achievements = [], isAdm
   const drafts = useGameDrafts(games);
   const advisor = useTacticalAdvisorController({ games, isAdmin });
   const vault = useLibraryDataVaultController({ games, savedSteamId: steamId });
+  const social = useSocialHubController(socialEnabled);
   const roulette = useQuestRouletteController({ games: games.filter(game => game.status === "Backlog") });
   const deck = useUpNextDeckController({ startAction: startGameAndShowPlaying, games, draggedGame: deckDraggedGame, onDragGameChange: changeDeckDrag, onDragPointerDown: rememberDragOrigin, onGameDragStart: startLibraryDrag, disabled: rowReorderBusy });
   const debuggerController = useSagaDebuggerController({ enabled: isAdmin && Boolean(selectedSaga), sagaKey: selectedSaga?.key ?? "", scanDebug: sagaDebug?.key === selectedSaga?.key ? sagaDebug?.data ?? null : null, busy: timelineBusy, cooldownSeconds: sagaProviderCooldown.seconds, onForceRefresh: () => detectSagaOrder(true) });
@@ -757,6 +759,7 @@ function useGameLibraryController({ games: serverGames, achievements = [], isAdm
     layoutMode,
     advisor,
     vault,
+    social,
     roulette,
     deck,
     debuggerController,
@@ -781,6 +784,7 @@ export default function GameLibrary(props: Parameters<typeof useGameLibraryContr
     {layoutMode === "fantasy" ? <FantasySubscreenView controller={controller} /> : <CyberpunkLibraryView controller={controller} />}
     <TacticalAdvisorView controller={advisor} part="overlay" />
     <LibraryDataVaultView controller={vault} part="overlay" />
+    <SocialHubOverlay controller={controller.social} />
     <QuestRouletteView controller={roulette} part="overlay" />
     <GameMetadataEditor controller={controller} />
     {controller.gameActionError && <p className="form-action-error library-action-error" role="alert">{controller.gameActionError}</p>}

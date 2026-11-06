@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentPlayerId } from "@/lib/player";
 import { buildSagaChains } from "@/lib/sagas";
 import { isReleasedYear } from "@/lib/game-release";
+import type { Prisma } from "@/generated/prisma/client";
+import { appendActivityEvents } from "@/lib/activity-events";
 
 export const achievementDefinitions = [
   { key: "first-blood", title: "First Blood", description: "Complete your first gig.", icon: "⚔", xpBonus: 100, target: 1 },
@@ -32,14 +34,14 @@ export type Achievement = {
   xpAwarded: number;
 };
 
-export async function syncAndGetAchievements(userId?: string): Promise<Achievement[]> {
-  userId ??= await getCurrentPlayerId();
+/** Caller holds the deck lock; imports use this inside their transaction to stay quiet. */
+export async function syncAchievementsForPlayer(tx: Prisma.TransactionClient, userId: string, emitActivity = true): Promise<Achievement[]> {
   const [games, existing] = await Promise.all([
-    prisma.game.findMany({
+    tx.game.findMany({
       where: { userId },
       select: { id: true, title: true, franchise: true, releaseYear: true, status: true, wasFlatlined: true, lengthHours: true, hoursPlayed: true, difficulty: true, platform: true, genre: true, rating: true },
     }),
-    prisma.userAchievement.findMany({ where: { userId } }),
+    tx.userAchievement.findMany({ where: { userId } }),
   ]);
   const completed = games.filter((game) => game.status === "Completed");
   const { chains } = buildSagaChains(games);
@@ -79,11 +81,16 @@ export async function syncAndGetAchievements(userId?: string): Promise<Achieveme
   if (newlyEligible.length > 0) {
     // PostgreSQL's unique constraint plus ON CONFLICT protects parallel renders/actions.
     // Existing bonus amounts and timestamps are never overwritten.
-    await prisma.userAchievement.createMany({
+    const inserted = await tx.userAchievement.createManyAndReturn({
       data: newlyEligible.map((definition) => ({ userId, achievementKey: definition.key, xpAwarded: definition.xpBonus })),
       skipDuplicates: true,
     });
-    persisted = await prisma.userAchievement.findMany({ where: { userId } });
+    if (emitActivity) await appendActivityEvents(tx, userId, inserted.flatMap(achievement => {
+      const definition = achievementDefinitions.find(entry => entry.key === achievement.achievementKey);
+      return definition ? [{ type: "achievement_unlocked" as const, achievementId: achievement.id,
+        deduplicationKey: `achievement:${achievement.id}`, metadata: { achievementKey: definition.key, title: definition.title } }] : [];
+    }));
+    persisted = await tx.userAchievement.findMany({ where: { userId } });
   }
   const byKey = new Map(persisted.map((achievement) => [achievement.achievementKey, achievement]));
   return achievementDefinitions.map((definition) => {
@@ -96,4 +103,13 @@ export async function syncAndGetAchievements(userId?: string): Promise<Achieveme
       xpAwarded: saved?.xpAwarded ?? 0,
     };
   });
+}
+
+export async function syncAndGetAchievements(userId?: string): Promise<Achievement[]> {
+  const actorId = userId ?? await getCurrentPlayerId();
+  return prisma.$transaction(async tx => {
+    // Share the import/reset lock so a page render cannot publish bulk-awarded unlocks.
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`backlogbuster-deck:${actorId}`}, 0))`;
+    return syncAchievementsForPlayer(tx, actorId);
+  }, { timeout: 15000 });
 }

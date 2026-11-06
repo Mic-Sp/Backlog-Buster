@@ -125,7 +125,7 @@ async function PlayerSummary({ player }: { player: CurrentPlayer }) {
       <AccountControls player={{ ...player, operatorName: profile.operatorName, handle: profile.handle }} key={`${player.id}-${player.isLocal}`} />
       <div className="hud-career-tools">
         <HudMilestones achievements={achievements} />
-        <NetrunnerDossier data={{
+        <NetrunnerDossier socialEnabled={!player.isLocal} data={{
           profile,
           level: progress.level, totalXp,
           counts: { Backlog: backlogCount, Playing: playingCount, Completed: completedCount, Flatlined: flatlinedCount },
@@ -137,7 +137,7 @@ async function PlayerSummary({ player }: { player: CurrentPlayer }) {
   );
 }
 
-async function SavedGames({ userId, isAdmin }: { userId: string; isAdmin: boolean }) {
+async function SavedGames({ userId, isAdmin, socialEnabled }: { userId: string; isAdmin: boolean; socialEnabled: boolean }) {
   await connection();
 
   const [games, achievements, steamProfile] = await Promise.all([
@@ -198,7 +198,7 @@ async function SavedGames({ userId, isAdmin }: { userId: string; isAdmin: boolea
   }));
 
   return (
-    <GameLibrary games={serializedGames} achievements={achievements} isAdmin={isAdmin} steamId={steamProfile?.steamId} />
+    <GameLibrary games={serializedGames} achievements={achievements} isAdmin={isAdmin} socialEnabled={socialEnabled} steamId={steamProfile?.steamId} />
   );
 }
 
@@ -249,7 +249,7 @@ async function PlayerWorkspace() {
           </section>
         }
       >
-        <SavedGames userId={player.id} isAdmin={!player.isLocal && player.isAdmin} />
+        <SavedGames userId={player.id} isAdmin={!player.isLocal && player.isAdmin} socialEnabled={!player.isLocal} />
       </Suspense>
 
       <MemberCount />

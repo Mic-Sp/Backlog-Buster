@@ -1,8 +1,11 @@
 // Public profile fields only. Authentication credentials never cross the server boundary.
+import type { ProfileVisibility } from "@/lib/friendship-types";
+
 export type PlayerProfile = {
   id: string;
   operatorName: string;
   handle: string | null;
+  profileVisibility: ProfileVisibility;
   tagline: string;
   neonAccent: "CYAN" | "GOLD" | "MAGENTA";
   preferredLayoutMode: "cyberpunk" | "fantasy";

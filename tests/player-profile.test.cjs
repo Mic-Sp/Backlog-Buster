@@ -47,7 +47,8 @@ test('profile handles normalize, blank identity fields default, and malformed/du
   assert.equal(normalized.handle, 'night-runner'); assert.equal(normalized.operatorName, 'Ghost'); assert.equal(normalized.tagline, 'One more gig.');
   const blank = validatePlayerProfile({ ...input, handle: ' ', operatorName: ' ', tagline: '\u00a0' });
   assert.equal(blank.handle, null); assert.equal(blank.operatorName, 'ANONYMOUS NETRUNNER'); assert.equal(blank.tagline, 'One more gig. One more legend.');
-  for (const handle of ['ab', 'a'.repeat(33), 'bad_handle', 'bad handle', 'bad/name', 123]) assert.throws(() => validatePlayerProfile({ ...input, handle }), /handle/i);
+  for (const handle of ['ab', 'a'.repeat(33), 'bad handle', 'bad/name', 123]) assert.throws(() => validatePlayerProfile({ ...input, handle }), /handle/i);
+  assert.equal(validatePlayerProfile({ ...input, handle: ' Night_Runner ' }).handle, 'night_runner');
   assert.equal(validatePlayerProfile({ ...input, handle: 'a'.repeat(32) }).handle.length, 32);
   assert.throws(() => validatePlayerProfile({ ...input, featuredTrophyIds: [7, 7] }), /different trophy/);
   assert.throws(() => validatePlayerProfile({ ...input, featuredTrophyIds: [NaN] }));

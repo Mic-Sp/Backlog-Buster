@@ -8,21 +8,27 @@ import { dossierIdentityFromProfile, type DossierCardData, type DossierIdentity 
 import { customAvatarUrl } from "@/lib/operator-avatar";
 import { fetchDossierArtwork } from "@/lib/dossier-artwork";
 import { resizeRawgImageUrl } from "@/lib/rawg";
+import { escapeLike, isValidHandle, normalizeHandle } from "@/lib/handle-validation";
+import { getOptionalAuthenticatedPlayerId } from "@/lib/player";
+import { visibleProfileWhere } from "@/lib/profile-privacy";
+import type { ProfileVisibility } from "@/lib/friendship-types";
 
-export type PublicDossier = { identity: DossierIdentity; card: DossierCardData };
+export type PublicDossier = { identity: DossierIdentity; card: DossierCardData; visibility: ProfileVisibility };
 
 export async function getPublicDossier(value: unknown): Promise<PublicDossier | null> {
   if (typeof value !== "string") return null;
   let handle: string;
-  try { handle = decodeURIComponent(value).trim().toLowerCase(); }
+  try { handle = normalizeHandle(decodeURIComponent(value)); }
   catch { return null; }
-  // Underscores remain supported for handles created by the original signup form.
-  if (!/^[a-z0-9_-]{3,32}$/.test(handle)) return null;
-  const lookupHandle = handle.replace(/_/g, "\\_");
+  if (!isValidHandle(handle)) return null;
+  const lookupHandle = escapeLike(handle);
+  const viewerId = await getOptionalAuthenticatedPlayerId();
+  const audience = visibleProfileWhere(viewerId);
   // Explicit projections: never retrieve credentials, sessions, notes, or full library records.
   const profile = await prisma.player.findFirst({
-    where: { handle: { equals: lookupHandle, mode: "insensitive" } },
+    where: { handle: { equals: lookupHandle, mode: "insensitive" }, ...audience },
     select: {
+      profileVisibility: true,
       operatorName: true, handle: true, tagline: true, neonAccent: true, avatarUrl: true, featuredTrophyIds: true,
       games: { select: { status: true, lengthHours: true, hoursPlayed: true, rating: true, earnedXp: true } },
       userAchievements: { select: { achievementKey: true, xpAwarded: true, unlockedAt: true } },
@@ -33,7 +39,7 @@ export async function getPublicDossier(value: unknown): Promise<PublicDossier | 
   const selectedIds = Array.isArray(profile.featuredTrophyIds) ? profile.featuredTrophyIds.slice(0, 3).filter((id): id is number => typeof id === "number" && Number.isSafeInteger(id) && id > 0 && id <= 2147483647) : [];
   const trophies = await prisma.game.findMany({
     where: {
-      player: { handle: { equals: lookupHandle, mode: "insensitive" } }, status: "Completed", rating: 5,
+      player: { handle: { equals: lookupHandle, mode: "insensitive" }, ...audience }, status: "Completed", rating: 5,
       ...(hasSelections ? { id: { in: selectedIds } } : {}),
     },
     select: { id: true, title: true, platform: true, coverUrl: true, earnedXp: true },
@@ -57,6 +63,7 @@ export async function getPublicDossier(value: unknown): Promise<PublicDossier | 
     avatarUrl: profile.avatarUrl, featuredTrophyIds: hasSelections ? profile.featuredTrophyIds as (number | null)[] : [],
   }, publicTrophies);
   return {
+    visibility: profile.profileVisibility,
     identity,
     card: { level: calculateLevelProgress(totalXp).level, totalXp, counts, activeHours: telemetry.activeHours,
       completionRate: telemetry.completionRate, avgRating: telemetry.avgRating, achievements, trophies: publicTrophies },

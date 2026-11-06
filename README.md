@@ -42,10 +42,14 @@ Enable the catalog's vector type before pushing the Prisma schema:
 npx prisma db execute --file prisma/game-catalog.sql
 npx prisma db execute --file prisma/catalog-vectors.sql
 npx prisma db push
+npx prisma db execute --file prisma/friendship-constraints.sql
+npx prisma db execute --file prisma/activity-event-constraints.sql
 npx prisma generate
 ```
 
 The additive SQL scripts can be rerun; they preserve existing library/catalog rows.
+The friendship CHECK constraints enforce sorted, distinct player pairs and valid
+request/block states. Reapply `friendship-constraints.sql` after each schema sync.
 `vector` must be available on the PostgreSQL server. Prisma 7 represents the optional
 128-dimensional column as `Unsupported("vector(128)")`; catalog writes use parameterized
 SQL in the same transaction as metadata updates. No vector preview feature is needed.
@@ -144,6 +148,75 @@ Restart the development server after generating the updated Prisma Client.
 
 Dossier identity settings autosave to the current Player profile in PostgreSQL.
 Featured trophies must belong to that player and be completed five-star games.
+
+### Friendships and profile privacy
+
+Handles use 3–32 letters, numbers, underscores or hyphens and are saved lowercase.
+`src/app/friendship-actions.ts` exposes authenticated discovery, request sending,
+acceptance, decline/cancellation, removal, blocking/unblocking and visibility updates.
+Only registered sessions can use these actions; a claimed `default-player` account
+qualifies, while its unclaimed local archive does not.
+
+`Player.profileVisibility` defaults to `public` and defines the audience for the
+dossier and future activity: `friends` requires an accepted relationship, and
+`private` permits only the owner. Discovery uses the same audience rules and returns
+minimal identities. A block from either side hides both profiles from the other
+authenticated player and prevents requests. Public profiles remain visible to
+anonymous visitors. Both players can hold their own block; unblocking clears only
+the caller's block and never restores a previous request or friendship.
+
+Each unordered pair has one canonical `Friendship` row, serialized under a database
+lock and protected by a composite primary key plus the PostgreSQL checks above.
+Reciprocal requests remain pending until explicitly accepted. Account deletion
+cascades relationships. Restricted dossiers return generic share metadata without
+profile details or indexing. The Social Hub exposes these controls in both workspace layouts.
+
+### Friend activity events and reader
+
+`ActivityEvent` records immutable public snapshots for status transitions, new star
+ratings and newly inserted achievement unlocks. Events and source writes commit
+together. Per-game revisions distinguish replay cycles from repeated submissions;
+actor/deduplication keys make duplicate deliveries harmless. Notes, uploaded backup
+contents, credentials and Steam identifiers never enter the payload. Reapply
+`activity-event-constraints.sql` after schema syncs to preserve append-only and
+source-ownership enforcement.
+
+Backup/title imports emit one count summary for each batch that adds games. Steam
+syncs stay quiet. Both paths award achievements inside the import transaction
+without emitting unlock activity, so later page checks cannot republish them.
+Library resets remove all of the actor's events, including import summaries;
+deleting a source game, unlock or account cascades its events.
+
+`getFriendActivityFeed` and `fetchFriendActivity` return accepted friends' activity
+from the last 30 days, with a default limit of 20 (maximum 50) and a timestamp/ID
+cursor. Audience, registration and block rules are checked in each query. Private
+profiles, nonfriends, pending requests and the viewer's own events are excluded.
+No personalized feed cache is used.
+
+### Social Hub and shared co-op backlog
+
+Open **SOCIAL HUB** from the Cyberpunk library header or **FELLOWSHIP // SOCIAL HUB**
+from the Fantasy archive tools. Its Friends, Activity and Co-op tabs share one
+responsive dialog with keyboard navigation and focus containment. Friends & Discovery
+supports callsign/handle search, requests, blocks, dossier links and profile visibility.
+The personal dossier also exposes visibility settings; registered visitors see
+relationship controls on visible public dossiers. Unclaimed archives receive a
+sign-in prompt and never load social data.
+
+The co-op matcher compares the caller with up to four accepted, visible friends.
+Each result must exist in every selected library. Steam AppIDs establish the
+strongest identity, followed by normalized title/year; missing-year fallback is
+allowed only when known releases/editions are unambiguous. Duplicate copies prefer
+a common platform, then an active copy. Defaults include Backlog/Playing games
+released by the current year and positive multiplayer/co-op evidence from the
+local catalog or its tags. Completed replays and games with unknown capabilities
+are explicit options; Flatlined games and known single-player-only titles stay out.
+
+Results show each participant's platform, status and played hours. Capability
+labels describe catalog evidence, not verified cross-play, player limits or device
+compatibility. Matching makes no provider calls and rechecks friendship/privacy
+before returning. Private friends can remain in the relationship list, but their
+career and library data are unavailable for viewing or comparison.
 
 ### Accounts and Sessions
 

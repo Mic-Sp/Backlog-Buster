@@ -1,4 +1,21 @@
 /* The shell keeps its server slots mounted. Only the chosen pane is concealed. */
+:root[data-layout-mode="fantasy"] { --social-bg: #f5ead0; --social-card: #fff6e2; --social-ink: #302f22; --social-muted: #6c6049; --social-line: #c7b482; --social-accent: #345c48; --social-soft: #345c4810; --social-error: #9b352c; --social-primary-ink: #fff8e0; }
+:root[data-layout-mode="fantasy"] .social-dialog { border: 5px ridge #bfa875; border-radius: 14px 5px; box-shadow: inset 0 0 40px #b49c5f18, 0 24px 80px #071c24a6; font-family: Georgia, "Times New Roman", serif; }
+:root[data-layout-mode="fantasy"] .social-dialog::backdrop { background: #0c242ade; }
+:root[data-layout-mode="fantasy"] .social-trigger { color: #f7ebc9; background: #355544; border-color: #ae985f; font-family: Georgia, serif; letter-spacing: .03em; }
+:root[data-layout-mode="fantasy"] .social-visibility select { color-scheme: light; }
+:root[data-layout-mode="fantasy"] .social-dialog h2 { font-family: Georgia, serif; font-weight: 500; }
+:root[data-layout-mode="fantasy"] .social-dialog .social-eyebrow { font-family: Georgia, serif; letter-spacing: .1em; }
+:root[data-layout-mode="fantasy"] .social-dialog .social-primary, :root[data-layout-mode="fantasy"] .dossier-social-controls .social-primary { color: #fff8e0; }
+:root[data-layout-mode="fantasy"] .social-visibility label, :root[data-layout-mode="fantasy"] .social-visibility small { color: var(--social-muted); }
+:root[data-layout-mode="fantasy"] .social-dialog .social-visibility label { color: var(--social-ink); }
+:root[data-layout-mode="fantasy"] .social-dialog button { color: var(--social-ink); background: var(--social-card); border: 1px solid var(--social-line); border-radius: 5px; box-shadow: none; text-shadow: none; }
+:root[data-layout-mode="fantasy"] .social-dialog button:hover:not(:disabled) { color: var(--social-ink); background: var(--social-soft); border-color: var(--social-accent); }
+:root[data-layout-mode="fantasy"] .social-dialog .social-tabs button { color: var(--social-muted); background: transparent; border: 0; border-radius: 0; box-shadow: none; }
+:root[data-layout-mode="fantasy"] .social-dialog .social-tabs button[aria-selected="true"] { color: var(--social-accent); background: var(--social-soft); box-shadow: inset 0 -3px var(--social-accent); }
+:root[data-layout-mode="fantasy"] .social-dialog button.social-primary, :root[data-layout-mode="fantasy"] .social-dialog button.social-primary:hover:not(:disabled) { color: var(--social-primary-ink); background: var(--social-accent); border-color: var(--social-accent); }
+:root[data-layout-mode="fantasy"] .social-dialog .social-list-filters button[aria-pressed="true"] { color: var(--social-accent); background: var(--social-soft); border-color: var(--social-accent); }
+:root[data-layout-mode="fantasy"] .social-dialog input[type="checkbox"] { padding: 0; min-height: 15px; }
 .fantasy-workspace-banner, .fantasy-status-heading, .fantasy-label, .fantasy-decoration { display: none; }
 .fantasy-decoration, .fantasy-decoration * { pointer-events: none; }
 :root[data-layout-mode="fantasy"] {
