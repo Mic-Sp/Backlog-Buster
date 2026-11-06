@@ -7,6 +7,7 @@ import { acceptFriendRequest, blockPlayer, cancelFriendRequest, declineFriendReq
 import { actionErrorMessage, unwrapActionResult } from "@/lib/action-result";
 import type { ProfileVisibility, RelationshipState } from "@/lib/friendship-types";
 import type { DossierSocialContext } from "@/lib/social-types";
+import { FRIENDSHIP_CHANGE_EVENT } from "@/lib/friend-request-notifications";
 
 export function ProfileVisibilityControl({ initialValue, onChanged }: { initialValue: ProfileVisibility; onChanged?: (value: ProfileVisibility) => void }) {
   const { layoutMode } = useUIEffects();
@@ -33,7 +34,11 @@ export function RelationshipControls({ playerId, initialState, onChanged }: { pl
     if (busy.current) return;
     busy.current = true; setError("");
     startTransition(async () => {
-      try { const result = unwrapActionResult(await action(playerId)); setState(result.relationship); onChanged?.(); }
+      try {
+        const result = unwrapActionResult(await action(playerId));
+        setState(result.relationship); onChanged?.();
+        window.dispatchEvent(new Event(FRIENDSHIP_CHANGE_EVENT));
+      }
       catch (error) { setError(actionErrorMessage(error)); }
       finally { busy.current = false; }
     });

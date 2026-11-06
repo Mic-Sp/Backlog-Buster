@@ -1,10 +1,28 @@
 /* Shared social workspace. Native dialog supplies focus containment and background inertness. */
-dialog.social-dialog[data-social-theme], button.social-trigger[data-social-theme], .dossier-social-controls[data-social-theme], div.social-visibility[data-social-theme] { --social-bg: #0b1220; --social-card: #111d2d; --social-ink: var(--ink, #edf4ff); --social-muted: #a0b2c9; --social-line: #2c4056; --social-accent: var(--blue, #00e5ff); --social-soft: #00e5ff12; --social-error: #ffaaa7; }
+dialog.social-dialog[data-social-theme], button.social-trigger[data-social-theme], .dossier-social-controls[data-social-theme], div.social-visibility[data-social-theme], aside.social-request-toast[data-social-theme] { --social-bg: #0b1220; --social-card: #111d2d; --social-ink: var(--ink, #edf4ff); --social-muted: #a0b2c9; --social-line: #2c4056; --social-accent: var(--blue, #00e5ff); --social-soft: #00e5ff12; --social-error: #ffaaa7; }
 button.social-trigger[data-social-theme] { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 42px; max-width: 100%; padding: 10px 14px; border: 1px solid var(--social-accent); border-radius: 2px; color: var(--social-accent); background: #0b101b; font: 800 11px/1.3 "Courier New", monospace; letter-spacing: .04em; cursor: pointer; }
 button.social-trigger[data-social-theme]:hover { background: var(--social-accent); color: var(--social-bg); }
 button.social-trigger[data-social-theme]:focus-visible { outline: 2px solid var(--gold, var(--lime, #fcee0a)); outline-offset: 3px; }
 button.social-trigger[data-social-theme][aria-expanded="true"] { box-shadow: inset 0 -3px var(--social-accent); }
 button.social-trigger[data-social-theme] > span { font-size: 17px; line-height: 1; }
+button.social-trigger[data-social-theme] > .social-request-count { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 22px; margin-left: 3px; padding: 0 5px; border: 1px solid var(--social-bg); border-radius: 50%; background: var(--social-accent); color: var(--social-primary-ink, var(--social-bg)); font: 700 11px/1 "Courier New", monospace; font-variant-numeric: tabular-nums; }
+.social-request-direction { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.social-request-direction h4 { margin: 0; color: var(--social-ink); font-size: 13px; }
+aside.social-request-toast[data-social-theme] { position: fixed; right: 20px; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); z-index: 1450; display: flex; align-items: flex-start; gap: 8px; width: min(410px, calc(100% - 32px)); padding: 14px; border: 1px solid var(--social-accent); border-left-width: 4px; border-radius: 7px; background: var(--social-bg); color: var(--social-ink); box-shadow: 0 10px 40px #0006; font: 13px/1.5 "Trebuchet MS", sans-serif; }
+aside.social-request-toast[data-social-theme] button { min-width: 0; margin: 0; border: 0; border-radius: 3px; padding: 0; color: inherit; background: transparent; font: inherit; letter-spacing: normal; box-shadow: none; text-align: left; cursor: pointer; }
+aside.social-request-toast[data-social-theme] button:focus-visible { outline: 2px solid var(--social-accent); outline-offset: 3px; }
+aside.social-request-toast[data-social-theme] .social-request-toast-open { flex: 1; display: flex; align-items: flex-start; gap: 12px; min-height: 44px; }
+/* Outrank the global Fantasy button:hover fill without changing child text colors. */
+aside.social-request-toast[data-social-theme] button.social-request-toast-open:is(:hover, :focus-visible) { background: var(--social-soft); color: var(--social-ink); box-shadow: inset 0 0 0 1px var(--social-line); }
+aside.social-request-toast[data-social-theme] button.social-request-toast-open:is(:hover, :focus-visible) .social-request-review { text-decoration-thickness: 2px; }
+.social-request-toast-open > span:last-child { min-width: 0; display: grid; gap: 3px; overflow-wrap: anywhere; }
+.social-request-toast-open strong { color: var(--social-accent); font: 700 11px/1.5 "Courier New", monospace; }
+.social-request-toast-icon { color: var(--social-accent); font-size: 26px; line-height: 1.3; }
+.social-request-sender { color: var(--social-ink); font-weight: 700; }
+.social-request-toast-open small { color: var(--social-muted); font-size: 11px; font-weight: 400; }
+.social-request-review { margin-top: 5px; color: var(--social-accent); font-size: 11px; text-decoration: underline; text-underline-offset: 3px; }
+aside.social-request-toast[data-social-theme] .social-request-toast-dismiss { flex: 0 0 32px; display: grid; place-items: center; width: 32px; min-height: 32px; color: var(--social-muted); }
+aside.social-request-toast[data-social-theme] button.social-request-toast-dismiss:is(:hover, :focus-visible) { color: var(--social-accent); background: var(--social-soft); box-shadow: inset 0 0 0 1px var(--social-accent); }
 dialog.social-dialog[data-social-theme] { width: min(920px, calc(100% - 32px)); max-width: none; max-height: 96dvh; padding: 0; margin: auto; border: 1px solid var(--social-line); border-radius: 14px; background: var(--social-bg); color: var(--social-ink); color-scheme: dark; box-shadow: 0 32px 100px #0009; font: 14px/1.55 "Trebuchet MS", sans-serif; }
 dialog.social-dialog[data-social-theme]::backdrop { background: #020817da; backdrop-filter: blur(7px); }
 .social-dialog-inner { height: min(790px, 92dvh); display: flex; flex-direction: column; min-width: 0; }
@@ -100,7 +118,9 @@ dialog.social-dialog[data-social-theme] input[type="checkbox"] { accent-color: v
 .dossier-social-controls[data-social-theme] { padding: 14px 0; }
 .dossier-social-controls[data-social-theme] .social-row-actions { justify-content: flex-start; }
 .dossier-social-controls[data-social-theme] .social-relationship { font-family: "Trebuchet MS", sans-serif; }
-:is(dialog.social-dialog, button.social-trigger, .social-visibility, .dossier-social-controls)[data-social-theme="fantasy"] { --social-bg: #f5ead0; --social-card: #fff6e2; --social-ink: #302f22; --social-muted: #6c6049; --social-line: #c7b482; --social-accent: #345c48; --social-soft: #345c4810; --social-error: #9b352c; --social-primary-ink: #fff8e0; }
+:is(dialog.social-dialog, button.social-trigger, .social-visibility, .dossier-social-controls, aside.social-request-toast)[data-social-theme="fantasy"] { --social-bg: #f5ead0; --social-card: #fff6e2; --social-ink: #302f22; --social-muted: #6c6049; --social-line: #c7b482; --social-accent: #345c48; --social-soft: #345c4810; --social-error: #9b352c; --social-primary-ink: #fff8e0; }
+aside.social-request-toast[data-social-theme="fantasy"] { border: 3px ridge #bfa875; background: var(--social-bg); font-family: Georgia, "Times New Roman", serif; }
+aside.social-request-toast[data-social-theme="fantasy"] strong { font-family: Georgia, "Times New Roman", serif; }
 dialog.social-dialog[data-social-theme="fantasy"] { border: 5px ridge #bfa875; border-radius: 14px 5px; color-scheme: light; box-shadow: inset 0 0 40px #b49c5f18, 0 24px 80px #071c24a6; font-family: Georgia, "Times New Roman", serif; }
 dialog.social-dialog[data-social-theme="fantasy"]::backdrop { background: #0c242ade; }
 button.social-trigger[data-social-theme="fantasy"] { color: #f7ebc9; background: #355544; border-color: #ae985f; min-height: 36px; padding: 9px 12px; font: 600 10px/1.4 Georgia, serif; letter-spacing: .03em; }

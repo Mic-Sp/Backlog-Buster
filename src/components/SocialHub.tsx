@@ -11,6 +11,7 @@ import { useLayoutCopy } from "@/components/LayoutText";
 import { useUIEffects } from "@/components/ThemeProvider";
 import { ProfileVisibilityControl, RelationshipControls } from "@/components/SocialControls";
 import OperatorAvatar from "@/components/OperatorAvatar";
+import { useFriendRequestNotifications } from "@/components/useFriendRequestNotifications";
 import type { SocialConnection, SocialOverview, CoopMatches } from "@/lib/social-types";
 import type { DiscoveredPlayer } from "@/lib/friendship-types";
 import type { ActivityFeedPage, FriendActivity } from "@/lib/activity-types";
@@ -19,22 +20,45 @@ const tabs = [{ key: "friends", label: "Friends & discovery" }, { key: "activity
 type Tab = typeof tabs[number]["key"];
 export function useSocialHubController(enabled = true) {
   const [isOpen, setIsOpen] = useState(false);
+  const [requestsView, setRequestsView] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const requests = useFriendRequestNotifications(enabled);
+  const { dismiss } = requests;
   const close = useCallback(() => setIsOpen(false), []);
-  return { enabled, isOpen, open: () => setIsOpen(true), close };
+  const open = useCallback(() => { setRequestsView(false); setIsOpen(true); }, []);
+  const openRequests = useCallback(() => { dismiss(); setRequestsView(true); setIsOpen(true); }, [dismiss]);
+  return { enabled, isOpen, open, close, openRequests, requestsView, requests, triggerRef };
 }
 type Controller = ReturnType<typeof useSocialHubController>;
 export function SocialHubTrigger({ controller }: { controller: Controller }) {
   const copy = useLayoutCopy();
   const { layoutMode } = useUIEffects();
-  return <button className="social-trigger" data-social-theme={layoutMode} type="button" aria-haspopup="dialog" aria-expanded={controller.isOpen} onClick={controller.open}>
+  const { triggerRef, isOpen, openRequests, open, requests } = controller;
+  return <button ref={triggerRef} className="social-trigger" data-social-theme={layoutMode} type="button" aria-haspopup="dialog" aria-expanded={isOpen} onClick={requests.count ? openRequests : open}>
     <span aria-hidden="true">♧</span> {copy("SOCIAL HUB", "FELLOWSHIP // SOCIAL HUB")}
+    {requests.count > 0 && <span className="social-request-count" aria-label={`${requests.count} incoming friend request${requests.count === 1 ? "" : "s"}`}>{requests.count}</span>}
   </button>;
 }
 export function SocialHubOverlay({ controller }: { controller: Controller }) {
-  return controller.isOpen && typeof document !== "undefined" ? createPortal(<SocialHubDialog enabled={controller.enabled} onClose={controller.close} />, document.body) : null;
+  const { layoutMode } = useUIEffects();
+  if (typeof document === "undefined") return null;
+  return createPortal(<>
+    {controller.isOpen && <SocialHubDialog enabled={controller.enabled} initialRequests={controller.requestsView} returnFocus={controller.triggerRef} onClose={controller.close} />}
+    {!controller.isOpen && controller.requests.notification.length > 0 && <aside className="social-request-toast" data-social-theme={layoutMode} role="status" aria-live="polite" aria-label="New friend requests">
+      <button type="button" className="social-request-toast-open" aria-haspopup="dialog" onClick={controller.openRequests}>
+        <span className="social-request-toast-icon" aria-hidden="true">♧</span>
+        <span><strong>{controller.requests.notification.length === 1 ? "New friend request" : `${controller.requests.notification.length} new friend requests`}</strong>
+          <span className="social-request-sender">{controller.requests.notification[0].requester.operatorName}{controller.requests.notification[0].requester.handle && <small> @{controller.requests.notification[0].requester.handle}</small>}</span>
+          {controller.requests.notification.length > 1 && <small>and {controller.requests.notification.length - 1} more</small>}
+          <span className="social-request-review">Review incoming requests →</span>
+        </span>
+      </button>
+      <button type="button" className="social-request-toast-dismiss" aria-label="Dismiss friend request notification" onClick={controller.requests.dismiss}>✕</button>
+    </aside>}
+  </>, document.body);
 }
 
-function SocialHubDialog({ enabled, onClose }: { enabled: boolean; onClose: () => void }) {
+function SocialHubDialog({ enabled, initialRequests, returnFocus, onClose }: { enabled: boolean; initialRequests: boolean; returnFocus: { current: HTMLButtonElement | null }; onClose: () => void }) {
   const copy = useLayoutCopy(), id = useId(), dialog = useRef<HTMLDialogElement>(null);
   const { layoutMode } = useUIEffects();
   const [tab, setTab] = useState<Tab>("friends"), [overview, setOverview] = useState<SocialOverview | null>(null);
@@ -49,10 +73,11 @@ function SocialHubDialog({ enabled, onClose }: { enabled: boolean; onClose: () =
   }, []);
   useEffect(() => {
     const modal = dialog.current, previous = document.activeElement as HTMLElement | null;
+    const fallbackFocus = returnFocus.current;
     const overflow = document.body.style.overflow;
     modal?.showModal(); document.body.style.overflow = "hidden";
-    return () => { modal?.close(); document.body.style.overflow = overflow; if (previous?.isConnected) previous.focus(); };
-  }, []);
+    return () => { modal?.close(); document.body.style.overflow = overflow; if (previous?.isConnected) previous.focus(); else if (fallbackFocus?.isConnected) fallbackFocus.focus(); };
+  }, [returnFocus]);
   useEffect(() => { if (enabled) reload(); }, [enabled, reload]);
   function tabKey(event: KeyboardEvent<HTMLDivElement>) {
     if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
@@ -76,7 +101,7 @@ function SocialHubDialog({ enabled, onClose }: { enabled: boolean; onClose: () =
           {error && <div className="social-error" role="alert"><p>{error}</p><button type="button" onClick={reload}>Retry</button></div>}
           {!overview && !error && <p className="social-loading" role="status">Finding your people…</p>}
           {overview && <>
-            {tab === "friends" && <FriendsView overview={overview} onChanged={reload} />}
+            {tab === "friends" && <FriendsView overview={overview} initialRequests={initialRequests} onChanged={reload} />}
             {tab === "activity" && <ActivityView key={`activity:${revision}`} />}
             {tab === "coop" && <CoopView key={`coop:${revision}`} overview={overview} />}
           </>}
@@ -97,10 +122,11 @@ function PlayerRow({ player, onChanged }: { player: SocialConnection; onChanged:
   </li>;
 }
 
-function FriendsView({ overview, onChanged }: { overview: SocialOverview; onChanged: () => void }) {
+function FriendsView({ overview, initialRequests, onChanged }: { overview: SocialOverview; initialRequests: boolean; onChanged: () => void }) {
   const [query, setQuery] = useState(""), [results, setResults] = useState<DiscoveredPlayer[] | null>(null), [error, setError] = useState("");
   const [searching, startTransition] = useTransition(), request = useRef(0);
-  const [group, setGroup] = useState<"friends" | "requests" | "blocked">("friends");
+  const [group, setGroup] = useState<"friends" | "requests" | "blocked">(initialRequests ? "requests" : "friends");
+  const [incomingOnly, setIncomingOnly] = useState(initialRequests);
   useEffect(() => {
     if (query.trim().length < 2) return;
     const ticket = request.current;
@@ -110,7 +136,7 @@ function FriendsView({ overview, onChanged }: { overview: SocialOverview; onChan
     }), 300);
     return () => { clearTimeout(timer); };
   }, [query]);
-  const connections = overview.connections.filter(peer => group === "requests" ? peer.relationship === "incoming" || peer.relationship === "outgoing" : peer.relationship === group);
+  const connections = overview.connections.filter(peer => group === "requests" ? peer.relationship === "incoming" || (!incomingOnly && peer.relationship === "outgoing") : peer.relationship === group);
   const count = (key: typeof group) => overview.connections.filter(peer => key === "requests" ? peer.relationship === "incoming" || peer.relationship === "outgoing" : peer.relationship === key).length;
   return <>
     <div className="social-section-heading"><div><p className="social-eyebrow">FRIENDS & DISCOVERY</p><h3>Find your next party.</h3><p>Connect by handle or callsign.</p></div><ProfileVisibilityControl key={overview.profileVisibility} initialValue={overview.profileVisibility} onChanged={onChanged} /></div>
@@ -118,7 +144,8 @@ function FriendsView({ overview, onChanged }: { overview: SocialOverview; onChan
     {error && <p className="social-error" role="alert">{error}</p>}
     {query.trim().length >= 2 && <section aria-label="Player search results" className="social-discovery"><h4>Discovery</h4>{searching || results === null ? <p role="status">Searching players…</p> : !results.length ? <p className="social-hint">No visible players found. Try another handle or callsign.</p> : <ul className="social-player-list">{results.map(player => <PlayerRow key={player.id} player={overview.connections.find(peer => peer.id === player.id) ?? { ...player, relationship: "none", canViewProfile: true }} onChanged={onChanged} />)}</ul>}</section>}
     <div className="social-list-filters" role="group" aria-label="Relationship lists">{(["friends", "requests", "blocked"] as const).map(key => <button type="button" key={key} aria-pressed={group === key} onClick={() => setGroup(key)}>{key === "friends" ? "Friends" : key === "requests" ? "Requests" : "Blocked"}<span>{count(key)}</span></button>)}</div>
-    <ul className="social-player-list" aria-label={group === "friends" ? "Your friends" : group === "requests" ? "Friend requests" : "Blocked players"}>{connections.map(peer => <PlayerRow key={`${peer.id}:${peer.relationship}`} player={peer} onChanged={onChanged} />)}</ul>
+    {group === "requests" && incomingOnly && <div className="social-request-direction"><h4>Incoming requests</h4><button type="button" onClick={() => setIncomingOnly(false)}>Show all requests</button></div>}
+    <ul className="social-player-list" aria-label={group === "friends" ? "Your friends" : group === "requests" ? incomingOnly ? "Incoming friend requests" : "Friend requests" : "Blocked players"}>{connections.map(peer => <PlayerRow key={`${peer.id}:${peer.relationship}`} player={peer} onChanged={onChanged} />)}</ul>
     {!connections.length && <div className="social-empty"><span aria-hidden="true">{group === "friends" ? "♧" : "◇"}</span><h4>{group === "friends" ? "Your party starts here." : group === "requests" ? "All caught up." : "No blocked players."}</h4><p>{group === "friends" ? "Search for someone above and send your first friend request." : group === "requests" ? "Incoming and outgoing requests will appear here." : "Players you block will appear here so you can manage them."}</p></div>}
     {overview.truncated && <p className="social-hint">Showing your 500 most recently updated relationships. Use discovery to find another player.</p>}
   </>;

@@ -4,6 +4,11 @@ export type SocialConnection = DiscoveredPlayer & { relationship: RelationshipSt
 export type SocialOverview = {
   viewerId: string; profileVisibility: ProfileVisibility; connections: SocialConnection[]; truncated: boolean;
 };
+export type IncomingFriendRequest = {
+  id: string;
+  requester: Pick<DiscoveredPlayer, "id" | "operatorName" | "handle">;
+};
+export type IncomingFriendRequests = { viewerId: string; total: number; requests: IncomingFriendRequest[] };
 export type CoopParticipant = { playerId: string; operatorName: string; handle: string | null; platform: string; status: string; hoursPlayed: number };
 export type CoopMatch = {
   key: string; title: string; releaseYear: number | null; coverUrl: string | null;
