@@ -76,7 +76,9 @@ test('stale exclusions, foreign IDs and ineligible games cannot yield empty or i
   const games = [game(1), game(2), game(3, { releaseYear: null }), game(4, { releaseYear: new Date().getFullYear() + 1 }), favorite, game(5, { status: 'Playing' }), game(6, { status: 'Flatlined' })];
   const result = select(games, [1, 2, 3, 4, 5, 6, 999], () => 0);
   assert.deepEqual(new Set(ids(result)), new Set([1, 2]));
-  assert(result.seenGameIds.every(id => id === 1 || id === 2));
+  assert(result.seenGameIds.every(id => [1, 2, 3].includes(id)));
+  const unknownYear = select([game(3, { releaseYear: null })], [], () => 0);
+  assert.deepEqual(ids(unknownYear), [3]);
   assert.deepEqual(select([], [1]), { continuationPick: null, palateCleanserPick: null, seenGameIds: [] });
 });
 

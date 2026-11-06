@@ -24,7 +24,7 @@ import { FRANCHISE_REFRESH_COOLDOWN_MS, inspectSagaChronologyCache, resolveCache
 import { buildSagaChronologyDebug, type SagaCacheSnapshot } from "@/lib/saga-debug";
 import { getHybridSagaChronology } from "@/lib/saga-lore";
 import { buildAssignedSagaOrder } from "@/lib/saga-chronology";
-import { isReleasedYear } from "@/lib/game-release";
+import { isUnreleasedYear } from "@/lib/game-release";
 import { getBacklogInsertionOrder } from "@/lib/backlog-order";
 import { activityGameSelect, updateGameWithActivity } from "@/lib/activity-events";
 
@@ -50,7 +50,7 @@ export async function toggleGamePin(gameId: number, shouldPin: boolean) {
       });
       if (!game) return { error: "This gig is no longer available." };
       if (shouldPin && game.status !== "Backlog") return { error: "Only Backlog gigs can be pinned to your deck." };
-      if (shouldPin && !isReleasedYear(game.releaseYear)) return { error: "Only released gigs can be pinned to your deck. Set a valid release year first." };
+      if (shouldPin && isUnreleasedYear(game.releaseYear)) return { error: "Upcoming gigs cannot be pinned to your deck." };
       if (shouldPin && game.pinnedOrder !== null) return { pinnedOrder: game.pinnedOrder };
       let pinnedOrder: number | null = null;
       if (shouldPin) {
@@ -83,7 +83,7 @@ async function placeGameInDeck(gameId: number, targetSlot: number, swap: boolean
       select: { status: true, pinnedOrder: true, releaseYear: true },
     });
     if (!source || source.status !== "Backlog") throw new InputError("Only your Backlog gigs can be placed on deck.");
-    if (!isReleasedYear(source.releaseYear)) throw new InputError("Upcoming or undated gigs cannot be placed on deck.");
+    if (isUnreleasedYear(source.releaseYear)) throw new InputError("Upcoming gigs cannot be placed on deck.");
     if (swap && (source.pinnedOrder == null || source.pinnedOrder < 1 || source.pinnedOrder > DECK_CAPACITY)) {
       throw new InputError("This game is no longer pinned to your deck.");
     }
@@ -677,7 +677,7 @@ export async function updateGame(formData: FormData) {
 
       await updateGameWithActivity(tx, userId, existing, {
         status: statusValue,
-        ...(statusValue !== "Backlog" || (metadata.releaseYear !== undefined && !isReleasedYear(metadata.releaseYear)) ? { pinnedOrder: null } : {}),
+        ...(statusValue !== "Backlog" || (metadata.releaseYear !== undefined && isUnreleasedYear(metadata.releaseYear)) ? { pinnedOrder: null } : {}),
         lengthHours,
         difficulty,
         earnedXp: calculateEarnedXp(statusValue, lengthHours, difficulty),

@@ -1,4 +1,4 @@
-import { isReleasedYear } from "@/lib/game-release";
+import { isUnreleasedYear } from "@/lib/game-release";
 
 export const MAX_ADVISOR_HISTORY = 10_000;
 export type AdvisorGame = {
@@ -46,7 +46,7 @@ function recommendation(game: AdvisorGame, reason: string): BacklogRecommendatio
 
 /** Local selection only. History is scoped to the supplied player's eligible games. */
 export function selectBacklogRecommendations(games: readonly AdvisorGame[], excludedGameIds: readonly number[] = [], random = Math.random): BacklogRecommendations {
-  const backlog = games.filter(game => game.status === "Backlog" && isReleasedYear(game.releaseYear));
+  const backlog = games.filter(game => game.status === "Backlog" && !isUnreleasedYear(game.releaseYear));
   if (!backlog.length) return { continuationPick: null, palateCleanserPick: null, seenGameIds: [] };
   const eligibleIds = new Set(backlog.map(game => game.id));
   let history = [...new Set(excludedGameIds.filter(id => eligibleIds.has(id)))];

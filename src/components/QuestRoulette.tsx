@@ -8,7 +8,7 @@ import { unwrapActionResult } from "@/lib/action-result";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { acceptQuest } from "@/app/actions";
 import { buildTrailerUrl } from "@/lib/trailers";
-import { isReleasedYear } from "@/lib/game-release";
+import { isUnreleasedYear } from "@/lib/game-release";
 import DeckPinButton from "@/components/DeckPinButton";
 import { useUIEffects } from "@/components/ThemeProvider";
 
@@ -46,7 +46,7 @@ export function useQuestRouletteController({ games }: { games: QuestGame[] }) {
   }, []);
 
   const currentYear = new Date().getFullYear();
-  const releasedGames = games.filter((game) => isReleasedYear(game.releaseYear, currentYear));
+  const releasedGames = games.filter((game) => !isUnreleasedYear(game.releaseYear, currentYear));
   const genres = [...new Set(releasedGames.flatMap((game) => game.genre?.trim() ? [game.genre.trim()] : []))].sort();
   const platforms = [...new Set(releasedGames.map((game) => game.platform.trim()).filter(Boolean))].sort();
   const matches = releasedGames.filter((game) => (

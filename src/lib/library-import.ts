@@ -1,5 +1,5 @@
 import { InputError } from "@/lib/action-result";
-import { isReleasedYear } from "@/lib/game-release";
+import { isUnreleasedYear } from "@/lib/game-release";
 
 export const MAX_IMPORT_BYTES = 500000;
 export const MAX_IMPORT_ROWS = 200;
@@ -60,7 +60,7 @@ export function sanitizeImportedGame(value: unknown) {
     hoursPlayed: integer(game.hoursPlayed, 0, 10000, 0),
     earnedXp: status === "Completed" ? lengthHours * difficulty * 10 : 0,
     wasFlatlined: status === "Flatlined" || game.wasFlatlined === true || game.wasFlatlined === "true",
-    pinnedOrder: status === "Backlog" && isReleasedYear(releaseYear) ? optionalInteger(game.pinnedOrder, 1, 3) : null,
+    pinnedOrder: status === "Backlog" && !isUnreleasedYear(releaseYear) ? optionalInteger(game.pinnedOrder, 1, 3) : null,
     backlogOrder: optionalInteger(game.backlogOrder, 1, 10000),
     rating: optionalInteger(game.rating, 1, 5),
     notes: text(game.notes, 1000), genre: text(game.genre, 80), franchise: text(game.franchise, 120),

@@ -41,3 +41,16 @@ export async function searchIgdbGames(title: string, signal: AbortSignal): Promi
     return game ? [game] : [];
   });
 }
+
+/** Resolve same-name ports/remakes by Steam identity rather than search ranking. */
+export async function lookupIgdbSteamGame(steamAppId: string, signal: AbortSignal): Promise<ProviderCatalogGame | null> {
+  if (!/^[1-9]\d{0,19}$/.test(steamAppId)) return null;
+  // https://api-docs.igdb.com/#external-game — external_game_source replaces category.
+  const rows = await queryIgdb("external_games",
+    `where external_game_source = 1 & uid = ${JSON.stringify(steamAppId)}; fields game.id,game.name,game.cover.image_id,game.first_release_date,game.genres.name,game.platforms.name; limit 2;`, signal);
+  const games = new Map((rows ?? []).flatMap(row => {
+    const game = record(row) ? parseIgdbCatalogGame(row.game) : null;
+    return game ? [[game.igdbId!, game] as const] : [];
+  }));
+  return games.size === 1 ? [...games.values()][0] : null;
+}

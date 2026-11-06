@@ -1,5 +1,6 @@
 "use client";
 
+import "./HeaderControls.css";
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { createUIAudio, type UISound } from "@/lib/ui-audio";
 import HalloweenDecorations from "@/components/HalloweenDecorations";
@@ -66,7 +67,9 @@ export default function ThemeProvider({ children, player: initialPlayer = null }
       applyAppearance(document.documentElement.dataset, appearance);
       setLayoutMode(appearance.layoutMode);
       layoutModeRef.current = appearance.layoutMode;
-      if (playerId) {
+      // Receiving another tab's preference must never publish a competing value.
+      // Otherwise tabs with different account snapshots echo storage events forever.
+      if (playerId && !event) {
         try { localStorage.setItem("backlogbuster:layout-mode", appearance.layoutMode); } catch { /* Account preference still works. */ }
       }
       setHalloween(enabled);

@@ -9,7 +9,7 @@ import type { Achievement } from "@/lib/achievements";
 import type { CommunityGameStats } from "@/lib/community-stats";
 import { compareBacklogPriority, getBacklogInsertionOrder } from "@/lib/backlog-order";
 import { DECK_CAPACITY, DECK_DRAG_TYPE, readDeckDrag, type DeckDragGame } from "@/lib/deck";
-import { isReleasedYear } from "@/lib/game-release";
+import { isUnreleasedYear } from "@/lib/game-release";
 import type { SagaChronologyDebug } from "@/lib/saga-debug";
 import { buildSagaChains, compareSagaGames, type SagaOrderMode } from "@/lib/sagas";
 import { compareChronologyTitles } from "@/lib/chronology-titles";
@@ -517,7 +517,7 @@ function useGameLibraryController({ games: serverGames, achievements = [], isAdm
   }
 
   function canDragToDeck(game: LibraryGame) {
-    return game.status === "Backlog" && isReleasedYear(game.releaseYear, currentYear);
+    return game.status === "Backlog" && !isUnreleasedYear(game.releaseYear, currentYear);
   }
 
   function endRowDrag() {

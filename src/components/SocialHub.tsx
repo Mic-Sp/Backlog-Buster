@@ -1,5 +1,6 @@
 "use client";
 
+import "./SocialHub.css";
 import { useCallback, useEffect, useId, useRef, useState, useTransition, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 import { fetchSocialOverview, fetchCoopMatches } from "@/app/social-actions";
@@ -7,6 +8,7 @@ import { searchPlayers } from "@/app/friendship-actions";
 import { fetchFriendActivity } from "@/app/activity-actions";
 import { actionErrorMessage, unwrapActionResult } from "@/lib/action-result";
 import { useLayoutCopy } from "@/components/LayoutText";
+import { useUIEffects } from "@/components/ThemeProvider";
 import { ProfileVisibilityControl, RelationshipControls } from "@/components/SocialControls";
 import OperatorAvatar from "@/components/OperatorAvatar";
 import type { SocialConnection, SocialOverview, CoopMatches } from "@/lib/social-types";
@@ -23,7 +25,8 @@ export function useSocialHubController(enabled = true) {
 type Controller = ReturnType<typeof useSocialHubController>;
 export function SocialHubTrigger({ controller }: { controller: Controller }) {
   const copy = useLayoutCopy();
-  return <button className="social-trigger" type="button" aria-haspopup="dialog" aria-expanded={controller.isOpen} onClick={controller.open}>
+  const { layoutMode } = useUIEffects();
+  return <button className="social-trigger" data-social-theme={layoutMode} type="button" aria-haspopup="dialog" aria-expanded={controller.isOpen} onClick={controller.open}>
     <span aria-hidden="true">♧</span> {copy("SOCIAL HUB", "FELLOWSHIP // SOCIAL HUB")}
   </button>;
 }
@@ -33,6 +36,7 @@ export function SocialHubOverlay({ controller }: { controller: Controller }) {
 
 function SocialHubDialog({ enabled, onClose }: { enabled: boolean; onClose: () => void }) {
   const copy = useLayoutCopy(), id = useId(), dialog = useRef<HTMLDialogElement>(null);
+  const { layoutMode } = useUIEffects();
   const [tab, setTab] = useState<Tab>("friends"), [overview, setOverview] = useState<SocialOverview | null>(null);
   const [error, setError] = useState(""), [revision, setRevision] = useState(0), [loading, startTransition] = useTransition();
   const request = useRef(0);
@@ -56,7 +60,7 @@ function SocialHubDialog({ enabled, onClose }: { enabled: boolean; onClose: () =
     const index = event.key === "Home" ? 0 : event.key === "End" ? 2 : (tabs.findIndex(item => item.key === tab) + (event.key === "ArrowRight" ? 1 : 2)) % 3;
     setTab(tabs[index].key); event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]')[index]?.focus();
   }
-  return <dialog ref={dialog} className="social-dialog" aria-labelledby={`${id}-title`} onCancel={event => { event.preventDefault(); onClose(); }} onClick={event => { if (event.target === event.currentTarget) onClose(); }} onKeyDown={event => {
+  return <dialog ref={dialog} className="social-dialog" data-social-theme={layoutMode} aria-labelledby={`${id}-title`} onCancel={event => { event.preventDefault(); onClose(); }} onClick={event => { if (event.target === event.currentTarget) onClose(); }} onKeyDown={event => {
     if (event.key !== "Tab") return;
     const controls = [...event.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), select:not(:disabled), a[href], summary, [tabindex="0"]')]
       .filter(control => control.tabIndex >= 0 && control.getClientRects().length > 0 && (!control.closest("details:not([open])") || control.tagName === "SUMMARY"));

@@ -5,7 +5,7 @@ import { withIgdbAuth, type IgdbHeaders } from "@/lib/igdb-auth";
 import { coalesce, retryAfterSeconds, withAbortSignal } from "@/lib/api-resilience";
 
 const base = "https://api.igdb.com/v4";
-type Endpoint = "collections" | "franchises" | "games";
+type Endpoint = "collections" | "franchises" | "games" | "external_games";
 function pause(ms: number, signal: AbortSignal) {
   return new Promise<void>((resolve, reject) => {
     if (signal.aborted) { reject(signal.reason); return; }
@@ -60,7 +60,7 @@ async function post(endpoint: Endpoint, body: string, headers: IgdbHeaders, sign
 
 /** All requests stay on IGDB's fixed origin; never pass a caller-provided URL or credentials. */
 export async function queryIgdb(endpoint: Endpoint, body: string, parentSignal?: AbortSignal): Promise<unknown[] | null> {
-  if (!["collections", "franchises", "games"].includes(endpoint) || body.length > 30000) return null;
+  if (!["collections", "franchises", "games", "external_games"].includes(endpoint) || body.length > 30000) return null;
   const signal = AbortSignal.any([...(parentSignal ? [parentSignal] : []), AbortSignal.timeout(20000)]);
   try {
     const rows = await withAbortSignal(signal, () => coalesce(`igdb-public:${endpoint}:${body}`, () => withAbortSignal(signal, async () => {

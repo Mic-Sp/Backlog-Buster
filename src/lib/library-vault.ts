@@ -13,6 +13,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { randomUUID } from "node:crypto";
 import { appendActivityEvents } from "@/lib/activity-events";
 import { syncAchievementsForPlayer } from "@/lib/achievements";
+import { libraryMetadataKey, loadLibraryMetadata } from "@/lib/library-metadata";
 
 async function requireVaultSession() {
   const tokenHash = await readSessionHash();
@@ -111,11 +112,8 @@ export type SteamSyncSummary = { steamId: string; addedCount: number; updatedCou
 export type SteamSyncSession = { userId: string; tokenHash: string };
 export type SteamAutoSyncClaim = { steamId: string; attemptedAt: Date };
 const STEAM_WRITE_BATCH_SIZE = 500;
-const STEAM_RAWG_LIMIT = 3;
-const STEAM_METADATA_BUDGET_MS = 2000;
 const steamExistingSelect = { id: true, title: true, platform: true, steamAppId: true, hoursPlayed: true } as const;
 type SteamExistingGame = Prisma.GameGetPayload<{ select: typeof steamExistingSelect }>;
-type SteamMetadata = { genre: string | null; releaseYear: number | null; coverUrl: string | null; estimatedHours: number | null };
 
 function steamMatches(existing: SteamExistingGame[], incoming: SteamOwnedGame[]) {
   const byAppId = new Map(existing.filter(game => game.steamAppId !== null).map(game => [game.steamAppId!, game]));
@@ -128,43 +126,6 @@ function steamMatches(existing: SteamExistingGame[], incoming: SteamOwnedGame[])
     legacy.set(key, copies);
   }
   return incoming.map(game => ({ game, existing: byAppId.get(game.steamAppId) ?? legacy.get(normalizeGameTitle(game.title))?.shift() }));
-}
-
-async function steamMetadata(games: SteamOwnedGame[]): Promise<Map<string, SteamMetadata>> {
-  const metadata = new Map<string, SteamMetadata>();
-  const titles = [...new Set(games.map(game => game.title))];
-  const candidates = new Map<string, SteamMetadata[]>();
-  // Batch the cache reads too; neither the query size nor RAWG traffic scales per row.
-  for (let index = 0; index < titles.length; index += STEAM_WRITE_BATCH_SIZE) {
-    try {
-      const rows = await prisma.gameCatalog.findMany({
-        where: { title: { in: titles.slice(index, index + STEAM_WRITE_BATCH_SIZE), mode: "insensitive" } },
-        select: { title: true, genre: true, releaseYear: true, coverUrl: true, estimatedHours: true },
-      });
-      for (const row of rows) {
-        const key = normalizeGameTitle(row.title);
-        const matches = candidates.get(key) ?? [];
-        matches.push(row);
-        candidates.set(key, matches);
-      }
-    } catch { /* Optional cache failures must not block Steam's native metadata. */ }
-  }
-  for (const [key, matches] of candidates) {
-    // Steam has no release year here; do not choose arbitrarily between remakes.
-    if (matches.length === 1) metadata.set(key, matches[0]);
-  }
-  const missing = [...new Map(games.filter(game => !metadata.has(normalizeGameTitle(game.title)))
-    .map(game => [normalizeGameTitle(game.title), game.title])).entries()].slice(0, STEAM_RAWG_LIMIT);
-  const signal = AbortSignal.timeout(STEAM_METADATA_BUDGET_MS);
-  // Even an already coalesced RAWG request must not extend the bulk-sync budget.
-  await Promise.race([
-    Promise.all(missing.map(async ([key, title]) => {
-      const result = await lookupRawgGame(title, false, signal).catch(() => null);
-      if (result && !signal.aborted) metadata.set(key, { ...result, estimatedHours: result.playtime });
-    })),
-    new Promise<void>(resolve => signal.addEventListener("abort", () => resolve(), { once: true })),
-  ]);
-  return metadata;
 }
 
 /** Lifetime Steam hours are floored/capped to the existing whole-hour progress field. */
@@ -195,7 +156,7 @@ export async function syncSteamLibraryForSession(payload: SteamSyncPayload, sess
     const incoming = library.games.filter(game => (includeUnplayed || game.playtimeMinutes > 0) &&
       game.title.length <= 120 && normalizeGameTitle(game.title));
     const newGames = steamMatches(initial, incoming).filter(match => !match.existing).map(match => match.game);
-    const metadata = await steamMetadata(newGames);
+    const metadata = await loadLibraryMetadata(newGames);
     const summary = await prisma.$transaction(async tx => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`backlogbuster-deck:${userId}`}, 0))`;
       const active = await tx.playerSession.findUnique({
@@ -218,7 +179,7 @@ export async function syncSteamLibraryForSession(payload: SteamSyncPayload, sess
           if (saved.steamAppId === null || higherHours) updates.push({ id: saved.id, steamAppId: game.steamAppId, hoursPlayed: higherHours ? hoursPlayed : null });
           continue;
         }
-        const info = metadata.get(normalizeGameTitle(game.title));
+        const info = metadata.get(libraryMetadataKey(game));
         additions.push({ userId, steamAppId: game.steamAppId, title: game.title, platform: "PC", status: "Backlog",
           hoursPlayed, earnedXp: 0, difficulty: 2, lengthHours: resolveRawgPlaytime(info?.estimatedHours, info?.genre) ?? 10,
           genre: info?.genre ?? null, releaseYear: info?.releaseYear ?? null, coverUrl: info?.coverUrl || game.coverUrl });

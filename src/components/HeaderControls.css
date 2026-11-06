@@ -1,0 +1,64 @@
+/* Shared by workspace and public dossier headers, including direct dossier visits. */
+.account-controls button,
+button.layout-mode-toggle,
+.dossier-social-controls[data-social-theme] .social-row-actions :is(button, .social-badge, summary) {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	min-height: 36px;
+	padding: 8px 12px;
+	border: 1px solid #32616a;
+	border-radius: 2px;
+	background: #0d202a;
+	color: #94f7ff;
+	font: 700 10px/1.4 "Courier New", monospace;
+	letter-spacing: 0.06em;
+	cursor: pointer;
+}
+
+.account-controls button:hover:not(:disabled),
+button.layout-mode-toggle:hover,
+.dossier-social-controls[data-social-theme] .social-row-actions :is(button, summary):hover:not(:disabled) {
+	border-color: #00f0ff;
+	background: #153742;
+	color: #e6fff9;
+}
+
+.account-controls button:focus-visible,
+button.layout-mode-toggle:focus-visible,
+.dossier-social-controls[data-social-theme] .social-row-actions :is(button, summary):focus-visible {
+	outline: 2px solid #fcee0a;
+	outline-offset: 3px;
+}
+
+.dossier-social-controls[data-social-theme] .social-badge { cursor: default; }
+.dossier-social-controls[data-social-theme] .social-manage > summary { list-style: none; }
+.dossier-social-controls[data-social-theme] .social-manage > summary::-webkit-details-marker { display: none; }
+.dossier-social-controls[data-social-theme] .social-manage > summary::before { content: "▸"; }
+.dossier-social-controls[data-social-theme] .social-manage[open] > summary::before { content: "▾"; }
+.dossier-social-controls[data-social-theme] .social-manage > div { left: 0; right: auto; margin-top: 5px; }
+.dossier-social-controls[data-social-theme] .social-manage button { width: 100%; }
+
+/* These controls share the workspace's Fantasy button surface and typography. */
+.dossier-social-controls[data-social-theme="fantasy"] .social-row-actions :is(button, .social-badge, summary) {
+	color: #f4e6b9;
+	border-color: #aa9256;
+	border-radius: 5px;
+	background: linear-gradient(#496057, #243c3c);
+	box-shadow: inset 0 1px #ffffff20, 0 2px 0 #102b31;
+	padding: 9px 12px;
+	font: 600 12px/1.4 Georgia, "Times New Roman", serif;
+}
+
+.dossier-social-controls[data-social-theme="fantasy"] .social-row-actions :is(button, summary):hover:not(:disabled) {
+	color: #fff3c6;
+	border-color: #f4d98c;
+	background: #3a5c54;
+}
+
+.dossier-social-controls[data-social-theme="fantasy"] .social-row-actions :is(button, summary):focus-visible {
+	outline: 3px solid #28915c;
+}
+
+.dossier-social-controls[data-social-theme="fantasy"] .social-row-actions { align-items: center; }

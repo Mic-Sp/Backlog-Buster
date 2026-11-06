@@ -16,7 +16,7 @@ import StarRatingInput from "@/components/StarRatingInput";
 import { TacticalAdvisorView } from "@/components/TacticalAdvisor";
 import TrophyRatingEditor from "@/components/TrophyRatingEditor";
 import { UpNextDeckView } from "@/components/UpNextDeck";
-import { isReleasedYear } from "@/lib/game-release";
+import { isUnreleasedYear } from "@/lib/game-release";
 import { buildTrailerUrl } from "@/lib/trailers";
 import "./BacklogReorder.css";
 
@@ -552,7 +552,7 @@ export default function CyberpunkLibraryView({ controller }: { controller: GameL
                     {activeView === "All" && game.rating !== null && (
                       <span className="library-rating-badge" aria-label={`Rated ${game.rating} out of 5 stars`}>★ {game.rating}/5</span>
                     )}
-                    {game.status === "Backlog" && !isReleasedYear(game.releaseYear, currentYear) && (
+                    {game.status === "Backlog" && isUnreleasedYear(game.releaseYear, currentYear) && (
                       <span className="unreleased-badge" title="Excluded from Cortex and Roulette until a release year of this year or earlier is saved.">⏳ UNRELEASED</span>
                     )}
                   </span>

@@ -1,5 +1,5 @@
 import { buildDossierMetadata } from "@/lib/dossier-metadata";
-import { ThemeToggle } from "@/components/ThemeProvider";
+import { ThemePlayerSync, ThemeToggle } from "@/components/ThemeProvider";
 import { cache, Suspense } from "react";
 import Link from "next/link";
 import { connection } from "next/server";
@@ -9,6 +9,7 @@ import PublicDossierCard from "@/components/PublicDossierCard";
 import DossierSignalLost from "@/components/DossierSignalLost";
 import { getDossierSocialContext } from "@/lib/social";
 import DossierRelationshipControls from "@/components/SocialControls";
+import { getCurrentPlayer } from "@/lib/player";
 
 // React cache is request-scoped: access decisions must never be shared across viewers.
 const readDossier = cache(getPublicDossier);
@@ -30,20 +31,25 @@ async function Dossier({ params }: { params: Promise<{ handle: string }> }) {
   try { dossier = await readDossier(handle); }
   catch { return <DossierSignalLost unavailable />; }
   if (!dossier) notFound();
+  // Appearance belongs to the viewer; never apply the target profile's layout.
+  const viewer = await getCurrentPlayer().catch(() => null);
   const relationship = await getDossierSocialContext(dossier.identity.handle).catch(() => null);
   const artwork = await getPublicDossierArtwork(dossier);
-  return <main className="public-dossier-page">
-    <section className="public-dossier-frame" aria-label={`${dossier.identity.callsign} public dossier`}>
-      <header className="public-dossier-heading">
-        <p className="public-dossier-eyebrow">PUBLIC TRANSMISSION // READ-ONLY CITIZEN DOSSIER</p>
-        <h1>@{dossier.identity.handle}</h1>
-        <ThemeToggle />
-      </header>
-      {relationship && <DossierRelationshipControls key={`${relationship.target.id}:${relationship.relationship}`} context={relationship} />}
-      <PublicDossierCard dossier={dossier} artwork={artwork} timestamp={new Date().toISOString()} />
-      <footer className="public-dossier-footer"><Link className="public-dossier-gateway" href="/" prefetch={false}>⚡ INITIALIZE YOUR OWN ARCHIVE // BACKLOG BUSTER</Link></footer>
-    </section>
-  </main>;
+  return <>
+    <ThemePlayerSync player={viewer && !viewer.isLocal ? { id: viewer.id, preferredLayoutMode: viewer.preferredLayoutMode } : null} />
+    <main className="public-dossier-page">
+      <section className="public-dossier-frame" aria-label={`${dossier.identity.callsign} public dossier`}>
+        <header className="public-dossier-heading">
+          <p className="public-dossier-eyebrow">PUBLIC TRANSMISSION // READ-ONLY CITIZEN DOSSIER</p>
+          <h1>@{dossier.identity.handle}</h1>
+          <ThemeToggle />
+        </header>
+        {relationship && <DossierRelationshipControls key={`${relationship.target.id}:${relationship.relationship}`} context={relationship} />}
+        <PublicDossierCard dossier={dossier} artwork={artwork} timestamp={new Date().toISOString()} />
+        <footer className="public-dossier-footer"><Link className="public-dossier-gateway" href="/" prefetch={false}>⚡ INITIALIZE YOUR OWN ARCHIVE // BACKLOG BUSTER</Link></footer>
+      </section>
+    </main>
+  </>;
 }
 
 export default function Page({ params }: { params: Promise<{ handle: string }> }) {

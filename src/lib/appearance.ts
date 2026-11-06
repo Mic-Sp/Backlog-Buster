@@ -21,9 +21,10 @@ export function readAppearance(root: RootAttributes): Appearance {
 }
 
 export function applyAppearance(root: RootAttributes, appearance: Appearance) {
-  root.layoutMode = appearance.layoutMode;
-  root.cyberpunkTheme = appearance.cyberpunkTheme;
-  root.theme = appearance.layoutMode === "fantasy" ? "fantasy" : appearance.cyberpunkTheme === "halloween" ? "halloween" : "cyberpunk";
+  const theme = appearance.layoutMode === "fantasy" ? "fantasy" : appearance.cyberpunkTheme === "halloween" ? "halloween" : "cyberpunk";
+  if (root.layoutMode !== appearance.layoutMode) root.layoutMode = appearance.layoutMode;
+  if (root.cyberpunkTheme !== appearance.cyberpunkTheme) root.cyberpunkTheme = appearance.cyberpunkTheme;
+  if (root.theme !== theme) root.theme = theme;
 }
 
 // Runs before paint; keep storage keys and normalization aligned with readAppearance.

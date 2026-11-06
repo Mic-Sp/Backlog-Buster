@@ -8,7 +8,6 @@
 	font-family: "Courier New", monospace;
 }
 
-.account-controls button,
 .auth-panel button {
 	min-height: 36px;
 	padding: 8px 12px;
@@ -21,7 +20,6 @@
 	cursor: pointer;
 }
 
-.account-controls button:hover,
 .auth-panel button:hover:not(:disabled),
 .auth-tabs button[aria-pressed="true"] {
 	border-color: #00f0ff;
@@ -80,8 +78,7 @@
 .auth-hint { margin: 10px 0 0; color: #8295aa; font-size: 11px; line-height: 1.6; }
 .auth-error { margin: 16px 0 0; padding: 10px 12px; border: 1px solid #ff2a6d; background: #251019; color: #ffb8cc; font: 12px/1.6 "Courier New", monospace; }
 .auth-panel button:disabled { opacity: 0.5; cursor: wait; }
-.auth-panel :is(button, input):focus-visible,
-.account-controls button:focus-visible { outline: 2px solid #fcee0a; outline-offset: 3px; }
+.auth-panel :is(button, input):focus-visible { outline: 2px solid #fcee0a; outline-offset: 3px; }
 .auth-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 
 @media (max-width: 600px) {

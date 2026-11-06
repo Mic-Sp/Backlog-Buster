@@ -1,15 +1,18 @@
 "use client";
 
+import "./SocialHub.css";
 import { useRef, useState, useTransition } from "react";
+import { useUIEffects } from "@/components/ThemeProvider";
 import { acceptFriendRequest, blockPlayer, cancelFriendRequest, declineFriendRequest, removeFriend, sendFriendRequest, unblockPlayer, updateProfileVisibility } from "@/app/friendship-actions";
 import { actionErrorMessage, unwrapActionResult } from "@/lib/action-result";
 import type { ProfileVisibility, RelationshipState } from "@/lib/friendship-types";
 import type { DossierSocialContext } from "@/lib/social-types";
 
 export function ProfileVisibilityControl({ initialValue, onChanged }: { initialValue: ProfileVisibility; onChanged?: (value: ProfileVisibility) => void }) {
+  const { layoutMode } = useUIEffects();
   const [value, setValue] = useState(initialValue), [error, setError] = useState("");
   const [pending, startTransition] = useTransition();
-  return <div className="social-visibility">
+  return <div className="social-visibility" data-social-theme={layoutMode}>
     <label>Profile & activity visibility<select aria-label="Profile & activity visibility" value={value} disabled={pending} onChange={event => {
       const next = event.target.value as ProfileVisibility;
       setError("");
@@ -52,7 +55,8 @@ export function RelationshipControls({ playerId, initialState, onChanged }: { pl
 }
 
 export default function DossierRelationshipControls({ context }: { context: DossierSocialContext }) {
-  return <aside className="dossier-social-controls" aria-label="Dossier relationship controls">
+  const { layoutMode } = useUIEffects();
+  return <aside className="dossier-social-controls" data-social-theme={layoutMode} aria-label="Dossier relationship controls">
     {context.relationship === "self" ? <p className="social-badge">Your dossier</p> : <RelationshipControls playerId={context.target.id} initialState={context.relationship} />}
   </aside>;
 }

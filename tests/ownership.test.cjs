@@ -78,6 +78,27 @@ test('Saga scans recheck the live session before saving after a slow response',a
   const f=fixture();f.revokeDuringScan();const result=await f.actions.autoDetectSagaOrder(f.sagaKey);assert.match(result.error,/Sign in/);assert.deepEqual(f.games,f.initial);assert.equal(f.writes.length,0);
 });
 
+test('owned Backlog games with unknown release years can pin, assign and swap slots',async()=>{
+  const f=fixture(),a=f.actions;
+  for(const id of [1,2,5])f.games.find(game=>game.id===id).releaseYear=null;
+  assert.deepEqual(await a.toggleGamePin(2,true),{pinnedOrder:2});
+  assert.deepEqual(await a.assignDeckSlot(5,3),{success:true});
+  assert.deepEqual(await a.swapDeckSlot(2,3),{success:true});
+  assert.deepEqual(f.games.filter(game=>game.userId==='owner'&&game.pinnedOrder!==null).map(game=>[game.id,game.pinnedOrder]),[[1,1],[2,3],[5,2]]);
+  assert.deepEqual(await a.updateGame(form({id:'2',status:'Backlog',lengthHours:'20',difficulty:'2',releaseYear:''})),{success:true});
+  assert.equal(f.games.find(game=>game.id===2).pinnedOrder,3,'Clearing an unknown year must not silently unpin');
+  assert.deepEqual(await a.startGame(gameForm(2)),{success:true});
+  assert.equal(f.games.find(game=>game.id===2).status,'Playing');
+  assert.equal(f.games.find(game=>game.id===2).pinnedOrder,null);
+});
+
+test('explicit future releases and non-Backlog games remain ineligible for deck slots',async()=>{
+  const f=fixture(),a=f.actions;
+  f.games.find(game=>game.id===2).releaseYear=new Date().getFullYear()+1;
+  for(const run of [()=>a.toggleGamePin(2,true),()=>a.assignDeckSlot(2,2),()=>a.swapDeckSlot(2,2),()=>a.assignDeckSlot(3,2)])assert.equal(typeof(await run()).error,'string');
+  assert.equal(f.writes.length,0);
+});
+
 test('personalized in-flight results are isolated by operator and local chronology results are independent',async()=>{
   const {guardedRequest}=loader()('src/lib/api-resilience.ts');let calls=0;
   const values=await Promise.all([guardedRequest('owner-a','advisor','same-input',async()=>{calls++;return{notes:'A private result'};}),guardedRequest('owner-b','advisor','same-input',async()=>{calls++;return{notes:'B private result'};})]);assert.equal(calls,2);assert.deepEqual(values,[{notes:'A private result'},{notes:'B private result'}]);

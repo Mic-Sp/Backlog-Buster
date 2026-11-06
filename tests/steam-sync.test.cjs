@@ -28,7 +28,7 @@ function fixture(initial = [], snapshot = [], options = {}) {
   let games = structuredClone(initial), player = { id: "owner", steamId: options.linkedSteamId ?? null,
     steamAutoSyncAttemptedAt: options.attemptedAt ?? null, steamLastSyncedAt: null }, token = "owner-token", revoked = false;
   let inTransaction = false, sequence = Promise.resolve(), providerCalls = 0, nextId = 10000;
-  const rawgCalls = [], cacheCalls = [], locks = [], updateBatches = [], createBatches = [], guardCalls = [];
+  const rawgCalls = [], igdbCalls = [], cacheCalls = [], locks = [], updateBatches = [], createBatches = [], guardCalls = [];
   const selectRows = ({ where, select }) => {
     assert.deepEqual(where, { userId: "owner" });
     return games.filter(game => game.userId === "owner").map(game => Object.fromEntries(Object.keys(select).map(key => [key, game[key]])));
@@ -113,7 +113,7 @@ function fixture(initial = [], snapshot = [], options = {}) {
   const load = loader({
     "@/lib/achievements": { syncAchievementsForPlayer: async (_tx, id, emit) => { assert.equal(id, "owner"); assert.equal(emit, false); } },
     "@/lib/prisma": { prisma }, "@/lib/auth-session": { readSessionHash: async () => token },
-    "@/lib/api-resilience": { guardedRequest: async (id, feature, input, work) => {
+    "@/lib/api-resilience": { ...loader()("src/lib/api-resilience.ts"), guardedRequest: async (id, feature, input, work) => {
       assert.equal(id, "owner"); assert(["steam-sync", "steam-auto-sync"].includes(feature)); guardCalls.push({ feature, input: JSON.parse(input) }); return work();
     } },
     "@/lib/steam": { parseSteamIdentifier, fetchSteamLibrary: async identifier => {
@@ -121,14 +121,20 @@ function fixture(initial = [], snapshot = [], options = {}) {
       if (options.providerFailure) throw Error("Steam unavailable");
       return { steamId, games: structuredClone(snapshot) };
     } },
-    "@/lib/rawg": { lookupRawgGame: async (title, report, signal) => {
-      assert(!inTransaction); assert.equal(report, false); assert(signal instanceof AbortSignal);
+    "@/lib/catalog-store": { tryUpsertCatalogGame: async () => true },
+    "@/lib/igdb-catalog": { lookupIgdbSteamGame: async () => null, searchIgdbGames: async (title, signal) => {
+      assert(!inTransaction); assert(signal instanceof AbortSignal); igdbCalls.push(title);
+      return options.igdb ? options.igdb(title, signal) : [];
+    } },
+    "@/lib/rawg": { searchRawgGames: async (title, report, { signal, retry }) => {
+      assert(!inTransaction); assert.equal(report, true); assert.equal(retry, false); assert(signal instanceof AbortSignal);
       rawgCalls.push(title);
       if (options.revokeDuringEnrichment) revoked = true;
-      return options.rawg ? options.rawg(title, signal) : null;
+      const result = options.rawg ? await options.rawg(title, signal) : null;
+      return result ? [{ ...result, title, estimatedHours: result.playtime, rawgId: 1 }] : [];
     } },
   });
-  return { vault: load("src/lib/library-vault.ts"), rawgCalls, cacheCalls, locks, updateBatches, createBatches, guardCalls,
+  return { vault: load("src/lib/library-vault.ts"), rawgCalls, igdbCalls, cacheCalls, locks, updateBatches, createBatches, guardCalls,
     get games() { return games; }, get player() { return player; }, get providerCalls() { return providerCalls; },
     signOut: () => { token = null; }, revoke: () => { revoked = true; }, relink: id => { player.steamId = id; } };
 }
@@ -214,12 +220,28 @@ test("catalog is checked first, ambiguous remakes are not guessed, and native me
 
 test("metadata work has a hard two-second budget even when a coalesced RAWG promise never settles", async t => {
   t.mock.method(AbortSignal, "timeout", ms => {
-    assert.equal(ms, 2000);
+    assert.equal(ms, 1000);
     const controller = new AbortController(); setTimeout(() => controller.abort(), 5); return controller.signal;
   });
   const f = fixture([], Array.from({ length: 300 }, (_, i) => incoming(i + 1)), { rawg: () => new Promise(() => {}) });
   assert.equal((await f.vault.syncSteamLibraryGames(request())).summary.addedCount, 300);
   assert.equal(f.rawgCalls.length, 3);
+  assert.equal(f.igdbCalls.length, 3);
+});
+
+test("RAWG failure or timeout falls back to IGDB release/genre and genre-based estimated hours", async t => {
+  t.mock.method(AbortSignal, "timeout", ms => {
+    assert.equal(ms, 1000);
+    const controller = new AbortController(); setTimeout(() => controller.abort(), 5); return controller.signal;
+  });
+  for (const rawg of [async () => { throw Error("RAWG 503"); }, () => new Promise(() => {})]) {
+    const f = fixture([], [incoming(1, "FINAL FANTASY IX")], { rawg,
+      igdb: async () => [{ title: "Final Fantasy IX", releaseYear: 2000, genre: "Role-playing (RPG)", estimatedHours: null, coverUrl: null, metadataSource: "igdb", igdbId: 9 }] });
+    await f.vault.syncSteamLibraryGames(request());
+    assert.deepEqual(f.igdbCalls, ["FINAL FANTASY IX"]);
+    assert.equal(f.games[0].releaseYear, 2000); assert.equal(f.games[0].genre, "Role-playing (RPG)");
+    assert.equal(f.games[0].lengthHours, 25); assert.equal(f.games[0].steamAppId, "1");
+  }
 });
 
 test("missing/revoked sessions and invalid options stop writes and account linking", async () => {

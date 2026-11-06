@@ -5,7 +5,7 @@ import DeckPinButton from "@/components/DeckPinButton";
 import SafeForm from "@/components/SafeForm";
 import type { UpNextDeckController } from "@/components/UpNextDeck";
 import { DECK_CAPACITY, DECK_DRAG_TYPE } from "@/lib/deck";
-import { isReleasedYear } from "@/lib/game-release";
+import { isUnreleasedYear } from "@/lib/game-release";
 
 export default function FantasyEquipmentDeck({ deck }: { deck: UpNextDeckController }) {
   const { sectionRef } = deck;
@@ -30,8 +30,8 @@ export default function FantasyEquipmentDeck({ deck }: { deck: UpNextDeckControl
               <img src={game.coverUrl} alt={`${game.title} cover`} loading="lazy" decoding="async" width={96} height={96} draggable={false} /> : <span aria-hidden="true">⚔</span>}</span>
             <h4>{game.title}</h4><p>{game.platform} · {game.lengthHours}h</p>
             <div className="fantasy-slot-order" role="group" aria-label={`Equipment order for ${game.title}`}>
-              <button type="button" data-deck-direction="-1" disabled={deck.busy || !isReleasedYear(game.releaseYear) || slot === 1} aria-label={`Move ${game.title} to previous deck slot`} onClick={() => deck.moveSlot(game, -1)}>◀</button>
-              <button type="button" data-deck-direction="1" disabled={deck.busy || !isReleasedYear(game.releaseYear) || slot === DECK_CAPACITY} aria-label={`Move ${game.title} to next deck slot`} onClick={() => deck.moveSlot(game, 1)}>▶</button>
+              <button type="button" data-deck-direction="-1" disabled={deck.busy || isUnreleasedYear(game.releaseYear) || slot === 1} aria-label={`Move ${game.title} to previous deck slot`} onClick={() => deck.moveSlot(game, -1)}>◀</button>
+              <button type="button" data-deck-direction="1" disabled={deck.busy || isUnreleasedYear(game.releaseYear) || slot === DECK_CAPACITY} aria-label={`Move ${game.title} to next deck slot`} onClick={() => deck.moveSlot(game, 1)}>▶</button>
             </div>
             <button type="submit" disabled={deck.busy}>Begin quest</button>
             <DeckPinButton gameId={game.id} pinnedOrder={game.pinnedOrder} pinnedCount={deck.pinned.length} releaseYear={game.releaseYear} disabled={deck.busy} unpinOnly />

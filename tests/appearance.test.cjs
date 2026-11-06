@@ -53,6 +53,15 @@ test("blocked storage preserves in-memory preferences and cannot break startup",
   }
 });
 
+test("reapplying an unchanged appearance does not mutate DOM theme attributes", () => {
+  const writes = [];
+  const root = new Proxy({}, { set(target, key, value) { writes.push([key, value]); target[key] = value; return true; } });
+  const appearance = { layoutMode: "fantasy", cyberpunkTheme: "halloween" };
+  applyAppearance(root, appearance); assert.equal(writes.length, 3);
+  for (let i = 0; i < 5; i++) applyAppearance(root, appearance);
+  assert.equal(writes.length, 3);
+});
+
 test("database layout wins over conflicting local preferences before paint and during restoration", () => {
   const previous = global.localStorage;
   try {

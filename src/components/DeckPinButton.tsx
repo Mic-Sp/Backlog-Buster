@@ -5,7 +5,7 @@ import { useLayoutCopy } from "@/components/LayoutText";
 import { useContext } from "react";
 import { DeckPinsContext, useDeckPins, type DeckPinsController } from "@/components/useDeckPins";
 import { DECK_CAPACITY } from "@/lib/deck";
-import { isReleasedYear } from "@/lib/game-release";
+import { isUnreleasedYear } from "@/lib/game-release";
 
 export type DeckPinButtonProps = {
   gameId: number;
@@ -33,8 +33,8 @@ function DeckPinControl({ gameId, pinnedOrder, pinnedCount, releaseYear, unpinOn
   const error = pins.errors[gameId] ?? "";
   const pinned = pinnedOrder !== null;
   const full = !pinned && pinnedCount >= DECK_CAPACITY;
-  const unreleased = !pinned && !isReleasedYear(releaseYear);
-  const title = unreleased ? copy("Upcoming or undated gigs cannot be pinned. Set a valid release year first.", "Unreleased or undated quests cannot be equipped. Set a valid release year first.")
+  const unreleased = !pinned && isUnreleasedYear(releaseYear);
+  const title = unreleased ? copy("Upcoming gigs cannot be pinned.", "Unreleased quests cannot be equipped.")
     : full ? copy("Deck full (3/3). Unpin a gig to make room.", "All 3 C-Buttons are equipped. Unequip a quest to make room.")
     : iconOnly ? (pinned ? copy("Pinned (Click to unpin)", "Equipped (Click to unequip)") : copy("Pin to Up Next Deck", "Equip to a C-Button"))
       : pinned ? copy(`Remove this gig from deck slot ${pinnedOrder}`, `Unequip this quest from C-Button ${pinnedOrder}`) : copy("Stage this Backlog gig for later", "Equip this Backlog quest for your next journey");
