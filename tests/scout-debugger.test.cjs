@@ -19,17 +19,17 @@ const render = (debug, busy = false) => renderToStaticMarkup(React.createElement
 function vectorDebug() {
   const debug = createScoutDebug();
   debug.engineSource = "vector"; debug.source = "vector";
-  Object.assign(debug.vector, { status: "passed", latencyMs: 8, queryLatencyMs: 2.5, tasteSource: "completed-favorites", anchorCount: 1,
+  Object.assign(debug.vector, { status: "passed", latencyMs: 8, queryLatencyMs: 2.5, tasteSource: "completed-favorites", anchorCount: 1, negativeAnchorCount: 2,
     vectorVersion: "catalog-features-v1", candidateCount: 30, returnedCount: 3,
     coverage: { total: 89, embedded: 89, current: 89, released: 85, eligible: 82 },
-    picks: [{ title: "Match", cosineSimilarity: .9, score: .8, scores: { cosine: .63, series: .1, genre: .05, playtime: .02 } }] });
+    picks: [{ title: "Match", cosineSimilarity: .9, score: .8, scores: { cosine: .63, series: .1, genre: .05, playtime: .02, negative: -.075 } }] });
   return debug;
 }
 
 test("debugger renders vector source, coverage, timings and accessible per-pick score components", () => {
   const html = render(vectorDebug());
   for (const value of ["VECTOR", "89 current / 89 catalog games", "85 released", "82 eligible", "2.5 ms", "8.0 ms",
-    "completed-favorites", "0.900", "0.800", "Cosine 0.630", "Series 0.100", "Genre 0.050", "Playtime 0.020"]) assert(html.includes(value), value);
+    "completed-favorites", "0.900", "0.800", "2 dismissed / low-rated games", "Negative penalty", "-0.075", "Cosine 0.630", "Series 0.100", "Genre 0.050", "Playtime 0.020"]) assert(html.includes(value), value);
   assert.match(html, /<caption>Served vector picks/); assert.match(html, /scope="col"/);
   assert.match(html, /scope="row">Match/); assert.match(html, /no provider request needed/);
 });

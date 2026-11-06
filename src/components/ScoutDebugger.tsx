@@ -31,6 +31,7 @@ export default function ScoutDebugger({ debug, busy }: { debug: ScoutDebug | nul
               <div><dt>Vector Status</dt><dd>{debug.vector.status.toUpperCase()}</dd></div>
               <div><dt>Cosine Query / Total Vector Time</dt><dd>{milliseconds(debug.vector.queryLatencyMs)} / {milliseconds(debug.vector.latencyMs)}</dd></div>
               <div><dt>Taste Profile</dt><dd>{debug.vector.tasteSource ?? "Unavailable"} · {debug.vector.anchorCount} anchors</dd></div>
+              <div><dt>Negative Anchors</dt><dd>{debug.vector.negativeAnchorCount} dismissed / low-rated games</dd></div>
               <div><dt>Catalog Coverage</dt><dd>{debug.vector.coverage ? `${debug.vector.coverage.current} current / ${debug.vector.coverage.total} catalog games` : "Unavailable"}</dd></div>
             </dl>
             <p>Vector version: {debug.vector.vectorVersion ?? "Unavailable"}. Retrieved {debug.vector.candidateCount}, filtered {debug.vector.filteredCount}, served {debug.vector.returnedCount}.</p>
@@ -39,9 +40,10 @@ export default function ScoutDebugger({ debug, busy }: { debug: ScoutDebug | nul
             {debug.vector.picks.length > 0 && <div className="scout-vector-table-scroll" tabIndex={0} role="region" aria-label="Vector candidate score details">
               <table className="scout-vector-table">
                 <caption>Served vector picks · weighted score components</caption>
-                <thead><tr><th scope="col">Game</th><th scope="col">Cosine similarity</th><th scope="col">Hybrid score</th><th scope="col">Components</th></tr></thead>
+                <thead><tr><th scope="col">Game</th><th scope="col">Cosine similarity</th><th scope="col">Hybrid score</th><th scope="col">Negative penalty</th><th scope="col">Components</th></tr></thead>
                 <tbody>{debug.vector.picks.map(pick => <tr key={pick.title}>
                   <th scope="row">{pick.title}</th><td>{decimal(pick.cosineSimilarity)}</td><td>{decimal(pick.score)}</td>
+                  <td>{decimal(pick.scores.negative ?? 0)}</td>
                   <td>Cosine {decimal(pick.scores.cosine)} · Series {decimal(pick.scores.series)} · Genre {decimal(pick.scores.genre)} · Playtime {decimal(pick.scores.playtime)}</td>
                 </tr>)}</tbody>
               </table>

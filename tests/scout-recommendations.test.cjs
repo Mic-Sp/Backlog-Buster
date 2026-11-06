@@ -48,7 +48,7 @@ test("empty vector results use Gemini fallback, retain its reasons, and preserve
 const vectorPick = (title, fields = {}) => ({ key: title, title, platforms: ["Console", "PC"], genre: "Action", releaseYear: 2020,
   estimatedHours: 4, coverUrl: "https://example.com/cover.jpg", reason: `Vector rationale for ${title}.`, distance: .1,
   cosineSimilarity: .9, score: .8, scores: { cosine: .63, series: .1, genre: .05, playtime: .02 }, ...fields });
-const vectorResult = picks => ({ recommendations: picks, tasteSource: "completed-favorites", anchorCount: 1, vectorVersion: "catalog-features-v1",
+const vectorResult = picks => ({ recommendations: picks, tasteSource: "completed-favorites", anchorCount: 1, negativeAnchorCount: 2, vectorVersion: "catalog-features-v1",
   diagnostics: { queryLatencyMs: 2.5, candidateCount: 20, filteredCount: 1,
     coverage: { total: 89, embedded: 89, current: 89, released: 85, eligible: 84 }, anchors: [{ title: "Seed", rating: 5 }] } });
 
@@ -104,7 +104,7 @@ test("three vector picks are primary, skip all providers and preserve the exact 
     coverUrl: pick.coverUrl, lengthHours: 15, difficulty: 2, reason: pick.reason })));
   assert.equal(context.aiCalls.length, 0); assert.equal(context.lookups.length, 0);
   assert.deepEqual(context.vectorCalls[0][1], ["Seen"]);
-  assert.deepEqual(context.vectorCalls[0][2], { collectDiagnostics: false });
+  assert.deepEqual(context.vectorCalls[0][2], { collectDiagnostics: false, dismissedTitles: [] });
   for (const pick of result) assert.deepEqual(Object.keys(pick).sort(), ["title", "platform", "genre", "releaseYear", "coverUrl", "lengthHours", "difficulty", "reason"].sort());
 });
 
@@ -117,6 +117,7 @@ test("partial vector results stay first and Gemini receives those titles as excl
   assert.deepEqual(context.aiCalls[0][1], ["Seen", "Vector A", "Vector B"]);
   assert(!context.lookups.includes("Vector A"));
   assert.equal(debug.engineSource, "mixed"); assert.equal(debug.vector.returnedCount, 2);
+  assert.equal(debug.vector.negativeAnchorCount, 2);
   assert.equal(debug.source, "mixed"); assert.equal(debug.fallbackTriggered, true);
   assert.deepEqual(debug.picks.map(pick => pick.source), ["vector", "vector", "live-ai"]);
 });
@@ -156,7 +157,7 @@ test("admin vector telemetry records provenance, score components, latency and c
   const context = fixture({ vector: async () => vectorResult(["A", "B", "C"].map(title => vectorPick(title))) });
   const debug = telemetry();
   await context.getExternalRecommendations("player", [], debug);
-  assert.deepEqual(context.vectorCalls[0][2], { collectDiagnostics: true });
+  assert.deepEqual(context.vectorCalls[0][2], { collectDiagnostics: true, dismissedTitles: [] });
   assert.equal(debug.engineSource, "vector"); assert.equal(debug.source, "vector");
   assert.equal(debug.fallbackTriggered, false); assert.equal(debug.vector.status, "passed");
   assert.equal(debug.vector.queryLatencyMs, 2.5); assert(debug.vector.latencyMs >= 0);

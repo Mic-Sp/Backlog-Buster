@@ -7,13 +7,14 @@ export type ScoutVectorDebug = {
   vectorVersion: string | null;
   tasteSource: "completed-favorites" | "active-pinned" | "cold-start" | null;
   anchorCount: number;
+  negativeAnchorCount: number;
   candidateCount: number;
   filteredCount: number;
   returnedCount: number;
   coverage: { total: number; embedded: number; current: number; released: number; eligible: number } | null;
   fallbackReason: string | null;
   picks: { title: string; cosineSimilarity: number; score: number;
-    scores: { cosine: number; series: number; genre: number; playtime: number } }[];
+    scores: { cosine: number; series: number; genre: number; playtime: number; negative: number } }[];
 };
 export type ScoutDebug = {
   requestedAt: string;
@@ -45,7 +46,7 @@ export type ScoutDebug = {
 
 export function createScoutVectorDebug(): ScoutVectorDebug {
   return { status: "not-run", latencyMs: null, queryLatencyMs: null, vectorVersion: null, tasteSource: null,
-    anchorCount: 0, candidateCount: 0, filteredCount: 0, returnedCount: 0, coverage: null, fallbackReason: null, picks: [] };
+    anchorCount: 0, negativeAnchorCount: 0, candidateCount: 0, filteredCount: 0, returnedCount: 0, coverage: null, fallbackReason: null, picks: [] };
 }
 
 export function createScoutDebug(): ScoutDebug {

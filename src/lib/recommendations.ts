@@ -26,7 +26,7 @@ export async function getVectorRecommendations(userId?: string, excludedTitles: 
     platform: true, franchise: true, earnedXp: true,
   } });
   const { recommendCatalogGames } = await import("@/lib/vector-recommendations");
-  return recommendCatalogGames(games, exclusions, options);
+  return recommendCatalogGames(games, exclusions, { ...options, dismissedTitles: dismissed });
 }
 
 export type ExternalRecommendation = {
@@ -147,6 +147,7 @@ export async function getExternalRecommendations(
       debug.vector.vectorVersion = result.vectorVersion;
       debug.vector.tasteSource = result.tasteSource;
       debug.vector.anchorCount = result.anchorCount;
+      debug.vector.negativeAnchorCount = result.negativeAnchorCount ?? 0;
       if (result.diagnostics) {
         debug.vector.queryLatencyMs = result.diagnostics.queryLatencyMs;
         debug.vector.candidateCount = result.diagnostics.candidateCount;
