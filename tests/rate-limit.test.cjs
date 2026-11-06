@@ -17,7 +17,7 @@ function loader(mocks = {}) {
   return load;
 }
 
-test('local backlog advice can repeat immediately while external scouting stays rate limited', async () => {
+test('local backlog advice and external Scout scans both repeat immediately', async () => {
   let advisorCalls = 0, scoutCalls = 0, authenticated = true;
   const histories = [];
   const load = loader({
@@ -42,11 +42,11 @@ test('local backlog advice can repeat immediately while external scouting stays 
   const { fetchBacklogAdvisor, fetchExternalScout } = load('src/app/actions.ts');
   assert.equal((await fetchBacklogAdvisor()).revision, 1);
   assert.deepEqual(await fetchExternalScout(), { recommendations: [] });
-  // Neither an internal repeat nor the scout's active cooldown can lock local advice.
+  // Neither local advice nor a vector Scout repeat has a top-level cooldown.
   assert.equal((await fetchBacklogAdvisor([10, 20, 10])).revision, 2);
   assert.deepEqual(histories, [[], [10, 20]]);
-  assert.equal((await fetchExternalScout(['Previously seen'])).status, 429);
-  assert.equal(scoutCalls, 1);
+  assert.deepEqual(await fetchExternalScout(['Previously seen']), { recommendations: [] });
+  assert.equal(scoutCalls, 2);
   assert.equal((await fetchBacklogAdvisor()).revision, 3);
   for (const history of [null, {}, '1', [0], [-1], [1.5], [NaN], ['1'], [2_147_483_648], Array(10_001).fill(1)]) {
     assert.match((await fetchBacklogAdvisor(history)).error, /valid list/);

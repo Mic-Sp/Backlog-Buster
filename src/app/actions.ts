@@ -417,25 +417,20 @@ export async function fetchExternalScout(excludedTitles: readonly string[] = [])
         seen.add(key);
         return true;
       });
-    // Distinct exclusions must not share an in-flight response. The feature key
-    // stays "scout", preserving the per-player cooldown across all lists.
-    const input = sanitizedTitles.length ? JSON.stringify(sanitizedTitles) : "external";
-    return guardedRequest(playerId, "scout", input, async () => {
-      let includeDebug = false;
-      try { includeDebug = (await requireAdmin()).id === playerId; }
-      catch (error) { if (!(error instanceof AdminRequiredError)) throw error; }
-      const debug = includeDebug ? createScoutDebug() : undefined;
-      const recommendations = debug
-        ? await getExternalRecommendations(playerId, sanitizedTitles, debug)
-        : await getExternalRecommendations(playerId, sanitizedTitles);
-      // Recheck the live session/role after slow provider calls (logout/demotion).
-      if (debug) {
-        try {
-          if ((await requireAdmin()).id === playerId) return { recommendations, debug: sanitizeScoutDebug(debug) };
-        } catch (error) { if (!(error instanceof AdminRequiredError)) throw error; }
-      }
-      return { recommendations };
-    });
+    let includeDebug = false;
+    try { includeDebug = (await requireAdmin()).id === playerId; }
+    catch (error) { if (!(error instanceof AdminRequiredError)) throw error; }
+    const debug = includeDebug ? createScoutDebug() : undefined;
+    const recommendations = debug
+      ? await getExternalRecommendations(playerId, sanitizedTitles, debug)
+      : await getExternalRecommendations(playerId, sanitizedTitles);
+    // Recheck the live session/role after slow provider calls (logout/demotion).
+    if (debug) {
+      try {
+        if ((await requireAdmin()).id === playerId) return { recommendations, debug: sanitizeScoutDebug(debug) };
+      } catch (error) { if (!(error instanceof AdminRequiredError)) throw error; }
+    }
+    return { recommendations };
   });
 }
 

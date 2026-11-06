@@ -4,7 +4,8 @@ import { z } from "zod";
 import { estimateScoutCost, type ScoutDebug } from "@/lib/scout-debug";
 import { scoutDebugPreview } from "@/lib/scout-debug-server";
 import { normalizeGameTitle } from "@/lib/game-title";
-import { resilientFetch, retryAfterSeconds } from "@/lib/api-resilience";
+import { claimRequestCooldown, requestCooldownRemaining, resilientFetch, retryAfterSeconds } from "@/lib/api-resilience";
+import { SCOUT_GEMINI_COOLDOWN_SECONDS } from "@/lib/cooldown";
 import { RateLimitError } from "@/lib/action-result";
 
 export const SCOUT_SYSTEM_PROMPT = `You are a video game discovery advisor. Recommend 4 distinct, standalone, already-released video games (as of currentDate; no DLC, expansions, bundles, or unreleased/fictional titles) based strictly on provided seed games, ratings, genres, and platforms.
@@ -156,12 +157,25 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/** Server helper only; the calling Server Action must authenticate and rate-limit. */
+export type ScoutAIResult = { candidates: ScoutCandidate[]; cooldownRemainingSeconds: number };
+
+/** The caller supplies the authenticated player; only an actual Gemini attempt claims a cooldown. */
 export async function getAIScoutCandidates(
+  playerId: string,
   games: readonly ScoutLibraryGame[],
   excludedTitles: readonly string[] = [],
   debug?: ScoutDebug,
-): Promise<ScoutCandidate[]> {
+): Promise<ScoutAIResult> {
+  function skipped(cooldownRemainingSeconds: number): ScoutAIResult {
+    if (debug) {
+      debug.geminiCooldownSkipped = true;
+      debug.geminiCooldownRemainingSeconds = cooldownRemainingSeconds;
+      debug.fallbackReason = "Gemini API cooldown active; using vector and local catalog picks only.";
+    }
+    return { candidates: [], cooldownRemainingSeconds };
+  }
+  const remaining = requestCooldownRemaining(playerId, "scout-gemini");
+  if (remaining) return skipped(remaining);
   const { payload, prompt } = buildScoutInput(games, excludedTitles);
   if (debug) {
     debug.anchors = payload.seeds.map(({ title, rating }) => ({ title, rating }));
@@ -169,7 +183,7 @@ export async function getAIScoutCandidates(
   }
   if (!payload.seeds.length) {
     if (debug) debug.fallbackReason = "No eligible completed favorites or unrated completions to seed Gemini.";
-    return [];
+    return { candidates: [], cooldownRemainingSeconds: 0 };
   }
 
   const apiKey = process.env.GEMINI_API_KEY?.trim();
@@ -179,6 +193,8 @@ export async function getAIScoutCandidates(
   }
   const model = process.env.GEMINI_MODEL?.trim() || "gemini-3.5-flash-lite";
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
+  const cooldownRemainingSeconds = claimRequestCooldown(playerId, "scout-gemini", SCOUT_GEMINI_COOLDOWN_SECONDS);
+  if (cooldownRemainingSeconds) return skipped(cooldownRemainingSeconds);
   if (debug) debug.model = model;
   try {
     if (debug) {
@@ -245,11 +261,12 @@ export async function getAIScoutCandidates(
 
     // Use the full original lists, never the sanitized/truncated prompt subset.
     const excluded = new Set([...games.map((game) => game.title), ...excludedTitles].map(normalizeGameTitle));
-    return validated.data.filter((pick) => {
+    const candidates = validated.data.filter((pick) => {
       const blocked = excluded.has(normalizeGameTitle(pick.title));
       if (blocked && debug) debug.filteredCount++;
       return !blocked;
     });
+    return { candidates, cooldownRemainingSeconds: 0 };
   } catch (error) {
     if (debug) {
       debug.fallbackReason = error instanceof ScoutAIError ? error.message

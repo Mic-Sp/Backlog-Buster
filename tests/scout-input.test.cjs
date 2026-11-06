@@ -32,7 +32,7 @@ test("seeds preserve favorite ranking and only fall back to unrated completions"
   assert.deepEqual(buildScoutInput([game("Low", { rating: 1 })]).payload.seeds, []);
 });
 
-function mockScout(t, resilientFetch) {
+function mockScout(t, resilientFetch, claimRequestCooldown = () => 0) {
   const before = { key: process.env.GEMINI_API_KEY, model: process.env.GEMINI_MODEL };
   process.env.GEMINI_API_KEY = " scout-test-key ";
   delete process.env.GEMINI_MODEL;
@@ -43,7 +43,7 @@ function mockScout(t, resilientFetch) {
     else process.env.GEMINI_MODEL = before.model;
   });
   return load("src/lib/scout-ai.ts", {
-    "@/lib/api-resilience": { resilientFetch, retryAfterSeconds: (value) => Number(value) || 10 },
+    "@/lib/api-resilience": { resilientFetch, claimRequestCooldown, requestCooldownRemaining: () => 0, retryAfterSeconds: (value) => Number(value) || 10 },
   });
 }
 const pick = (title) => ({ title, reason: "Matches your taste for tactical combat.", preferredPlatform: "PC" });
@@ -64,7 +64,7 @@ test("Gemini caller reuses configuration, JSON mode and sanitized payload", asyn
     assert.equal(JSON.parse(body.contents[0].parts[0].text).seeds[0].title, "Seed");
     return Response.json(envelope(JSON.stringify(["Tunic", "SOMA", "Prey"].map(pick))));
   });
-  assert.deepEqual((await scout.getAIScoutCandidates([game("**Seed**")])).map((item) => item.title), ["Tunic", "SOMA", "Prey"]);
+  assert.deepEqual((await scout.getAIScoutCandidates("scout-player", [game("**Seed**")])).candidates.map((item) => item.title), ["Tunic", "SOMA", "Prey"]);
   assert.equal(calls, 1);
 });
 
@@ -76,13 +76,13 @@ test("Gemini caller filters FULL ownership/session lists including omitted title
     return Response.json(envelope(JSON.stringify(["Dark Souls 3", "Owned 99", "SOMA", "Tunic"].map(pick))));
   });
   process.env.GEMINI_MODEL = " custom/model ";
-  assert.deepEqual((await scout.getAIScoutCandidates(owned, excluded)).map((item) => item.title), ["Tunic"]);
+  assert.deepEqual((await scout.getAIScoutCandidates("scout-player", owned, excluded)).candidates.map((item) => item.title), ["Tunic"]);
 });
 
 test("Gemini output cannot bypass permanent normalized dismissals omitted by the prompt budget", async (t) => {
   const dismissed = [...Array.from({ length: 50 }, (_, index) => `Dismissed ${index}`), "cafe adventure 2"];
   const scout = mockScout(t, async () => Response.json(envelope(JSON.stringify(["Café Adventure II™", "Dismissed 49", "Safe"].map(pick)))));
-  assert.deepEqual((await scout.getAIScoutCandidates([game("Seed")], dismissed)).map(item => item.title), ["Safe"]);
+  assert.deepEqual((await scout.getAIScoutCandidates("scout-player", [game("Seed")], dismissed)).candidates.map(item => item.title), ["Safe"]);
 });
 
 test("Gemini caller rejects invalid, blocked, incomplete and malformed output cleanly", async (t) => {
@@ -98,10 +98,10 @@ test("Gemini caller rejects invalid, blocked, incomplete and malformed output cl
   ];
   for (const value of invalid) {
     response = Response.json(value);
-    await assert.rejects(scout.getAIScoutCandidates([game("Seed")]), { name: "ScoutAIError" });
+    await assert.rejects(scout.getAIScoutCandidates("scout-player", [game("Seed")]), { name: "ScoutAIError" });
   }
   response = new Response("provider secret detail", { status: 200 });
-  await assert.rejects(scout.getAIScoutCandidates([game("Seed")]), /Could not reach/);
+  await assert.rejects(scout.getAIScoutCandidates("scout-player", [game("Seed")]), /Could not reach/);
 });
 
 test("Gemini caller handles missing config, empty seeds, rate limits and transport failures", async (t) => {
@@ -112,16 +112,16 @@ test("Gemini caller handles missing config, empty seeds, rate limits and transpo
     if (failure) throw failure;
     return new Response("secret provider error", { status: 429, headers: { "Retry-After": "23" } });
   });
-  assert.deepEqual(await scout.getAIScoutCandidates([]), []);
+  assert.deepEqual(await scout.getAIScoutCandidates("scout-player", []), { candidates: [], cooldownRemainingSeconds: 0 });
   delete process.env.GEMINI_API_KEY;
-  await assert.rejects(scout.getAIScoutCandidates([game("Seed")]), /not configured/);
+  await assert.rejects(scout.getAIScoutCandidates("scout-player", [game("Seed")]), /not configured/);
   assert.equal(calls, 0);
   process.env.GEMINI_API_KEY = "test";
-  await assert.rejects(scout.getAIScoutCandidates([game("Seed")]), (error) => error.retryAfterSeconds === 23);
+  await assert.rejects(scout.getAIScoutCandidates("scout-player", [game("Seed")]), (error) => error.retryAfterSeconds === 23);
   failure = new DOMException("private detail", "TimeoutError");
-  await assert.rejects(scout.getAIScoutCandidates([game("Seed")]), /timed out/);
+  await assert.rejects(scout.getAIScoutCandidates("scout-player", [game("Seed")]), /timed out/);
   failure = new Error("secret network detail");
-  await assert.rejects(scout.getAIScoutCandidates([game("Seed")]), (error) => error.name === "ScoutAIError" && !error.message.includes("secret"));
+  await assert.rejects(scout.getAIScoutCandidates("scout-player", [game("Seed")]), (error) => error.name === "ScoutAIError" && !error.message.includes("secret"));
 });
 
 test("sanitizes and bounds strings, deduplicates title variants across sources", () => {
@@ -165,7 +165,7 @@ test("admin telemetry captures schema issues, safe raw preview, and provider usa
     ...envelope(JSON.stringify(values)), usageMetadata: { promptTokenCount: 120, candidatesTokenCount: 80, thoughtsTokenCount: 10 },
   }));
   const debug = createScoutDebug();
-  await assert.rejects(scout.getAIScoutCandidates([game("Seed")], [], debug), /invalid recommendation data/);
+  await assert.rejects(scout.getAIScoutCandidates("scout-player", [game("Seed")], [], debug), /invalid recommendation data/);
   assert.equal(debug.schemaStatus, "failed");
   assert(debug.validationIssues.some(issue => issue.path === "2.reason"));
   assert(debug.validationIssues.some(issue => /lengthHours/.test(issue.message)));
@@ -188,17 +188,17 @@ test("telemetry distinguishes excluded titles, timeouts, malformed JSON, and inc
     return Response.json(response);
   });
   let debug = createScoutDebug();
-  assert.equal((await scout.getAIScoutCandidates([game("Seed")], ["Seen"], debug)).length, 1);
+  assert.equal((await scout.getAIScoutCandidates("scout-player", [game("Seed")], ["Seen"], debug)).candidates.length, 1);
   assert.equal(debug.filteredCount, 2); assert.equal(debug.schemaStatus, "passed");
   assert(debug.inputTokens > 350); // Includes the current system prompt plus this small fixture payload.
   response = envelope("bad json"); debug = createScoutDebug();
-  await assert.rejects(scout.getAIScoutCandidates([game("Seed")], [], debug));
+  await assert.rejects(scout.getAIScoutCandidates("scout-player", [game("Seed")], [], debug));
   assert.equal(debug.schemaStatus, "failed"); assert.match(debug.fallbackReason, /invalid JSON/);
   response = envelope("partial answer", { finishReason: "MAX_TOKENS" }); debug = createScoutDebug();
-  await assert.rejects(scout.getAIScoutCandidates([game("Seed")], [], debug));
+  await assert.rejects(scout.getAIScoutCandidates("scout-player", [game("Seed")], [], debug));
   assert.equal(debug.responsePreview, "partial answer");
   fail = true; debug = createScoutDebug();
-  await assert.rejects(scout.getAIScoutCandidates([game("Seed")], [], debug));
+  await assert.rejects(scout.getAIScoutCandidates("scout-player", [game("Seed")], [], debug));
   assert.match(debug.fallbackReason, /timed out/);
   assert(!JSON.stringify(debug).includes("private network details"));
 });

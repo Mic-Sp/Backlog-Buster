@@ -35,17 +35,29 @@ export async function coalesce<T>(key: string, work: () => Promise<T>): Promise<
 }
 
 // Process-local, bounded protection. A shared store is required across replicas.
+export function requestCooldownRemaining(playerId: string, feature: string): number {
+  return Math.max(0, Math.ceil(((cooldowns.get(`${playerId}:${feature}`) ?? 0) - Date.now()) / 1000));
+}
+
+// Synchronous claim prevents concurrent requests (including different inputs)
+// from both dispatching. Zero means claimed; a positive value means skip/retry.
+export function claimRequestCooldown(playerId: string, feature: string, seconds = DEFAULT_COOLDOWN_SECONDS): number {
+  const key = `${playerId}:${feature}`;
+  const now = Date.now();
+  const remaining = requestCooldownRemaining(playerId, feature);
+  if (remaining) return remaining;
+  if (cooldowns.size >= 10000) {
+    for (const [id, expiry] of cooldowns) if (expiry <= now) cooldowns.delete(id);
+    if (cooldowns.size >= 10000) return seconds;
+  }
+  cooldowns.set(key, now + seconds * 1000);
+  return 0;
+}
+
 export function guardedRequest<T>(playerId: string, feature: string, input: string, work: () => Promise<T>, seconds = DEFAULT_COOLDOWN_SECONDS): Promise<T> {
   return coalesce(`player:${playerId}:${feature}:${input}`, async () => {
-    const key = `${playerId}:${feature}`;
-    const now = Date.now();
-    const until = cooldowns.get(key) ?? 0;
-    if (until > now) throw new RateLimitError(Math.ceil((until - now) / 1000));
-    if (cooldowns.size >= 10000) {
-      for (const [id, expiry] of cooldowns) if (expiry <= now) cooldowns.delete(id);
-      if (cooldowns.size >= 10000) throw new RateLimitError(seconds);
-    }
-    cooldowns.set(key, now + seconds * 1000);
+    const retry = claimRequestCooldown(playerId, feature, seconds);
+    if (retry) throw new RateLimitError(retry);
     return work();
   });
 }

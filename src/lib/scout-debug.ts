@@ -18,7 +18,7 @@ export type ScoutVectorDebug = {
 export type ScoutDebug = {
   requestedAt: string;
   source: "vector" | "live-ai" | "deterministic-fallback" | "mixed" | "none";
-  engineSource: "vector" | "gemini-fallback" | "mixed" | "none";
+  engineSource: "vector" | "gemini-fallback" | "local-fallback" | "mixed" | "none";
   vector: ScoutVectorDebug;
   schemaStatus: "not-run" | "passed" | "failed";
   playtimeStatus: string;
@@ -31,6 +31,8 @@ export type ScoutDebug = {
   metadataRejectedCount: number;
   model: string | null;
   liveCallAttempted: boolean;
+  geminiCooldownSkipped: boolean;
+  geminiCooldownRemainingSeconds: number;
   inputTokens: number;
   outputTokens: number;
   tokenBasis: "estimate" | "provider";
@@ -53,7 +55,8 @@ export function createScoutDebug(): ScoutDebug {
     playtimeStatus: "Not run; catalog/RAWG estimates are normalized with genre floors; Gemini estimates are not accepted.",
     fallbackTriggered: false, fallbackReason: null, validationIssues: [], anchors: [],
     excludedCount: 0, filteredCount: 0, metadataRejectedCount: 0, model: null,
-    liveCallAttempted: false, inputTokens: 0, outputTokens: 0, tokenBasis: "estimate",
+    liveCallAttempted: false, geminiCooldownSkipped: false, geminiCooldownRemainingSeconds: 0,
+    inputTokens: 0, outputTokens: 0, tokenBasis: "estimate",
     estimatedCostUsd: 0, attemptedCallCostUsd: 0, promptPreview: "", responsePreview: "", picks: [],
   };
 }

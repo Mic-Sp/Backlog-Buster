@@ -3,9 +3,7 @@
 import { useLayoutCopy } from "@/components/LayoutText";
 import { FantasyCorners } from "@/components/FantasyAccents";
 
-import useCooldown from "@/components/useCooldown";
-import { DEFAULT_COOLDOWN_SECONDS } from "@/lib/cooldown";
-import { actionErrorMessage, ActionFailure, unwrapActionResult } from "@/lib/action-result";
+import { actionErrorMessage, unwrapActionResult } from "@/lib/action-result";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
@@ -23,7 +21,6 @@ import { useUIEffects } from "@/components/ThemeProvider";
 export function useTacticalAdvisorController({ games, isAdmin = false }: { isAdmin?: boolean; games: Pick<LibraryGame, "id" | "title" | "status" | "pinnedOrder" | "hoursPlayed" | "lengthHours">[] }) {
   const copy = useLayoutCopy();
   const { playSfx } = useUIEffects();
-  const scoutCooldown = useCooldown();
   const advisorFlight = useRef(false);
   const scoutFlight = useRef(false);
   const [isOpen, setIsOpen] = useState(false);
@@ -60,7 +57,7 @@ export function useTacticalAdvisorController({ games, isAdmin = false }: { isAdm
   const ownedTitles = useMemo(() => new Set(games.map((game) => normalizeGameTitle(game.title))), [games]);
 
   function loadExternalPicks(override = false) {
-    if (scoutFlight.current || scoutCooldown.seconds > 0) return;
+    if (scoutFlight.current) return;
     if (backlogCount > 5 && !scoutOverride && !override) {
       setScoutUnlocked(false);
       return;
@@ -72,11 +69,9 @@ export function useTacticalAdvisorController({ games, isAdmin = false }: { isAdm
     setScoutDebug(null);
     setExternalError("");
     startScouting(async () => {
-      const startedAt = Date.now();
       try {
         const sessionExclusions = new Map([...seenExternalTitles.current, ...dismissedTitles.current]);
         const result = unwrapActionResult(await fetchExternalScout([...sessionExclusions.values()].slice(-30)));
-        scoutCooldown.start(DEFAULT_COOLDOWN_SECONDS, startedAt);
         if (request === scoutRequestId.current) {
           // Accept legacy array payloads and responses that omit diagnostics.
           const recommendations = (Array.isArray(result) ? result : result.recommendations)
@@ -95,7 +90,6 @@ export function useTacticalAdvisorController({ games, isAdmin = false }: { isAdm
           setExternalPicks(recommendations);
         }
       } catch (error) {
-        if (error instanceof ActionFailure) scoutCooldown.start(error.retryAfterSeconds);
         if (request === scoutRequestId.current) setExternalError(actionErrorMessage(error, "External scouting failed. Retry the scan to reconnect."));
       } finally { scoutFlight.current = false; }
     });
@@ -290,7 +284,6 @@ export function useTacticalAdvisorController({ games, isAdmin = false }: { isAdm
   return {
     isAdmin,
     scoutDebug,
-    scoutCooldown,
     isOpen,
     picks,
     error,
@@ -332,7 +325,6 @@ export function TacticalAdvisorView({ controller, part = "all" }: { controller: 
   const {
     isAdmin,
     scoutDebug,
-    scoutCooldown,
     isOpen,
     picks,
     error,
@@ -391,7 +383,7 @@ export function TacticalAdvisorView({ controller, part = "all" }: { controller: 
               {!scoutUnlocked ? (
                 <div className="advisor-scout-locked">
                   <p>{copy(`🔒 EXTERNAL SCOUTING STANDBY // Backlog at ${backlogCount} gigs (Target: <= 5 gigs)`, `✧ Beyond the map is resting · ${backlogCount} quests in your Backlog (Target: <= 5 quests)`)}</p>
-                  <button type="button" disabled={isStarting || isAdding || scoutCooldown.seconds > 0 || isScouting} onClick={() => { setScoutOverride(true); setScoutUnlocked(true); loadExternalPicks(true); }}>{scoutCooldown.seconds > 0 ? scoutCooldown.label : copy("⚡ OVERRIDE LOCK & SCAN", "✦ EXPLORE BEYOND THE MAP")}</button>
+                  <button type="button" disabled={isStarting || isAdding || isScouting} onClick={() => { setScoutOverride(true); setScoutUnlocked(true); loadExternalPicks(true); }}>{copy("⚡ OVERRIDE LOCK & SCAN", "✦ EXPLORE BEYOND THE MAP")}</button>
                 </div>
               ) : (
                 <>
@@ -432,7 +424,7 @@ export function TacticalAdvisorView({ controller, part = "all" }: { controller: 
                       })}
                     </div>
                   ) : <p className="advisor-empty" role="status">{copy("No new affinity picks with a confirmed release year of this year or earlier are available. Complete and rate a gig 4–5 stars to guide scouting; games already in your library are excluded.", "No new released adventures were found. Complete and rate a quest 4–5 stars to guide the fairy; quests already in your journal are excluded.")}</p>)}
-                  <button className="advisor-refresh" type="button" disabled={isScouting || isStarting || isAdding || scoutCooldown.seconds > 0} aria-busy={isScouting} onClick={() => loadExternalPicks()}>{isScouting ? copy("SCANNING NEURAL NET…", "FOLLOWING THE FAIRY LIGHT…") : scoutCooldown.seconds > 0 ? scoutCooldown.label : externalError ? copy("RETRY EXTERNAL SCAN", "RETRY THE SEARCH") : copy("RESCAN NEW CONTRACTS", "SEEK NEW QUESTS")}</button>
+                  <button className="advisor-refresh" type="button" disabled={isScouting || isStarting || isAdding} aria-busy={isScouting} onClick={() => loadExternalPicks()}>{isScouting ? copy("SCANNING NEURAL NET…", "FOLLOWING THE FAIRY LIGHT…") : externalError ? copy("RETRY EXTERNAL SCAN", "RETRY THE SEARCH") : copy("RESCAN NEW CONTRACTS", "SEEK NEW QUESTS")}</button>
                   <p className="advisor-scout-status" role="status" aria-live="polite">{addedTitles.size > 0 ? `${addedTitles.size} new contract${addedTitles.size === 1 ? "" : "s"} added to backlog.` : ""}</p>
                   <p className="advisor-scout-status advisor-dismiss-status" role="status" aria-live="polite">{dismissalNotice}</p>
                 </>

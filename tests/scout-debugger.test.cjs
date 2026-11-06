@@ -43,7 +43,19 @@ test("mixed/fallback diagnostics remain readable with unavailable metrics and no
   assert.match(html, /Unavailable/); assert.match(html, /Vector discovery unavailable/);
   assert(!html.includes("NaN")); assert(!html.includes("<table"));
   debug.engineSource = "mixed";
-  assert.match(render(debug), /VECTOR \+ PROVIDER FALLBACK/);
+  assert.match(render(debug), /VECTOR \+ FALLBACK/);
+});
+
+test("Gemini cooldown is reported as a local fallback skip rather than a blocked Scout scan", () => {
+  const debug = createScoutDebug();
+  debug.engineSource = "local-fallback"; debug.source = "deterministic-fallback";
+  debug.geminiCooldownSkipped = true; debug.geminiCooldownRemainingSeconds = 7;
+  const html = render(sanitizeScoutDebug(debug));
+  assert.match(html, /LOCAL CATALOG FALLBACK/);
+  assert.match(html, /Gemini skipped: API cooldown active \(7s remaining\)/);
+  assert.match(html, /This scan uses vector and local catalog picks/);
+  assert.match(html, /No Gemini call/);
+  assert(!html.includes("429"));
 });
 
 test("busy/empty debugger states do not render stale metric tables or payloads", () => {

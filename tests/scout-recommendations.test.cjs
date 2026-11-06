@@ -9,15 +9,15 @@ const ts = require("typescript");
 const seed = { title: "Seed", platform: "PC", genre: "Action", status: "Completed", rating: 5, earnedXp: 100 };
 const candidate = (title) => ({ title, preferredPlatform: "PC", reason: `AI rationale for ${title}.` });
 const metadata = { platforms: ["Console", "PC"], genre: "Action", releaseYear: 2020, coverUrl: "https://example.com/cover.jpg", playtime: 4 };
-function fixture({ ai = async () => [], lookup = async () => metadata, games = [seed], dismissed = () => [], vector = async () => ({
+function fixture({ ai = async () => [], lookup = async () => metadata, games = [seed], dismissed = () => [], cooldown = () => 0, catalog = [], vector = async () => ({
   recommendations: [], tasteSource: "cold-start", anchorCount: 0, vectorVersion: "catalog-features-v1",
 }) } = {}) {
   const lookups = [], aiCalls = [], vectorCalls = [];
   const mocks = {
     "server-only": {},
     "@/lib/player": { getCurrentPlayerId: async () => "player" },
-    "@/lib/prisma": { prisma: { recommendationDismissal: { findMany: async ({ where, select }) => { assert.equal(where.userId, "player"); assert.deepEqual(select, { titleKey: true }); return dismissed().map(titleKey => ({ titleKey })); } }, game: { findMany: async ({ where }) => { assert.equal(where.userId, "player"); return games; } } } },
-    "@/lib/scout-ai": { getAIScoutCandidates: async (...args) => { aiCalls.push(args); return ai(...args); } },
+    "@/lib/prisma": { prisma: { gameCatalog: { findMany: async () => catalog }, recommendationDismissal: { findMany: async ({ where, select }) => { assert.equal(where.userId, "player"); assert.deepEqual(select, { titleKey: true }); return dismissed().map(titleKey => ({ titleKey })); } }, game: { findMany: async ({ where }) => { assert.equal(where.userId, "player"); return games; } } } },
+    "@/lib/scout-ai": { getAIScoutCandidates: async (playerId, ...args) => { assert.equal(playerId, "player"); aiCalls.push(args); const remaining = cooldown(); return { candidates: remaining ? [] : await ai(...args), cooldownRemainingSeconds: remaining }; } },
     "@/lib/vector-recommendations": { recommendCatalogGames: async (...args) => { vectorCalls.push(args); return vector(...args); } },
     "@/lib/rawg": { resizeRawgImageUrl: value => value, lookupRawgGame: async (title, reportRateLimit) => { assert.equal(reportRateLimit, true); lookups.push(title); return lookup(title); } },
     "@/lib/scout-catalog": { franchiseAffinities: {}, genreNeighbors: {}, generalDiscovery: ["Fallback 1", "Fallback 2", "Fallback 3", "Fallback 4", "Fallback 5", "Fallback 6"] },

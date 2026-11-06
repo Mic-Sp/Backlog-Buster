@@ -229,12 +229,52 @@ export async function getExternalRecommendations(
     }
   }
 
+  async function appendLocalCatalogFallback(candidates: ScoutCandidate[]) {
+    try {
+      const catalog = await prisma.gameCatalog.findMany({
+        where: { releaseYear: { gt: 0, lte: currentYear } },
+        select: { title: true, platforms: true, genre: true, releaseYear: true, coverUrl: true, estimatedHours: true },
+        orderBy: [{ title: "asc" }, { key: "asc" }],
+      });
+      const curated = new Map(candidates.map((candidate, index) => [normalizeGameTitle(candidate.title), { candidate, index }]));
+      // Prefer curated taste neighbors, then use the stored released catalog as
+      // a reserve, including when vector retrieval or taste seeds are unavailable.
+      catalog.sort((a, b) => (curated.get(normalizeGameTitle(a.title))?.index ?? Number.MAX_SAFE_INTEGER)
+        - (curated.get(normalizeGameTitle(b.title))?.index ?? Number.MAX_SAFE_INTEGER));
+      const platforms = new Set(games.map(game => normalize(game.platform)));
+      for (const game of catalog) {
+        if (recommendations.length >= 3) break;
+        const key = normalizeGameTitle(game.title);
+        if (!key || excluded.has(key) || !isReleasedYear(game.releaseYear, currentYear)) continue;
+        const hint = curated.get(key)?.candidate;
+        excluded.add(key);
+        recommendations.push({ title: game.title,
+          platform: game.platforms.find(platform => platforms.has(normalize(platform))) ?? game.platforms[0] ?? "PC",
+          genre: game.genre, releaseYear: game.releaseYear, coverUrl: game.coverUrl ? resizeRawgImageUrl(game.coverUrl) : null,
+          lengthHours: resolveRawgPlaytime(game.estimatedHours, game.genre) ?? 10, difficulty: 2,
+          reason: hint?.reason ?? "A released discovery pick from the local game catalog." });
+        if (debug) {
+          debug.playtimeStatus = "Local catalog estimates normalized with genre floors and a 1–10,000-hour clamp; no external metadata request.";
+          debug.picks.push({ title: game.title, source: "deterministic-fallback", ...(hint?.anchor ? { anchor: hint.anchor } : {}) });
+        }
+      }
+    } catch {
+      // An unavailable local reserve must not discard successful vector picks.
+      if (debug) debug.fallbackReason = "Gemini API cooldown active; local catalog reserve unavailable. Returning available vector picks.";
+    }
+  }
+
+  let geminiCooldownActive = false;
   if (recommendations.length < 3) {
     try {
       const providerExclusions = [...extraExcludedTitles, ...recommendations.map(pick => pick.title)];
-      const candidates = debug ? await getAIScoutCandidates(games, providerExclusions, debug)
-        : await getAIScoutCandidates(games, providerExclusions);
-      await appendEnrichedCandidates(candidates, "live-ai");
+      const result = debug ? await getAIScoutCandidates(userId, games, providerExclusions, debug)
+        : await getAIScoutCandidates(userId, games, providerExclusions);
+      geminiCooldownActive = result.cooldownRemainingSeconds > 0;
+      if (geminiCooldownActive && debug) {
+        debug.vector.fallbackReason = `Vector catalog supplied ${recommendations.length} eligible picks; Gemini API cooldown active, filling remaining slots from the local catalog.`;
+      }
+      await appendEnrichedCandidates(result.candidates, "live-ai");
     } catch {
       // Keep any vector successes through missing configuration, invalid AI output or provider outages.
     }
@@ -246,7 +286,8 @@ export async function getExternalRecommendations(
       debug.fallbackReason ??= "Fewer than three usable AI picks after ownership/session exclusions and RAWG release/lookup checks.";
     }
     const fallback = selectStaticScoutCandidates(games, [...extraExcludedTitles, ...attemptedTitles]);
-    await appendEnrichedCandidates(fallback, "deterministic-fallback");
+    if (geminiCooldownActive) await appendLocalCatalogFallback(fallback);
+    else await appendEnrichedCandidates(fallback, "deterministic-fallback");
   }
   // A dismissal can be saved in another tab while an upstream scan is running.
   const latestDismissals = new Set(await getDismissedRecommendationTitles(userId));
@@ -260,8 +301,8 @@ export async function getExternalRecommendations(
     const providerCount = aiCount + fallbackCount;
     debug.source = vectorCount ? providerCount ? "mixed" : "vector"
       : aiCount && fallbackCount ? "mixed" : aiCount ? "live-ai" : fallbackCount ? "deterministic-fallback" : "none";
-    debug.engineSource = vectorCount ? providerCount ? "mixed" : "vector" : providerCount ? "gemini-fallback" : "none";
-    if (vectorCount) debug.playtimeStatus = "Catalog and RAWG estimates normalized with genre floors and a 1–10,000-hour clamp; Gemini playtime is not accepted.";
+    debug.engineSource = vectorCount ? providerCount ? "mixed" : "vector" : providerCount ? geminiCooldownActive ? "local-fallback" : "gemini-fallback" : "none";
+    if (vectorCount && !geminiCooldownActive) debug.playtimeStatus = "Catalog and RAWG estimates normalized with genre floors and a 1–10,000-hour clamp; Gemini playtime is not accepted.";
     // Serving the catalog costs zero; failed Gemini attempts can still incur usage.
     debug.estimatedCostUsd = aiCount ? debug.attemptedCallCostUsd : 0;
   }

@@ -6,7 +6,7 @@ import "./ScoutDebugger.css";
 
 const money = (value: number | null) => value === null ? "Unknown model pricing" : `$${value.toFixed(6)}`;
 const sources = { vector: "VECTOR", "live-ai": "GEMINI FALLBACK", "deterministic-fallback": "CURATED FALLBACK", mixed: "MIXED", none: "NO PICKS" };
-const engines = { vector: "VECTOR", "gemini-fallback": "GEMINI FALLBACK", mixed: "VECTOR + PROVIDER FALLBACK", none: "NO PICKS" };
+const engines = { vector: "VECTOR", "gemini-fallback": "GEMINI FALLBACK", "local-fallback": "LOCAL CATALOG FALLBACK", mixed: "VECTOR + FALLBACK", none: "NO PICKS" };
 const decimal = (value: number | null) => value === null ? "Unavailable" : value.toFixed(3);
 const milliseconds = (value: number | null) => value === null ? "Unavailable" : `${value.toFixed(1)} ms`;
 
@@ -48,6 +48,7 @@ export default function ScoutDebugger({ debug, busy }: { debug: ScoutDebug | nul
             </div>}
           </section>
           <p><strong>Gemini attempt tokens ({debug.tokenBasis}):</strong> {debug.inputTokens} input / {debug.outputTokens} output · {debug.model ?? "No Gemini call"}</p>
+          {debug.geminiCooldownSkipped && <p role="status">Gemini skipped: API cooldown active ({debug.geminiCooldownRemainingSeconds}s remaining). This scan uses vector and local catalog picks.</p>}
           <p><strong>Playtime:</strong> {debug.playtimeStatus}</p>
           <details className="saga-debug-payload">
             <summary>Validation, fallback reason &amp; payload preview</summary>
