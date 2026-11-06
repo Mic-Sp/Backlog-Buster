@@ -132,8 +132,18 @@
 :root[data-layout-mode="fantasy"] .summary-progress { grid-column: auto; padding: 0; border: none; }
 :root[data-layout-mode="fantasy"] .summary-progress-track { background: #253f34; border: 3px ridge #bbaa6a; height: 18px; border-radius: 3px; }
 :root[data-layout-mode="fantasy"] .summary-progress-track span { background: linear-gradient(#a1db70, #388d48); box-shadow: none; }
-:root[data-layout-mode="fantasy"] .summary-progress-heading strong,
-:root[data-layout-mode="fantasy"] .summary-progress-percent { color: #2f643c; }
+:root[data-layout-mode="fantasy"] .summary-progress-heading strong { color: #2f643c; }
+:root[data-layout-mode="fantasy"] .summary-progress-percent {
+  right: 6px;
+  bottom: 3px;
+  padding: 0 3px;
+  border-radius: 2px;
+  color: #fff4d0;
+  background: #18392de6;
+  line-height: 12px;
+  text-shadow: 0 1px 1px #071b12;
+  mix-blend-mode: normal;
+}
 :root[data-layout-mode="fantasy"] .summary-counts { grid-column: 1 / -1; border: none; padding: 0; }
 :root[data-layout-mode="fantasy"] .summary-count-items p { border-color: #bba476; background: #dbc795; color: #4e482e; }
 :root[data-layout-mode="fantasy"] .summary-count-items strong { color: #365d3f; }
