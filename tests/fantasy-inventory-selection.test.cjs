@@ -24,6 +24,8 @@ function fixture(selectedGameId = null) {
     "@/components/WorkspaceShell": { useSubscreen: () => ({ showPane() {} }) },
     "@/components/ThemeProvider": { useUIEffects: () => ({ playSfx: sound => sounds.push(sound) }) },
     "@/components/SagaChains": { SagaBadge: empty, SagaOrderControls: empty },
+    "@/components/PlayJournal": { PlayJournalBadges: () => null, PlayJournalEditor: () => null },
+    "@/components/MicroReview": { MicroReview: () => null, MicroReviewEditor: () => null },
     "@/components/CommunityGameStats": { CommunityStatsReadout: empty },
     "@/components/SagaChronologyDebugger": { SagaChronologyDebuggerView: empty },
     "@/components/SafeForm": { default: empty, SafeActionButton: empty },

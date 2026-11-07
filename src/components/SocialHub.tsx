@@ -1,5 +1,7 @@
 "use client";
 
+import { MicroReview } from "@/components/MicroReview";
+
 import "./SocialHub.css";
 import { useCallback, useEffect, useId, useRef, useState, useTransition, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
@@ -165,6 +167,7 @@ function ActivityEntry({ item }: { item: FriendActivity }) {
   const date = new Date(item.createdAt);
   return <li className="social-activity-row"><OperatorAvatar avatarUrl={item.actor.avatarUrl} className="social-avatar" alt="" /><div>
     <p>{item.actor.handle ? <a href={`/dossier/${encodeURIComponent(item.actor.handle)}`} target="_blank" rel="noreferrer">{item.actor.operatorName}</a> : <strong>{item.actor.operatorName}</strong>} {description}.</p>
+    {"review" in item.metadata && <MicroReview review={item.metadata.review} reviewSpoiler={item.metadata.reviewSpoiler} />}
     <time dateTime={item.createdAt}>{date.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</time>
   </div><span className="social-activity-icon" aria-hidden="true">{item.type === "achievement_unlocked" ? "✧" : item.type === "game_completed" ? "✓" : item.type === "rating_logged" ? "★" : "◇"}</span></li>;
 }

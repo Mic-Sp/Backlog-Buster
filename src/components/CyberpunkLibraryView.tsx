@@ -1,4 +1,7 @@
 "use client";
+
+import { PlayJournalBadges, PlayJournalEditor } from "@/components/PlayJournal";
+import { MicroReview, MicroReviewEditor } from "@/components/MicroReview";
 import { SocialHubTrigger } from "@/components/SocialHub";
 
 import { gameRecordKey } from "@/lib/game-record";
@@ -191,8 +194,10 @@ export default function CyberpunkLibraryView({ controller }: { controller: GameL
             <StarRatingInput defaultValue={controller.getGameDraft(game).rating === "" ? null : Number(controller.getGameDraft(game).rating)} onChange={rating => controller.setGameDraftRating(game, rating)} label={`Rating for ${game.title}`} />
           </div>
         </div>
+        <PlayJournalEditor title={game.title} startedAt={controller.getGameDraft(game).startedAt} completedAt={controller.getGameDraft(game).completedAt} originalStartedAt={game.startedAt?.slice(0, 10)} originalCompletedAt={game.completedAt?.slice(0, 10)} />
+        <MicroReviewEditor title={game.title} review={controller.getGameDraft(game).review} reviewSpoiler={controller.getGameDraft(game).reviewSpoiler === "true"} />
         <label className="field-log-label">
-          NETRUNNER FIELD LOG
+          PRIVATE FIELD LOG
           <textarea className="field-log-textarea" name="notes" rows={3} maxLength={1000} defaultValue={controller.getGameDraft(game).notes} placeholder="Log current checkpoint, build notes, or session thoughts..." />
         </label>
         <div className="library-card-actions">
@@ -277,7 +282,7 @@ export default function CyberpunkLibraryView({ controller }: { controller: GameL
         <label>
           <span>Sort</span>
           <select className="library-filter-select" aria-label="Sort games" value={sortBy} onChange={(event) => setSortBy(event.target.value)}>
-            <option value="default">Default order</option>
+            <option value="default">{activeView === "Completed" ? "Completion: newest first (default)" : "Default order"}</option>
             {activeView === "Backlog" && !selectedSaga && <option value="custom-priority">Custom Priority</option>}
             {(selectedSaga || sortBy === "timeline-asc") && <option value="timeline-asc">Saga: timeline order</option>}
             {activeView !== "Backlog" && (
@@ -287,6 +292,8 @@ export default function CyberpunkLibraryView({ controller }: { controller: GameL
               </>
             )}
             {(activeView === "All" || activeView === "Backlog") && <option value="pinned-first">Pinned first</option>}
+            <option value="completed-desc">Completion: newest first</option>
+            <option value="completed-asc">Completion: oldest first</option>
             <option value="hours-asc">Hours: shortest first</option>
             <option value="hours-desc">Hours: longest first</option>
             <option value="xp-desc">XP: highest first</option>
@@ -413,6 +420,8 @@ export default function CyberpunkLibraryView({ controller }: { controller: GameL
                     <strong>{(game.status === "Flatlined" ? 0 : game.lengthHours * game.difficulty * 10).toLocaleString()} XP</strong>
                   </div>
                   {game.status === "Playing" && <AgentBriefing game={game} />}
+                  <PlayJournalBadges startedAt={game.startedAt} completedAt={game.completedAt} />
+                  <MicroReview review={game.review} reviewSpoiler={game.reviewSpoiler} />
                   {renderCardControls(game)}
                   {game.status === "Playing" && (
                     <SafeActionButton type="submit" formAction={completeGameWithSound} className="complete-gig-button">
@@ -440,11 +449,13 @@ export default function CyberpunkLibraryView({ controller }: { controller: GameL
                   <CommunityStatsReadout game={game} />
                   {game.notes?.trim() && (
                     <div className="trophy-field-log">
-                      <span>NETRUNNER FIELD LOG</span>
+                      <span>PRIVATE FIELD LOG</span>
                       <p>{game.notes}</p>
                     </div>
                   )}
                   <p className="trophy-reward">+{game.earnedXp.toLocaleString()} XP</p>
+                  <PlayJournalBadges startedAt={game.startedAt} completedAt={game.completedAt} />
+                  <MicroReview review={game.review} reviewSpoiler={game.reviewSpoiler} />
                   <TrophyRatingEditor game={game} />
                   <details className="trophy-edit-drawer">
                     <summary>Manage Record</summary>
@@ -530,6 +541,9 @@ export default function CyberpunkLibraryView({ controller }: { controller: GameL
                     <span className="game-title-stack">
                       <span className="game-title-heading"><strong title={game.title}>{game.title}</strong>{renderTimelinePill(game)}</span>
                       <CommunityStatsReadout game={game} />
+                      <PlayJournalBadges startedAt={game.startedAt} completedAt={game.completedAt} />
+                      <MicroReview review={game.review} reviewSpoiler={game.reviewSpoiler} />
+                      <MicroReviewEditor title={game.title} review={controller.getGameDraft(game).review} reviewSpoiler={controller.getGameDraft(game).reviewSpoiler === "true"} />
                       <span className="game-title-actions">
                         {(game.status === "Backlog" || game.status === "Flatlined") && (
                           <SafeActionButton className="start-gig-badge" formAction={startGameAndShowPlaying} type="submit">{game.status === "Flatlined" ? "▶ REVIVE GIG" : "▶ START GIG"}</SafeActionButton>

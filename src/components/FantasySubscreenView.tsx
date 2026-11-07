@@ -1,4 +1,7 @@
 "use client";
+
+import { PlayJournalBadges, PlayJournalEditor } from "@/components/PlayJournal";
+import { MicroReview, MicroReviewEditor } from "@/components/MicroReview";
 import { SocialHubTrigger } from "@/components/SocialHub";
 
 import { FantasyCorners, NaviFairy, SlotBrackets } from "@/components/FantasyAccents";
@@ -19,6 +22,7 @@ import { buildTrailerUrl } from "@/lib/trailers";
 
 const views = ["Backlog", "Playing", "Completed", "Flatlined", "All"] as const;
 const sorts = [
+  ["completed-desc", "Completion: newest first"], ["completed-asc", "Completion: oldest first"],
   ["default", "Quest order"], ["custom-priority", "Backlog priority"], ["timeline-asc", "Saga timeline"], ["year-asc", "Oldest chronicle"], ["year-desc", "Newest chronicle"],
   ["title-asc", "Title: A–Z"], ["title-desc", "Title: Z–A"], ["rating-desc", "Highest rated"], ["rating-asc", "Lowest rated"], ["pinned-first", "Equipped first"],
   ["hours-asc", "Shortest journey"], ["hours-desc", "Longest journey"], ["xp-desc", "Highest XP"], ["xp-asc", "Lowest XP"], ["difficulty-desc", "Hardest quest"], ["difficulty-asc", "Easiest quest"],
@@ -86,7 +90,7 @@ export default function FantasySubscreenView({ controller: c }: { controller: Ga
         <label>Search quests<input type="search" value={c.searchQuery} placeholder="Find a title, realm, or genre…" onChange={event => c.setSearchQuery(event.target.value)} /></label>
         <label>Realm<select value={c.platformFilter} onChange={event => c.setPlatformFilter(event.target.value)}><option value="">All platforms</option>{c.platforms.map(platform => <option key={platform}>{platform}</option>)}</select></label>
         <label>Discipline<select value={c.genreFilter} onChange={event => c.setGenreFilter(event.target.value)}><option value="">All genres</option>{c.genres.map(genre => <option key={genre}>{genre}</option>)}</select></label>
-        <label>Arrange<select aria-label="Sort games" value={c.sortBy} onChange={event => c.setSortBy(event.target.value)}>{sorts.filter(([value]) => value !== "custom-priority" || c.activeView === "Backlog" && !c.selectedSaga).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+        <label>Arrange<select aria-label="Sort games" value={c.sortBy} onChange={event => c.setSortBy(event.target.value)}>{sorts.filter(([value]) => value !== "custom-priority" || c.activeView === "Backlog" && !c.selectedSaga).map(([value, label]) => <option key={value} value={value}>{value === "default" && c.activeView === "Completed" ? "Completion: newest first (default)" : label}</option>)}</select></label>
         {c.hasActiveFilters && <button type="button" onClick={c.clearFilters}>Clear filters</button>}
       </div>
       {c.backlogNotice && <p className="fantasy-notice" role="status" data-error={c.backlogNotice.error}>{c.backlogNotice.text}</p>}
@@ -156,6 +160,8 @@ function FantasyQuestDialogue({ controller: c, game, onSelectSaga }: { controlle
   const draft = c.getGameDraft(game);
   const saga = c.byGameId.get(game.id);
   return <section className="fantasy-dialogue" aria-label={`Quest details for ${game.title}`}>
+    <PlayJournalBadges startedAt={game.startedAt} completedAt={game.completedAt} />
+    <MicroReview review={game.review} reviewSpoiler={game.reviewSpoiler} />
     <div className="fantasy-dialogue-heading"><span className="fantasy-dialogue-gem" aria-hidden="true">◆</span><div><p className="fantasy-kicker">YOU FOUND A QUEST</p><h4>{game.title}</h4><p>{game.platform} · {game.genre?.trim() || "Unknown discipline"} · {game.releaseYear ?? "Year unknown"} · {game.status === "Flatlined" ? "Abandoned" : game.status}</p></div><QuestRating rating={game.rating} /></div>
     <div className="fantasy-quest-facts"><span>{game.hoursPlayed} / {game.lengthHours}h played</span><span>Difficulty {game.difficulty}</span><span>{game.status === "Completed" ? game.earnedXp : game.status === "Flatlined" ? 0 : game.lengthHours * game.difficulty * 10} {game.status === "Completed" ? "XP earned" : "potential XP"}</span>{game.wasFlatlined && <span>Revived from abandonment</span>}</div>
     <CommunityStatsReadout game={game} />
@@ -171,6 +177,8 @@ function FantasyQuestDialogue({ controller: c, game, onSelectSaga }: { controlle
         <label>Difficulty<select name="difficulty" defaultValue={draft.difficulty} aria-label={`Difficulty for ${game.title}`}><option value="1">1 · Easy</option><option value="2">2 · Medium</option><option value="3">3 · Tough</option></select></label>
       </div>
       <StarRatingInput glyph="heart" defaultValue={draft.rating === "" ? null : Number(draft.rating)} label={`Rating for ${game.title}`} onChange={rating => c.setGameDraftRating(game, rating)} />
+      <PlayJournalEditor title={game.title} startedAt={draft.startedAt} completedAt={draft.completedAt} originalStartedAt={game.startedAt?.slice(0, 10)} originalCompletedAt={game.completedAt?.slice(0, 10)} />
+      <MicroReviewEditor title={game.title} review={draft.review} reviewSpoiler={draft.reviewSpoiler === "true"} />
       <label className="fantasy-journal-notes">Quest journal<textarea name="notes" maxLength={1000} rows={2} defaultValue={draft.notes} placeholder="Your latest checkpoint, discoveries, and tales…" /></label>
       <div className="fantasy-quest-actions">
         <button type="submit">Save record</button>

@@ -90,3 +90,20 @@ test('public favorites preserve custom order, fill gaps, and disclose only displ
   selections = [null, null, null]; await check([3, 2, 1], [false, false, false]);
   assert.equal(queries.length, 7);
 });
+
+test('public DTO omits spoiler review text and all private notes, while allowing non-spoiler quotes', async () => {
+  const profile = { handle: 'ghost', operatorName: 'Ghost', tagline: '', neonAccent: 'CYAN', avatarUrl: null, profileVisibility: 'public', featuredTrophyIds: [1, 2], games: [], userAchievements: [] };
+  const games = [
+    { id: 1, title: 'Secret', platform: 'PC', earnedXp: 10, coverUrl: null, review: 'SECRET_ENDING', reviewSpoiler: true, notes: 'PRIVATE_NOTES' },
+    { id: 2, title: 'Safe', platform: 'PC', earnedXp: 10, coverUrl: null, review: 'Lovely soundtrack', reviewSpoiler: false },
+  ];
+  const load = loader({ '@/lib/player': { getOptionalAuthenticatedPlayerId: async () => null }, '@/lib/prisma': { prisma: {
+    player: { findFirst: async () => profile }, game: { findMany: async ({ where }) => where.id ? games : [] },
+  } } });
+  const dossier = await load('src/lib/public-dossier.ts').getPublicDossier('ghost');
+  const json = JSON.stringify(dossier);
+  assert(!json.includes('SECRET_ENDING')); assert(!json.includes('PRIVATE_NOTES'));
+  assert(json.includes('Lovely soundtrack'));
+  assert.equal(dossier.card.showcaseGames[0].review, null);
+  assert.equal(dossier.card.showcaseGames[0].reviewSpoiler, true);
+});

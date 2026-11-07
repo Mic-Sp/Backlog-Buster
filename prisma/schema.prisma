@@ -211,7 +211,7 @@ model Game {
   title       String
   platform    String
   status      String   @default("Backlog")
-  // Advances only for status/rating changes, including silent returns to Backlog.
+  // Advances for status/rating/review changes, including quiet clears.
   activityRevision Int @default(0)
   wasFlatlined Boolean @default(false)
   // On Deck / Up Next and Fantasy C-Button queue only, never profile favorites.
@@ -220,10 +220,16 @@ model Game {
   lengthHours Int      @default(10)
   hoursPlayed Int      @default(0)
   notes       String?
+  // Shareable verdict. Private checkpoint/build notes remain in notes.
+  review      String?  @db.VarChar(280)
+  reviewSpoiler Boolean @default(false)
   rating      Int?
   difficulty  Int      @default(1)
   earnedXp    Int      @default(0)
   createdAt   DateTime @default(now())
+  // Calendar dates: midnight UTC in Prisma, independent of browser time zone.
+  startedAt   DateTime? @db.Date
+  completedAt DateTime? @db.Date
   coverUrl    String?
   genre       String?
   franchise   String?

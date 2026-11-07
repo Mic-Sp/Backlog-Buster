@@ -28,6 +28,8 @@ import { isUnreleasedYear } from "@/lib/game-release";
 import { getBacklogInsertionOrder } from "@/lib/backlog-order";
 import { activityGameSelect, updateGameWithActivity } from "@/lib/activity-events";
 import { saveRecommendationDismissal } from "@/lib/recommendation-dismissals";
+import { readMicroReviewFields } from "@/lib/micro-review";
+import { readPlayJournalFields, resolvePlayJournal } from "@/lib/play-journal";
 
 export async function dismissScoutRecommendation(title: string) {
   // This preference needs no route refresh: the client removes the card, and
@@ -260,7 +262,7 @@ function readProgressFields(formData: FormData) {
     }
     progress.rating = rating;
   }
-  return progress;
+  return { ...progress, ...readMicroReviewFields(formData), ...readPlayJournalFields(formData) };
 }
 
 function optionalYear(value: string): number | null {
@@ -358,7 +360,9 @@ export async function createGame(formData: FormData) {
     const lengthHours = submittedLengthHours ??
       resolveRawgPlaytime(lookup?.playtime, metadata.genre) ??
       10;
-    const status = "Backlog";
+    const status = optionalText(formData, "status") || "Backlog";
+    if (!allowedStatuses.has(status)) throw new InputError("Choose a valid game status.");
+    const journal = resolvePlayJournal({}, status, readPlayJournalFields(formData));
 
     const game = await prisma.game.create({
       data: {
@@ -366,11 +370,14 @@ export async function createGame(formData: FormData) {
         title,
         platform: platform || lookup?.platforms[0] || "PC",
         status,
+        wasFlatlined: status === "Flatlined",
         lengthHours,
         difficulty,
         earnedXp: calculateEarnedXp(status, lengthHours, difficulty),
         ...metadata,
         franchise: optionalText(formData, "franchise") || null,
+        ...readMicroReviewFields(formData),
+        ...journal,
       },
     });
 

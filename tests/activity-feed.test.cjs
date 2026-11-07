@@ -95,3 +95,14 @@ test("account reset/deletion removes history and losing registered credentials a
   f.players.splice(f.players.findIndex(p => p.id === "alice"), 1);
   assert.deepEqual((await f.client("bob")()).items, []);
 });
+
+test('feed includes only safe review fields and current spoiler flags shield older snapshots', async () => {
+  const f = feedFixture(); f.befriend('alice', 'bob');
+  f.add('alice', { type: 'rating_logged', game: { reviewSpoiler: true }, metadata: { title: 'Portal', platform: 'PC', rating: 5, review: 'Secret finale', reviewSpoiler: false, notes: 'PRIVATE_NOTES' } });
+  const result = await f.client('bob')();
+  assert.equal(result.items[0].metadata.review, 'Secret finale');
+  assert.equal(result.items[0].metadata.reviewSpoiler, true);
+  assert(!JSON.stringify(result).includes('PRIVATE_'));
+  assert.deepEqual(f.calls[0].select.game, { select: { reviewSpoiler: true } });
+  assert.equal(f.events[0].metadata.reviewSpoiler, false, 'feed protects immutable snapshots without updating them');
+});

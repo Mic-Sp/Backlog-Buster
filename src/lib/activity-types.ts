@@ -1,4 +1,4 @@
-export type GameActivityMetadata = { title: string; platform: string; rating?: number };
+export type GameActivityMetadata = { title: string; platform: string; rating?: number; review?: string; reviewSpoiler?: boolean };
 export type AchievementActivityMetadata = { achievementKey: string; title: string };
 export type ImportActivityMetadata = { source: "backup" | "titles"; importedCount: number };
 export type ActivityPayload =

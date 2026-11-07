@@ -40,6 +40,7 @@ export async function getFriendActivityFeed(input: unknown = {}): Promise<Activi
         { createdAt: new Date(cursor.createdAt), id: { lt: cursor.id } }] } : {}),
     },
     select: { id: true, type: true, metadata: true, createdAt: true,
+      game: { select: { reviewSpoiler: true } },
       actor: { select: { id: true, handle: true, operatorName: true, avatarUrl: true } } },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: limit + 1,
   });
@@ -48,6 +49,8 @@ export async function getFriendActivityFeed(input: unknown = {}): Promise<Activi
   return {
     items: page.flatMap(row => {
       const payload = safeActivityPayload(row.type, row.metadata);
+      // Marking a review as a spoiler also shields older immutable snapshots.
+      if (payload && "review" in payload.metadata && row.game?.reviewSpoiler) payload.metadata.reviewSpoiler = true;
       return payload ? [{ ...payload, id: row.id, createdAt: row.createdAt.toISOString(), actor: {
         id: row.actor.id, handle: row.actor.handle, operatorName: row.actor.operatorName, avatarUrl: row.actor.avatarUrl,
       } }] : [];

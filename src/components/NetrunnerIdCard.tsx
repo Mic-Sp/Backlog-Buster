@@ -1,5 +1,7 @@
 "use client";
 
+import { dossierReviewQuote } from "@/lib/micro-review";
+
 import { useId, type Ref } from "react";
 import type { LayoutMode } from "@/lib/appearance";
 import FantasyCodexCard from "@/components/FantasyCodexCard";
@@ -52,7 +54,7 @@ function CyberpunkIdCard({ data, identity, timestamp, artwork, cardRef, artworkL
         </linearGradient>
         <pattern id={`${prefix}-scan`} width="4" height="4" patternUnits="userSpaceOnUse"><path d="M0 0H4" stroke="#c2f8ff" strokeOpacity="0.13" /></pattern>
         <clipPath id={`${prefix}-frame`}><polygon points={outline} /></clipPath>
-        {Array.from({ length: 3 }, (_, index) => <clipPath id={`${prefix}-cover-${index}`} key={index}><rect x={32 + index * 314} y="452" width="308" height="86" /></clipPath>)}
+        {Array.from({ length: 3 }, (_, index) => <clipPath id={`${prefix}-cover-${index}`} key={index}><rect x={32 + index * 314} y="452" width="308" height="66" /></clipPath>)}
       </defs>
       <g clipPath={`url(#${prefix}-frame)`} fontFamily="'Courier New', monospace" fill="#dce6f3">
         <rect width="1000" height="680" fill="#080d16" />
@@ -114,13 +116,14 @@ function CyberpunkIdCard({ data, identity, timestamp, artwork, cardRef, artworkL
               <rect x={x} y="452" width="308" height="166" fill="#101925" stroke={game ? "#8d8432" : "#2e3a52"} strokeDasharray={game ? undefined : "4 4"} />
               {game ? <>
                 {cover ? <>
-                  <image href={cover} x={x} y="452" width="308" height="86" preserveAspectRatio="xMidYMid slice" clipPath={`url(#${prefix}-cover-${index})`} />
-                  <rect x={x} y="452" width="308" height="86" fill={`url(#${prefix}-cover-shade)`} />
+                  <image href={cover} x={x} y="452" width="308" height="66" preserveAspectRatio="xMidYMid slice" clipPath={`url(#${prefix}-cover-${index})`} />
+                  <rect x={x} y="452" width="308" height="66" fill={`url(#${prefix}-cover-shade)`} />
                 </> : <>
-                  <rect x={x + 1} y="453" width="306" height="84" fill="#172333" />
+                  <rect x={x + 1} y="453" width="306" height="64" fill="#172333" />
                   <text x={x + 154} y="500" textAnchor="middle" fontSize="11" fill="#91a4b9">{game.coverUrl ? artworkLoading ? "SYNCING ARTWORK…" : "ARTWORK OFFLINE" : "NO COVER ON FILE"}</text>
                 </>}
-                <text x={x + 12} y="559" fontSize="14" fontWeight="700" fill="#f5f7e8">{dossierTitleLines(game.title).map((line, lineIndex) => <tspan key={lineIndex} x={x + 12} dy={lineIndex === 0 ? 0 : 18}>{line}</tspan>)}</text>
+                <text x={x + 12} y="539" fontSize="14" fontWeight="700" fill="#f5f7e8">{dossierTitleLines(game.title).map((line, lineIndex) => <tspan key={lineIndex} x={x + 12} dy={lineIndex === 0 ? 0 : 18}>{line}</tspan>)}</text>
+                {dossierReviewQuote(game) && <text x={x + 12} y="580" fontSize="10" fill="#b8d3d8">{dossierReviewQuote(game)}</text>}
                 <text x={x + 12} y="602" fontSize={slot?.pinned ? "11" : "16"} fill="#fcee0a">{slot?.pinned ? "★ FAVORITE" : "★★★★★"}</text>
                 <text x={x + 296} y="602" textAnchor="end" fontSize="15" fontWeight="700" fill="#fcee0a">+{game.earnedXp.toLocaleString("en-US")} XP</text>
               </> : <>

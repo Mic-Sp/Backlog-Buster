@@ -1,5 +1,7 @@
 "use client";
 
+import { dossierReviewQuote } from "@/lib/micro-review";
+
 import { useId } from "react";
 import type { DossierCardProps } from "@/components/NetrunnerIdCard";
 import { dossierTitleLines, resolveDossierShowcase } from "@/lib/dossier";
@@ -36,7 +38,7 @@ export default function FantasyCodexCard({ data, identity, timestamp, artwork, c
     <desc id={`${prefix}-description`}>Hero&apos;s Rank {data.level}, {data.totalXp.toLocaleString("en-US")} lifetime renown. {data.counts.Completed} quests completed. {unlocked.length} of {data.achievements.length} Sage Medallions awakened.</desc>
     <defs>
       <linearGradient id={`${prefix}-paper`} x2="1" y2="1"><stop stopColor="#f5e8c6" /><stop offset=".55" stopColor="#e7d5a5" /><stop offset="1" stopColor="#f0e0ba" /></linearGradient>
-      {Array.from({ length: 3 }, (_, index) => <clipPath id={`${prefix}-cover-${index}`} key={index}><rect x={32 + index * 314} y="454" width="308" height="84" rx="3" /></clipPath>)}
+      {Array.from({ length: 3 }, (_, index) => <clipPath id={`${prefix}-cover-${index}`} key={index}><rect x={32 + index * 314} y="454" width="308" height="64" rx="3" /></clipPath>)}
     </defs>
     <g fontFamily="Georgia, 'Times New Roman', serif" fill="#344535">
       <rect x="3" y="3" width="994" height="674" rx="18" fill={`url(#${prefix}-paper)`} stroke="#b29950" strokeWidth="6" />
@@ -79,9 +81,10 @@ export default function FantasyCodexCard({ data, identity, timestamp, artwork, c
         return <g key={index}>
           <rect x={x} y="454" width="308" height="164" rx="5" fill="#294b40" stroke="#b79b52" strokeWidth="2" />
           {game ? <>
-            {cover ? <image href={cover} x={x} y="454" width="308" height="84" preserveAspectRatio="xMidYMid slice" clipPath={`url(#${prefix}-cover-${index})`} />
+            {cover ? <image href={cover} x={x} y="454" width="308" height="64" preserveAspectRatio="xMidYMid slice" clipPath={`url(#${prefix}-cover-${index})`} />
               : <text x={x + 154} y="501" textAnchor="middle" fontSize="12" fill="#d2d8bd">{game.coverUrl ? artworkLoading ? "UNFURLING ARTWORK…" : "ARTWORK UNAVAILABLE" : "NO QUEST ARTWORK"}</text>}
-            <text x={x + 12} y="559" fontSize="14" fontWeight="700" fill="#f4e6b9">{dossierTitleLines(game.title).map((line, lineIndex) => <tspan key={lineIndex} x={x + 12} dy={lineIndex === 0 ? 0 : 18}>{line}</tspan>)}</text>
+            <text x={x + 12} y="539" fontSize="14" fontWeight="700" fill="#f4e6b9">{dossierTitleLines(game.title).map((line, lineIndex) => <tspan key={lineIndex} x={x + 12} dy={lineIndex === 0 ? 0 : 18}>{line}</tspan>)}</text>
+            {dossierReviewQuote(game) && <text x={x + 12} y="580" fontSize="10" fill="#e0d5ad">{dossierReviewQuote(game)}</text>}
             <text x={x + 12} y="602" fontSize={slot?.pinned ? "12" : "17"} fill="#f08086">{slot?.pinned ? "♥ FAVORITE" : "♥♥♥♥♥"}</text>
             <text x={x + 296} y="602" textAnchor="end" fontSize="15" fill="#ebd897">+{game.earnedXp.toLocaleString("en-US")} XP</text>
           </> : <>

@@ -1,5 +1,8 @@
 "use client";
 
+import { PlayJournalEditor } from "@/components/PlayJournal";
+import { MicroReviewEditor } from "@/components/MicroReview";
+
 import { useLayoutCopy } from "@/components/LayoutText";
 import { FantasyCorners } from "@/components/FantasyAccents";
 import { CommunityRatingDistribution, CommunityStatsReadout } from "@/components/CommunityGameStats";
@@ -111,6 +114,8 @@ export default function GameMetadataEditor({ controller }: { controller: GameLib
               <CommunityRatingDistribution game={editingMetaGame} />
             </div>
             <MetadataFields game={editingMetaGame} formRef={metadataModalRef} />
+            <PlayJournalEditor title={editingMetaGame.title} startedAt={editingMetaGame.startedAt} completedAt={editingMetaGame.completedAt} originalStartedAt={editingMetaGame.startedAt?.slice(0, 10)} originalCompletedAt={editingMetaGame.completedAt?.slice(0, 10)} />
+            <MicroReviewEditor title={editingMetaGame.title} review={editingMetaGame.review} reviewSpoiler={editingMetaGame.reviewSpoiler} />
             <div className="metadata-modal-actions">
               <button className="metadata-save-btn" type="submit">{copy("SAVE METADATA", "SAVE QUEST DETAILS")}</button>
               <button className="metadata-cancel-btn" type="button" onClick={closeMetadata}>CANCEL</button>

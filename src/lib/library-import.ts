@@ -1,5 +1,7 @@
 import { InputError } from "@/lib/action-result";
 import { isUnreleasedYear } from "@/lib/game-release";
+import { normalizeMicroReview } from "@/lib/micro-review";
+import { importJournalDate, validateJournalDates } from "@/lib/play-journal";
 
 export const MAX_IMPORT_BYTES = 500000;
 export const MAX_IMPORT_ROWS = 200;
@@ -40,6 +42,11 @@ function optionalInteger(value: unknown, min: number, max: number): number | nul
 export function sanitizeImportedGame(value: unknown) {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new InputError("Each game must be an object.");
   const game = value as Record<string, unknown>;
+  // Restore known history only. A Completed backup with no date remains unknown.
+  const journal = { startedAt: importJournalDate(game.startedAt), completedAt: importJournalDate(game.completedAt) };
+  validateJournalDates(journal);
+  const review = normalizeMicroReview(game.review);
+  if (game.reviewSpoiler != null && ![true, false, "true", "false", ""].includes(game.reviewSpoiler as boolean | string)) throw new InputError("Invalid review spoiler flag.");
   const title = text(game.title, 120, true)!;
   const platform = text(game.platform, 80) ?? "PC";
   const candidate = typeof game.status === "string" ? game.status.trim().toLowerCase() : "";
@@ -64,6 +71,8 @@ export function sanitizeImportedGame(value: unknown) {
     backlogOrder: optionalInteger(game.backlogOrder, 1, 10000),
     rating: optionalInteger(game.rating, 1, 5),
     notes: text(game.notes, 1000), genre: text(game.genre, 80), franchise: text(game.franchise, 120),
+    review, reviewSpoiler: Boolean(review) && (game.reviewSpoiler === true || game.reviewSpoiler === "true"),
+    ...journal,
     releaseYear, chronologicalOrder: optionalInteger(game.chronologicalOrder, 1, 10000), coverUrl,
   };
 }

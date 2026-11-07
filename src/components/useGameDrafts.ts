@@ -26,6 +26,7 @@ export default function useGameDrafts(games: LibraryGame[]) {
       const value = data.get(name);
       if (typeof value === "string") fields[name] = value;
     }
+    if (form.elements.namedItem("review")) fields.reviewSpoiler = data.get("reviewSpoiler") === "true" ? "true" : "false";
     saveDraft(game, fields);
   }
   return { getGameDraft, captureGameDraft, setGameDraftRating: (game: LibraryGame, rating: number | null) => saveDraft(game, { rating: rating === null ? "" : String(rating) }) };

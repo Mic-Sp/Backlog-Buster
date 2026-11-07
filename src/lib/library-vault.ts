@@ -33,8 +33,9 @@ export async function getLibraryExport(format: "json" | "csv") {
     where: { userId: player.id }, orderBy: { id: "asc" },
     select: {
       title: true, platform: true, status: true, wasFlatlined: true, pinnedOrder: true, backlogOrder: true,
-      lengthHours: true, hoursPlayed: true, difficulty: true, earnedXp: true, rating: true, notes: true,
+      lengthHours: true, hoursPlayed: true, difficulty: true, earnedXp: true, rating: true, notes: true, review: true, reviewSpoiler: true,
       genre: true, franchise: true, releaseYear: true, chronologicalOrder: true, coverUrl: true,
+      startedAt: true, completedAt: true,
     },
   });
   const operator = (player.handle || player.operatorName).normalize("NFKD").toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 48) || "operator";
@@ -180,7 +181,8 @@ export async function syncSteamLibraryForSession(payload: SteamSyncPayload, sess
           continue;
         }
         const info = metadata.get(libraryMetadataKey(game));
-        additions.push({ userId, steamAppId: game.steamAppId, title: game.title, platform: "PC", status: "Backlog",
+        // Steam playtime has no reliable first-play/finish date. Do not infer either.
+        additions.push({ userId, steamAppId: game.steamAppId, title: game.title, platform: "PC", status: "Backlog", startedAt: null, completedAt: null,
           hoursPlayed, earnedXp: 0, difficulty: 2, lengthHours: resolveRawgPlaytime(info?.estimatedHours, info?.genre) ?? 10,
           genre: info?.genre ?? null, releaseYear: info?.releaseYear ?? null, coverUrl: info?.coverUrl || game.coverUrl });
       }

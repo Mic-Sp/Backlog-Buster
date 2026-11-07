@@ -1,0 +1,14 @@
+.play-journal-badges { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; font-size: 11px; line-height: 1.5; }
+.play-journal-badges > span { padding: 4px 7px; border: 1px solid #365563; border-radius: 3px; background: #10222c; color: #c7e9ed; }
+.play-journal-editor { min-width: 0; margin: 14px 0; padding: 10px; border: 1px solid #365563; text-align: left; }
+.play-journal-editor legend { padding: 0 5px; font-size: 12px; color: #94f7ff; }
+.play-journal-inputs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.play-journal-inputs label { display: block; min-width: 0; font-size: 12px; }
+.play-journal-editor input[type="date"] { box-sizing: border-box; display: block; width: 100%; min-width: 0; margin-top: 5px; padding: 8px; border: 1px solid #526776; border-radius: 3px; background: #080e18; color: #e8edf7; color-scheme: dark; font: inherit; }
+.play-journal-editor small { display: block; margin-top: 8px; color: #a8bac3; font-size: 11px; line-height: 1.5; }
+:root[data-layout-mode="fantasy"] .play-journal-badges > span { background: #eee0b8; border-color: #92773e; color: #334d3f; }
+:root[data-layout-mode="fantasy"] .play-journal-editor { border-color: #a68a50; }
+:root[data-layout-mode="fantasy"] .play-journal-editor :is(legend, small) { color: #5b6139; }
+:root[data-layout-mode="fantasy"] .fantasy-dialogue .play-journal-editor :is(legend, small) { color: #e2d1a3; }
+:root[data-layout-mode="fantasy"] .play-journal-editor input[type="date"] { background: #fbf1d5; color: #3e3524; border-color: #a68a50; color-scheme: light; }
+@media (max-width: 480px) { .play-journal-inputs { grid-template-columns: minmax(0, 1fr); } }

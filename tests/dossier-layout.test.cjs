@@ -82,3 +82,13 @@ test('both themes show curated and automatic tiles without claiming favorites ha
     assert(!auto.includes('PINNED PROFILE FAVORITES'));
   }
 });
+
+test('both dossier SVG themes show short safe quotes and never embed spoiler text', () => {
+  for (const layoutMode of ['cyberpunk', 'fantasy']) {
+    for (const reviewSpoiler of [true, false]) {
+      const html = render({ layoutMode, data: { ...props.data, trophies: props.data.trophies.map(game => ({ ...game, review: 'A <script>twist</script>', reviewSpoiler })) } });
+      if (reviewSpoiler) { assert(html.includes('SPOILER REVIEW')); assert(!html.includes('twist')); }
+      else { assert(html.includes('A &lt;script&gt;twist&lt;/script&gt;')); assert(!html.includes('<script>')); }
+    }
+  }
+});

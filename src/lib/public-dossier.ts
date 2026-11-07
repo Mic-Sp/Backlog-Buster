@@ -37,7 +37,7 @@ export async function getPublicDossier(value: unknown): Promise<PublicDossier | 
   if (!profile || profile.handle?.trim().toLowerCase() !== handle) return null;
   const selectedIds = Array.isArray(profile.featuredTrophyIds) ? profile.featuredTrophyIds.slice(0, 3).filter((id): id is number => typeof id === "number" && Number.isSafeInteger(id) && id > 0 && id <= 2147483647) : [];
   const owner = { player: { handle: { equals: lookupHandle, mode: "insensitive" as const }, ...audience } };
-  const select = { id: true, title: true, platform: true, coverUrl: true, earnedXp: true } as const;
+  const select = { id: true, title: true, platform: true, coverUrl: true, earnedXp: true, review: true, reviewSpoiler: true } as const;
   const [favorites, trophies] = await Promise.all([
     selectedIds.length ? prisma.game.findMany({ where: { ...owner, id: { in: selectedIds } }, select, take: 3 }) : [],
     prisma.game.findMany({ where: { ...owner, status: "Completed", rating: 5 }, select,
@@ -45,7 +45,11 @@ export async function getPublicDossier(value: unknown): Promise<PublicDossier | 
   ]);
   // Return only the three displayed games, never the rest of the player's library.
   const slots = resolveDossierShowcase(Array.isArray(profile.featuredTrophyIds) ? profile.featuredTrophyIds : [], favorites, trophies);
-  const publicGames = slots.flatMap(slot => slot ? [{ id: slot.game.id, title: slot.game.title, platform: slot.game.platform, earnedXp: slot.game.earnedXp, coverUrl: slot.game.coverUrl ? resizeRawgImageUrl(slot.game.coverUrl) : null }] : []);
+  const publicGames = slots.flatMap(slot => slot ? [{ id: slot.game.id, title: slot.game.title, platform: slot.game.platform, earnedXp: slot.game.earnedXp, coverUrl: slot.game.coverUrl ? resizeRawgImageUrl(slot.game.coverUrl) : null,
+    // Spoiler text is omitted from the public DTO and exported SVG entirely.
+    review: slot.game.reviewSpoiler === false ? slot.game.review ?? null : null,
+    reviewSpoiler: Boolean(slot.game.review) && slot.game.reviewSpoiler !== false,
+  }] : []);
   const publicTrophies = publicGames.filter(game => slots.some(slot => slot?.game.id === game.id && !slot.pinned));
   const telemetry = calculateLibraryTelemetry(profile.games.map(game => ({ ...game, genre: null, platform: "" })));
   const totalXp = Math.round(profile.games.reduce((sum, game) => sum + game.earnedXp, 0) + profile.userAchievements.reduce((sum, badge) => sum + badge.xpAwarded, 0));

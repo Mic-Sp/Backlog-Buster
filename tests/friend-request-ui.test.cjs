@@ -87,6 +87,7 @@ function views(mode) {
     "@/components/ThemeProvider": { useUIEffects: () => ({ layoutMode: mode }) },
     "@/components/LayoutText": { useLayoutCopy: () => (cyber, fantasy) => mode === "fantasy" ? fantasy : cyber },
     "@/lib/action-result": {}, "@/app/social-actions": {}, "@/app/activity-actions": {}, "@/app/friendship-actions": {},
+    "@/components/MicroReview": { MicroReview: () => null, MicroReviewEditor: () => null },
     "@/components/SocialControls": {}, "@/components/OperatorAvatar": {}, "@/components/useFriendRequestNotifications": {},
   };
   const filename = path.resolve(__dirname, "../src/components/SocialHub.tsx"), instance = new Module(filename, module);

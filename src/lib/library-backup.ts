@@ -1,15 +1,17 @@
 import type { LibraryGame } from "@/components/GameLibrary";
+import { journalDateInput } from "@/lib/play-journal";
 
 const fields = [
   "title", "platform", "status", "wasFlatlined", "pinnedOrder", "backlogOrder", "lengthHours", "hoursPlayed", "difficulty",
-  "earnedXp", "rating", "notes", "genre", "franchise", "releaseYear", "chronologicalOrder", "coverUrl",
+  "earnedXp", "rating", "notes", "review", "reviewSpoiler", "genre", "franchise", "releaseYear", "chronologicalOrder", "coverUrl",
+  "startedAt", "completedAt",
 ] as const;
 
-export function serializeLibraryBackup(games: (Pick<LibraryGame, typeof fields[number]> & { backupCoverUrl?: string | null })[], format: "json" | "csv") {
+export function serializeLibraryBackup(games: (Omit<Pick<LibraryGame, typeof fields[number]>, "startedAt" | "completedAt"> & { startedAt?: Date | string | null; completedAt?: Date | string | null; backupCoverUrl?: string | null })[], format: "json" | "csv") {
   const records = games.map((game) => Object.fromEntries(fields.map((field) => [
     field, field === "coverUrl"
       ? (game.backupCoverUrl !== undefined ? game.backupCoverUrl : game.coverUrl)
-      : game[field],
+      : field === "startedAt" || field === "completedAt" ? journalDateInput(game[field]) || null : game[field],
   ])));
   if (format === "json") return JSON.stringify(records, null, 2);
   const escapeCell = (value: unknown) => {

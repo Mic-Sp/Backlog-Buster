@@ -4,7 +4,7 @@ const { loader } = require("./social-fixture.cjs");
 const form = values => { const result = new FormData(); for (const [key, value] of Object.entries(values)) result.set(key, String(value)); return result; };
 const game = (id = 1, extra = {}) => ({ id, userId: "owner", title: "Portal 2", platform: "PC", status: "Backlog", activityRevision: 0,
   rating: null, hoursPlayed: 0, lengthHours: 10, difficulty: 1, earnedXp: 0, wasFlatlined: false, pinnedOrder: null,
-  notes: "PRIVATE_NOTES", franchise: null, genre: "Puzzle", releaseYear: 2011, steamAppId: null, coverUrl: null, ...extra });
+  startedAt: null, completedAt: null, review: null, reviewSpoiler: false, notes: "PRIVATE_NOTES", franchise: null, genre: "Puzzle", releaseYear: 2011, steamAppId: null, coverUrl: null, ...extra });
 function fixture({ games: initial = [game()], realAchievements = false } = {}) {
   let games = structuredClone(initial), achievements = [], events = [], sequence = Promise.resolve(), failEvent = false, registered = true, authenticated = true;
   let nextGame = 10, nextAchievement = 1;
@@ -27,6 +27,7 @@ function fixture({ games: initial = [game()], realAchievements = false } = {}) {
     playerSession: { findUnique: async ({ select }) => !authenticated ? null : select.player
       ? { player: { id: "owner", handle: "owner", operatorName: "Owner" } } : { tokenHash: "token" } },
     game: {
+      create: async ({ data }) => { assert.equal(data.userId, "owner"); const row = game(nextGame++, data); games.push(row); return structuredClone(row); },
       findMany: async ({ where, select }) => games.filter(row => matches(row, where)).map(row => project(row, select)),
       findUniqueOrThrow: async ({ where, select }) => { const row = games.find(row => matches(row, where)); if (!row) throw Error("Game not found"); return project(row, select); },
       update: async ({ where, data, select }) => {

@@ -27,6 +27,7 @@ import { TacticalAdvisorView, useTacticalAdvisorController } from "@/components/
 import { useUpNextDeckController } from "@/components/UpNextDeck";
 import { DeckPinsContext } from "@/components/useDeckPins";
 import { SocialHubOverlay, useSocialHubController } from "@/components/SocialHub";
+import { compareCompletionDates } from "@/lib/play-journal";
 
 export type LibraryGame = {
   id: number;
@@ -37,9 +38,13 @@ export type LibraryGame = {
   pinnedOrder: number | null;
   backlogOrder: number | null;
   createdAt: string;
+  startedAt: string | null;
+  completedAt: string | null;
   lengthHours: number;
   hoursPlayed: number;
   notes: string | null;
+  review: string | null;
+  reviewSpoiler: boolean;
   rating: number | null;
   difficulty: number;
   earnedXp: number;
@@ -260,11 +265,14 @@ function useGameLibraryController({ games: serverGames, achievements = [], isAdm
         (backlogPositions.get(left.id) ?? Infinity) - (backlogPositions.get(right.id) ?? Infinity));
     }
     if (sortBy === "default") {
+      if (activeView === "Completed") return [...filtered].sort((a, b) => compareCompletionDates(a, b));
       return activeView === "Backlog" ? [...filtered].sort(comparePinnedGames) : filtered;
     }
 
     return [...filtered].sort((left, right) => {
       switch (sortBy) {
+        case "completed-desc": return compareCompletionDates(left, right);
+        case "completed-asc": return compareCompletionDates(left, right, "asc");
         case "timeline-asc":
           return selectedSaga
             ? (timelinePositions.get(left.id) ?? Infinity) - (timelinePositions.get(right.id) ?? Infinity)

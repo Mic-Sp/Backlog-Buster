@@ -1,7 +1,7 @@
 import type { Achievement } from "@/lib/achievements";
 import type { PlayerProfile } from "@/lib/player-profile-types";
 
-export type DossierGame = { id: number; title: string; platform: string; coverUrl: string | null; earnedXp: number };
+export type DossierGame = { id: number; title: string; platform: string; coverUrl: string | null; earnedXp: number; review?: string | null; reviewSpoiler?: boolean };
 export type DossierData = {
   profile: PlayerProfile;
   level: number;
