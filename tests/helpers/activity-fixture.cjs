@@ -58,7 +58,7 @@ function fixture({ games: initial = [game()], realAchievements = false } = {}) {
       },
     },
   };
-  const prisma = { ...tx, gameCatalog: { findMany: async () => [{ title: "Steam Game", genre: "Puzzle", estimatedHours: 10, releaseYear: 2011, coverUrl: null }] },
+  const prisma = { ...tx, customList: { findMany: async () => [] }, gameCatalog: { findMany: async () => [{ title: "Steam Game", genre: "Puzzle", estimatedHours: 10, releaseYear: 2011, coverUrl: null }] },
     $transaction: work => {
       const run = sequence.then(async () => { const before = structuredClone({ games, achievements, events });
         try { return await work(tx); } catch (error) { ({ games, achievements, events } = before); throw error; } });

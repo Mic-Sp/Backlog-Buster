@@ -8,6 +8,7 @@ function route(viewer, targetMode = "cyberpunk") {
     react: { ...React, cache: work => work },
     "next/server": { connection: async () => {} }, "next/navigation": { notFound() { throw Error("Not found"); } }, "next/link": { default: () => null },
     "@/components/ThemeProvider": { ThemePlayerSync: sync, ThemeToggle: () => null },
+    "@/components/PublicCustomLists": { default: () => null },
     "@/components/PublicDossierCard": { default: () => null }, "@/components/DossierSignalLost": { default: () => null },
     "@/components/SocialControls": { default: () => null }, "@/lib/dossier-metadata": {},
     "@/lib/player": { getCurrentPlayer: async () => { if (viewer instanceof Error) throw viewer; return viewer; } },

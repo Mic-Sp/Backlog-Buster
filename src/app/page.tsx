@@ -1,3 +1,4 @@
+import { readCustomLists } from "@/lib/custom-lists";
 import { calculateLevelProgress } from "@/lib/player-level";
 import { cache, Suspense } from "react";
 import Link from "next/link";
@@ -141,13 +142,14 @@ async function PlayerSummary({ player }: { player: CurrentPlayer }) {
 async function SavedGames({ userId, isAdmin, socialEnabled }: { userId: string; isAdmin: boolean; socialEnabled: boolean }) {
   await connection();
 
-  const [games, achievements, steamProfile] = await Promise.all([
+  const [games, achievements, steamProfile, customLists] = await Promise.all([
     prisma.game.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
     }),
     getPageAchievements(userId),
     prisma.player.findUnique({ where: { id: userId }, select: { steamId: true } }),
+    socialEnabled ? readCustomLists(userId) : [],
   ]);
   const libraryKeys = new Set(games.map(game => getCommunityGameKey(game.title, game.releaseYear)));
   // Canonical titles are not persisted on Game. Narrow by year, then normalize
@@ -204,7 +206,7 @@ async function SavedGames({ userId, isAdmin, socialEnabled }: { userId: string; 
   }));
 
   return (
-    <GameLibrary games={serializedGames} achievements={achievements} isAdmin={isAdmin} socialEnabled={socialEnabled} steamId={steamProfile?.steamId} />
+    <GameLibrary customLists={customLists} games={serializedGames} achievements={achievements} isAdmin={isAdmin} socialEnabled={socialEnabled} steamId={steamProfile?.steamId} />
   );
 }
 

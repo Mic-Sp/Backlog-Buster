@@ -67,3 +67,27 @@ test("restricted or missing dossiers produce generic metadata without share prev
   }
   assert.equal(build(null).robots.index, false);
 });
+
+test("public lists inherit dossier audience and block checks, with a separate list visibility gate", async () => {
+  const f = fixture();
+  f.players[0].customLists = [
+    {id:'public-list',title:'Public ranking',description:'My picks',isRanked:true,isPublic:true,entries:[{gameId:4,position:1,userId:'DO_NOT_EXPOSE',game:{title:'Chosen game',platform:'PC',coverUrl:null,notes:'PRIVATE_NOTES',review:'SPOILER_TEXT'}}]},
+    {id:'private-list',title:'PRIVATE_LIST_TITLE',description:'PRIVATE_DESCRIPTION',isRanked:false,isPublic:false,entries:[]},
+  ];
+  for(const visibility of ['public','friends','private']) {
+    f.players[0].profileVisibility=visibility;
+    for(const relation of [null,pair('pending'),pair('accepted'),pair('blocked',{blockedByLow:true}),pair('blocked',{blockedByHigh:true})]) {
+      f.setRelationship(relation);
+      for(const viewer of [null,'alice','bob','carol']) {
+        const allowed=viewer==='alice'||(visibility==='public'&&!(viewer==='bob'&&relation?.status==='blocked'))||(visibility==='friends'&&viewer==='bob'&&relation?.status==='accepted');
+        const dossier=await f.as(viewer).load('src/lib/public-dossier.ts').getPublicDossier('alice-handle');
+        assert.equal(Boolean(dossier),allowed,`${visibility}/${relation?.status}/${viewer}`);
+        if(dossier){assert.equal(dossier.customLists.length,1);assert.equal(dossier.customLists[0].title,'Public ranking');assert.deepEqual(dossier.customLists[0].games,[{title:'Chosen game',platform:'PC',coverUrl:null}]);const json=JSON.stringify(dossier);for(const secret of ['PRIVATE_', 'DO_NOT_EXPOSE', 'SPOILER_TEXT'])assert(!json.includes(secret));}
+      }
+    }
+  }
+  const query=f.queries.find(([kind,args])=>kind==='profile'&&args.select.customLists)[1];
+  assert.deepEqual(query.select.customLists.where,{isPublic:true});
+  assert.deepEqual(query.select.customLists.select.entries.orderBy,[{position:'asc'},{gameId:'asc'}]);
+  assert.equal(query.select.customLists.take,20);assert.equal(query.select.customLists.select.entries.take,50);
+});

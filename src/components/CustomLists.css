@@ -1,0 +1,45 @@
+.custom-lists-panel, .public-custom-lists { --shelf-accent: #62e9ec; --shelf-muted: #a0b4c8; --shelf-border: #304856; --shelf-bg: #0b1620; --shelf-text: #e5f0f7; color: var(--shelf-text); background: var(--shelf-bg); border: 1px solid var(--shelf-border); padding: clamp(14px, 2vw, 24px); margin-block: 20px; min-width: 0; font-size: 14px; }
+.custom-lists-panel header, .custom-list-toolbar, .custom-list-items-heading, .public-custom-list-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.custom-lists-panel h3, .public-custom-lists h2 { margin: 4px 0 12px; font-size: 20px; }
+.custom-list-kicker { color: var(--shelf-accent); font-size: 11px; letter-spacing: .1em; margin: 0; }
+.custom-lists-panel label { display: grid; gap: 6px; min-width: 0; color: var(--shelf-muted); }
+.custom-lists-panel input:not([type=checkbox]), .custom-lists-panel select, .custom-lists-panel textarea { width: 100%; min-width: 0; max-width: 100%; background: var(--shelf-bg); color: var(--shelf-text); border: 1px solid var(--shelf-border); padding: 10px; font: inherit; border-radius: 3px; }
+.custom-lists-panel textarea { resize: vertical; }
+.custom-lists-panel button { border: 1px solid var(--shelf-border); background: transparent; color: var(--shelf-accent); padding: 9px 12px; min-height: 40px; font: inherit; cursor: pointer; border-radius: 3px; }
+.custom-lists-panel button:hover:not(:disabled), .custom-lists-panel summary:hover { border-color: var(--shelf-accent); }
+.custom-lists-panel button:disabled { opacity: .4; cursor: default; }
+.custom-lists-panel :focus-visible, .public-custom-lists summary:focus-visible { outline: 2px solid var(--shelf-accent); outline-offset: 3px; }
+.custom-lists-panel fieldset { border: 0; padding: 16px 0 0; margin: 0; min-width: 0; }
+.custom-list-manager { border-top: 1px solid var(--shelf-border); margin-top: 16px; padding-top: 16px; }
+.custom-list-manager > summary, .public-custom-lists summary { cursor: pointer; color: var(--shelf-accent); }
+.custom-list-form { display: grid; gap: 14px; padding-block: 18px; }
+.custom-list-options { display: flex; flex-wrap: wrap; gap: 16px; }
+.custom-list-options label { display: flex; align-items: center; gap: 8px; }
+.custom-list-hint, .custom-list-workspace-filter p, .custom-list-feedback { color: var(--shelf-muted); font-size: 12px; line-height: 1.6; margin-block: 8px; }
+.custom-list-workspace-filter { max-width: 580px; }
+.custom-list-toolbar > label { flex: 1; }
+.custom-list-items-heading { border-top: 1px solid var(--shelf-border); padding-top: 16px; }
+.custom-list-items-heading h4 { margin: 0; }
+.custom-list-add { display: flex; align-items: end; gap: 10px; margin-block: 16px; }
+.custom-list-add label { flex: 1; }
+.custom-list-items { list-style: none; padding: 0; margin: 12px 0 0; max-height: 440px; overflow-y: auto; }
+.custom-list-items li { display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--shelf-border); padding: 12px 0; }
+.custom-list-items li > div:first-of-type { flex: 1; min-width: 0; }
+.custom-list-items strong { display: block; overflow-wrap: anywhere; }
+.custom-list-items small { display: block; color: var(--shelf-muted); margin-top: 4px; }
+.custom-list-rank { color: var(--shelf-accent); font-variant-numeric: tabular-nums; min-width: 22px; }
+.custom-list-item-actions { display: flex; gap: 5px; flex-shrink: 0; }
+.custom-list-delete { border: 1px solid var(--shelf-border); padding: 12px; }
+.custom-list-delete button { margin: 4px; }
+.custom-list-feedback[data-error=true], .custom-lists-panel .custom-list-danger { color: #ff9eaf; }
+.public-custom-lists details { padding-block: 16px; border-top: 1px solid var(--shelf-border); }
+.public-custom-lists summary { overflow-wrap: anywhere; font-size: 16px; }
+.public-custom-lists summary span { font-size: 12px; color: var(--shelf-muted); margin-left: 10px; }
+.public-custom-lists details > p { color: var(--shelf-muted); white-space: pre-wrap; overflow-wrap: anywhere; }
+.public-custom-lists .custom-list-items { max-height: 560px; }
+.public-custom-lists img { width: 48px; height: 60px; object-fit: cover; border: 1px solid var(--shelf-border); }
+html[data-layout-mode="fantasy"] :is(.custom-lists-panel, .public-custom-lists) { --shelf-accent: #e8c777; --shelf-muted: #c2c8a2; --shelf-border: #637547; --shelf-bg: #1a2c24; --shelf-text: #f4ecd4; border-radius: 8px; box-shadow: inset 0 0 28px #0e1f19; }
+@media (max-width: 520px) { .custom-list-items li { flex-wrap: wrap; gap: 8px; } .custom-list-item-actions { margin-left: 30px; width: calc(100% - 30px); } .custom-list-item-actions button { flex: 1; min-height: 44px; } .custom-list-add { flex-direction: column; align-items: stretch; } .custom-list-options { flex-direction: column; gap: 10px; } .custom-list-toolbar { align-items: stretch; } .custom-list-toolbar > label { flex-basis: 100%; } }
+/* Fantasy's inventory forms also style descendant labels; keep shelf controls readable. */
+:root[data-layout-mode="fantasy"] .fantasy-item-pane .custom-lists-panel label { color: var(--shelf-muted); }
+:root[data-layout-mode="fantasy"] .fantasy-item-pane .custom-lists-panel :is(input:not([type="checkbox"]), select, textarea) { background: #faf0d2; color: #263b2c; border-color: #9a925f; }

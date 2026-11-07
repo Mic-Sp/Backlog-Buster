@@ -1,3 +1,4 @@
+import { parseCustomListBackup } from "@/lib/custom-list-backup";
 import { InputError } from "@/lib/action-result";
 import { isUnreleasedYear } from "@/lib/game-release";
 import { normalizeMicroReview } from "@/lib/micro-review";
@@ -118,6 +119,12 @@ export function parseBackupRecords(content: string, mode: "json" | "csv"): unkno
     try { parsed = JSON.parse(content); }
     catch { throw new InputError("Invalid JSON. Choose a backup containing an array of games."); }
   }
-  if (!Array.isArray(parsed) || parsed.length < 1 || parsed.length > MAX_IMPORT_ROWS) throw new InputError("A backup import must contain between 1 and 200 games.");
+  let minimum = 1;
+  if (mode === "json" && parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+    const lists = parseCustomListBackup(content);
+    minimum = lists.length ? 0 : 1;
+    parsed = (parsed as { games: unknown }).games;
+  }
+  if (!Array.isArray(parsed) || parsed.length < minimum || parsed.length > MAX_IMPORT_ROWS) throw new InputError("A backup import must contain between 1 and 200 games.");
   return parsed;
 }

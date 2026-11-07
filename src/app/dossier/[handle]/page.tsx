@@ -1,3 +1,4 @@
+import PublicCustomLists from "@/components/PublicCustomLists";
 import { buildDossierMetadata } from "@/lib/dossier-metadata";
 import { ThemePlayerSync, ThemeToggle } from "@/components/ThemeProvider";
 import { cache, Suspense } from "react";
@@ -46,6 +47,7 @@ async function Dossier({ params }: { params: Promise<{ handle: string }> }) {
         </header>
         {relationship && <DossierRelationshipControls key={`${relationship.target.id}:${relationship.relationship}`} context={relationship} />}
         <PublicDossierCard dossier={dossier} artwork={artwork} timestamp={new Date().toISOString()} />
+        <PublicCustomLists lists={dossier.customLists} />
         <footer className="public-dossier-footer"><Link className="public-dossier-gateway" href="/" prefetch={false}>⚡ INITIALIZE YOUR OWN ARCHIVE // BACKLOG BUSTER</Link></footer>
       </section>
     </main>

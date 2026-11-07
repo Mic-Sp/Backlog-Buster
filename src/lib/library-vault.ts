@@ -1,4 +1,6 @@
 import "server-only";
+import { parseCustomListBackup } from "@/lib/custom-list-backup";
+import { restoreCustomLists } from "@/lib/custom-lists";
 import { prisma } from "@/lib/prisma";
 import { readSessionHash } from "@/lib/auth-session";
 import { InputError } from "@/lib/action-result";
@@ -39,14 +41,23 @@ export async function getLibraryExport(format: "json" | "csv") {
       ownershipType: true,
     },
   });
+  const customLists = format === "json" ? await prisma.customList.findMany({
+    where: { userId: player.id }, orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    select: { title: true, description: true, isRanked: true, isPublic: true, entries: { orderBy: [{ position: "asc" }, { gameId: "asc" }], select: { game: { select: { title: true, platform: true } } } } },
+  }) : [];
+  const gameContent = serializeLibraryBackup(games, format);
+  const content = customLists.length ? JSON.stringify({ version: 2, games: JSON.parse(gameContent), customLists: customLists.map(list => ({
+    title: list.title, description: list.description, isRanked: list.isRanked, isPublic: list.isPublic, games: list.entries.map(entry => entry.game),
+  })) }, null, 2) : gameContent;
   const operator = (player.handle || player.operatorName).normalize("NFKD").toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 48) || "operator";
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-  return { content: serializeLibraryBackup(games, format), filename: `backlog-buster-archive-${operator}-${timestamp}.${format}` };
+  return { content, filename: `backlog-buster-archive-${operator}-${timestamp}.${format}` };
 }
 
 export async function importLibraryGames(payload: LibraryImportPayload) {
   const { player, tokenHash } = await requireVaultSession();
   validateImportPayload(payload);
+  const backupLists = payload.mode === "json" ? parseCustomListBackup(payload.content) : [];
   let invalidCount = 0;
   const records: ReturnType<typeof sanitizeImportedGame>[] = [];
   function addRecord(value: unknown) {
@@ -99,8 +110,9 @@ export async function importLibraryGames(payload: LibraryImportPayload) {
       await appendActivityEvents(tx, player.id, [{ type: "library_imported", deduplicationKey: `import:${randomUUID()}`,
         metadata: { source: payload.mode === "titles" ? "titles" : "backup", importedCount: result.count } }]);
     }
+    const restoredListCount = await restoreCustomLists(tx, player.id, backupLists);
     const duplicateCount = records.length - unique.length;
-    return { importedCount: result.count, duplicateCount, invalidCount, skippedCount: duplicateCount + invalidCount };
+    return { importedCount: result.count, duplicateCount, invalidCount, skippedCount: duplicateCount + invalidCount, ...(backupLists.length ? { restoredListCount } : {}) };
   }, { timeout: 15000 });
   return { userId: player.id, counts };
 }

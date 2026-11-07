@@ -32,7 +32,7 @@ function fixture(selectedGameId = null) {
     "@/components/SafeForm": { default: empty, SafeActionButton: empty },
     "@/lib/game-record": { gameRecordKey: game => String(game.id) }, "@/lib/trailers": { buildTrailerUrl: () => "#" },
   };
-  for (const name of ["FantasyEquipmentDeck", "DeckPinButton", "StarRatingInput", "AgentBriefing"]) mocks[`@/components/${name}`] = { default: empty };
+  for (const name of ["CustomListsPanel", "FantasyEquipmentDeck", "DeckPinButton", "StarRatingInput", "AgentBriefing"]) mocks[`@/components/${name}`] = { default: empty };
   const filename = path.resolve(__dirname, "../src/components/FantasySubscreenView.tsx"), instance = new Module(filename, module);
   instance.paths = Module._nodeModulePaths(path.dirname(filename));
   const original = instance.require.bind(instance);

@@ -49,7 +49,7 @@ function projection(row, select) {
   if (!row) return null;
   if (!select) return structuredClone(row);
   return Object.fromEntries(Object.entries(select).filter(([, value]) => value).map(([field, value]) => [field,
-    value === true ? structuredClone(row[field]) : Array.isArray(row[field]) ? row[field].map(entry => projection(entry, value.select)) : projection(row[field], value.select)]));
+    value === true ? structuredClone(row[field]) : Array.isArray(row[field]) ? row[field].filter(entry => !value.where || Object.entries(value.where).every(([key, filter]) => scalar(entry[key], filter))).map(entry => projection(entry, value.select)) : projection(row[field], value.select)]));
 }
 function fixture(initial = [player("alice"), player("bob"), player("carol"), player("default-player", { email: null, passwordHash: null })]) {
   let players = structuredClone(initial), rows = [], sequence = Promise.resolve(), failWrite = false, lockHook;

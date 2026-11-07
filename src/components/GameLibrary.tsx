@@ -28,6 +28,7 @@ import { useUpNextDeckController } from "@/components/UpNextDeck";
 import { DeckPinsContext } from "@/components/useDeckPins";
 import { SocialHubOverlay, useSocialHubController } from "@/components/SocialHub";
 import { compareCompletionDates } from "@/lib/play-journal";
+import type { CustomListData } from "@/lib/custom-list-types";
 import { matchesOwnership, type OwnershipFilter, type OwnershipType } from "@/lib/ownership-type";
 
 export type LibraryGame = {
@@ -89,7 +90,7 @@ function comparePinnedGames(left: LibraryGame, right: LibraryGame) {
 }
 
 
-function useGameLibraryController({ games: serverGames, achievements = [], isAdmin = false, socialEnabled = true, steamId, children }: { games: LibraryGame[]; achievements?: Achievement[]; isAdmin?: boolean; socialEnabled?: boolean; steamId?: string | null; children?: ReactNode }) {
+function useGameLibraryController({ games: serverGames, achievements = [], isAdmin = false, socialEnabled = true, steamId, children, customLists = [] }: { customLists?: CustomListData[]; games: LibraryGame[]; achievements?: Achievement[]; isAdmin?: boolean; socialEnabled?: boolean; steamId?: string | null; children?: ReactNode }) {
   const { playSfx, layoutMode } = useUIEffects();
   const { showPane } = useSubscreen();
   const [selectedGameId, setSelectedGameId] = useState<number | null>(null);
@@ -127,6 +128,9 @@ function useGameLibraryController({ games: serverGames, achievements = [], isAdm
   const [deckReturnNotice, setDeckReturnNotice] = useState<{ text: string; error: boolean } | null>(null);
   const [backlogReturnHover, setBacklogReturnHover] = useState(false);
   const [backlogReturnTarget, setBacklogReturnTarget] = useState<number | null>(null);
+  const [customListId, setCustomListId] = useState("");
+  const selectedCustomList = customLists.find(list => list.id === customListId);
+  const customListPositions = useMemo(() => new Map(selectedCustomList?.gameIds.map((id, index) => [id, index]) ?? []), [selectedCustomList]);
   const [activeView, setActiveView] = useState<LibraryView>("Backlog");
   const [searchQuery, setSearchQuery] = useState("");
   const [platformFilter, setPlatformFilter] = useState("");
@@ -168,14 +172,14 @@ function useGameLibraryController({ games: serverGames, achievements = [], isAdm
   );
   const timelineIds = optimisticTimeline.key === selectedSaga?.key ? optimisticTimeline.ids : serverTimelineIds;
   const timelinePositions = useMemo(() => new Map(timelineIds.map((id, index) => [id, index])), [timelineIds]);
-  const inTimelineView = Boolean(selectedSaga) && sortBy === "timeline-asc";
+  const inTimelineView = !selectedCustomList && Boolean(selectedSaga) && sortBy === "timeline-asc";
   const timelineBusy = isReorderingTimeline || isDetectingSaga;
   const serverBacklogIds = useMemo(() => games
     .filter((game) => game.status === "Backlog" && game.pinnedOrder == null)
     .sort(compareBacklogPriority).map((game) => game.id), [games]);
   const [backlogIds, setOptimisticBacklog] = useOptimistic<number[], number[]>(serverBacklogIds, (_previous, next) => next);
   const backlogPositions = useMemo(() => new Map(backlogIds.map((id, index) => [id, index])), [backlogIds]);
-  const inBacklogPriorityView = activeView === "Backlog" && !sagaFilter && (sortBy === "default" || sortBy === "custom-priority");
+  const inBacklogPriorityView = !selectedCustomList && activeView === "Backlog" && !sagaFilter && (sortBy === "default" || sortBy === "custom-priority");
   const canReorderBacklog = inBacklogPriorityView && !searchQuery.trim();
   const rowReorderBusy = timelineBusy || isReorderingBacklog || isReturningDeck;
   const returningGame = deckDraggedGame?.source === "deck" ? games.find((game) => game.id === deckDraggedGame.gameId && game.status === "Backlog" && game.pinnedOrder != null) : null;
@@ -257,6 +261,7 @@ function useGameLibraryController({ games: serverGames, achievements = [], isAdm
   const visibleGames = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     const filtered = games.filter((game) => (
+      (!selectedCustomList || customListPositions.has(game.id)) &&
       (activeView === "All" || game.status === activeView) &&
       (!platformFilter || game.platform.trim() === platformFilter) &&
       (!genreFilter || game.genre?.trim() === genreFilter) &&
@@ -264,6 +269,7 @@ function useGameLibraryController({ games: serverGames, achievements = [], isAdm
       (!selectedSaga || byGameId.get(game.id)?.key === selectedSaga.key) &&
       (!query || [game.title, game.genre, game.platform].some((value) => value?.toLowerCase().includes(query)))
     ));
+    if (selectedCustomList) return [...filtered].sort((a, b) => customListPositions.get(a.id)! - customListPositions.get(b.id)!);
     if (inBacklogPriorityView) {
       return [...filtered].sort((left, right) => comparePinnedGames(left, right) ||
         (backlogPositions.get(left.id) ?? Infinity) - (backlogPositions.get(right.id) ?? Infinity));
@@ -335,15 +341,16 @@ function useGameLibraryController({ games: serverGames, achievements = [], isAdm
           return 0;
       }
     });
-  }, [games, activeView, searchQuery, platformFilter, genreFilter, ownershipFilter, selectedSaga, byGameId, sortBy, timelinePositions, inBacklogPriorityView, backlogPositions]);
+  }, [selectedCustomList, customListPositions, games, activeView, searchQuery, platformFilter, genreFilter, ownershipFilter, selectedSaga, byGameId, sortBy, timelinePositions, inBacklogPriorityView, backlogPositions]);
   const visibleTimelinePositions = useMemo(() => new Map(visibleGames.map((game, index) => [game.id, index])), [visibleGames]);
   const visibleBacklogIds = useMemo(() => visibleGames.filter((game) => game.pinnedOrder == null).map((game) => game.id), [visibleGames]);
   const visibleBacklogPositions = useMemo(() => new Map(visibleBacklogIds.map((id, index) => [id, index])), [visibleBacklogIds]);
-  const hasLibraryFilters = searchQuery !== "" || platformFilter !== "" || genreFilter !== "" || ownershipFilter !== "" || Boolean(selectedSaga) || sortBy !== "default";
+  const hasLibraryFilters = Boolean(selectedCustomList) || searchQuery !== "" || platformFilter !== "" || genreFilter !== "" || ownershipFilter !== "" || Boolean(selectedSaga) || sortBy !== "default";
   const hasActiveFilters = activeView !== "Backlog" || hasLibraryFilters;
   const showFilteredCount = activeView !== "All" || hasLibraryFilters;
 
   function clearFilters() {
+    setCustomListId("");
     setActiveView("Backlog");
     setSearchQuery("");
     setPlatformFilter("");
@@ -359,6 +366,7 @@ function useGameLibraryController({ games: serverGames, achievements = [], isAdm
     function showAddedGame(event: Event) {
       const id: unknown = (event as CustomEvent<unknown>).detail;
       if (typeof id !== "number" || !Number.isSafeInteger(id) || id < 1) return;
+      setCustomListId("");
       setActiveView("Backlog");
       setSearchQuery("");
       setPlatformFilter("");
@@ -391,8 +399,8 @@ function useGameLibraryController({ games: serverGames, achievements = [], isAdm
 
   async function startGameAndShowPlaying(data: FormData) {
     const result = unwrapActionResult(await mutateGame(startGame, data));
-    clearFilters();
-    setActiveView("Playing");
+    if (selectedCustomList) setActiveView("All");
+    else { clearFilters(); setActiveView("Playing"); }
     showPane("items");
     setRevealedGameId(Number(data.get("id")));
     setSelectedGameId(Number(data.get("id")));
@@ -660,6 +668,12 @@ function useGameLibraryController({ games: serverGames, achievements = [], isAdm
     if (!(event.relatedTarget instanceof Node) || !event.currentTarget.contains(event.relatedTarget)) setDropTargetId(current => current === targetId ? null : current);
   }
 
+  function selectCustomList(id: string) {
+    clearFilters();
+    setCustomListId(id);
+    setActiveView("All");
+  }
+
   function changeView(view: LibraryView) {
     if (view !== activeView) playSfx("page");
     setActiveView(view);
@@ -689,6 +703,10 @@ function useGameLibraryController({ games: serverGames, achievements = [], isAdm
   const controller = {
     ...drafts,
     gameActionError,
+    customLists,
+    selectedCustomList,
+    selectCustomList,
+    customListsEnabled: socialEnabled,
     actions: {
       updateGame: (data: FormData) => mutateGame(updateGame, data),
       deleteGame: (data: FormData) => mutateGame(deleteGame, data),

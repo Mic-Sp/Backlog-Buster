@@ -1,5 +1,7 @@
 "use client";
 
+import CustomListsPanel from "@/components/CustomListsPanel";
+
 import { OwnershipBadge, OwnershipField, OwnershipFilterControl } from "@/components/Ownership";
 import { PlayJournalBadges, PlayJournalEditor } from "@/components/PlayJournal";
 import { MicroReview, MicroReviewEditor } from "@/components/MicroReview";
@@ -86,13 +88,14 @@ export default function FantasySubscreenView({ controller: c }: { controller: Ga
 
     <section className="fantasy-item-pane fantasy-panel" data-workspace-pane="items" aria-labelledby="fantasy-inventory-title"><FantasyCorners />
       <div className="fantasy-section-heading"><div><p className="fantasy-kicker">ITEM SUBSCREEN</p><h3 id="fantasy-inventory-title">The Adventurer’s Inventory</h3></div><span role="status">{c.visibleGames.length} / {c.games.length} quests</span></div>
+      <CustomListsPanel controller={c} />
       <div className="fantasy-status-tabs" role="group" aria-label="Library view">{views.map(view => <button key={view} type="button" data-ui-sound="custom" aria-pressed={c.activeView === view} onClick={() => c.changeView(view)}>{view === "Flatlined" ? "Abandoned" : view} <span>{c.viewCounts[view]}</span></button>)}</div>
       <div className="fantasy-scroll-filters">
         <label>Search quests<input type="search" value={c.searchQuery} placeholder="Find a title, realm, or genre…" onChange={event => c.setSearchQuery(event.target.value)} /></label>
         <label>Realm<select value={c.platformFilter} onChange={event => c.setPlatformFilter(event.target.value)}><option value="">All platforms</option>{c.platforms.map(platform => <option key={platform}>{platform}</option>)}</select></label>
         <label>Discipline<select value={c.genreFilter} onChange={event => c.setGenreFilter(event.target.value)}><option value="">All genres</option>{c.genres.map(genre => <option key={genre}>{genre}</option>)}</select></label>
         <OwnershipFilterControl value={c.ownershipFilter} onChange={c.setOwnershipFilter} />
-        <label>Arrange<select aria-label="Sort games" value={c.sortBy} onChange={event => c.setSortBy(event.target.value)}>{sorts.filter(([value]) => value !== "custom-priority" || c.activeView === "Backlog" && !c.selectedSaga).map(([value, label]) => <option key={value} value={value}>{value === "default" && c.activeView === "Completed" ? "Completion: newest first (default)" : label}</option>)}</select></label>
+        <label>Arrange<select aria-label="Sort games" disabled={Boolean(c.selectedCustomList)} value={c.sortBy} onChange={event => c.setSortBy(event.target.value)}>{sorts.filter(([value]) => value !== "custom-priority" || c.activeView === "Backlog" && !c.selectedSaga).map(([value, label]) => <option key={value} value={value}>{value === "default" && c.activeView === "Completed" ? "Completion: newest first (default)" : label}</option>)}</select></label>
         {c.hasActiveFilters && <button type="button" onClick={c.clearFilters}>Clear filters</button>}
       </div>
       {c.backlogNotice && <p className="fantasy-notice" role="status" data-error={c.backlogNotice.error}>{c.backlogNotice.text}</p>}

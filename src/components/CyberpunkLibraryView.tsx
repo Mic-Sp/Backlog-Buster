@@ -1,5 +1,7 @@
 "use client";
 
+import CustomListsPanel from "@/components/CustomListsPanel";
+
 import { OwnershipBadge, OwnershipField, OwnershipFilterControl } from "@/components/Ownership";
 import { PlayJournalBadges, PlayJournalEditor } from "@/components/PlayJournal";
 import { MicroReview, MicroReviewEditor } from "@/components/MicroReview";
@@ -240,6 +242,7 @@ export default function CyberpunkLibraryView({ controller }: { controller: GameL
         </div>
       </div>
 
+      <CustomListsPanel controller={controller} />
       <LibraryTelemetry games={games} />
       <SagaChains chains={chains} selectedKey={selectedSaga?.key ?? ""} onSelect={selectSaga} {...sagaOrderControls} />
 
@@ -284,7 +287,7 @@ export default function CyberpunkLibraryView({ controller }: { controller: GameL
         <OwnershipFilterControl value={controller.ownershipFilter} onChange={controller.setOwnershipFilter} />
         <label>
           <span>Sort</span>
-          <select className="library-filter-select" aria-label="Sort games" value={sortBy} onChange={(event) => setSortBy(event.target.value)}>
+          <select className="library-filter-select" aria-label="Sort games" disabled={Boolean(controller.selectedCustomList)} value={sortBy} onChange={(event) => setSortBy(event.target.value)}>
             <option value="default">{activeView === "Completed" ? "Completion: newest first (default)" : "Default order"}</option>
             {activeView === "Backlog" && !selectedSaga && <option value="custom-priority">Custom Priority</option>}
             {(selectedSaga || sortBy === "timeline-asc") && <option value="timeline-asc">Saga: timeline order</option>}

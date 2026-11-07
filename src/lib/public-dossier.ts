@@ -13,7 +13,9 @@ import { getOptionalAuthenticatedPlayerId } from "@/lib/player";
 import { visibleProfileWhere } from "@/lib/profile-privacy";
 import type { ProfileVisibility } from "@/lib/friendship-types";
 
-export type PublicDossier = { identity: DossierIdentity; card: DossierCardData; visibility: ProfileVisibility };
+import type { PublicCustomList } from "@/lib/custom-list-types";
+
+export type PublicDossier = { identity: DossierIdentity; card: DossierCardData; visibility: ProfileVisibility; customLists: PublicCustomList[] };
 
 export async function getPublicDossier(value: unknown): Promise<PublicDossier | null> {
   if (typeof value !== "string") return null;
@@ -28,6 +30,10 @@ export async function getPublicDossier(value: unknown): Promise<PublicDossier | 
   const profile = await prisma.player.findFirst({
     where: { handle: { equals: lookupHandle, mode: "insensitive" }, ...audience },
     select: {
+      customLists: { where: { isPublic: true }, orderBy: [{ createdAt: "asc" }, { id: "asc" }], take: 20, select: {
+        id: true, title: true, description: true, isRanked: true, isPublic: true,
+        entries: { orderBy: [{ position: "asc" }, { gameId: "asc" }], take: 50, select: { game: { select: { title: true, platform: true, coverUrl: true } } } },
+      } },
       profileVisibility: true,
       operatorName: true, handle: true, tagline: true, neonAccent: true, avatarUrl: true, featuredTrophyIds: true,
       games: { select: { status: true, lengthHours: true, hoursPlayed: true, rating: true, earnedXp: true } },
@@ -68,6 +74,9 @@ export async function getPublicDossier(value: unknown): Promise<PublicDossier | 
     avatarUrl: profile.avatarUrl, featuredTrophyIds: slots.map(slot => slot?.pinned ? slot.game.id : null),
   }, publicGames);
   return {
+    customLists: (profile.customLists ?? []).map(list => ({ id: list.id, title: list.title, description: list.description, isRanked: list.isRanked, isPublic: true,
+      games: list.entries.map(({ game }) => ({ title: game.title, platform: game.platform, coverUrl: game.coverUrl ? resizeRawgImageUrl(game.coverUrl) : null })),
+    })),
     visibility: profile.profileVisibility,
     identity,
     card: { level: calculateLevelProgress(totalXp).level, totalXp, counts, activeHours: telemetry.activeHours,

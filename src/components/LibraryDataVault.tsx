@@ -111,7 +111,7 @@ export function useLibraryDataVaultController({ games, savedSteamId }: { games: 
     startImporting(async () => {
       try {
         const result = unwrapActionResult(await bulkImportGames({ mode: importMode, content: importMode === "titles" ? titles : json, defaultPlatform }));
-        setMessage(`Imported ${result.importedCount} games (${result.duplicateCount} duplicates skipped, ${result.invalidCount} invalid/blank rows skipped)`);
+        setMessage(`Imported ${result.importedCount} games (${result.duplicateCount} duplicates skipped, ${result.invalidCount} invalid/blank rows skipped)${result.restoredListCount !== undefined ? ` · Restored ${result.restoredListCount} custom lists` : ""}`);
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : "Import failed. Please try again.");
       } finally { requestInFlight.current = false; }
@@ -249,6 +249,7 @@ export function LibraryDataVaultView({ controller, part = "all" }: { controller:
             <section className="vault-section" aria-labelledby="vault-export-title">
               <h3 id="vault-export-title">{copy("01 // EXPORT BACKUP", "I · PRESERVE YOUR CHRONICLE")}</h3>
               <p>{copy(`Download your signed-in operator’s full library, including ratings, progress, and field logs (${games.length} games currently shown). A live session is required for import and export.`, `Preserve your signed-in adventurer’s full quest journal, including ratings, progress, and notes (${games.length} quests currently shown). A live session is required for import and export.`)}</p>
+              <p>JSON preserves custom lists, their order and visibility. CSV contains games only. Restore merges games and lists; identical lists are skipped.</p>
               <div className="vault-actions">
                 <button type="button" disabled={busy} onClick={() => exportBackup("json")}>⬇ EXPORT JSON</button>
                 <button type="button" disabled={busy} onClick={() => exportBackup("csv")}>⬇ EXPORT CSV</button>

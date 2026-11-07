@@ -69,6 +69,7 @@ model Player {
   friendshipsHigh   Friendship[]      @relation("FriendshipHigh")
   activityEvents    ActivityEvent[]
   recommendationDismissals RecommendationDismissal[]
+  customLists       CustomList[]
 }
 
 // Discovery preferences are independent of library ownership. Adding a dismissed
@@ -248,9 +249,43 @@ model Game {
   // Decimal AppID string avoids signed-Int limits; null for non-Steam copies.
   steamAppId  String?
   activityEvents ActivityEvent[]
+  customListEntries CustomListEntry[]
 
   @@index([userId])
+  @@unique([id, userId])
   @@unique([userId, steamAppId])
+}
+
+// Independent of deck pins, backlog priority, saga order and profile favorites.
+model CustomList {
+  id          String   @id @default(cuid())
+  userId      String
+  player      Player   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String   @db.VarChar(80)
+  description String?  @db.VarChar(280)
+  isRanked    Boolean  @default(false)
+  isPublic    Boolean  @default(false)
+  revision    Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  entries     CustomListEntry[]
+
+  @@unique([id, userId])
+  @@index([userId, createdAt, id])
+}
+
+model CustomListEntry {
+  listId   String
+  gameId   Int
+  userId   String
+  position Int
+  // Composite foreign keys prohibit linking another player's game, even via SQL.
+  list     CustomList @relation(fields: [listId, userId], references: [id, userId], onDelete: Cascade)
+  game     Game       @relation(fields: [gameId, userId], references: [id, userId], onDelete: Cascade)
+
+  @@id([listId, gameId])
+  @@unique([listId, position])
+  @@index([gameId, userId])
 }
 
 model UserAchievement {
