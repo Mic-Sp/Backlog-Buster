@@ -30,6 +30,7 @@ import { activityGameSelect, updateGameWithActivity } from "@/lib/activity-event
 import { saveRecommendationDismissal } from "@/lib/recommendation-dismissals";
 import { readMicroReviewFields } from "@/lib/micro-review";
 import { readPlayJournalFields, resolvePlayJournal } from "@/lib/play-journal";
+import { readOwnershipField } from "@/lib/ownership-type";
 
 export async function dismissScoutRecommendation(title: string) {
   // This preference needs no route refresh: the client removes the card, and
@@ -262,7 +263,7 @@ function readProgressFields(formData: FormData) {
     }
     progress.rating = rating;
   }
-  return { ...progress, ...readMicroReviewFields(formData), ...readPlayJournalFields(formData) };
+  return { ...progress, ...readMicroReviewFields(formData), ...readPlayJournalFields(formData), ...readOwnershipField(formData) };
 }
 
 function optionalYear(value: string): number | null {
@@ -377,6 +378,7 @@ export async function createGame(formData: FormData) {
         ...metadata,
         franchise: optionalText(formData, "franchise") || null,
         ...readMicroReviewFields(formData),
+        ...readOwnershipField(formData),
         ...journal,
       },
     });

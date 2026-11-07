@@ -15,6 +15,13 @@ enum ProfileVisibility {
   private
 }
 
+enum OwnershipType {
+  Digital
+  Physical
+  Subscription
+  Borrowed
+}
+
 enum FriendshipStatus {
   pending
   accepted
@@ -210,6 +217,8 @@ model Game {
   player      Player   @relation(fields: [userId], references: [id], onDelete: Cascade)
   title       String
   platform    String
+  // Access medium, independent of platform and library status. Null = unspecified.
+  ownershipType OwnershipType?
   status      String   @default("Backlog")
   // Advances for status/rating/review changes, including quiet clears.
   activityRevision Int @default(0)

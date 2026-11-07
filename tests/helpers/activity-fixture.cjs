@@ -2,7 +2,7 @@
 const assert = require("node:assert/strict");
 const { loader } = require("./social-fixture.cjs");
 const form = values => { const result = new FormData(); for (const [key, value] of Object.entries(values)) result.set(key, String(value)); return result; };
-const game = (id = 1, extra = {}) => ({ id, userId: "owner", title: "Portal 2", platform: "PC", status: "Backlog", activityRevision: 0,
+const game = (id = 1, extra = {}) => ({ id, userId: "owner", title: "Portal 2", platform: "PC", ownershipType: null, status: "Backlog", activityRevision: 0,
   rating: null, hoursPlayed: 0, lengthHours: 10, difficulty: 1, earnedXp: 0, wasFlatlined: false, pinnedOrder: null,
   startedAt: null, completedAt: null, review: null, reviewSpoiler: false, notes: "PRIVATE_NOTES", franchise: null, genre: "Puzzle", releaseYear: 2011, steamAppId: null, coverUrl: null, ...extra });
 function fixture({ games: initial = [game()], realAchievements = false } = {}) {
@@ -17,7 +17,7 @@ function fixture({ games: initial = [game()], realAchievements = false } = {}) {
       if (sql.join("").includes('UPDATE "Game"')) {
         const updates = JSON.parse(values[0]);
         for (const update of updates) { const row = games.find(game => game.id === update.id && game.userId === values[1]);
-          row.steamAppId = update.steamAppId; row.hoursPlayed = Math.max(row.hoursPlayed, update.hoursPlayed ?? row.hoursPlayed); }
+          row.steamAppId = update.steamAppId; row.ownershipType ??= "Digital"; row.hoursPlayed = Math.max(row.hoursPlayed, update.hoursPlayed ?? row.hoursPlayed); }
         return updates.length;
       }
       assert.match(sql.join(""), /pg_advisory_xact_lock/); locks.push(values[0]); return 1;

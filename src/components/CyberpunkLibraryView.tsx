@@ -1,5 +1,6 @@
 "use client";
 
+import { OwnershipBadge, OwnershipField, OwnershipFilterControl } from "@/components/Ownership";
 import { PlayJournalBadges, PlayJournalEditor } from "@/components/PlayJournal";
 import { MicroReview, MicroReviewEditor } from "@/components/MicroReview";
 import { SocialHubTrigger } from "@/components/SocialHub";
@@ -194,6 +195,7 @@ export default function CyberpunkLibraryView({ controller }: { controller: GameL
             <StarRatingInput defaultValue={controller.getGameDraft(game).rating === "" ? null : Number(controller.getGameDraft(game).rating)} onChange={rating => controller.setGameDraftRating(game, rating)} label={`Rating for ${game.title}`} />
           </div>
         </div>
+        <OwnershipField title={game.title} value={controller.getGameDraft(game).ownershipType} />
         <PlayJournalEditor title={game.title} startedAt={controller.getGameDraft(game).startedAt} completedAt={controller.getGameDraft(game).completedAt} originalStartedAt={game.startedAt?.slice(0, 10)} originalCompletedAt={game.completedAt?.slice(0, 10)} />
         <MicroReviewEditor title={game.title} review={controller.getGameDraft(game).review} reviewSpoiler={controller.getGameDraft(game).reviewSpoiler === "true"} />
         <label className="field-log-label">
@@ -279,6 +281,7 @@ export default function CyberpunkLibraryView({ controller }: { controller: GameL
             {genres.map((genre) => <option key={genre} value={genre}>{genre}</option>)}
           </select>
         </label>
+        <OwnershipFilterControl value={controller.ownershipFilter} onChange={controller.setOwnershipFilter} />
         <label>
           <span>Sort</span>
           <select className="library-filter-select" aria-label="Sort games" value={sortBy} onChange={(event) => setSortBy(event.target.value)}>
@@ -420,6 +423,7 @@ export default function CyberpunkLibraryView({ controller }: { controller: GameL
                     <strong>{(game.status === "Flatlined" ? 0 : game.lengthHours * game.difficulty * 10).toLocaleString()} XP</strong>
                   </div>
                   {game.status === "Playing" && <AgentBriefing game={game} />}
+                  <OwnershipBadge value={game.ownershipType} />
                   <PlayJournalBadges startedAt={game.startedAt} completedAt={game.completedAt} />
                   <MicroReview review={game.review} reviewSpoiler={game.reviewSpoiler} />
                   {renderCardControls(game)}
@@ -454,6 +458,7 @@ export default function CyberpunkLibraryView({ controller }: { controller: GameL
                     </div>
                   )}
                   <p className="trophy-reward">+{game.earnedXp.toLocaleString()} XP</p>
+                  <OwnershipBadge value={game.ownershipType} />
                   <PlayJournalBadges startedAt={game.startedAt} completedAt={game.completedAt} />
                   <MicroReview review={game.review} reviewSpoiler={game.reviewSpoiler} />
                   <TrophyRatingEditor game={game} />
@@ -541,6 +546,7 @@ export default function CyberpunkLibraryView({ controller }: { controller: GameL
                     <span className="game-title-stack">
                       <span className="game-title-heading"><strong title={game.title}>{game.title}</strong>{renderTimelinePill(game)}</span>
                       <CommunityStatsReadout game={game} />
+                      <OwnershipBadge value={game.ownershipType} />
                       <PlayJournalBadges startedAt={game.startedAt} completedAt={game.completedAt} />
                       <MicroReview review={game.review} reviewSpoiler={game.reviewSpoiler} />
                       <MicroReviewEditor title={game.title} review={controller.getGameDraft(game).review} reviewSpoiler={controller.getGameDraft(game).reviewSpoiler === "true"} />

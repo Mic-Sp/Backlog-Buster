@@ -28,11 +28,13 @@ import { useUpNextDeckController } from "@/components/UpNextDeck";
 import { DeckPinsContext } from "@/components/useDeckPins";
 import { SocialHubOverlay, useSocialHubController } from "@/components/SocialHub";
 import { compareCompletionDates } from "@/lib/play-journal";
+import { matchesOwnership, type OwnershipFilter, type OwnershipType } from "@/lib/ownership-type";
 
 export type LibraryGame = {
   id: number;
   title: string;
   platform: string;
+  ownershipType: OwnershipType | null;
   status: string;
   wasFlatlined: boolean;
   pinnedOrder: number | null;
@@ -129,6 +131,7 @@ function useGameLibraryController({ games: serverGames, achievements = [], isAdm
   const [searchQuery, setSearchQuery] = useState("");
   const [platformFilter, setPlatformFilter] = useState("");
   const [genreFilter, setGenreFilter] = useState("");
+  const [ownershipFilter, setOwnershipFilter] = useState<OwnershipFilter>("");
   const [sagaFilter, setSagaFilter] = useState("");
   const sagaFilterRef = useRef("");
   const [sortBy, setSortBy] = useState("default");
@@ -257,6 +260,7 @@ function useGameLibraryController({ games: serverGames, achievements = [], isAdm
       (activeView === "All" || game.status === activeView) &&
       (!platformFilter || game.platform.trim() === platformFilter) &&
       (!genreFilter || game.genre?.trim() === genreFilter) &&
+      matchesOwnership(game, ownershipFilter) &&
       (!selectedSaga || byGameId.get(game.id)?.key === selectedSaga.key) &&
       (!query || [game.title, game.genre, game.platform].some((value) => value?.toLowerCase().includes(query)))
     ));
@@ -331,11 +335,11 @@ function useGameLibraryController({ games: serverGames, achievements = [], isAdm
           return 0;
       }
     });
-  }, [games, activeView, searchQuery, platformFilter, genreFilter, selectedSaga, byGameId, sortBy, timelinePositions, inBacklogPriorityView, backlogPositions]);
+  }, [games, activeView, searchQuery, platformFilter, genreFilter, ownershipFilter, selectedSaga, byGameId, sortBy, timelinePositions, inBacklogPriorityView, backlogPositions]);
   const visibleTimelinePositions = useMemo(() => new Map(visibleGames.map((game, index) => [game.id, index])), [visibleGames]);
   const visibleBacklogIds = useMemo(() => visibleGames.filter((game) => game.pinnedOrder == null).map((game) => game.id), [visibleGames]);
   const visibleBacklogPositions = useMemo(() => new Map(visibleBacklogIds.map((id, index) => [id, index])), [visibleBacklogIds]);
-  const hasLibraryFilters = searchQuery !== "" || platformFilter !== "" || genreFilter !== "" || Boolean(selectedSaga) || sortBy !== "default";
+  const hasLibraryFilters = searchQuery !== "" || platformFilter !== "" || genreFilter !== "" || ownershipFilter !== "" || Boolean(selectedSaga) || sortBy !== "default";
   const hasActiveFilters = activeView !== "Backlog" || hasLibraryFilters;
   const showFilteredCount = activeView !== "All" || hasLibraryFilters;
 
@@ -344,6 +348,7 @@ function useGameLibraryController({ games: serverGames, achievements = [], isAdm
     setSearchQuery("");
     setPlatformFilter("");
     setGenreFilter("");
+    setOwnershipFilter("");
     setSagaFilter("");
     sagaFilterRef.current = "";
     setSagaNotice(null);
@@ -358,6 +363,7 @@ function useGameLibraryController({ games: serverGames, achievements = [], isAdm
       setSearchQuery("");
       setPlatformFilter("");
       setGenreFilter("");
+      setOwnershipFilter("");
       setSagaFilter("");
       sagaFilterRef.current = "";
       setSagaNotice(null);
@@ -407,6 +413,7 @@ function useGameLibraryController({ games: serverGames, achievements = [], isAdm
     setSearchQuery("");
     setPlatformFilter("");
     setGenreFilter("");
+    setOwnershipFilter("");
     setSortBy("year-asc");
   }
 
@@ -702,6 +709,8 @@ function useGameLibraryController({ games: serverGames, achievements = [], isAdm
     setPlatformFilter,
     genreFilter,
     setGenreFilter,
+    ownershipFilter,
+    setOwnershipFilter,
     sortBy,
     setSortBy,
     sagaNotice,

@@ -1,5 +1,6 @@
 "use client";
 
+import { OwnershipBadge, OwnershipField, OwnershipFilterControl } from "@/components/Ownership";
 import { PlayJournalBadges, PlayJournalEditor } from "@/components/PlayJournal";
 import { MicroReview, MicroReviewEditor } from "@/components/MicroReview";
 import { SocialHubTrigger } from "@/components/SocialHub";
@@ -90,6 +91,7 @@ export default function FantasySubscreenView({ controller: c }: { controller: Ga
         <label>Search quests<input type="search" value={c.searchQuery} placeholder="Find a title, realm, or genre…" onChange={event => c.setSearchQuery(event.target.value)} /></label>
         <label>Realm<select value={c.platformFilter} onChange={event => c.setPlatformFilter(event.target.value)}><option value="">All platforms</option>{c.platforms.map(platform => <option key={platform}>{platform}</option>)}</select></label>
         <label>Discipline<select value={c.genreFilter} onChange={event => c.setGenreFilter(event.target.value)}><option value="">All genres</option>{c.genres.map(genre => <option key={genre}>{genre}</option>)}</select></label>
+        <OwnershipFilterControl value={c.ownershipFilter} onChange={c.setOwnershipFilter} />
         <label>Arrange<select aria-label="Sort games" value={c.sortBy} onChange={event => c.setSortBy(event.target.value)}>{sorts.filter(([value]) => value !== "custom-priority" || c.activeView === "Backlog" && !c.selectedSaga).map(([value, label]) => <option key={value} value={value}>{value === "default" && c.activeView === "Completed" ? "Completion: newest first (default)" : label}</option>)}</select></label>
         {c.hasActiveFilters && <button type="button" onClick={c.clearFilters}>Clear filters</button>}
       </div>
@@ -111,6 +113,7 @@ export default function FantasySubscreenView({ controller: c }: { controller: Ga
               <img src={game.coverUrl} alt="" loading="lazy" decoding="async" width={160} height={160} draggable={false} /> : <span className="fantasy-item-icon" aria-hidden="true">{game.status === "Completed" ? "♜" : game.status === "Flatlined" ? "☠" : "⚔"}</span>}
             <span className="fantasy-slot-title">{game.title}</span><span className="fantasy-slot-status">{game.pinnedOrder !== null ? `C ${game.pinnedOrder} · Equipped` : game.status === "Playing" ? "Active quest" : game.status === "Backlog" && !c.canDragToDeck(game) ? "Sealed · Unreleased" : game.status}</span>
             <QuestRating rating={game.rating} />
+            <OwnershipBadge value={game.ownershipType} />
           </button>
           {c.canDragToDeck(game) && <span className="fantasy-inventory-quick-pin" onClick={event => event.stopPropagation()} onFocus={() => previewGame(game)}>
             <DeckPinButton gameId={game.id} pinnedOrder={game.pinnedOrder} pinnedCount={c.pinnedCount} releaseYear={game.releaseYear} disabled={c.rowReorderBusy} />
@@ -160,6 +163,7 @@ function FantasyQuestDialogue({ controller: c, game, onSelectSaga }: { controlle
   const draft = c.getGameDraft(game);
   const saga = c.byGameId.get(game.id);
   return <section className="fantasy-dialogue" aria-label={`Quest details for ${game.title}`}>
+    <OwnershipBadge value={game.ownershipType} />
     <PlayJournalBadges startedAt={game.startedAt} completedAt={game.completedAt} />
     <MicroReview review={game.review} reviewSpoiler={game.reviewSpoiler} />
     <div className="fantasy-dialogue-heading"><span className="fantasy-dialogue-gem" aria-hidden="true">◆</span><div><p className="fantasy-kicker">YOU FOUND A QUEST</p><h4>{game.title}</h4><p>{game.platform} · {game.genre?.trim() || "Unknown discipline"} · {game.releaseYear ?? "Year unknown"} · {game.status === "Flatlined" ? "Abandoned" : game.status}</p></div><QuestRating rating={game.rating} /></div>
@@ -177,6 +181,7 @@ function FantasyQuestDialogue({ controller: c, game, onSelectSaga }: { controlle
         <label>Difficulty<select name="difficulty" defaultValue={draft.difficulty} aria-label={`Difficulty for ${game.title}`}><option value="1">1 · Easy</option><option value="2">2 · Medium</option><option value="3">3 · Tough</option></select></label>
       </div>
       <StarRatingInput glyph="heart" defaultValue={draft.rating === "" ? null : Number(draft.rating)} label={`Rating for ${game.title}`} onChange={rating => c.setGameDraftRating(game, rating)} />
+      <OwnershipField title={game.title} value={draft.ownershipType} />
       <PlayJournalEditor title={game.title} startedAt={draft.startedAt} completedAt={draft.completedAt} originalStartedAt={game.startedAt?.slice(0, 10)} originalCompletedAt={game.completedAt?.slice(0, 10)} />
       <MicroReviewEditor title={game.title} review={draft.review} reviewSpoiler={draft.reviewSpoiler === "true"} />
       <label className="fantasy-journal-notes">Quest journal<textarea name="notes" maxLength={1000} rows={2} defaultValue={draft.notes} placeholder="Your latest checkpoint, discoveries, and tales…" /></label>

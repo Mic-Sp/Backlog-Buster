@@ -2,6 +2,7 @@
 
 import { PlayJournalEditor } from "@/components/PlayJournal";
 import { MicroReviewEditor } from "@/components/MicroReview";
+import { OwnershipField } from "@/components/Ownership";
 
 import { useLayoutCopy } from "@/components/LayoutText";
 import { FantasyCorners } from "@/components/FantasyAccents";
@@ -60,6 +61,7 @@ function MetadataFields({ game, formRef }: { game: LibraryGame; formRef: RefObje
         Genre
         <input name="genre" defaultValue={game.genre ?? ""} aria-label={`Genre for ${game.title}`} />
       </label>
+      <OwnershipField title={game.title} value={game.ownershipType} />
       <label>
         Franchise / Saga Name
         <input name="franchise" defaultValue={game.franchise ?? ""} maxLength={120} placeholder="Auto-detect, or enter a custom saga name" aria-label={`Franchise / Saga Name for ${game.title}`} />

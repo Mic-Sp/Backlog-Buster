@@ -36,6 +36,7 @@ export async function getLibraryExport(format: "json" | "csv") {
       lengthHours: true, hoursPlayed: true, difficulty: true, earnedXp: true, rating: true, notes: true, review: true, reviewSpoiler: true,
       genre: true, franchise: true, releaseYear: true, chronologicalOrder: true, coverUrl: true,
       startedAt: true, completedAt: true,
+      ownershipType: true,
     },
   });
   const operator = (player.handle || player.operatorName).normalize("NFKD").toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 48) || "operator";
@@ -113,7 +114,7 @@ export type SteamSyncSummary = { steamId: string; addedCount: number; updatedCou
 export type SteamSyncSession = { userId: string; tokenHash: string };
 export type SteamAutoSyncClaim = { steamId: string; attemptedAt: Date };
 const STEAM_WRITE_BATCH_SIZE = 500;
-const steamExistingSelect = { id: true, title: true, platform: true, steamAppId: true, hoursPlayed: true } as const;
+const steamExistingSelect = { id: true, title: true, platform: true, steamAppId: true, hoursPlayed: true, ownershipType: true } as const;
 type SteamExistingGame = Prisma.GameGetPayload<{ select: typeof steamExistingSelect }>;
 
 function steamMatches(existing: SteamExistingGame[], incoming: SteamOwnedGame[]) {
@@ -177,12 +178,12 @@ export async function syncSteamLibraryForSession(payload: SteamSyncPayload, sess
         const hoursPlayed = persistedSteamHours(game);
         if (saved) {
           const higherHours = updateHoursPlayed && hoursPlayed > saved.hoursPlayed;
-          if (saved.steamAppId === null || higherHours) updates.push({ id: saved.id, steamAppId: game.steamAppId, hoursPlayed: higherHours ? hoursPlayed : null });
+          if (saved.steamAppId === null || higherHours || saved.ownershipType == null) updates.push({ id: saved.id, steamAppId: game.steamAppId, hoursPlayed: higherHours ? hoursPlayed : null });
           continue;
         }
         const info = metadata.get(libraryMetadataKey(game));
         // Steam playtime has no reliable first-play/finish date. Do not infer either.
-        additions.push({ userId, steamAppId: game.steamAppId, title: game.title, platform: "PC", status: "Backlog", startedAt: null, completedAt: null,
+        additions.push({ userId, steamAppId: game.steamAppId, title: game.title, platform: "PC", ownershipType: "Digital", status: "Backlog", startedAt: null, completedAt: null,
           hoursPlayed, earnedXp: 0, difficulty: 2, lengthHours: resolveRawgPlaytime(info?.estimatedHours, info?.genre) ?? 10,
           genre: info?.genre ?? null, releaseYear: info?.releaseYear ?? null, coverUrl: info?.coverUrl || game.coverUrl });
       }
@@ -192,11 +193,12 @@ export async function syncSteamLibraryForSession(payload: SteamSyncPayload, sess
       }
       for (let index = 0; index < updates.length; index += STEAM_WRITE_BATCH_SIZE) {
         // One parameterized update per batch. GREATEST preserves concurrently logged
-        // hours; status, earnedXp, personal metadata and ratings are never rewritten.
+        // hours; COALESCE fills only unset access media, preserving player selections.
         updatedCount += await tx.$executeRaw`
           UPDATE "Game" AS game
           SET "steamAppId" = change."steamAppId",
-              "hoursPlayed" = GREATEST(game."hoursPlayed", COALESCE(change."hoursPlayed", game."hoursPlayed"))
+              "hoursPlayed" = GREATEST(game."hoursPlayed", COALESCE(change."hoursPlayed", game."hoursPlayed")),
+              "ownershipType" = COALESCE(game."ownershipType", 'Digital'::"OwnershipType")
           FROM jsonb_to_recordset(${JSON.stringify(updates.slice(index, index + STEAM_WRITE_BATCH_SIZE))}::jsonb)
             AS change("id" integer, "steamAppId" text, "hoursPlayed" integer)
           WHERE game."id" = change."id" AND game."userId" = ${userId}

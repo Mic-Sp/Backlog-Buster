@@ -6,7 +6,7 @@ function load(file, mocks) {
   const filename = path.resolve(__dirname, "..", file), instance = new Module(filename, module);
   instance.paths = Module._nodeModulePaths(path.dirname(filename));
   const original = instance.require.bind(instance);
-  instance.require = name => Object.hasOwn(mocks, name) ? mocks[name] : original(name);
+  instance.require = name => name === "@/components/Ownership" ? { OwnershipField: () => null } : Object.hasOwn(mocks, name) ? mocks[name] : original(name);
   instance._compile(ts.transpileModule(fs.readFileSync(filename, "utf8"), { compilerOptions: {
     target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX,
   } }).outputText, filename);
@@ -357,6 +357,7 @@ function editorFixture(layout = "cyberpunk", initial = {}) {
     react: h.react,
     "@/components/LayoutText": { useLayoutCopy: () => (cyberpunk, fantasy) => layout === "fantasy" ? fantasy : cyberpunk },
     "@/components/FantasyAccents": { FantasyCorners: () => null },
+    "@/components/Ownership": { OwnershipField: () => null, OwnershipBadge: () => null, OwnershipFilterControl: () => null },
     "@/components/PlayJournal": { PlayJournalBadges: () => null, PlayJournalEditor: () => null },
     "@/components/MicroReview": { MicroReview: () => null, MicroReviewEditor: () => null },
     "@/components/CommunityGameStats": { CommunityStatsReadout: () => null, CommunityRatingDistribution: () => null },

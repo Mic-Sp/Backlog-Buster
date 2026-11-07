@@ -45,3 +45,15 @@ test('play journal date inputs preserve blank/known values and badges use stable
   assert(badges.includes('Feb 29, 2020')); assert(badges.includes('Mar 1, 2020'));
   assert.equal(render(PlayJournalBadges, {}), '');
 });
+
+
+const { OwnershipBadge, OwnershipField, OwnershipFilterControl } = load('src/components/Ownership.tsx');
+test('ownership controls expose the four media and unspecified, with accessible badges and filter labels', () => {
+  const editor = render(OwnershipField, { title: 'Quest', value: 'Borrowed' });
+  for (const type of ['Digital', 'Physical', 'Subscription', 'Borrowed']) assert(editor.includes(`value="${type}"`));
+  assert(editor.includes('value="Borrowed" selected=""')); assert(editor.includes('Ownership for Quest'));
+  assert(render(OwnershipBadge, { value: 'Physical' }).includes('Access medium: Physical'));
+  assert.equal(render(OwnershipBadge, { value: null }), '');
+  const filter = render(OwnershipFilterControl, { value: 'Subscription', onChange() {} });
+  assert(filter.includes('Filter by ownership')); assert(filter.includes('All ownership types')); assert(filter.includes('Unspecified'));
+});

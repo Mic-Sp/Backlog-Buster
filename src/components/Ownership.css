@@ -1,0 +1,7 @@
+.ownership-badge { display: inline-block; max-width: 100%; width: fit-content; margin: 5px 0; padding: 3px 7px; border: 1px solid #3c5666; border-radius: 3px; background: #13212d; color: #b8d8e1; font: 10px/1.5 "Courier New", monospace; letter-spacing: .04em; overflow-wrap: anywhere; }
+:root[data-layout-mode="fantasy"] .ownership-badge { background: #e9dcb6; border-color: #a58b50; color: #385240; font-family: Georgia, serif; }
+.ownership-field { display: grid; min-width: 0; gap: 7px; margin: 10px 0; font-size: 12px; }
+.ownership-field select { box-sizing: border-box; display: block; width: 100%; min-width: 0; min-height: 40px; padding: 8px; border: 1px solid #526776; border-radius: 3px; background: #080e18; color: #e8edf7; color-scheme: dark; font: inherit; }
+.ownership-field small { font-size: 10px; line-height: 1.5; opacity: .85; }
+:root[data-layout-mode="fantasy"] .ownership-field select { background: #fbf1d5; color: #3e3524; border-color: #a68a50; color-scheme: light; }
+:root[data-layout-mode="fantasy"] .fantasy-inventory-slot .ownership-badge { position: relative; z-index: 1; flex-shrink: 0; align-self: center; margin: 0 3px 4px; padding: 1px 4px; font-size: 8px; }

@@ -20,7 +20,7 @@ const { parseSteamIdentifier } = loader()("src/lib/steam.ts");
 const steamId = "76561198000000000";
 const incoming = (id, title = `Steam Game ${id}`, minutes = 90) => ({ steamAppId: String(id), title, playtimeMinutes: minutes, hoursPlayed: minutes / 60,
   coverUrl: `https://cdn.cloudflare.steamstatic.com/steam/apps/${id}/header.jpg` });
-const saved = (id, extra = {}) => ({ id, userId: "owner", title: `Steam Game ${id}`, platform: "PC", steamAppId: null,
+const saved = (id, extra = {}) => ({ id, userId: "owner", title: `Steam Game ${id}`, platform: "PC", ownershipType: "Digital", steamAppId: null,
   hoursPlayed: 0, status: "Backlog", lengthHours: 20, difficulty: 2, earnedXp: 0, rating: null, notes: null, pinnedOrder: null, ...extra });
 const request = (extra = {}) => ({ identifier: steamId, ...extra });
 
@@ -46,6 +46,7 @@ function fixture(initial = [], snapshot = [], options = {}) {
       assert.match(sql, /UPDATE "Game"/);
       assert.match(sql, /game\."userId" = \?/);
       assert.match(sql, /GREATEST/);
+      assert.match(sql, /"ownershipType" = COALESCE\(game\."ownershipType", 'Digital'::"OwnershipType"\)/);
       assert.doesNotMatch(sql, /earnedXp|rating|status|notes/);
       const [json, userId] = values; assert.equal(userId, "owner");
       const changes = JSON.parse(json); updateBatches.push(changes);
@@ -57,6 +58,7 @@ function fixture(initial = [], snapshot = [], options = {}) {
         assertUnique(change.steamAppId, game.id);
         if (options.concurrentHours) game.hoursPlayed = Math.max(game.hoursPlayed, options.concurrentHours);
         game.steamAppId = change.steamAppId;
+        game.ownershipType ??= "Digital";
         game.hoursPlayed = Math.max(game.hoursPlayed, change.hoursPlayed ?? game.hoursPlayed);
         count++;
       }
@@ -315,4 +317,19 @@ test("logout or a relink while automatic work is pending stops all background wr
     await assert.rejects(f.vault.syncSteamLibraryForSession(request(), { userId: "owner", tokenHash: "owner-token" }, { steamId, attemptedAt }), /session expired/);
     assert.equal(f.games.length, 0); assert.equal(f.player.steamLastSyncedAt, null);
   }
+});
+
+test('Steam defaults new/unspecified games to Digital and preserves every explicit medium on repeat and playtime syncs', async () => {
+  const types = ['Digital', 'Physical', 'Subscription', 'Borrowed'];
+  const initial = [saved(1, { steamAppId: '1', ownershipType: null }), saved(2, { title: 'Legacy copy', ownershipType: null }),
+    ...types.map((ownershipType, index) => saved(index + 3, { steamAppId: String(index + 3), ownershipType }))];
+  const f = fixture(initial, [incoming(1), incoming(2, 'Legacy copy'), ...types.map((_, index) => incoming(index + 3)), incoming(20)]);
+  await f.vault.syncSteamLibraryGames(request());
+  assert(f.games.filter(game => [1, 2].includes(game.id) || game.steamAppId === '20').every(game => game.ownershipType === 'Digital'));
+  assert.deepEqual(f.games.filter(game => game.id >= 3 && game.id <= 6).map(game => game.ownershipType), types);
+  assert.equal((await f.vault.syncSteamLibraryGames(request())).summary.updatedCount, 0);
+  f.games.find(game => game.id === 1).ownershipType = 'Borrowed';
+  await f.vault.syncSteamLibraryGames(request({ updateHoursPlayed: true }));
+  assert.equal(f.games.find(game => game.id === 1).ownershipType, 'Borrowed');
+  assert.deepEqual(f.games.filter(game => game.id >= 3 && game.id <= 6).map(game => game.ownershipType), types);
 });

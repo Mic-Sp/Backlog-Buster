@@ -2,6 +2,7 @@ import { InputError } from "@/lib/action-result";
 import { isUnreleasedYear } from "@/lib/game-release";
 import { normalizeMicroReview } from "@/lib/micro-review";
 import { importJournalDate, validateJournalDates } from "@/lib/play-journal";
+import { defaultOwnershipType } from "@/lib/ownership-type";
 
 export const MAX_IMPORT_BYTES = 500000;
 export const MAX_IMPORT_ROWS = 200;
@@ -61,9 +62,10 @@ export function sanitizeImportedGame(value: unknown) {
     if (!["http:", "https:"].includes(url.protocol) || url.username || url.password) throw new InputError("Use a valid HTTP or HTTPS cover URL.");
     coverUrl = url.toString();
   }
-  // Deliberate allowlist: uploaded primary keys, ownership and XP are never trusted.
+  // Deliberate allowlist: uploaded primary keys, account ownership and XP are never trusted.
   return {
     title, platform, status, lengthHours, difficulty,
+    ownershipType: defaultOwnershipType(game.ownershipType, game.steamAppId),
     hoursPlayed: integer(game.hoursPlayed, 0, 10000, 0),
     earnedXp: status === "Completed" ? lengthHours * difficulty * 10 : 0,
     wasFlatlined: status === "Flatlined" || game.wasFlatlined === true || game.wasFlatlined === "true",

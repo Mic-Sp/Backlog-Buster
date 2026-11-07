@@ -4,7 +4,7 @@ import { journalDateInput } from "@/lib/play-journal";
 const fields = [
   "title", "platform", "status", "wasFlatlined", "pinnedOrder", "backlogOrder", "lengthHours", "hoursPlayed", "difficulty",
   "earnedXp", "rating", "notes", "review", "reviewSpoiler", "genre", "franchise", "releaseYear", "chronologicalOrder", "coverUrl",
-  "startedAt", "completedAt",
+  "startedAt", "completedAt", "ownershipType",
 ] as const;
 
 export function serializeLibraryBackup(games: (Omit<Pick<LibraryGame, typeof fields[number]>, "startedAt" | "completedAt"> & { startedAt?: Date | string | null; completedAt?: Date | string | null; backupCoverUrl?: string | null })[], format: "json" | "csv") {

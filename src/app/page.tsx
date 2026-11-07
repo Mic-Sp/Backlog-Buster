@@ -178,6 +178,7 @@ async function SavedGames({ userId, isAdmin, socialEnabled }: { userId: string; 
     id: game.id,
     title: game.title,
     platform: game.platform,
+    ownershipType: game.ownershipType,
     status: game.status,
     wasFlatlined: game.wasFlatlined,
     pinnedOrder: game.pinnedOrder,

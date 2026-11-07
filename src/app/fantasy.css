@@ -203,7 +203,7 @@
 :root[data-layout-mode="fantasy"] .fantasy-status-tabs button { border-radius: 12px 12px 2px 2px; background: #cdb784; color: #59492f; }
 :root[data-layout-mode="fantasy"] .fantasy-status-tabs button[aria-pressed="true"] { background: #2e5e43; color: #fff0c2; border-color: #42794d; }
 :root[data-layout-mode="fantasy"] .fantasy-status-tabs button span { margin-left: 8px; font-size: 10px; opacity: .8; }
-:root[data-layout-mode="fantasy"] .fantasy-scroll-filters { display: grid; grid-template-columns: 2fr 1fr 1fr 1.2fr auto; gap: 12px; margin: 18px 0 24px; align-items: end; }
+:root[data-layout-mode="fantasy"] .fantasy-scroll-filters { display: grid; grid-template-columns: minmax(160px, 2fr) repeat(3, minmax(100px, 1fr)) minmax(120px, 1.2fr) auto; gap: 12px; margin: 18px 0 24px; align-items: end; }
 :root[data-layout-mode="fantasy"] .fantasy-scroll-filters label { display: grid; gap: 6px; }
 :root[data-layout-mode="fantasy"] .fantasy-scroll-filters :is(input, select) { width: 100%; font-size: 12px; }
 :root[data-layout-mode="fantasy"] .fantasy-inventory-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(125px, 1fr)); gap: 15px; list-style: none; padding: 12px 0; margin: 0; }

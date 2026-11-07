@@ -1922,7 +1922,7 @@ a.trailer-link-button:focus-visible {
 
 .library-toolbar {
 	display: grid;
-	grid-template-columns: 1fr auto auto auto auto;
+	grid-template-columns: minmax(160px, 1fr) repeat(3, minmax(100px, auto)) minmax(150px, auto) auto;
 	align-items: end;
 	gap: 12px;
 	margin-bottom: 20px;

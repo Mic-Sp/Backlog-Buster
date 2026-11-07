@@ -5,6 +5,7 @@ import { unwrapActionResult } from "@/lib/action-result";
 import SafeForm from "@/components/SafeForm";
 import TitleAutocomplete from "@/components/TitleAutocomplete";
 import type { CatalogSuggestion } from "@/lib/catalog-types";
+import { OwnershipField } from "@/components/Ownership";
 
 import { useId, useRef, useState } from "react";
 import { resolveRawgPlaytime } from "@/lib/game-playtime";
@@ -103,6 +104,8 @@ export default function GameForm() {
           type="number"
         />
       </label>
+
+      <OwnershipField className="field" />
 
       <label className="field">
         <span>Difficulty</span>
