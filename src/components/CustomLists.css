@@ -1,0 +1,54 @@
+.custom-lists-panel { --shelf-accent: #5de4e8; --shelf-muted: #9aafc2; margin: 20px 0; padding: 20px; min-width: 0; border: 1px solid #2c4657; border-left: 3px solid var(--shelf-accent); background: #0b141f; color: #e0eaf1; }
+.custom-lists-heading, .custom-list-items-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+.custom-lists-heading h3, .custom-lists-heading h2, .custom-list-items-heading h4 { margin: 4px 0 12px; color: inherit; font-size: 19px; }
+.custom-lists-heading > span, .custom-list-items-heading > span { flex-shrink: 0; font-size: 12px; color: var(--shelf-muted); }
+.custom-lists-kicker { margin: 0; font-size: 10px; letter-spacing: .12em; color: var(--shelf-accent); }
+.custom-lists-panel p { line-height: 1.6; overflow-wrap: anywhere; }
+.custom-list-toolbar { display: flex; align-items: end; gap: 12px; flex-wrap: wrap; margin: 14px 0; }
+.custom-lists-panel label { display: grid; gap: 7px; font-size: 12px; color: var(--shelf-muted); min-width: 0; }
+.custom-list-toolbar > label { flex: 1 1 220px; }
+.custom-lists-panel :is(input:not([type=checkbox]), select, textarea) { width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; border: 1px solid #375064; padding: 10px; background: #07101a; color: #e0eaf1; font: inherit; }
+.custom-lists-panel button { min-height: 42px; padding: 9px 13px; font: inherit; font-size: 12px; border: 1px solid #375064; background: #142635; color: var(--shelf-accent); cursor: pointer; }
+.custom-lists-panel button:disabled { opacity: .45; cursor: default; }
+.custom-lists-panel :is(button, input, select, textarea, summary):focus-visible { outline: 2px solid var(--shelf-accent); outline-offset: 3px; }
+.custom-list-manager { border-top: 1px solid #314553; margin-top: 16px; padding-top: 14px; }
+.custom-lists-panel summary { cursor: pointer; padding: 7px 0; color: var(--shelf-accent); font-size: 13px; }
+.custom-lists-panel fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+.custom-list-details { display: grid; gap: 14px; margin-top: 18px; }
+.custom-list-details > button { justify-self: start; }
+.custom-list-flags { display: flex; gap: 16px; flex-wrap: wrap; }
+.custom-lists-panel .custom-list-flags label { display: flex; align-items: center; gap: 9px; }
+.custom-list-flags input { width: 18px; height: 18px; accent-color: var(--shelf-accent); }
+.custom-list-help, .custom-list-empty, .custom-list-view-note { color: var(--shelf-muted); font-size: 12px; }
+.custom-list-help { margin: 0; }
+.custom-list-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 15px 0 24px; font-size: 12px; }
+.custom-lists-panel .custom-list-delete { color: #ffb4b8; }
+.custom-list-membership { border-top: 1px solid #314553; padding-top: 18px; }
+.custom-list-items { list-style: none; padding: 0; margin: 14px 0 0; display: grid; gap: 8px; }
+.custom-list-items li { display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid #283e50; background: #111e2b; min-width: 0; }
+.custom-list-rank { font: 700 20px monospace; color: var(--shelf-accent); min-width: 28px; }
+.custom-list-game { display: grid; gap: 5px; min-width: 0; flex: 1; overflow-wrap: anywhere; }
+.custom-list-game strong { font-size: 14px; }
+.custom-list-game small { font-size: 11px; color: var(--shelf-muted); }
+.custom-list-item-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.custom-list-notice { color: var(--shelf-accent); font-size: 13px; }
+.custom-list-notice[data-error=true] { color: #ffb4b8; }
+.public-custom-list { border-top: 1px solid #314553; margin-top: 14px; padding-top: 10px; }
+.public-custom-list summary { overflow-wrap: anywhere; }
+.public-custom-list summary > span { display: block; margin: 7px 0; color: var(--shelf-muted); font-size: 11px; }
+.public-custom-list p { font-size: 13px; }
+.public-custom-list img { object-fit: cover; flex-shrink: 0; }
+:root[data-layout-mode=fantasy] .custom-lists-panel { --shelf-accent: #e2c77d; --shelf-muted: #c2c8a2; background: #213d3c; color: #f0e4c1; border: 3px ridge #ac9760; box-shadow: inset 0 0 0 4px #142e30; font-family: Georgia, serif; }
+:root[data-layout-mode=fantasy] .custom-lists-panel label { color: var(--shelf-muted); }
+:root[data-layout-mode=fantasy] .custom-list-items li { background: #182f30; border-color: #7f8057; }
+:root[data-layout-mode=fantasy] .custom-lists-panel :is(input:not([type=checkbox]), select, textarea) { background: #f0e3bf; color: #332f25; border-color: #a28e5b; }
+:root[data-layout-mode=fantasy] .custom-lists-panel :is(.custom-list-manager, .custom-list-membership, .public-custom-list) { border-color: #7f8057; }
+@media (max-width: 600px) {
+  .custom-lists-panel { padding: 14px; }
+  .custom-lists-heading { gap: 8px; align-items: start; }
+  .custom-lists-heading h3, .custom-lists-heading h2 { font-size: 17px; }
+  .custom-list-items li { flex-wrap: wrap; padding: 10px; }
+  .custom-list-item-actions { width: 100%; justify-content: flex-end; }
+  .custom-list-toolbar > label { flex-basis: 100%; }
+  .custom-list-flags { display: grid; gap: 12px; }
+}

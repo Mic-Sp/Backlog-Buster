@@ -13,6 +13,7 @@ function fixture({ games: initial = [game()], realAchievements = false } = {}) {
   const matches = (row, where = {}) => Object.entries(where).every(([key, value]) => value && typeof value === "object"
     ? "in" in value ? value.in.includes(row[key]) : "not" in value ? row[key] !== value.not : true : row[key] === value);
   const tx = {
+    customList: { findMany: async () => [] },
     $executeRaw: async (sql, ...values) => {
       if (sql.join("").includes('UPDATE "Game"')) {
         const updates = JSON.parse(values[0]);

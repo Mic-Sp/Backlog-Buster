@@ -1,0 +1,554 @@
+[33mcommit 804513940cc5cc2f60725e393b03596d5e8cada3[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Sat Nov 7 07:03:48 2026 -0600
+
+    Added ownership/medium tracking
+
+[33mcommit 3d9afd9c65d38afe4fce693363256e9d057a547a[m[33m ([m[1;32mfeat/micro-review[m[33m)[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Fri Nov 6 23:45:29 2026 -0600
+
+    Added micro-reviews and play journal dates
+
+[33mcommit e1763bc4c034c0a2cf75ecc082ef8550e959f9c5[m[33m ([m[1;32mfeat/pinned-favorites[m[33m)[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Fri Nov 6 15:37:01 2026 -0600
+
+    Allowed pinning favorites in player dossier
+
+[33mcommit d7391a3750417d62ee39de030706559bf5c831b2[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Fri Nov 6 09:17:27 2026 -0600
+
+    Fixed XP % display
+
+[33mcommit 40b09a67f8bf04a5bdd0dbc4fb3fc40a1d6eb271[m[33m ([m[1;32mfeat/vector-negative-feedback[m[33m)[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Fri Nov 6 08:58:57 2026 -0600
+
+    Implemented negative feedback scoring in vector search
+
+[33mcommit be3dd2284cf3a03eaa550ab5546c1b66c7fd46cf[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Fri Nov 6 07:54:18 2026 -0600
+
+    Removed 10sec cooldown from external scout and limited API usage only, unlimited vector search
+
+[33mcommit 33359f82a73b612dd972e4ddb33ebd43845170f7[m[33m ([m[1;32mfeat/not-interested[m[33m)[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Fri Nov 6 07:38:49 2026 -0600
+
+    Added a not interested feature to prevent recommending games a user does not like
+
+[33mcommit 62b8c9e1b8485f30419d9951756d7d8978b37f64[m[33m ([m[1;32mfeat/friend-system[m[33m)[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Fri Nov 6 06:59:36 2026 -0600
+
+    Fixed friend notification hover
+
+[33mcommit 41499fcd1f381b3ae001eba9b910513c87596dec[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Thu Nov 5 22:03:12 2026 -0600
+
+    Fixed player dossier in social hub
+
+[33mcommit 88fedd7252fc1bc8fc9ea30a5efa0115763de050[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Thu Nov 5 19:45:05 2026 -0600
+
+    Added two-state selection model for Fantasy theme inventory
+
+[33mcommit 2ac96a0f503d75b517f479579ed76e98d6ccf5b8[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Thu Nov 5 19:30:37 2026 -0600
+
+    Added Social Hub frontend/backend
+
+[33mcommit dcbe042a60b2d3ea640dd88f90c5415c6a689f3a[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Thu Nov 5 17:44:18 2026 -0600
+
+    Added IGDB fallback for catalog autocomplete
+
+[33mcommit cf519c2f4d7f4236f127063e958adca34228f911[m[33m ([m[1;32mfeat/pgvector-recommendations[m[33m)[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Thu Nov 5 13:42:12 2026 -0600
+
+    Added pgvector recommendation system with Gemini/RAWG fallbacks
+
+[33mcommit 6b6e18bfab5311c07635b395c31ea02685ac613b[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Thu Nov 5 09:30:19 2026 -0600
+
+    Added auto Steam sync on login for linked profiles
+
+[33mcommit 1ab6f896406e4fb9b40fd689e72cba17dde88516[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Thu Nov 5 09:18:16 2026 -0600
+
+    Added Steam API for syncing platforms
+
+[33mcommit 9c0154d611ebe7807a8ae2e61de8751bca0b0f16[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Thu Nov 5 07:01:04 2026 -0600
+
+    Added global community stats module to frontend/backend, adjusted completion time
+
+[33mcommit 690962bd467631771cd431b6a2a61228665a9fde[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Wed Nov 4 14:17:07 2026 -0600
+
+    Mobile responsiveness layout, saga chronology refinements
+
+[33mcommit f3602e5a0bff1662a5f6cf4e29951fc713170dbd[m[33m ([m[1;33mtag: [m[1;33mv0.8.0.0[m[33m, [m[1;33mtag: [m[1;33mv0.8.0-beta[m[33m)[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Fri Oct 23 10:30:31 2026 -0500
+
+    modified system prompt
+
+[33mcommit adbc81fdc5ed692e2a538c7b83d64a4b402586b1[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Thu Oct 22 23:24:34 2026 -0500
+
+    added admin debug window for external scout api calls
+
+[33mcommit 082c5b19704ab9792a86ce50bd139ed43d62aec5[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Thu Oct 22 20:22:35 2026 -0500
+
+    Added metadata for link previews
+
+[33mcommit 1144e04424488a20016b1900f6d32fdae623c563[m[33m ([m[1;31morigin/feat/catalog-autocomplete[m[33m, [m[1;32mfeat/catalog-autocomplete[m[33m)[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Thu Oct 22 19:25:53 2026 -0500
+
+    removed 'search game' button, linked dropdown selection to metadata'
+
+[33mcommit 92f135d2688eed084f082565ec26512ac3f55658[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Thu Oct 22 18:32:53 2026 -0500
+
+    Added drop down autocomplete for title lookup
+
+[33mcommit 6ca345d92526b9d24b50e6627e7411375b026753[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Thu Oct 22 17:40:08 2026 -0500
+
+    Fantasy theme: Swapped UI layout, fixed pinned inventory items, and made fantasy codex layout
+
+[33mcommit ea0b90a8d1a9c1c7d111a64ebe4d220834ccd5bc[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Thu Oct 22 17:28:17 2026 -0500
+
+    Corrected local tactical advisor roulette
+
+[33mcommit f75817440fb53728a90dd10c98ee0dd0a871edfd[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Thu Oct 22 17:07:33 2026 -0500
+
+    Added background and fairies to fantasy UI
+
+[33mcommit 54a3686821048b2023dc3857c056f9459a1870d2[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Thu Oct 22 16:34:16 2026 -0500
+
+    fixed cookie error
+
+[33mcommit abb0eba328056631e9912414106c6d97bf9629f2[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Thu Oct 22 16:26:59 2026 -0500
+
+    Added theme control to admin panel
+
+[33mcommit af33dea29fffb6b36946ae30ba210a68e2446bc7[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Thu Oct 22 16:20:54 2026 -0500
+
+    added full fantasy UI/theme
+
+[33mcommit e95d8fa9cac2a3a853934314538afe00cd7b385f[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Thu Oct 22 14:23:06 2026 -0500
+
+    added animations for halloween theme
+
+[33mcommit ecd437d95e4d04400ce4a144a0f19e48bb309b2b[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Thu Oct 22 14:15:02 2026 -0500
+
+    Added persistent Owner privelege tier
+
+[33mcommit d4ab88a7eec2749ec5ad2a9c3dc2b8bed21945d0[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Thu Oct 22 13:34:30 2026 -0500
+
+    Added admin control panel
+
+[33mcommit fe3198f687a83648520d59e336baaa83cbbfe7e1[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Thu Oct 22 12:20:39 2026 -0500
+
+    Added admin account capability and moved debugging tools to admin
+
+[33mcommit cef2a6a1a2991f0db67a7e8b9a80915322fe88bd[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Thu Oct 22 11:58:50 2026 -0500
+
+    update .gitignore
+
+[33mcommit beab926635a75112f683670cb382c3776f92e0aa[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Thu Oct 22 11:51:40 2026 -0500
+
+    Stop tracking codex.md
+
+[33mcommit 631e91b6d270ed80024e2b84aa33edae0013f607[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Thu Oct 22 11:40:54 2026 -0500
+
+    Added toggleable sfx
+
+[33mcommit 98e47f6dce410d9ef8c01f175eaf57604315daee[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Thu Oct 22 11:12:54 2026 -0500
+
+    Added Halloween theme with toggle
+
+[33mcommit 533ff79781038da60abfadb56e49566748966760[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Thu Oct 22 09:56:57 2026 -0500
+
+    Added external scout loading indicator and live REACT cooldown timers
+
+[33mcommit 2f47f5794b9a2a31a5304d2280f5cbcc02fae894[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Thu Oct 22 09:24:14 2026 -0500
+
+    Included optional exlcusion  titles in external scout recommendations, remember current session recommendations for new external scout scans
+
+[33mcommit 969d5e6ef820a22be266302861230184d56b864d[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Thu Oct 22 08:51:09 2026 -0500
+
+    setup existing scout logic as failure guardrail and setup AI responses as primary external scout
+
+[33mcommit 2d4c16c4f2d6f9ea8a69215d733b4352cb2f74e6[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Thu Oct 22 08:27:54 2026 -0500
+
+    Setup input guardrails and foundation of new AI scout module
+
+[33mcommit 1df5571d2879ecb0579ce54e773c1e89cc0b8183[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Wed Oct 21 22:32:58 2026 -0500
+
+    Added IGDB/Gemini chronology lookup, needs more title handling in future
+
+[33mcommit 715d7cd5df7ae580786058a1dffad3ac7189662c[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Wed Oct 21 18:35:00 2026 -0500
+
+    Added registered member counter
+
+[33mcommit d23c9891782b685ceae5d8f325ebaa8a43a9080f[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Wed Oct 21 17:53:38 2026 -0500
+
+    fixed local-profile authorization gap
+
+[33mcommit 2d2d2361be5a577ed725847594ef17d65b90cb33[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Wed Oct 21 17:22:01 2026 -0500
+
+    Linked import/export json/csv directly to user profile
+
+[33mcommit c76a74d9b4be0feeaab24e060373604b54594eab[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Wed Oct 21 17:04:01 2026 -0500
+
+    Minor UX changes, after starting gig goto playing tab and move on deck games up in slots
+
+[33mcommit 9aedfa2d7be6125bceb6902536cc04711664d79f[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Wed Oct 21 16:47:29 2026 -0500
+
+    Added clear backlog and telemetry data in user security panel
+
+[33mcommit b5ec7ae4e87c4f06440c5ec9c9e8426c50621627[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Wed Oct 21 16:36:02 2026 -0500
+
+    Added delete account option in user security panel
+
+[33mcommit 9cc748c67c86815b3833d026b31e9cc973b439ef[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Wed Oct 21 16:16:51 2026 -0500
+
+    Added user security panel, removed password visibility toggle on login
+
+[33mcommit 916dcbd10371b5c466517a8dab4c6636ea01eb3a[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Wed Oct 21 15:56:05 2026 -0500
+
+    Added public player dossier links and setup
+
+[33mcommit 1fb586048d2c636550d6d44af356762de85fdfb9[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Wed Oct 21 15:32:56 2026 -0500
+
+    Updated player dossier for: per-user database, added emblems, fixed artwork
+
+[33mcommit b22a8e50197fb89e2d62ea409acb3f1eb5a7bc41[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Wed Oct 21 15:04:40 2026 -0500
+
+    Added 10s cooldown period for API calls
+
+[33mcommit 57eaa756526f078c2a8b8bea637bde49d3189110[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Wed Oct 21 14:24:04 2026 -0500
+
+    Added input validation for blank spaces
+
+[33mcommit 893fdee78b912e74069f92d883a9293b88732982[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Wed Oct 21 13:54:48 2026 -0500
+
+    Multi-user login and auth and input token cap
+
+[33mcommit af29b2e8f47c7fba909233fd37c2494e7cc0995e[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Tue Oct 20 10:29:51 2026 -0500
+
+    Added Player schema to database
+
+[33mcommit 1a3ad57d9698e76179409f22f9abba2a9bc9d917[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Tue Oct 20 09:54:12 2026 -0500
+
+    Added exportable player dossier with stats
+
+[33mcommit 661d157c30063204880d21f31b7584cd8b8eada9[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Tue Oct 20 09:25:40 2026 -0500
+
+    Switched default view to Backlog and moved All view to the side with a separator
+
+[33mcommit c428ac620dfc76b75314fb94bf84117119ceff95[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Tue Oct 20 09:11:07 2026 -0500
+
+    Added drag and drop features for backlog, deck, and chronology
+
+[33mcommit a4e53a26f577f3e395044cf65588c591b7f6819e[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Tue Oct 20 08:08:55 2026 -0500
+
+    Added AI Agent for chronology
+
+[33mcommit 9bcea5bb7837a4de127aaf327090966a169d2d98[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Mon Oct 19 23:36:05 2026 -0500
+
+    Changed milestones to icons in header
+
+[33mcommit 62c03fcaf9bff7814bd1c654ac592cca25f5e2b4[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Mon Oct 19 23:24:05 2026 -0500
+
+    Added agent security and franchise tracker
+
+[33mcommit bd20e8d854710020e2800d5cde9ab0f50a1bd5a5[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Mon Oct 19 20:47:35 2026 -0500
+
+    Added AI Agent to check actual estimated time of completion and give brief pacing advice.
+
+[33mcommit c10b3aa89b16961e05dd6d8ecbc760bec1c51e5c[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Mon Oct 19 19:05:06 2026 -0500
+
+    Added Pin Top 3 up next games
+
+[33mcommit d419226e73481e7e8e477d0305b8eeac839a58e1[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Mon Oct 19 18:15:45 2026 -0500
+
+    Added Flatline feature to shelve games and achievement
+
+[33mcommit 53e8e45c358576ff511e5cb0c9c152294328baa8[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Mon Oct 19 17:37:07 2026 -0500
+
+    Minor text alterations
+
+[33mcommit 32414ca881bac1ee55775e4bcba52e66e12c4177[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Mon Oct 19 17:14:30 2026 -0500
+
+    Added BB logo
+
+[33mcommit c6dc129302e5edfdaaba76ca27f02d26f57a027f[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Mon Oct 19 16:52:16 2026 -0500
+
+    Added advise next game section with local recommendations and external
+
+[33mcommit 55dd066ea3738dbc0ca22002bd12813852ac45a0[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Mon Oct 19 15:35:20 2026 -0500
+
+    Added 5 star rating system and achi
+    evment
+
+[33mcommit 3da9ce6e74cc87f54ccb4aa9d816aca412fdabb6[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Mon Oct 19 15:12:59 2026 -0500
+
+    Added import/export feature for backlog
+
+[33mcommit e450eeeb20a87e4b0a48e61588874b564f5efe60[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Mon Oct 19 14:55:31 2026 -0500
+
+    Added level up toast banner and sound effect
+
+[33mcommit 76a0f0aaf7504519769ae8f5ed07ecc1e0a1ea78[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Mon Oct 19 14:40:35 2026 -0500
+
+    Added achievements. Introduced bugs and fixed here
+
+[33mcommit 73f20d342b58db71ff98abdf55f2f14b53667a60[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Mon Oct 19 12:51:09 2026 -0500
+
+    Added edit meta data button
+
+[33mcommit 48912ec4525d408beb0626f994066efd2db2e881[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Mon Oct 19 12:32:12 2026 -0500
+
+    Added stylized cards for Playing and Completed, and buttons for quick switching game status
+
+[33mcommit e1e168667278186efe90bf6cc135296faefd27ac[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Mon Oct 19 11:37:13 2026 -0500
+
+    Added toggle sorting on headers
+
+[33mcommit 4ecaf42514cbcd6229293b41f809e1100fabe119[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Mon Oct 19 11:28:54 2026 -0500
+
+    Added local sorting functions for optimized speed
+
+[33mcommit 5f55fbcc956af0839f5afaf3169795bc25b1dc12[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Mon Oct 19 10:37:30 2026 -0500
+
+    Added Roll Random Gig button to pick a game at random from backlog
+
+[33mcommit 0de73781dc0d9be7e325e0ff98d28286b713caee[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Fri Oct 16 10:17:27 2026 -0500
+
+    Corrected env example
+
+[33mcommit 83628fe6c77d2e565f5b51a5aef35628196f7bcd[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Fri Oct 16 10:13:09 2026 -0500
+
+    Added readme
+
+[33mcommit 09108ebc7d2a7e984779156d0a3e0ab142c9038e[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Thu Oct 15 18:58:02 2026 -0500
+
+    Add postinstall script to run prisma generate on build
+
+[33mcommit 97ba654ffaf701b7e32f8119a3845a78e3184e6e[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Thu Oct 15 18:47:57 2026 -0500
+
+    Minor text edits
+
+[33mcommit fc687ef465a791068b4f874d69a595611210cb7b[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Thu Oct 15 18:42:55 2026 -0500
+
+    Added cyberpunk aesthetic
+
+[33mcommit d852cec3016928cd7129010c98641af53e9f1a5d[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Thu Oct 15 18:20:43 2026 -0500
+
+    Restructured headers and logo for my compact design
+
+[33mcommit 493187d308d8ae0f34eb7ca13059ba97fa1efb24[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Thu Oct 15 18:06:15 2026 -0500
+
+    Edited cover image resizing to eliminate slow responsiveness as more items included
+
+[33mcommit 7eb32a9724afbdede704e0d8e1da52d88164f02f[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Thu Oct 15 16:41:48 2026 -0500
+
+    Added status priority sorting and genre-based minimum playtime floors
+
+[33mcommit 1f2db2d15ad720ac693fd68ed64b756dcfcf2fdc[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Thu Oct 15 16:05:46 2026 -0500
+
+    Added Genre/Year columns and Hours/Difficulty editing in existing entries
+
+[33mcommit 37ec76fdb3f61cc745d41dc2fe88c1ca34cf77b3[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Thu Oct 15 15:04:45 2026 -0500
+
+    Added RAWG API to lookup game information and additional data fields
+
+[33mcommit 0cfce06f4449cebdf3548d1ff4305a23c5624455[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Thu Oct 15 13:20:38 2026 -0500
+
+    Added player XP and level calculation
+
+[33mcommit 922cd8e3a8af5cc75ac191a68241b4d80ab89d73[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Thu Oct 15 12:44:23 2026 -0500
+
+    Added delete button and back end logic for deleting games
+
+[33mcommit e2583d52fb531287fcb3c738045d63eba1231ffa[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Thu Oct 15 12:05:14 2026 -0500
+
+    Added a status selector for games and a save button that connect to back end
+
+[33mcommit c18f1db952acb3298cbec5f51b07430a4e2b5cb2[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Thu Oct 15 11:46:44 2026 -0500
+
+    added additional fields for game metadata
+
+[33mcommit 0a385bf1061c5f514fa2f4f7a4c0eaf86e29876b[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Wed Oct 14 18:49:10 2026 -0500
+
+    Added basic front end form fo
+    r adding games to database and displaying current list of saved games.
+
+[33mcommit 3ac6984f7d6e906cd36aa1a95eae40f7ee8baf19[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Wed Oct 14 18:04:05 2026 -0500
+
+    Created back end scaffolding
+    for Neon database and next.js
+
+[33mcommit 4b88a4c8e3492d754022c0bf2317ec8c257e4dcf[m
+Author: Michael Sprague <mic.sprague@gmail.com>
+Date:   Wed Oct 14 17:35:42 2026 -0500
+
+    Initial commit from Create Next App

@@ -4,6 +4,7 @@ import { OwnershipBadge, OwnershipField, OwnershipFilterControl } from "@/compon
 import { PlayJournalBadges, PlayJournalEditor } from "@/components/PlayJournal";
 import { MicroReview, MicroReviewEditor } from "@/components/MicroReview";
 import { SocialHubTrigger } from "@/components/SocialHub";
+import CustomLists from "@/components/CustomLists";
 
 import { gameRecordKey } from "@/lib/game-record";
 import AgentBriefing from "@/components/AgentBriefing";
@@ -241,6 +242,7 @@ export default function CyberpunkLibraryView({ controller }: { controller: GameL
       </div>
 
       <LibraryTelemetry games={games} />
+      <CustomLists controller={controller} />
       <SagaChains chains={chains} selectedKey={selectedSaga?.key ?? ""} onSelect={selectSaga} {...sagaOrderControls} />
 
       <div className="library-tabs" role="group" aria-label="Library view">

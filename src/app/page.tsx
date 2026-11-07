@@ -11,6 +11,7 @@ import GameForm from "./GameForm";
 import MemberCount from "@/components/MemberCount";
 import WorkspaceShell from "@/components/WorkspaceShell";
 import GameLibrary from "@/components/GameLibrary";
+import { readCustomLists } from "@/lib/custom-lists";
 import AchievementToast from "@/components/AchievementToast";
 import HudMilestones from "@/components/HudMilestones";
 import NetrunnerDossier from "@/components/NetrunnerDossier";
@@ -141,13 +142,14 @@ async function PlayerSummary({ player }: { player: CurrentPlayer }) {
 async function SavedGames({ userId, isAdmin, socialEnabled }: { userId: string; isAdmin: boolean; socialEnabled: boolean }) {
   await connection();
 
-  const [games, achievements, steamProfile] = await Promise.all([
+  const [games, achievements, steamProfile, customLists] = await Promise.all([
     prisma.game.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
     }),
     getPageAchievements(userId),
     prisma.player.findUnique({ where: { id: userId }, select: { steamId: true } }),
+    socialEnabled ? readCustomLists(userId) : [],
   ]);
   const libraryKeys = new Set(games.map(game => getCommunityGameKey(game.title, game.releaseYear)));
   // Canonical titles are not persisted on Game. Narrow by year, then normalize
@@ -204,7 +206,7 @@ async function SavedGames({ userId, isAdmin, socialEnabled }: { userId: string; 
   }));
 
   return (
-    <GameLibrary games={serializedGames} achievements={achievements} isAdmin={isAdmin} socialEnabled={socialEnabled} steamId={steamProfile?.steamId} />
+    <GameLibrary games={serializedGames} customLists={customLists} achievements={achievements} isAdmin={isAdmin} socialEnabled={socialEnabled} steamId={steamProfile?.steamId} />
   );
 }
 

@@ -111,7 +111,7 @@ export function useLibraryDataVaultController({ games, savedSteamId }: { games: 
     startImporting(async () => {
       try {
         const result = unwrapActionResult(await bulkImportGames({ mode: importMode, content: importMode === "titles" ? titles : json, defaultPlatform }));
-        setMessage(`Imported ${result.importedCount} games (${result.duplicateCount} duplicates skipped, ${result.invalidCount} invalid/blank rows skipped)`);
+        setMessage(`Imported ${result.importedCount} games (${result.duplicateCount} duplicates skipped, ${result.invalidCount} invalid/blank rows skipped)${result.restoredListCount !== undefined ? ` · ${result.restoredListCount} custom lists restored` : ""}`);
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : "Import failed. Please try again.");
       } finally { requestInFlight.current = false; }
@@ -252,6 +252,7 @@ export function LibraryDataVaultView({ controller, part = "all" }: { controller:
               <div className="vault-actions">
                 <button type="button" disabled={busy} onClick={() => exportBackup("json")}>⬇ EXPORT JSON</button>
                 <button type="button" disabled={busy} onClick={() => exportBackup("csv")}>⬇ EXPORT CSV</button>
+                <p className="vault-hint">JSON preserves custom lists, visibility, and ordering. CSV contains games only.</p>
               </div>
             </section>
             <section className="vault-section" aria-labelledby="vault-import-title">

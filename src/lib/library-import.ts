@@ -3,6 +3,7 @@ import { isUnreleasedYear } from "@/lib/game-release";
 import { normalizeMicroReview } from "@/lib/micro-review";
 import { importJournalDate, validateJournalDates } from "@/lib/play-journal";
 import { defaultOwnershipType } from "@/lib/ownership-type";
+import { MAX_CUSTOM_LISTS, MAX_LIST_GAMES, validateListDetails, type CustomListDetails } from "@/lib/custom-list-types";
 
 export const MAX_IMPORT_BYTES = 500000;
 export const MAX_IMPORT_ROWS = 200;
@@ -118,6 +119,32 @@ export function parseBackupRecords(content: string, mode: "json" | "csv"): unkno
     try { parsed = JSON.parse(content); }
     catch { throw new InputError("Invalid JSON. Choose a backup containing an array of games."); }
   }
-  if (!Array.isArray(parsed) || parsed.length < 1 || parsed.length > MAX_IMPORT_ROWS) throw new InputError("A backup import must contain between 1 and 200 games.");
+  const archive = mode === "json" && isLibraryArchive(parsed);
+  if (archive) parsed = (parsed as { games: unknown }).games;
+  if (!Array.isArray(parsed) || parsed.length < (archive ? 0 : 1) || parsed.length > MAX_IMPORT_ROWS) throw new InputError("A backup import must contain between 1 and 200 games.");
   return parsed;
+}
+
+function isLibraryArchive(value: unknown): boolean {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value) &&
+    (value as Record<string, unknown>).format === "backlog-buster" && (value as Record<string, unknown>).version === 2);
+}
+export type ImportedCustomList = CustomListDetails & { gameIndexes: number[] };
+export function parseArchiveLists(content: string): ImportedCustomList[] | null {
+  let parsed: unknown;
+  try { parsed = JSON.parse(content); } catch { return null; } // Game parser reports malformed JSON.
+  if (Array.isArray(parsed)) return null; // Legacy game-array format.
+  if (!isLibraryArchive(parsed)) throw new InputError("Unsupported archive format or version.");
+  const archive = parsed as { games: unknown; customLists: unknown };
+  if (!Array.isArray(archive.games) || archive.games.length > MAX_IMPORT_ROWS || !Array.isArray(archive.customLists) || archive.customLists.length > MAX_CUSTOM_LISTS)
+    throw new InputError("Archives support up to 200 games and 20 custom lists.");
+  const gameCount = archive.games.length;
+  return archive.customLists.map(value => {
+    const details = validateListDetails(value);
+    const indexes = (value as Record<string, unknown>).gameIndexes;
+    if (!Array.isArray(indexes) || indexes.length > MAX_LIST_GAMES || new Set(indexes).size !== indexes.length ||
+      Array.from(indexes).some(index => typeof index !== "number" || !Number.isSafeInteger(index) || index < 0 || index >= gameCount))
+      throw new InputError("Custom list references must identify up to 50 unique games in this backup.");
+    return { ...details, gameIndexes: indexes as number[] };
+  });
 }

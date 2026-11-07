@@ -12,8 +12,9 @@ import { escapeLike, isValidHandle, normalizeHandle } from "@/lib/handle-validat
 import { getOptionalAuthenticatedPlayerId } from "@/lib/player";
 import { visibleProfileWhere } from "@/lib/profile-privacy";
 import type { ProfileVisibility } from "@/lib/friendship-types";
+import { MAX_CUSTOM_LISTS, MAX_LIST_GAMES, type PublicCustomList } from "@/lib/custom-list-types";
 
-export type PublicDossier = { identity: DossierIdentity; card: DossierCardData; visibility: ProfileVisibility };
+export type PublicDossier = { identity: DossierIdentity; card: DossierCardData; visibility: ProfileVisibility; customLists: PublicCustomList[] };
 
 export async function getPublicDossier(value: unknown): Promise<PublicDossier | null> {
   if (typeof value !== "string") return null;
@@ -32,6 +33,10 @@ export async function getPublicDossier(value: unknown): Promise<PublicDossier | 
       operatorName: true, handle: true, tagline: true, neonAccent: true, avatarUrl: true, featuredTrophyIds: true,
       games: { select: { status: true, lengthHours: true, hoursPlayed: true, rating: true, earnedXp: true } },
       userAchievements: { select: { achievementKey: true, xpAwarded: true, unlockedAt: true } },
+      customLists: { where: { isPublic: true }, take: MAX_CUSTOM_LISTS, orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        select: { id: true, title: true, description: true, isRanked: true,
+          entries: { take: MAX_LIST_GAMES, orderBy: [{ position: "asc" }, { gameId: "asc" }],
+            select: { game: { select: { title: true, platform: true, coverUrl: true } } } } } },
     },
   });
   if (!profile || profile.handle?.trim().toLowerCase() !== handle) return null;
@@ -69,6 +74,8 @@ export async function getPublicDossier(value: unknown): Promise<PublicDossier | 
   }, publicGames);
   return {
     visibility: profile.profileVisibility,
+    customLists: (profile.customLists ?? []).map(list => ({ id: list.id, title: list.title, description: list.description, isRanked: list.isRanked,
+      games: list.entries.map(({ game }) => ({ title: game.title, platform: game.platform, coverUrl: game.coverUrl ? resizeRawgImageUrl(game.coverUrl) : null })) })),
     identity,
     card: { level: calculateLevelProgress(totalXp).level, totalXp, counts, activeHours: telemetry.activeHours,
       completionRate: telemetry.completionRate, avgRating: telemetry.avgRating, achievements, trophies: publicTrophies, showcaseGames: publicGames },

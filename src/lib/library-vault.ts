@@ -4,8 +4,10 @@ import { readSessionHash } from "@/lib/auth-session";
 import { InputError } from "@/lib/action-result";
 import { lookupRawgGame } from "@/lib/rawg";
 import { resolveRawgPlaytime } from "@/lib/game-playtime";
-import { serializeLibraryBackup } from "@/lib/library-backup";
-import { MAX_TITLE_ROWS, parseBackupRecords, sanitizeImportedGame, validateImportPayload, type LibraryImportPayload } from "@/lib/library-import";
+import { serializeLibraryArchive, serializeLibraryBackup } from "@/lib/library-backup";
+import { readCustomLists } from "@/lib/custom-lists";
+import { MAX_CUSTOM_LISTS } from "@/lib/custom-list-types";
+import { MAX_TITLE_ROWS, parseArchiveLists, parseBackupRecords, sanitizeImportedGame, validateImportPayload, type LibraryImportPayload } from "@/lib/library-import";
 import { fetchSteamLibrary, parseSteamIdentifier, type SteamOwnedGame } from "@/lib/steam";
 import { guardedRequest } from "@/lib/api-resilience";
 import { normalizeGameTitle } from "@/lib/game-title";
@@ -32,6 +34,7 @@ export async function getLibraryExport(format: "json" | "csv") {
   const games = await prisma.game.findMany({
     where: { userId: player.id }, orderBy: { id: "asc" },
     select: {
+      id: true,
       title: true, platform: true, status: true, wasFlatlined: true, pinnedOrder: true, backlogOrder: true,
       lengthHours: true, hoursPlayed: true, difficulty: true, earnedXp: true, rating: true, notes: true, review: true, reviewSpoiler: true,
       genre: true, franchise: true, releaseYear: true, chronologicalOrder: true, coverUrl: true,
@@ -41,12 +44,14 @@ export async function getLibraryExport(format: "json" | "csv") {
   });
   const operator = (player.handle || player.operatorName).normalize("NFKD").toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 48) || "operator";
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-  return { content: serializeLibraryBackup(games, format), filename: `backlog-buster-archive-${operator}-${timestamp}.${format}` };
+  const lists = format === "json" ? await readCustomLists(player.id) : [];
+  return { content: format === "json" ? serializeLibraryArchive(games, lists) : serializeLibraryBackup(games, format), filename: `backlog-buster-archive-${operator}-${timestamp}.${format}` };
 }
 
 export async function importLibraryGames(payload: LibraryImportPayload) {
   const { player, tokenHash } = await requireVaultSession();
   validateImportPayload(payload);
+  const archivedLists = payload.mode === "json" ? parseArchiveLists(payload.content) : null;
   let invalidCount = 0;
   const records: ReturnType<typeof sanitizeImportedGame>[] = [];
   function addRecord(value: unknown) {
@@ -74,7 +79,11 @@ export async function importLibraryGames(payload: LibraryImportPayload) {
       }));
     }
   } else {
-    for (const value of parseBackupRecords(payload.content, payload.mode)) addRecord(value);
+    for (const value of parseBackupRecords(payload.content, payload.mode)) {
+      // Versioned references require stable array offsets. Reject damaged archives atomically.
+      if (archivedLists !== null) records.push(sanitizeImportedGame(value));
+      else addRecord(value);
+    }
   }
   const counts = await prisma.$transaction(async tx => {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`backlogbuster-deck:${player.id}`}, 0))`;
@@ -94,13 +103,33 @@ export async function importLibraryGames(payload: LibraryImportPayload) {
     }
     // Construct ownership here, after validation; no uploaded ID is ever spread into a write.
     const result = unique.length ? await tx.game.createMany({ data: unique.map(game => ({ ...game, userId: player.id })) }) : { count: 0 };
+    let restoredListCount = 0;
+    if (archivedLists !== null) {
+      const ownedGames = await tx.game.findMany({ where: { userId: player.id }, orderBy: { id: "asc" }, select: { id: true, title: true, platform: true } });
+      const idsByPair = new Map<string, number>();
+      for (const game of ownedGames) if (!idsByPair.has(pairKey(game))) idsByPair.set(pairKey(game), game.id);
+      const existingLists = await tx.customList.findMany({ where: { userId: player.id },
+        select: { title: true, description: true, isRanked: true, isPublic: true, entries: { orderBy: { position: "asc" }, select: { gameId: true } } } });
+      const signatures = new Set(existingLists.map(list => JSON.stringify([list.title, list.description, list.isRanked, list.isPublic, list.entries.map(entry => entry.gameId)])));
+      for (const { gameIndexes, ...details } of archivedLists) {
+        const ids = [...new Set(gameIndexes.map(index => idsByPair.get(pairKey(records[index]))!))];
+        if (ids.some(id => !id)) throw new InputError("A shelf game could not be restored. No changes were saved.");
+        const signature = JSON.stringify([details.title, details.description, details.isRanked, details.isPublic, ids]);
+        if (signatures.has(signature)) continue;
+        if (existingLists.length + restoredListCount >= MAX_CUSTOM_LISTS) throw new InputError("Restoring these shelves would exceed 20 custom lists. No changes were saved.");
+        const list = await tx.customList.create({ data: { ...details, userId: player.id }, select: { id: true } });
+        if (ids.length) await tx.customListEntry.createMany({ data: ids.map((gameId, index) => ({ listId: list.id, userId: player.id, gameId, position: index + 1 })) });
+        signatures.add(signature); restoredListCount++;
+      }
+    }
     if (result.count) {
       await syncAchievementsForPlayer(tx, player.id, false);
       await appendActivityEvents(tx, player.id, [{ type: "library_imported", deduplicationKey: `import:${randomUUID()}`,
         metadata: { source: payload.mode === "titles" ? "titles" : "backup", importedCount: result.count } }]);
     }
     const duplicateCount = records.length - unique.length;
-    return { importedCount: result.count, duplicateCount, invalidCount, skippedCount: duplicateCount + invalidCount };
+    return { importedCount: result.count, duplicateCount, invalidCount, skippedCount: duplicateCount + invalidCount,
+      ...(archivedLists !== null ? { restoredListCount } : {}) };
   }, { timeout: 15000 });
   return { userId: player.id, counts };
 }

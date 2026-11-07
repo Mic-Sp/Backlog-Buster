@@ -1,5 +1,6 @@
 import type { LibraryGame } from "@/components/GameLibrary";
 import { journalDateInput } from "@/lib/play-journal";
+import type { CustomListData } from "@/lib/custom-list-types";
 
 const fields = [
   "title", "platform", "status", "wasFlatlined", "pinnedOrder", "backlogOrder", "lengthHours", "hoursPlayed", "difficulty",
@@ -21,4 +22,13 @@ export function serializeLibraryBackup(games: (Omit<Pick<LibraryGame, typeof fie
     return `"${safe.replaceAll('"', '""')}"`;
   };
   return [fields.join(","), ...records.map((game) => fields.map((field) => escapeCell(game[field])).join(","))].join("\r\n");
+}
+
+/** Portable references are array offsets, never account IDs or database game IDs. */
+export function serializeLibraryArchive(games: (Parameters<typeof serializeLibraryBackup>[0][number] & { id: number })[], lists: CustomListData[]) {
+  const gameIndexes = new Map(games.map((game, index) => [game.id, index]));
+  if (!lists.length) return serializeLibraryBackup(games, "json");
+  return JSON.stringify({ format: "backlog-buster", version: 2, games: JSON.parse(serializeLibraryBackup(games, "json")),
+    customLists: lists.map(list => ({ title: list.title, description: list.description, isRanked: list.isRanked, isPublic: list.isPublic,
+      gameIndexes: list.gameIds.flatMap(id => gameIndexes.has(id) ? [gameIndexes.get(id)!] : []) })) }, null, 2);
 }

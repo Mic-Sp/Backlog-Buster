@@ -1,5 +1,7 @@
 "use client";
 
+import CustomLists from "@/components/CustomLists";
+
 import { OwnershipBadge, OwnershipField, OwnershipFilterControl } from "@/components/Ownership";
 import { PlayJournalBadges, PlayJournalEditor } from "@/components/PlayJournal";
 import { MicroReview, MicroReviewEditor } from "@/components/MicroReview";
@@ -86,6 +88,7 @@ export default function FantasySubscreenView({ controller: c }: { controller: Ga
 
     <section className="fantasy-item-pane fantasy-panel" data-workspace-pane="items" aria-labelledby="fantasy-inventory-title"><FantasyCorners />
       <div className="fantasy-section-heading"><div><p className="fantasy-kicker">ITEM SUBSCREEN</p><h3 id="fantasy-inventory-title">The Adventurer’s Inventory</h3></div><span role="status">{c.visibleGames.length} / {c.games.length} quests</span></div>
+      <CustomLists controller={c} />
       <div className="fantasy-status-tabs" role="group" aria-label="Library view">{views.map(view => <button key={view} type="button" data-ui-sound="custom" aria-pressed={c.activeView === view} onClick={() => c.changeView(view)}>{view === "Flatlined" ? "Abandoned" : view} <span>{c.viewCounts[view]}</span></button>)}</div>
       <div className="fantasy-scroll-filters">
         <label>Search quests<input type="search" value={c.searchQuery} placeholder="Find a title, realm, or genre…" onChange={event => c.setSearchQuery(event.target.value)} /></label>
