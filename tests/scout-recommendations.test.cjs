@@ -16,7 +16,7 @@ function fixture({ ai = async () => [], lookup = async () => metadata, games = [
   const mocks = {
     "server-only": {},
     "@/lib/player": { getCurrentPlayerId: async () => "player" },
-    "@/lib/prisma": { prisma: { gameCatalog: { findMany: async () => catalog }, recommendationDismissal: { findMany: async ({ where, select }) => { assert.equal(where.userId, "player"); assert.deepEqual(select, { titleKey: true }); return dismissed().map(titleKey => ({ titleKey })); } }, game: { findMany: async ({ where }) => { assert.equal(where.userId, "player"); return games; } } } },
+    "@/lib/prisma": { prisma: { player: { findUnique: async () => ({ featuredTrophyIds: [] }) }, gameCatalog: { findMany: async () => catalog }, recommendationDismissal: { findMany: async ({ where, select }) => { assert.equal(where.userId, "player"); assert.deepEqual(select, { titleKey: true }); return dismissed().map(titleKey => ({ titleKey })); } }, game: { findMany: async ({ where }) => { assert.equal(where.userId, "player"); return games; } } } },
     "@/lib/scout-ai": { getAIScoutCandidates: async (playerId, ...args) => { assert.equal(playerId, "player"); aiCalls.push(args); const remaining = cooldown(); return { candidates: remaining ? [] : await ai(...args), cooldownRemainingSeconds: remaining }; } },
     "@/lib/vector-recommendations": { recommendCatalogGames: async (...args) => { vectorCalls.push(args); return vector(...args); } },
     "@/lib/rawg": { resizeRawgImageUrl: value => value, lookupRawgGame: async (title, reportRateLimit) => { assert.equal(reportRateLimit, true); lookups.push(title); return lookup(title); } },
@@ -48,9 +48,10 @@ test("empty vector results use Gemini fallback, retain its reasons, and preserve
 const vectorPick = (title, fields = {}) => ({ key: title, title, platforms: ["Console", "PC"], genre: "Action", releaseYear: 2020,
   estimatedHours: 4, coverUrl: "https://example.com/cover.jpg", reason: `Vector rationale for ${title}.`, distance: .1,
   cosineSimilarity: .9, score: .8, scores: { cosine: .63, series: .1, genre: .05, playtime: .02 }, ...fields });
-const vectorResult = picks => ({ recommendations: picks, tasteSource: "completed-favorites", anchorCount: 1, negativeAnchorCount: 2, vectorVersion: "catalog-features-v1",
+const vectorResult = picks => ({ recommendations: picks, tasteSource: "hall-of-fame", anchorCount: 1, hallOfFameAnchorCount: 1, negativeAnchorCount: 2, vectorVersion: "catalog-features-v1",
   diagnostics: { queryLatencyMs: 2.5, candidateCount: 20, filteredCount: 1,
-    coverage: { total: 89, embedded: 89, current: 89, released: 85, eligible: 84 }, anchors: [{ title: "Seed", rating: 5 }] } });
+    coverage: { total: 89, embedded: 89, current: 89, released: 85, eligible: 84 },
+    hallOfFameWeightMultiplier: 1.35, anchors: [{ title: "Seed", rating: 5, hallOfFame: true, weight: 2.7 }] } });
 
 test("persisted dismissals filter vector, live-AI, and static fallback picks across fresh sessions", async () => {
   const dismissed = ["cafe adventure 2", "ai rejected", "fallback 1"];
@@ -104,7 +105,7 @@ test("three vector picks are primary, skip all providers and preserve the exact 
     coverUrl: pick.coverUrl, lengthHours: 15, difficulty: 2, reason: pick.reason })));
   assert.equal(context.aiCalls.length, 0); assert.equal(context.lookups.length, 0);
   assert.deepEqual(context.vectorCalls[0][1], ["Seen"]);
-  assert.deepEqual(context.vectorCalls[0][2], { collectDiagnostics: false, dismissedTitles: [] });
+  assert.deepEqual(context.vectorCalls[0][2], { collectDiagnostics: false, dismissedTitles: [], featuredTrophyIds: [] });
   for (const pick of result) assert.deepEqual(Object.keys(pick).sort(), ["title", "platform", "genre", "releaseYear", "coverUrl", "lengthHours", "difficulty", "reason"].sort());
 });
 
@@ -157,11 +158,13 @@ test("admin vector telemetry records provenance, score components, latency and c
   const context = fixture({ vector: async () => vectorResult(["A", "B", "C"].map(title => vectorPick(title))) });
   const debug = telemetry();
   await context.getExternalRecommendations("player", [], debug);
-  assert.deepEqual(context.vectorCalls[0][2], { collectDiagnostics: true, dismissedTitles: [] });
+  assert.deepEqual(context.vectorCalls[0][2], { collectDiagnostics: true, dismissedTitles: [], featuredTrophyIds: [] });
   assert.equal(debug.engineSource, "vector"); assert.equal(debug.source, "vector");
   assert.equal(debug.fallbackTriggered, false); assert.equal(debug.vector.status, "passed");
   assert.equal(debug.vector.queryLatencyMs, 2.5); assert(debug.vector.latencyMs >= 0);
   assert.deepEqual(debug.vector.coverage, { total: 89, embedded: 89, current: 89, released: 85, eligible: 84 });
+  assert.equal(debug.vector.hallOfFameAnchorCount, 1); assert.equal(debug.vector.hallOfFameWeightMultiplier, 1.35);
+  assert.deepEqual(debug.vector.anchors, [{ title: "Seed", rating: 5, hallOfFame: true, weight: 2.7 }]);
   assert.equal(debug.vector.picks[0].cosineSimilarity, .9); assert.deepEqual(debug.vector.picks[0].scores, vectorPick("A").scores);
   assert.equal(debug.estimatedCostUsd, 0); assert.equal(context.aiCalls.length, 0);
 });

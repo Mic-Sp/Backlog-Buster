@@ -5,8 +5,11 @@ export type ScoutVectorDebug = {
   latencyMs: number | null;
   queryLatencyMs: number | null;
   vectorVersion: string | null;
-  tasteSource: "completed-favorites" | "active-pinned" | "cold-start" | null;
+  tasteSource: "hall-of-fame" | "completed-favorites" | "active-pinned" | "cold-start" | null;
   anchorCount: number;
+  hallOfFameAnchorCount: number;
+  hallOfFameWeightMultiplier: number | null;
+  anchors: (ScoutAnchor & { hallOfFame: boolean; weight: number })[];
   negativeAnchorCount: number;
   candidateCount: number;
   filteredCount: number;
@@ -46,7 +49,8 @@ export type ScoutDebug = {
 
 export function createScoutVectorDebug(): ScoutVectorDebug {
   return { status: "not-run", latencyMs: null, queryLatencyMs: null, vectorVersion: null, tasteSource: null,
-    anchorCount: 0, negativeAnchorCount: 0, candidateCount: 0, filteredCount: 0, returnedCount: 0, coverage: null, fallbackReason: null, picks: [] };
+    anchorCount: 0, hallOfFameAnchorCount: 0, hallOfFameWeightMultiplier: null, anchors: [], negativeAnchorCount: 0,
+    candidateCount: 0, filteredCount: 0, returnedCount: 0, coverage: null, fallbackReason: null, picks: [] };
 }
 
 export function createScoutDebug(): ScoutDebug {

@@ -23,6 +23,7 @@ export function sanitizeScoutDebug(debug: ScoutDebug): ScoutDebug {
     anchors: debug.anchors.slice(0, 8).map(anchor),
     picks: debug.picks.slice(0, 3).map(pick => ({ ...pick, title: scoutDebugPreview(pick.title), ...(pick.anchor ? { anchor: anchor(pick.anchor) } : {}) })),
     vector: { ...debug.vector, vectorVersion: clean(debug.vector.vectorVersion), fallbackReason: clean(debug.vector.fallbackReason),
+      anchors: debug.vector.anchors.slice(0, 8).map(value => ({ ...value, title: scoutDebugPreview(value.title) })),
       picks: debug.vector.picks.slice(0, 3).map(pick => ({ ...pick, title: scoutDebugPreview(pick.title) })) },
   };
 }

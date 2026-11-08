@@ -82,11 +82,18 @@ is now Scout's primary discovery source. Catalog metadata is projected to the ex
 card interface without provider calls. When fewer than three eligible vector picks remain,
 Gemini/RAWG fills the open slots, followed by the curated fallback. Provider outages retain
 successful vector picks; insufficient verified coverage can still yield fewer than three.
-Taste uses up to eight matched catalog anchors: completed games rated 4–5 first
-(5 stars carry twice the weight of 4), otherwise active/pinned games with no low
-rating, otherwise fixed broad defaults. Missing/stale vectors and ambiguous title/year
+Taste uses up to eight matched catalog anchors. Explicit Hall of Fame favorites from
+`Player.featuredTrophyIds` get priority within that cap regardless of status or rating.
+Their base weight is 2 for five stars and 1 otherwise, multiplied by **1.35** uniformly
+across all three slots. Other anchors use completed games rated 4–5 first
+(5 stars carry twice the weight of 4), otherwise active/queue-pinned games with no low
+rating, otherwise fixed broad defaults. Hall of Fame weights shape the positive centroid,
+genre/series affinity and preferred duration; those favorites also take precedence over
+negative feedback and can supply recommendation reason attribution.
+Missing/stale vectors and ambiguous title/year
 matches are skipped; duplicate platform copies count once. Unrated completions alone
-do not establish a positive taste profile. No player profile vectors are persisted.
+do not establish a positive taste profile unless explicitly pinned in the Hall of Fame.
+No player profile vectors are persisted.
 
 Retrieval uses pgvector cosine distance, the current feature-vector version, released
 years, and normalized ownership/recent-history exclusions before SQL's result limit.
@@ -98,6 +105,8 @@ Database errors propagate to the caller rather than silently masquerading as col
 
 Admin Scout diagnostics include vector/cosine and total latency, taste source, per-pick
 cosine/hybrid scores and weighted components, plus catalog embedding/version/release coverage.
+They also show the matched Hall of Fame anchor count, multiplier and each positive anchor's
+final weight, rating and Hall of Fame designation.
 Coverage queries are admin-only and optional; their failure never discards successful picks.
 The action rechecks admin access after discovery, then redacts all diagnostic text before
 delivery. Ordinary Scout responses contain only the original recommendation card fields.

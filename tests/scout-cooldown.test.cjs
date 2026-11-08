@@ -19,6 +19,7 @@ function fixture(t, { fetch = async () => answer(), vector = () => ["Vector A"],
   const load = loader({
     "@/lib/player": { getCurrentPlayerId: async () => "player" },
     "@/lib/prisma": { prisma: {
+      player: { findUnique: async () => ({ featuredTrophyIds: [] }) },
       game: { findMany: async () => games }, recommendationDismissal: { findMany: async () => dismissed.map(titleKey => ({ titleKey })) },
       gameCatalog: { findMany: async () => { if (catalog instanceof Error) throw catalog; return catalog; } },
     } },

@@ -31,11 +31,17 @@ export default function ScoutDebugger({ debug, busy }: { debug: ScoutDebug | nul
               <div><dt>Vector Status</dt><dd>{debug.vector.status.toUpperCase()}</dd></div>
               <div><dt>Cosine Query / Total Vector Time</dt><dd>{milliseconds(debug.vector.queryLatencyMs)} / {milliseconds(debug.vector.latencyMs)}</dd></div>
               <div><dt>Taste Profile</dt><dd>{debug.vector.tasteSource ?? "Unavailable"} · {debug.vector.anchorCount} anchors</dd></div>
+              <div><dt>Hall of Fame Anchors</dt><dd>{debug.vector.hallOfFameAnchorCount} pinned favorites · {debug.vector.hallOfFameWeightMultiplier === null ? "Boost unavailable" : `${debug.vector.hallOfFameWeightMultiplier.toFixed(2)}× positive weight`}</dd></div>
               <div><dt>Negative Anchors</dt><dd>{debug.vector.negativeAnchorCount} dismissed / low-rated games</dd></div>
               <div><dt>Catalog Coverage</dt><dd>{debug.vector.coverage ? `${debug.vector.coverage.current} current / ${debug.vector.coverage.total} catalog games` : "Unavailable"}</dd></div>
             </dl>
             <p>Vector version: {debug.vector.vectorVersion ?? "Unavailable"}. Retrieved {debug.vector.candidateCount}, filtered {debug.vector.filteredCount}, served {debug.vector.returnedCount}.</p>
             {debug.vector.coverage && <p>{debug.vector.coverage.embedded} embedded · {debug.vector.coverage.released} released with current vectors · {debug.vector.coverage.eligible} eligible after ownership/history exclusions.</p>}
+            {debug.vector.anchors.length > 0 && <ul aria-label="Positive taste anchors">
+              {debug.vector.anchors.map((anchor, index) => <li key={`${anchor.title}-${index}`}>
+                {anchor.title} · {anchor.rating === null ? "Unrated" : `${anchor.rating}★`} · weight {anchor.weight.toFixed(2)}{anchor.hallOfFame ? " · Hall of Fame boost" : ""}
+              </li>)}
+            </ul>}
             {debug.vector.fallbackReason && <p role="status">{debug.vector.fallbackReason}</p>}
             {debug.vector.picks.length > 0 && <div className="scout-vector-table-scroll" tabIndex={0} role="region" aria-label="Vector candidate score details">
               <table className="scout-vector-table">

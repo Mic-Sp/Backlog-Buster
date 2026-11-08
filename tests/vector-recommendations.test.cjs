@@ -187,7 +187,7 @@ test("cold start skips anchor-vector queries, remains read-only, and handles an 
       queries++; assert(!strings.join("").includes('AS "vectorText"')); return [];
     },
   } } })("src/lib/vector-recommendations.ts");
-  assert.deepEqual(await api.recommendCatalogGames([]), { tasteSource: "cold-start", anchorCount: 0, negativeAnchorCount: 0,
+  assert.deepEqual(await api.recommendCatalogGames([]), { tasteSource: "cold-start", anchorCount: 0, hallOfFameAnchorCount: 0, negativeAnchorCount: 0,
     vectorVersion: CATALOG_VECTOR_VERSION, recommendations: [] });
   assert.equal(queries, 1);
 });
@@ -236,11 +236,17 @@ test("optional diagnostics count vector coverage using version/release/exclusion
 });
 
 test("server entry resolves player identity and reads only that player's taste/ownership fields", async () => {
-  const calls = [];
+  const calls = [], profileCalls = [];
   const api = loader({
     "@/lib/player": { getCurrentPlayerId: async () => "current-player" },
-    "@/lib/prisma": { prisma: { recommendationDismissal: { findMany: async ({ where }) => [{ titleKey: `${where.userId} dismissed` }] }, game: { findMany: async args => { calls.push(args); return [favorite]; } } } },
-    "@/lib/vector-recommendations": { recommendCatalogGames: async (games, excluded, options) => { assert.deepEqual(games, [favorite]); assert.deepEqual(options.dismissedTitles, [excluded.at(-1)]); return { excluded }; } },
+    "@/lib/prisma": { prisma: {
+      player: { findUnique: async args => { profileCalls.push(args); return { featuredTrophyIds: [favorite.id, null, null] }; } },
+      recommendationDismissal: { findMany: async ({ where }) => [{ titleKey: `${where.userId} dismissed` }] }, game: { findMany: async args => { calls.push(args); return [favorite]; } },
+    } },
+    "@/lib/vector-recommendations": { recommendCatalogGames: async (games, excluded, options) => {
+      assert.deepEqual(games, [favorite]); assert.deepEqual(options.dismissedTitles, [excluded.at(-1)]);
+      assert.deepEqual(options.featuredTrophyIds, [favorite.id, null, null]); return { excluded };
+    } },
     "@/lib/rawg": {}, "@/lib/scout-ai": {},
   })("src/lib/recommendations.ts");
   assert.deepEqual(await api.getVectorRecommendations(undefined, ["Seen"]), { excluded: ["Seen", "current-player dismissed"] });
@@ -248,4 +254,48 @@ test("server entry resolves player identity and reads only that player's taste/o
   assert(!calls[0].select.notes); assert(!calls[0].select.passwordHash);
   assert.deepEqual(await api.getVectorRecommendations("trusted-server-player"), { excluded: ["trusted-server-player dismissed"] });
   assert.deepEqual(calls[1].where, { userId: "trusted-server-player" });
+  assert.deepEqual(profileCalls, ["current-player", "trusted-server-player"].map(id => ({ where: { id }, select: { featuredTrophyIds: true } })));
+  await api.getVectorRecommendations("current-player", [], { featuredTrophyIds: [999] });
+});
+
+test("Hall of Fame pins load unrated/uncompleted vectors, elevate similar candidates and report boosted anchors", async () => {
+  const basis = index => Array.from({ length: 128 }, (_, i) => Number(i === index));
+  const rival = { ...favorite, id: 2, title: "Puzzle Classic", rating: 4, franchise: "Puzzle Classic" };
+  const rows = [{ ...stored, vectorText: JSON.stringify(basis(0)) },
+    { ...stored, key: "rival", title: rival.title, genre: "Puzzle", genres: ["puzzle"], seriesHints: ["Puzzle Classic"], vectorText: JSON.stringify(basis(1)) }];
+  for (const fields of [{ status: "Completed", rating: 4 }, { status: "Backlog", rating: null }, { status: "Flatlined", rating: 1 }]) {
+    const games = [{ ...favorite, ...fields }, rival], queries = [];
+    const api = loader({ "@/lib/prisma": { prisma: {
+      gameCatalog: { findMany: async () => rows },
+      $queryRaw: async (strings, ...values) => {
+        const sql = strings.join("?"); queries.push({ sql, values });
+        if (sql.includes('AS "vectorText"')) return rows.filter(row => JSON.parse(values[0]).includes(row.key));
+        if (sql.includes("COUNT(*)")) return [];
+        const query = JSON.parse(values[0]);
+        return [candidate("Z Favorite Saga II", 1 - query[0], { seriesHints: ["Favorite Saga"] }),
+          candidate("A Puzzle Classic II", 1 - query[1], { genre: "Puzzle", genres: ["puzzle"], seriesHints: ["Puzzle Classic"] })];
+      },
+    } } })("src/lib/vector-recommendations.ts");
+    const before = await api.recommendCatalogGames(games);
+    const after = await api.recommendCatalogGames(games, [], { featuredTrophyIds: [favorite.id], collectDiagnostics: true });
+    assert.equal(before.recommendations[0].title, "A Puzzle Classic II");
+    assert.equal(after.recommendations[0].title, "Z Favorite Saga II");
+    assert(after.recommendations[0].cosineSimilarity > before.recommendations.find(p => p.title === "Z Favorite Saga II").cosineSimilarity);
+    assert(after.recommendations[0].scores.genre > before.recommendations.find(p => p.title === "Z Favorite Saga II").scores.genre);
+    assert.equal(after.hallOfFameAnchorCount, 1); assert.equal(after.anchorCount, 2); assert.equal(after.negativeAnchorCount, 0);
+    assert.equal(after.diagnostics.hallOfFameWeightMultiplier, 1.35);
+    assert.deepEqual(after.diagnostics.anchors[0], { title: favorite.title, rating: fields.rating, hallOfFame: true, weight: 1.35 });
+    assert.match(after.recommendations[0].reason, /Series affinity with your Hall of Fame favorite Favorite Saga I/);
+    const anchorQuery = queries.filter(q => q.sql.includes('AS "vectorText"')).at(-1);
+    assert.deepEqual(new Set(JSON.parse(anchorQuery.values[0])), new Set([stored.key, "rival"]));
+  }
+});
+
+test("Hall of Fame favorites are top attribution targets for shared genres and series", () => {
+  const pinned = { ...favorite, id: 2, title: "Favorite Saga Zero", rating: null, status: "Backlog" };
+  const rows = [stored, { ...stored, key: "hall", title: pinned.title }];
+  const taste = buildPlayerTasteProfile([favorite, pinned], rows, [], rows, [pinned.id]);
+  const result = engine.rerankVectorCandidates([candidate("Favorite Saga II"), candidate("Different Lineage")], taste);
+  assert.match(result.find(p => p.title === "Favorite Saga II").reason, /Series affinity with your Hall of Fame favorite Favorite Saga Zero/);
+  assert.match(result.find(p => p.title === "Different Lineage").reason, /Genre continuity from your Hall of Fame favorite Favorite Saga Zero/);
 });

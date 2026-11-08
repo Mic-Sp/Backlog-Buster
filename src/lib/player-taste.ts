@@ -2,9 +2,10 @@ import { buildCatalogVector, CATALOG_VECTOR_DIMENSIONS, CATALOG_VECTOR_VERSION, 
 import { gameLineage, isPositiveTasteRating } from "@/lib/backlog-advisor";
 import { normalizeGameTitle } from "@/lib/game-title";
 
-export const PLAYER_TASTE_VERSION = "player-taste-v2";
+export const PLAYER_TASTE_VERSION = "player-taste-v3";
 export const MAX_TASTE_ANCHORS = 8;
 export const NEGATIVE_TASTE_WEIGHT = .25;
+export const HALL_OF_FAME_WEIGHT_MULTIPLIER = 1.35;
 export type TasteLibraryGame = {
   id: number; title: string; releaseYear: number | null; status: string; rating: number | null;
   pinnedOrder: number | null; platform: string; franchise: string | null; earnedXp: number;
@@ -15,12 +16,12 @@ export type StoredTasteGame = CatalogTitle & {
   featureVectorVersion: string | null; vectorText: string;
 };
 export type TasteAnchor = {
-  key: string; title: string; rating: number | null; weight: number; platform: string;
+  key: string; title: string; rating: number | null; weight: number; platform: string; hallOfFame: boolean;
   genres: string[]; series: string[]; estimatedHours: number | null;
 };
 type PositiveTasteProfile = {
   values: number[]; vectorVersion: string; version: string;
-  source: "completed-favorites" | "active-pinned" | "cold-start";
+  source: "hall-of-fame" | "completed-favorites" | "active-pinned" | "cold-start";
   anchors: TasteAnchor[]; genres: { name: string; weight: number }[];
   series: { name: string; weight: number }[]; preferredHours: number | null;
 };
@@ -37,9 +38,16 @@ export type PlayerTasteProfile = PositiveTasteProfile & {
 const isActiveOrPinned = (game: TasteLibraryGame) => game.status === "Playing" ||
   (game.status === "Backlog" && Number.isInteger(game.pinnedOrder) && game.pinnedOrder! > 0);
 
-/** Unrated active/pinned intent is usable; every explicit rating below four is excluded. */
-export function potentialTasteGames(games: readonly TasteLibraryGame[]): TasteLibraryGame[] {
-  return games.filter(game => (game.status === "Completed" && isPositiveTasteRating(game.rating)) ||
+// Stored JSON has up to three slots; null/invalid/stale IDs cannot create anchors.
+function hallOfFameIds(featuredTrophyIds: unknown): Set<number> {
+  return new Set(Array.isArray(featuredTrophyIds) ? featuredTrophyIds.slice(0, 3).filter((id): id is number =>
+    typeof id === "number" && Number.isSafeInteger(id) && id > 0 && id <= 2147483647) : []);
+}
+
+/** Explicit Hall of Fame intent overrides status/rating; queue pins retain their usual eligibility rules. */
+export function potentialTasteGames(games: readonly TasteLibraryGame[], featuredTrophyIds: unknown = []): TasteLibraryGame[] {
+  const featured = hallOfFameIds(featuredTrophyIds);
+  return games.filter(game => featured.has(game.id) || (game.status === "Completed" && isPositiveTasteRating(game.rating)) ||
     (isActiveOrPinned(game) && (game.rating === null || isPositiveTasteRating(game.rating))));
 }
 
@@ -91,18 +99,22 @@ function coldStartProfile(): PositiveTasteProfile {
     source: "cold-start", anchors: [], genres: [], series: [], preferredHours: null };
 }
 
-function buildPositiveTasteProfile(games: readonly TasteLibraryGame[], catalog: readonly StoredTasteGame[], matchingCatalog: readonly CatalogTitle[]): PositiveTasteProfile {
+function buildPositiveTasteProfile(games: readonly TasteLibraryGame[], catalog: readonly StoredTasteGame[], matchingCatalog: readonly CatalogTitle[], featuredTrophyIds: unknown): PositiveTasteProfile {
+  const featured = hallOfFameIds(featuredTrophyIds);
   const available = catalog.filter(row => row.featureVectorVersion === CATALOG_VECTOR_VERSION);
-  const ranked = potentialTasteGames(games).map(game => {
+  const ranked = potentialTasteGames(games, featuredTrophyIds).map(game => {
     const match = matchTasteCatalogGame(game, matchingCatalog);
     const row = match ? available.find(row => row.key === match.key) : null;
     const values = row ? parseTasteVector(row.vectorText) : null;
     return row && values ? { game, row, values } : null;
   }).filter(entry => entry !== null);
-  const completed = ranked.filter(({ game }) => game.status === "Completed");
-  const source = completed.length ? "completed-favorites" : "active-pinned";
-  const ordered = (completed.length ? completed : ranked).sort((a, b) =>
-    (completed.length ? b.game.rating! - a.game.rating! || b.game.earnedXp - a.game.earnedXp
+  const completed = ranked.filter(({ game }) => game.status === "Completed" && isPositiveTasteRating(game.rating));
+  // Reserve priority within the existing cap for explicit favorites, including
+  // uncompleted games, before deduplicating platform copies by catalog key.
+  const ordered = ranked.filter(({ game }) => featured.has(game.id) || !completed.length ||
+    (game.status === "Completed" && isPositiveTasteRating(game.rating))).sort((a, b) =>
+    Number(featured.has(b.game.id)) - Number(featured.has(a.game.id)) ||
+    (completed.length ? (b.game.rating ?? 0) - (a.game.rating ?? 0) || b.game.earnedXp - a.game.earnedXp
       : Number(b.game.status === "Playing") - Number(a.game.status === "Playing") ||
         (a.game.pinnedOrder ?? Infinity) - (b.game.pinnedOrder ?? Infinity)) ||
     a.row.key.localeCompare(b.row.key) || a.game.id - b.game.id);
@@ -112,11 +124,18 @@ function buildPositiveTasteProfile(games: readonly TasteLibraryGame[], catalog: 
     seen.add(row.key); return true;
   }).slice(0, MAX_TASTE_ANCHORS);
   if (!selected.length) return coldStartProfile();
+  const source = selected.some(({ game }) => featured.has(game.id)) ? "hall-of-fame"
+    : completed.length ? "completed-favorites" : "active-pinned";
   const sum = Array<number>(CATALOG_VECTOR_DIMENSIONS).fill(0);
   const anchors: TasteAnchor[] = selected.map(({ game, row, values }) => {
-    const weight = source === "completed-favorites" ? game.rating === 5 ? 2 : 1 : game.status === "Playing" ? 1 : .75;
+    const hallOfFame = featured.has(game.id);
+    // Hall of Fame pins always have a positive base; low ratings cannot invert
+    // explicit favorite intent. Other anchors keep their existing base weights.
+    const baseWeight = hallOfFame || completed.length > 0
+      ? (game.rating === 5 ? 2 : 1) : (game.status === "Playing" ? 1 : .75);
+    const weight = baseWeight * (hallOfFame ? HALL_OF_FAME_WEIGHT_MULTIPLIER : 1);
     values.forEach((value, index) => { sum[index] += value * weight; });
-    return { key: row.key, title: game.title, rating: game.rating, weight, platform: game.platform,
+    return { key: row.key, title: game.title, rating: game.rating, weight, platform: game.platform, hallOfFame,
       genres: normalizeFeatureList([...row.genres, ...(row.genre ? [row.genre] : [])]),
       series: normalizeFeatureList([...catalogSeries(row), ...(game.franchise ? [game.franchise] : [])]),
       estimatedHours: row.estimatedHours !== null && Number.isFinite(row.estimatedHours) && row.estimatedHours > 0 ? row.estimatedHours : null };
@@ -153,14 +172,15 @@ export function shiftTasteVector(positive: readonly number[], negative: readonly
 export function buildPlayerTasteProfile(
   games: readonly TasteLibraryGame[], catalog: readonly StoredTasteGame[], dismissedTitles: readonly string[] = [],
   matchingCatalog: readonly CatalogTitle[] = catalog,
+  featuredTrophyIds: unknown = [],
 ): PlayerTasteProfile {
   const available = catalog.filter(row => row.featureVectorVersion === CATALOG_VECTOR_VERSION);
   // Preserve full-index ambiguity checks even when only anchor vectors were loaded.
   const matching = matchingCatalog === catalog ? available : matchingCatalog;
-  const positive = buildPositiveTasteProfile(games, available, matching);
+  const positive = buildPositiveTasteProfile(games, available, matching, featuredTrophyIds);
   // Fresh positive intent wins over an older dismissal or a low-rated platform
   // duplicate of the same catalog game. Never train both sides on the same row.
-  const positiveKeys = new Set(potentialTasteGames(games).flatMap(game => {
+  const positiveKeys = new Set(potentialTasteGames(games, featuredTrophyIds).flatMap(game => {
     const row = matchTasteCatalogGame(game, matching);
     return row ? [row.key] : [];
   }));

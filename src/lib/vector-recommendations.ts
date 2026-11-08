@@ -4,7 +4,7 @@ import { CATALOG_VECTOR_VERSION, normalizeFeatureList, normalizeVector, vectorLi
 import { normalizeGameTitle } from "@/lib/game-title";
 import { isReleasedYear } from "@/lib/game-release";
 import type { CatalogSuggestion } from "@/lib/catalog-types";
-import { buildPlayerTasteProfile, catalogSeries, matchNegativeTasteCatalogGames, matchTasteCatalogGame, potentialTasteGames,
+import { buildPlayerTasteProfile, catalogSeries, HALL_OF_FAME_WEIGHT_MULTIPLIER, matchNegativeTasteCatalogGames, matchTasteCatalogGame, potentialTasteGames,
   type CatalogTitle, type PlayerTasteProfile, type StoredTasteGame, type TasteLibraryGame } from "@/lib/player-taste";
 
 export type CosineCandidate = CatalogSuggestion & { key: string; genres: string[]; seriesHints: string[]; distance: number; negativeSimilarity?: number | null };
@@ -13,16 +13,22 @@ export type VectorRecommendation = CosineCandidate & {
   scores: { cosine: number; series: number; genre: number; playtime: number; negative: number };
 };
 export type VectorRecommendationResult = {
-  tasteSource: PlayerTasteProfile["source"]; anchorCount: number; negativeAnchorCount: number; vectorVersion: string;
+  tasteSource: PlayerTasteProfile["source"]; anchorCount: number; hallOfFameAnchorCount: number; negativeAnchorCount: number; vectorVersion: string;
   recommendations: VectorRecommendation[];
   diagnostics?: VectorRetrievalDiagnostics;
 };
 export type VectorCatalogCoverage = { total: number; embedded: number; current: number; released: number; eligible: number };
 export type VectorRetrievalDiagnostics = {
   queryLatencyMs: number; candidateCount: number; filteredCount: number;
-  coverage: VectorCatalogCoverage | null; anchors: { title: string; rating: number | null }[];
+  coverage: VectorCatalogCoverage | null;
+  anchors: { title: string; rating: number | null; hallOfFame: boolean; weight: number }[];
+  hallOfFameWeightMultiplier: number;
 };
-export type VectorRecommendationOptions = { limit?: number; currentYear?: number; collectDiagnostics?: boolean; dismissedTitles?: readonly string[] };
+export type VectorRecommendationOptions = {
+  limit?: number; currentYear?: number; collectDiagnostics?: boolean; dismissedTitles?: readonly string[];
+  // Authenticated player's stored JSON, distinct from Game.pinnedOrder queue intent.
+  featuredTrophyIds?: unknown;
+};
 type CosineRetrievalOptions = Pick<VectorRecommendationOptions, "limit" | "currentYear"> & { negativeValues?: readonly number[] | null };
 
 function bounds(limit: number, currentYear: number, maximum: number) {
@@ -100,9 +106,12 @@ export function rerankVectorCandidates(candidates: readonly CosineCandidate[], t
       genre: .10 * genreScore, playtime: .05 * playtimeFit, negative: negativeAffinityPenalty(candidate, taste, genres, series) };
     const seriesAnchor = taste.anchors.find(anchor => anchor.series.some(name => matchingSeries.some(signal => signal.name === name)));
     const genreAnchor = taste.anchors.find(anchor => anchor.genres.some(name => matchingGenres.some(signal => signal.name === name)));
+    const anchorTitle = (anchor: PlayerTasteProfile["anchors"][number]) =>
+      `${anchor.hallOfFame ? "your Hall of Fame favorite " : ""}${anchor.title.slice(0, 80)}`;
     let reason = taste.source === "cold-start" ? "A broad discovery pick while your taste profile develops."
-      : seriesAnchor ? `Series affinity with ${seriesAnchor.title.slice(0, 80)}.`
-      : genreAnchor ? `Genre continuity from ${genreAnchor.title.slice(0, 80)}.`
+      : seriesAnchor ? `Series affinity with ${anchorTitle(seriesAnchor)}.`
+      : genreAnchor ? `Genre continuity from ${anchorTitle(genreAnchor)}.`
+      : taste.source === "hall-of-fame" ? "Similar features to your Hall of Fame favorites and taste anchors."
       : taste.source === "completed-favorites" ? "Similar features to your highly rated completions."
       : "Similar features to your active or pinned games.";
     if (playtimeFit >= .75) reason += ` Fits your roughly ${Math.round(taste.preferredHours!)}h preference.`;
@@ -112,14 +121,14 @@ export function rerankVectorCandidates(candidates: readonly CosineCandidate[], t
 
 /** Server-only engine. Callers supply their authenticated player's library and full session/permanent exclusions; this function never writes or calls providers. */
 export async function recommendCatalogGames(games: readonly TasteLibraryGame[], excludedTitles: readonly string[] = [],
-  { limit = 3, currentYear = new Date().getFullYear(), collectDiagnostics = false, dismissedTitles = [] }: VectorRecommendationOptions = {}): Promise<VectorRecommendationResult> {
+  { limit = 3, currentYear = new Date().getFullYear(), collectDiagnostics = false, dismissedTitles = [], featuredTrophyIds = [] }: VectorRecommendationOptions = {}): Promise<VectorRecommendationResult> {
   bounds(limit, currentYear, 20);
   // Initial catalog is small (89 rows). Build the normalization index in JS to reuse the exact
   // ownership helper, including accents/numerals, without introducing another PostgreSQL extension.
   const titles = await prisma.gameCatalog.findMany({
     where: { featureVectorVersion: CATALOG_VECTOR_VERSION }, select: { key: true, title: true, releaseYear: true },
   });
-  const anchorKeys = [...new Set([...potentialTasteGames(games).flatMap(game => {
+  const anchorKeys = [...new Set([...potentialTasteGames(games, featuredTrophyIds).flatMap(game => {
     const match = matchTasteCatalogGame(game, titles);
     return match ? [match.key] : [];
   }), ...matchNegativeTasteCatalogGames(games, titles, dismissedTitles).map(({ row }) => row.key)])];
@@ -130,7 +139,7 @@ export async function recommendCatalogGames(games: readonly TasteLibraryGame[], 
     WHERE "key" IN (SELECT jsonb_array_elements_text(${JSON.stringify(anchorKeys)}::jsonb))
       AND "featureVector" IS NOT NULL AND "featureVectorVersion" = ${CATALOG_VECTOR_VERSION}
   ` : [];
-  const taste = buildPlayerTasteProfile(games, stored, dismissedTitles, titles);
+  const taste = buildPlayerTasteProfile(games, stored, dismissedTitles, titles, featuredTrophyIds);
   const ownedTitles = games.map(game => game.title);
   const exclusions = [...excludedTitles, ...dismissedTitles];
   const blocked = new Set([...ownedTitles, ...exclusions].map(normalizeGameTitle));
@@ -161,9 +170,11 @@ export async function recommendCatalogGames(games: readonly TasteLibraryGame[], 
       coverage = rows[0] ?? null;
     } catch { /* Optional admin metrics must not discard successful retrieval results. */ }
     diagnostics = { queryLatencyMs, candidateCount: candidates.length, filteredCount: candidates.length - eligible.length,
-      coverage, anchors: taste.anchors.map(({ title, rating }) => ({ title, rating })) };
+      coverage, anchors: taste.anchors.map(({ title, rating, hallOfFame, weight }) => ({ title, rating, hallOfFame, weight })),
+      hallOfFameWeightMultiplier: HALL_OF_FAME_WEIGHT_MULTIPLIER };
   }
   return { tasteSource: taste.source, anchorCount: taste.anchors.length, negativeAnchorCount: taste.negativeAnchors.length, vectorVersion: taste.vectorVersion,
+    hallOfFameAnchorCount: taste.anchors.filter(anchor => anchor.hallOfFame).length,
     ...(diagnostics ? { diagnostics } : {}),
     recommendations: rerankVectorCandidates(eligible, taste).slice(0, limit) };
 }

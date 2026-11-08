@@ -94,6 +94,69 @@ test("anchor cap is deterministic under library/catalog reordering, with missing
 
 const dot = (a, b) => a.reduce((sum, value, index) => sum + value * b[index], 0);
 
+test("Hall of Fame pin multiplies rating weight and rotates the normalized centroid toward that favorite", () => {
+  const games = [game(1), game(2, { rating: 4 })], rows = [row(1), row(2, { genre: "Puzzle", estimatedHours: 10 })];
+  const before = taste.buildPlayerTasteProfile(games, rows);
+  const after = taste.buildPlayerTasteProfile(games, rows, [], rows, [null, 2]);
+  assert.equal(after.source, "hall-of-fame");
+  assert.equal(after.anchors[0].key, "key-2"); assert.equal(after.anchors[0].hallOfFame, true);
+  assert.equal(after.anchors[0].weight, 1.35);
+  assert.equal(after.anchors[1].weight, 2);
+  assert(Math.abs(after.values[2] / after.values[1] - 1.35 / 2) < 1e-12);
+  assert(dot(after.values, vector(2)) > dot(before.values, vector(2)));
+  assert(after.genres.find(g => g.name === "puzzle").weight > before.genres.find(g => g.name === "puzzle").weight);
+  assert(after.preferredHours < before.preferredHours);
+  assert(Math.abs(norm(after.values) - 1) < 1e-12);
+  const fiveStar = taste.buildPlayerTasteProfile([game(1), game(2)], rows, [], rows, [2]);
+  assert.equal(fiveStar.anchors[0].weight, 2 * taste.HALL_OF_FAME_WEIGHT_MULTIPLIER);
+  assert.deepEqual(taste.buildPlayerTasteProfile(games, rows, [], rows, []), before, "Unpinning restores ordinary weights");
+});
+
+test("Hall of Fame intent admits every status/rating alongside completions and overrides negative duplicates and dismissals", () => {
+  for (const status of ["Backlog", "Playing", "Flatlined", "Completed"]) for (const rating of [null, 1, 2, 3, 4, 5]) {
+    const games = [game(1), game(2, { status, rating }), game(20, { title: "Game II", rating: 1, platform: "Console" })];
+    const rows = [row(1), row(2)];
+    assert(taste.potentialTasteGames(games, [2]).some(game => game.id === 2));
+    const profile = taste.buildPlayerTasteProfile(games, rows, ["GAME II™"], rows, [2]);
+    const anchor = profile.anchors.find(anchor => anchor.key === "key-2");
+    assert(anchor, `${status}/${rating}`); assert.equal(anchor.weight, (rating === 5 ? 2 : 1) * 1.35);
+    assert.equal(profile.anchors.length, 2); assert.deepEqual(profile.negativeAnchors, []);
+    assert.equal(profile.negativeValues, null); assert(profile.values[2] > 0);
+  }
+  const solo = taste.buildPlayerTasteProfile([game(2, { status: "Backlog", rating: null })], [row(2)], [], [row(2)], [2]);
+  assert.equal(solo.source, "hall-of-fame"); assert.deepEqual(solo.values, vector(2));
+});
+
+test("Hall of Fame favorites survive the anchor cap and deduplication regardless of library or catalog order", () => {
+  const games = Array.from({ length: 15 }, (_, i) => game(i + 1, { earnedXp: i + 1 }));
+  games.push(game(20, { title: "Game I", rating: 1, status: "Backlog" }));
+  const rows = games.slice(0, 15).map(game => row(game.id));
+  const profile = taste.buildPlayerTasteProfile(games, rows, [], rows, [20, 2, 3]);
+  assert.equal(profile.anchors.length, taste.MAX_TASTE_ANCHORS);
+  assert.deepEqual(new Set(profile.anchors.filter(a => a.hallOfFame).map(a => a.key)), new Set(["key-1", "key-2", "key-3"]));
+  assert.equal(profile.anchors.find(a => a.key === "key-1").rating, 1, "Pinned copy wins over an ordinary platform copy");
+  assert.deepEqual(profile, taste.buildPlayerTasteProfile([...games].reverse(), [...rows].reverse(), [], rows, [20, 2, 3]));
+  assert.deepEqual(profile, taste.buildPlayerTasteProfile(games, rows, [], rows, [3, 20, 2]), "Uniform boost does not depend on slot order");
+});
+
+test("Hall of Fame pins respect JSON slots, library ownership and valid unambiguous catalog vectors", () => {
+  const games = [game(1, { rating: null, status: "Backlog" })], rows = [row(1)];
+  const baseline = taste.buildPlayerTasteProfile(games, rows);
+  for (const pins of [null, {}, "1", ["1", -1, 0], [999], [null, null, null, 1], [NaN, Infinity, 2147483648]]) {
+    assert.deepEqual(taste.buildPlayerTasteProfile(games, rows, [], rows, pins), baseline);
+  }
+  const repeated = taste.buildPlayerTasteProfile(games, rows, [], rows, [1, 1, null]);
+  assert.equal(repeated.anchors.length, 1); assert.equal(repeated.anchors[0].weight, 1.35);
+  for (const fields of [{ vectorText: "bad" }, { vectorText: "[1,2]" },
+    { vectorText: JSON.stringify(Array(128).fill(0)) }, { featureVectorVersion: "stale" }]) {
+    assert.equal(taste.buildPlayerTasteProfile(games, [row(1, fields)], [], rows, [1]).source, "cold-start");
+  }
+  assert.equal(taste.buildPlayerTasteProfile(games, [], [], rows, [1]).source, "cold-start");
+  const ambiguous = [row(1), row(2, { title: "Game 1", releaseYear: 2000 })];
+  assert.equal(taste.buildPlayerTasteProfile([game(1, { releaseYear: null, status: "Backlog", rating: null })],
+    rows, [], ambiguous, [1]).source, "cold-start");
+});
+
 test("dismissing a game shifts the normalized taste vector away from its stored features", () => {
   const rows = [row(1, { genre: "RPG" }), row(2, { genre: "Horror", title: "Café Horror II™" })];
   const before = taste.buildPlayerTasteProfile([game(1)], rows);

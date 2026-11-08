@@ -21,12 +21,15 @@ export async function getVectorRecommendations(userId?: string, excludedTitles: 
   userId ??= await getCurrentPlayerId();
   const dismissed = await getDismissedRecommendationTitles(userId);
   const exclusions = [...new Set([...excludedTitles, ...dismissed])];
-  const games = await prisma.game.findMany({ where: { userId }, select: {
-    id: true, title: true, releaseYear: true, status: true, rating: true, pinnedOrder: true,
-    platform: true, franchise: true, earnedXp: true,
-  } });
+  const [games, profile] = await Promise.all([
+    prisma.game.findMany({ where: { userId }, select: {
+      id: true, title: true, releaseYear: true, status: true, rating: true, pinnedOrder: true,
+      platform: true, franchise: true, earnedXp: true,
+    } }),
+    prisma.player.findUnique({ where: { id: userId }, select: { featuredTrophyIds: true } }),
+  ]);
   const { recommendCatalogGames } = await import("@/lib/vector-recommendations");
-  return recommendCatalogGames(games, exclusions, { ...options, dismissedTitles: dismissed });
+  return recommendCatalogGames(games, exclusions, { ...options, dismissedTitles: dismissed, featuredTrophyIds: profile?.featuredTrophyIds ?? [] });
 }
 
 export type ExternalRecommendation = {
@@ -147,12 +150,15 @@ export async function getExternalRecommendations(
       debug.vector.vectorVersion = result.vectorVersion;
       debug.vector.tasteSource = result.tasteSource;
       debug.vector.anchorCount = result.anchorCount;
+      debug.vector.hallOfFameAnchorCount = result.hallOfFameAnchorCount;
       debug.vector.negativeAnchorCount = result.negativeAnchorCount ?? 0;
       if (result.diagnostics) {
         debug.vector.queryLatencyMs = result.diagnostics.queryLatencyMs;
         debug.vector.candidateCount = result.diagnostics.candidateCount;
         debug.vector.filteredCount = result.diagnostics.filteredCount;
         debug.vector.coverage = result.diagnostics.coverage;
+        debug.vector.hallOfFameWeightMultiplier = result.diagnostics.hallOfFameWeightMultiplier;
+        debug.vector.anchors = result.diagnostics.anchors;
         debug.anchors = result.diagnostics.anchors;
       }
     }
