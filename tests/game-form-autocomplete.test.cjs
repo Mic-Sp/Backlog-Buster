@@ -358,6 +358,7 @@ function editorFixture(layout = "cyberpunk", initial = {}) {
     "@/components/LayoutText": { useLayoutCopy: () => (cyberpunk, fantasy) => layout === "fantasy" ? fantasy : cyberpunk },
     "@/components/FantasyAccents": { FantasyCorners: () => null },
     "@/components/Ownership": { OwnershipField: () => null, OwnershipBadge: () => null, OwnershipFilterControl: () => null },
+    "@/components/ReplayTracking": { ReplayCountEditor: () => null },
     "@/components/PlayJournal": { PlayJournalBadges: () => null, PlayJournalEditor: () => null },
     "@/components/MicroReview": { MicroReview: () => null, MicroReviewEditor: () => null },
     "@/components/CommunityGameStats": { CommunityStatsReadout: () => null, CommunityRatingDistribution: () => null },

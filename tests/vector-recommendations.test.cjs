@@ -252,6 +252,7 @@ test("server entry resolves player identity and reads only that player's taste/o
   assert.deepEqual(await api.getVectorRecommendations(undefined, ["Seen"]), { excluded: ["Seen", "current-player dismissed"] });
   assert.deepEqual(calls[0].where, { userId: "current-player" });
   assert(!calls[0].select.notes); assert(!calls[0].select.passwordHash);
+  assert.equal(calls[0].select.playthroughCount, true);
   assert.deepEqual(await api.getVectorRecommendations("trusted-server-player"), { excluded: ["trusted-server-player dismissed"] });
   assert.deepEqual(calls[1].where, { userId: "trusted-server-player" });
   assert.deepEqual(profileCalls, ["current-player", "trusted-server-player"].map(id => ({ where: { id }, select: { featuredTrophyIds: true } })));

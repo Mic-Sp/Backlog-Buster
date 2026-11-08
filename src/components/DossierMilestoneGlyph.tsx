@@ -4,6 +4,9 @@ import type { Achievement } from "@/lib/achievements";
 export default function DossierMilestoneGlyph({ achievementKey, color = "#fcee0a" }: { achievementKey: Achievement["key"]; color?: string }) {
   let shape;
   switch (achievementKey) {
+    case "new-game-plus":
+      shape = <><path d="M20 8a9 9 0 1 0 1 7M20 2v6h-6" /><path d="M12 8v8m-4-4h8" /></>;
+      break;
     case "first-blood":
       shape = <><path d="m4 3 14 14M3 6l3-3m10 12 5 5m-5 0 4-4M20 3 6 17m12-14 3 3M8 15l-5 5m0-4 4 4" /></>;
       break;

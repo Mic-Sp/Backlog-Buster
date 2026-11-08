@@ -5,7 +5,7 @@ import type { CustomListData } from "@/lib/custom-list-types";
 const fields = [
   "title", "platform", "status", "wasFlatlined", "pinnedOrder", "backlogOrder", "lengthHours", "hoursPlayed", "difficulty",
   "earnedXp", "rating", "notes", "review", "reviewSpoiler", "genre", "franchise", "releaseYear", "chronologicalOrder", "coverUrl",
-  "startedAt", "completedAt", "ownershipType",
+  "startedAt", "completedAt", "ownershipType", "playthroughCount",
 ] as const;
 
 export function serializeLibraryBackup(games: (Omit<Pick<LibraryGame, typeof fields[number]>, "startedAt" | "completedAt"> & { startedAt?: Date | string | null; completedAt?: Date | string | null; backupCoverUrl?: string | null })[], format: "json" | "csv") {

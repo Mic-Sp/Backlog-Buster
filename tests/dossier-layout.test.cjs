@@ -92,3 +92,13 @@ test('both dossier SVG themes show short safe quotes and never embed spoiler tex
     }
   }
 });
+
+test('New Game+ has a replay glyph and both dossier themes retain replay counts in exported trophies', () => {
+  const achievement = { key: 'new-game-plus', title: 'New Game+', description: 'Complete a second playthrough of any gig.', icon: '⟳', unlocked: true, unlockedAt: '2026-01-01', xpAwarded: 300 };
+  for (const layoutMode of ['cyberpunk', 'fantasy']) {
+    const html = render({ layoutMode, data: { ...props.data, achievements: [achievement], trophies: props.data.trophies.map(game => ({ ...game, playthroughCount: 2 })) } });
+    assert(html.includes(layoutMode === 'fantasy' ? '2× CHRONICLED · NEW GAME+' : 'NG+ // 2× CLEARED'));
+    assert(html.includes(layoutMode === 'fantasy' ? 'The Eternal Return · New Game+' : 'New Game+'));
+    assert(html.includes('M20 8a9 9'), 'PNG-safe vector replay glyph');
+  }
+});

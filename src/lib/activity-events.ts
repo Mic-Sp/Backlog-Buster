@@ -3,12 +3,13 @@ import type { Prisma } from "@/generated/prisma/client";
 import type { ActivityPayload } from "@/lib/activity-types";
 import { normalizeMicroReview } from "@/lib/micro-review";
 import { resolvePlayJournal, type PlayJournalEdits } from "@/lib/play-journal";
+import { completedRuns, resolvePlaythroughCount } from "@/lib/playthroughs";
 
 export const activityGameSelect = {
   id: true, title: true, platform: true, status: true, rating: true,
   hoursPlayed: true, pinnedOrder: true, activityRevision: true,
   review: true, reviewSpoiler: true,
-  startedAt: true, completedAt: true,
+  startedAt: true, completedAt: true, playthroughCount: true,
 } as const;
 export type ActivityGame = Prisma.GameGetPayload<{ select: typeof activityGameSelect }>;
 type NewEvent = ActivityPayload & { deduplicationKey: string; gameId?: number; achievementId?: number };
@@ -35,6 +36,8 @@ export function safeActivityPayload(type: unknown, value: unknown): ActivityPayl
   }
   const platform = text(value.platform, 80);
   if (!platform) return null;
+  const clears = typeof value.playthroughCount === "number" && Number.isInteger(value.playthroughCount) &&
+    value.playthroughCount >= 1 && value.playthroughCount <= 99 ? { playthroughCount: value.playthroughCount } : {};
   // Missing/malformed flags fail closed. Started/imported events never carry reviews.
   let reviewFields = {};
   if (type === "rating_logged" || type === "game_completed" || type === "game_flatlined") {
@@ -48,7 +51,7 @@ export function safeActivityPayload(type: unknown, value: unknown): ActivityPayl
       ? { type, metadata: { title, platform, rating: value.rating, ...reviewFields } } : null;
   }
   return type === "game_started" || type === "game_completed" || type === "game_flatlined"
-    ? { type, metadata: { title, platform, ...reviewFields } } : null;
+    ? { type, metadata: { title, platform, ...reviewFields, ...(type === "game_completed" ? clears : {}) } } : null;
 }
 
 /** Must run in the source mutation's transaction. Duplicate deliveries never update old events. */
@@ -67,24 +70,34 @@ export async function appendActivityEvents(tx: Prisma.TransactionClient, actorId
 
 /** Read and compare under the owner's deck lock, then write state and events atomically. */
 export async function updateGameWithActivity(tx: Prisma.TransactionClient, actorId: string, before: ActivityGame, data: Prisma.GameUpdateInput) {
+  const status = typeof data.status === "string" ? data.status : before.status;
+  const playthroughCount = resolvePlaythroughCount(before, status, typeof data.playthroughCount === "number" ? data.playthroughCount : undefined);
+  const newClear = playthroughCount > completedRuns(before);
   const edits: PlayJournalEdits = {};
   for (const field of ["startedAt", "completedAt"] as const) {
     if (Object.hasOwn(data, field)) edits[field] = data[field] as Date | null;
   }
-  const journal = resolvePlayJournal(before, typeof data.status === "string" ? data.status : before.status, edits);
+  if (newClear && playthroughCount >= 2 && !Object.hasOwn(edits, "completedAt")) {
+    edits.completedAt = new Date(new Date().toISOString().slice(0, 10) + "T00:00:00Z");
+  }
+  const journal = resolvePlayJournal(before, status, edits);
   const reviewChanged = (Object.hasOwn(data, "review") && data.review !== (before.review ?? null)) ||
     (Object.hasOwn(data, "reviewSpoiler") && data.reviewSpoiler !== (before.reviewSpoiler ?? false));
-  const changed = reviewChanged || (typeof data.status === "string" && data.status !== before.status) ||
+  const changed = reviewChanged || playthroughCount !== completedRuns(before) || (typeof data.status === "string" && data.status !== before.status) ||
     (Object.hasOwn(data, "rating") && data.rating !== before.rating);
   const after = await tx.game.update({ where: { id: before.id, userId: actorId },
-    data: { ...data, ...journal, ...(changed ? { activityRevision: { increment: 1 } } : {}) }, select: activityGameSelect });
+    data: { ...data, ...journal, playthroughCount, ...(changed ? { activityRevision: { increment: 1 } } : {}) }, select: activityGameSelect });
   const events: NewEvent[] = [];
   const metadata = { title: after.title, platform: after.platform,
+    ...(after.playthroughCount > 0 ? { playthroughCount: after.playthroughCount } : {}),
     ...(after.review ? { review: after.review, reviewSpoiler: after.reviewSpoiler !== false } : {}) };
   const key = `game:${after.id}:${after.activityRevision}`;
   if (before.status !== after.status) {
     const type = after.status === "Playing" ? "game_started" : after.status === "Completed" ? "game_completed" : after.status === "Flatlined" ? "game_flatlined" : null;
     if (type) events.push({ type, metadata, gameId: after.id, deduplicationKey: `${key}:${type}` });
+  }
+  if (newClear && after.playthroughCount >= 2 && !events.some(event => event.type === "game_completed")) {
+    events.push({ type: "game_completed", metadata, gameId: after.id, deduplicationKey: `${key}:game_completed` });
   }
   // Clearing a rating (including a return to Backlog) stays quiet.
   if (after.rating !== null && after.rating !== before.rating) events.push({ type: "rating_logged",

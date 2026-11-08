@@ -25,6 +25,6 @@ export function PlayJournalEditor({ title, startedAt = "", completedAt = "", ori
       <label>Started<input type="date" name="startedAt" aria-label={`Start date for ${title}`} aria-describedby={`${id}-help`} defaultValue={startedAt?.slice(0, 10) ?? ""} min="0001-01-01" max="9999-12-31" /></label>
       <label>Completed<input type="date" name="completedAt" aria-label={`Completion date for ${title}`} aria-describedby={`${id}-help`} defaultValue={completedAt?.slice(0, 10) ?? ""} min="0001-01-01" max="9999-12-31" /></label>
     </div>
-    <small id={`${id}-help`}>Start and completion actions fill missing dates. You can backdate or clear either field. Changing status preserves recorded history. Unknown import dates stay blank.</small>
+    <small id={`${id}-help`}>Start and completion actions fill missing dates. You can backdate or clear either field. The start date stays fixed; additional clears update the latest completion date. Unknown import dates stay blank.</small>
   </fieldset>;
 }

@@ -24,7 +24,7 @@ export async function getVectorRecommendations(userId?: string, excludedTitles: 
   const [games, profile] = await Promise.all([
     prisma.game.findMany({ where: { userId }, select: {
       id: true, title: true, releaseYear: true, status: true, rating: true, pinnedOrder: true,
-      platform: true, franchise: true, earnedXp: true,
+      platform: true, franchise: true, earnedXp: true, playthroughCount: true,
     } }),
     prisma.player.findUnique({ where: { id: userId }, select: { featuredTrophyIds: true } }),
   ]);

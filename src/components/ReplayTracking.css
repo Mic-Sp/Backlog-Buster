@@ -1,0 +1,9 @@
+.replay-badge { display: inline-block; max-width: 100%; padding: .3rem .5rem; border: 1px solid #05ffa177; background: #05ffa10d; color: #72ffd1; font: 700 .65rem/1.5 var(--font-geist-mono, monospace); letter-spacing: .035em; overflow-wrap: anywhere; }
+.replay-badge[data-fantasy="true"] { color: #f6e4a6; border-color: #c1a357; background: #456747; border-radius: .35rem; }
+.replay-count-editor { display: grid; gap: .35rem; min-width: 0; margin-block: .65rem; font-size: .8rem; }
+.replay-count-editor input[type="number"] { box-sizing: border-box; width: 100%; min-width: 0; min-height: 40px; padding: .5rem; color: inherit; background: transparent; border: 1px solid currentColor; border-radius: .2rem; }
+.replay-count-editor small { opacity: .8; font-size: .7rem; }
+.replay-log-form { margin-block: .65rem; }
+.replay-log-button { max-width: 100%; min-height: 44px; padding: .65rem .85rem; color: #72ffd1; border: 1px solid #05ffa177; background: #05ffa10d; cursor: pointer; font: inherit; font-size: .75rem; overflow-wrap: anywhere; }
+.replay-log-button:disabled { opacity: .55; cursor: default; }
+[data-layout-mode="fantasy"] .replay-log-button { color: #f6e4a6; border-color: #c1a357; background: #355b45; border-radius: .35rem; }

@@ -7,7 +7,7 @@ import { safeAction, InputError } from "@/lib/action-result";
 import { validateGameForm } from "@/lib/form-validation";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { syncAndGetAchievements } from "@/lib/achievements";
+import { syncAndGetAchievements, syncAchievementsForPlayer } from "@/lib/achievements";
 import { getAuthenticatedPlayerId } from "@/lib/player";
 import { AdminRequiredError, requireAdmin } from "@/lib/admin";
 import { resolveRawgPlaytime } from "@/lib/game-playtime";
@@ -31,6 +31,7 @@ import { saveRecommendationDismissal } from "@/lib/recommendation-dismissals";
 import { readMicroReviewFields } from "@/lib/micro-review";
 import { readPlayJournalFields, resolvePlayJournal } from "@/lib/play-journal";
 import { readOwnershipField } from "@/lib/ownership-type";
+import { completedRuns, MAX_PLAYTHROUGHS, parsePlaythroughCount, readPlaythroughFields, resolvePlaythroughCount } from "@/lib/playthroughs";
 
 export async function dismissScoutRecommendation(title: string) {
   // This preference needs no route refresh: the client removes the card, and
@@ -263,7 +264,7 @@ function readProgressFields(formData: FormData) {
     }
     progress.rating = rating;
   }
-  return { ...progress, ...readMicroReviewFields(formData), ...readPlayJournalFields(formData), ...readOwnershipField(formData) };
+  return { ...progress, ...readMicroReviewFields(formData), ...readPlayJournalFields(formData), ...readOwnershipField(formData), ...readPlaythroughFields(formData) };
 }
 
 function optionalYear(value: string): number | null {
@@ -371,6 +372,7 @@ export async function createGame(formData: FormData) {
         title,
         platform: platform || lookup?.platforms[0] || "PC",
         status,
+        playthroughCount: resolvePlaythroughCount({}, status, readPlaythroughFields(formData).playthroughCount),
         wasFlatlined: status === "Flatlined",
         lengthHours,
         difficulty,
@@ -815,6 +817,25 @@ export async function completeGame(formData: FormData) {
     });
 
     await syncAndGetAchievements(userId);
+    revalidatePath("/");
+  });
+}
+
+/** Expected count makes repeated delivery and stale tabs harmless under the deck lock. */
+export async function logGameReplay(formData: FormData) {
+  return safeAction(async () => {
+    const id = Number(formData.get("id"));
+    const expected = parsePlaythroughCount(formData.get("expectedPlaythroughCount"));
+    if (!Number.isSafeInteger(id) || id < 1 || id > 2147483647) throw new InputError("Choose a valid game.");
+    const userId = await getAuthenticatedPlayerId();
+    await withDeckLock(userId, async tx => {
+      const game = await tx.game.findUniqueOrThrow({ where: { id, userId }, select: activityGameSelect });
+      if (game.status !== "Completed") throw new InputError("Finish this run before logging another clear.");
+      if (completedRuns(game) !== expected) throw new InputError("Your clear count changed. Refresh before logging another replay.");
+      if (expected >= MAX_PLAYTHROUGHS) throw new InputError("Completed runs are limited to 99.");
+      await updateGameWithActivity(tx, userId, game, { playthroughCount: expected + 1 });
+      await syncAchievementsForPlayer(tx, userId);
+    });
     revalidatePath("/");
   });
 }

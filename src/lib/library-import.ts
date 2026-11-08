@@ -3,6 +3,7 @@ import { isUnreleasedYear } from "@/lib/game-release";
 import { normalizeMicroReview } from "@/lib/micro-review";
 import { importJournalDate, validateJournalDates } from "@/lib/play-journal";
 import { defaultOwnershipType } from "@/lib/ownership-type";
+import { parsePlaythroughCount, completedRuns } from "@/lib/playthroughs";
 import { MAX_CUSTOM_LISTS, MAX_LIST_GAMES, validateListDetails, type CustomListDetails } from "@/lib/custom-list-types";
 
 export const MAX_IMPORT_BYTES = 500000;
@@ -53,6 +54,8 @@ export function sanitizeImportedGame(value: unknown) {
   const platform = text(game.platform, 80) ?? "PC";
   const candidate = typeof game.status === "string" ? game.status.trim().toLowerCase() : "";
   const status = ["Backlog", "Playing", "Completed", "Flatlined"].find(status => status.toLowerCase() === candidate) ?? "Backlog";
+  const playthroughCount = completedRuns({ status, playthroughCount: game.playthroughCount == null || game.playthroughCount === ""
+    ? undefined : parsePlaythroughCount(game.playthroughCount) });
   const lengthHours = integer(game.lengthHours, 1, 10000, 10);
   const difficulty = integer(game.difficulty, 1, 3, 2);
   const releaseYear = optionalInteger(game.releaseYear, 1800, 2100);
@@ -65,7 +68,7 @@ export function sanitizeImportedGame(value: unknown) {
   }
   // Deliberate allowlist: uploaded primary keys, account ownership and XP are never trusted.
   return {
-    title, platform, status, lengthHours, difficulty,
+    title, platform, status, lengthHours, difficulty, playthroughCount,
     ownershipType: defaultOwnershipType(game.ownershipType, game.steamAppId),
     hoursPlayed: integer(game.hoursPlayed, 0, 10000, 0),
     earnedXp: status === "Completed" ? lengthHours * difficulty * 10 : 0,

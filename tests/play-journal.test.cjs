@@ -46,11 +46,12 @@ test('backdating, clearing and partial date edits persist without emitting activ
   assert.equal(f.games[0].completedAt, null, 'ordinary edits must not refill deliberately cleared or unknown dates');
 });
 
-test('returning to Backlog, replaying and flatlining retain dates; explicit clears override automatic stamping', async () => {
+test('status changes preserve the start and last clear until another completion; explicit dates override stamping', async () => {
   const f = fixture({ games: [game(1, { status: 'Completed', startedAt: date('2020-01-01'), completedAt: date('2020-02-01') })] });
   for (const status of ['Backlog', 'Playing', 'Flatlined', 'Completed']) {
     const result = await f.actions.updateGame(edit({ status })); assert(!result.error, result.error);
-    assert.equal(day(f.games[0].startedAt), '2020-01-01'); assert.equal(day(f.games[0].completedAt), '2020-02-01');
+    assert.equal(day(f.games[0].startedAt), '2020-01-01');
+    assert.equal(day(f.games[0].completedAt), status === 'Completed' ? new Date().toISOString().slice(0, 10) : '2020-02-01');
   }
   const clear = fixture(); await clear.actions.startGame(edit({ startedAt: '' })); assert.equal(clear.games[0].startedAt, null);
   await clear.actions.completeGame(edit({ completedAt: '' })); assert.equal(clear.games[0].completedAt, null);

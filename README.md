@@ -42,12 +42,16 @@ Enable the catalog's vector type before pushing the Prisma schema:
 npx prisma db execute --file prisma/game-catalog.sql
 npx prisma db execute --file prisma/catalog-vectors.sql
 npx prisma db push
+npx prisma db execute --file prisma/playthrough-backfill.sql
 npx prisma db execute --file prisma/friendship-constraints.sql
 npx prisma db execute --file prisma/activity-event-constraints.sql
 npx prisma generate
 ```
 
 The additive SQL scripts can be rerun; they preserve existing library/catalog rows.
+The playthrough backfill sets legacy Completed games to one clear, leaves journal dates
+and activity untouched, and enforces counts from 0–99 (Completed requires at least 1).
+Restart a running development server after regenerating the Prisma client.
 The friendship CHECK constraints enforce sorted, distinct player pairs and valid
 request/block states. Reapply `friendship-constraints.sql` after each schema sync.
 `vector` must be available on the PostgreSQL server. Prisma 7 represents the optional
@@ -94,6 +98,25 @@ Missing/stale vectors and ambiguous title/year
 matches are skipped; duplicate platform copies count once. Unrated completions alone
 do not establish a positive taste profile unless explicitly pinned in the Hall of Fame.
 No player profile vectors are persisted.
+
+Multiple clears add a fixed **1.15×** positive-anchor weight bonus, compounded with
+the Hall of Fame multiplier. Low-rated games still follow the normal negative-feedback
+rules unless explicitly selected as a Hall of Fame favorite.
+
+Replay tracking keeps lifetime completed runs separate from current status. In the Trophy
+Room or Fantasy quest inspection, **Log Replay / +1 Clear** records an additional clear
+without changing the start date, rating, review or base completion XP. The normal status
+editor can move a completed title to Playing for another run; completing it increments
+the count once and updates the latest completion date. Repeated Complete submissions do
+not increment again. Counts can also be corrected in the game or metadata editor (0–99;
+Completed games retain at least one clear). Explicit journal edits take precedence.
+
+The twelfth milestone, **New Game+** / **The Eternal Return · New Game+**, unlocks at
+two clears on any title and awards 300 XP once. Standard milestones still count distinct
+games, not clears. Multi-clear badges appear in both library themes and private/public
+dossier trophies, including exported cards. Completion activity snapshots carry the clear
+count without publishing private notes. JSON and CSV backups retain counts; older backups
+default Completed to one and other statuses to zero, without inventing completion dates.
 
 Retrieval uses pgvector cosine distance, the current feature-vector version, released
 years, and normalized ownership/recent-history exclusions before SQL's result limit.

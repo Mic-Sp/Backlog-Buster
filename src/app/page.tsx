@@ -45,7 +45,7 @@ async function PlayerSummary({ player }: { player: CurrentPlayer }) {
   const [games, achievements, profile] = await Promise.all([
     prisma.game.findMany({
       where: { userId: player.id },
-      select: { id: true, title: true, platform: true, genre: true, coverUrl: true, rating: true, review: true, reviewSpoiler: true, earnedXp: true, status: true, lengthHours: true, hoursPlayed: true },
+      select: { id: true, title: true, platform: true, genre: true, coverUrl: true, rating: true, playthroughCount: true, review: true, reviewSpoiler: true, earnedXp: true, status: true, lengthHours: true, hoursPlayed: true },
     }),
     getPageAchievements(player.id),
     getCurrentPlayerProfile(),
@@ -68,7 +68,7 @@ async function PlayerSummary({ player }: { player: CurrentPlayer }) {
   const telemetry = calculateLibraryTelemetry(games);
   const trophies = games.filter((game) => game.status === "Completed" && game.rating === 5)
     .sort((left, right) => right.earnedXp - left.earnedXp || left.title.localeCompare(right.title) || left.id - right.id)
-    .map((game) => ({ id: game.id, title: game.title, platform: game.platform, coverUrl: game.coverUrl ? resizeRawgImageUrl(game.coverUrl) : null, earnedXp: game.earnedXp, review: game.review, reviewSpoiler: game.reviewSpoiler }));
+    .map((game) => ({ id: game.id, title: game.title, platform: game.platform, coverUrl: game.coverUrl ? resizeRawgImageUrl(game.coverUrl) : null, earnedXp: game.earnedXp, playthroughCount: game.playthroughCount, review: game.review, reviewSpoiler: game.reviewSpoiler }));
 
   return (
     <WorkspaceSection sectionKey="player-stats" className="player-stats-shell" headingLevel={2} label="player stats" title={<LayoutText cyberpunk="Operator stats" fantasy="The Hero’s Record" />}
@@ -135,7 +135,7 @@ async function PlayerSummary({ player }: { player: CurrentPlayer }) {
           counts: { Backlog: backlogCount, Playing: playingCount, Completed: completedCount, Flatlined: flatlinedCount },
           activeHours: telemetry.activeHours, completionRate: telemetry.completionRate, avgRating: telemetry.avgRating,
           achievements, trophies,
-          showcaseGames: games.map(game => ({ id: game.id, title: game.title, platform: game.platform, earnedXp: game.earnedXp, review: game.review, reviewSpoiler: game.reviewSpoiler, coverUrl: game.coverUrl ? resizeRawgImageUrl(game.coverUrl) : null })),
+          showcaseGames: games.map(game => ({ id: game.id, title: game.title, platform: game.platform, earnedXp: game.earnedXp, playthroughCount: game.playthroughCount, review: game.review, reviewSpoiler: game.reviewSpoiler, coverUrl: game.coverUrl ? resizeRawgImageUrl(game.coverUrl) : null })),
         }} />
       </div>
     </section>
@@ -186,6 +186,7 @@ async function SavedGames({ userId, isAdmin, socialEnabled }: { userId: string; 
     platform: game.platform,
     ownershipType: game.ownershipType,
     status: game.status,
+    playthroughCount: game.playthroughCount,
     wasFlatlined: game.wasFlatlined,
     pinnedOrder: game.pinnedOrder,
     backlogOrder: game.backlogOrder,

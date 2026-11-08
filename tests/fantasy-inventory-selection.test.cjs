@@ -27,6 +27,8 @@ function fixture(selectedGameId = null) {
     "@/components/ThemeProvider": { useUIEffects: () => ({ playSfx: sound => sounds.push(sound) }) },
     "@/components/SagaChains": { SagaBadge: empty, SagaOrderControls: empty },
     "@/components/Ownership": { OwnershipField: () => null, OwnershipBadge: () => null, OwnershipFilterControl: () => null },
+    "@/components/ReplayTracking": { ReplayBadge: empty, ReplayCountEditor: empty, ReplayLogForm: empty },
+    "@/lib/achievement-persona": { achievementPersona: a => a },
     "@/components/PlayJournal": { PlayJournalBadges: () => null, PlayJournalEditor: () => null },
     "@/components/MicroReview": { MicroReview: () => null, MicroReviewEditor: () => null },
     "@/components/CommunityGameStats": { CommunityStatsReadout: empty },

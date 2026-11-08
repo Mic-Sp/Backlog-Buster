@@ -1,5 +1,6 @@
 "use client";
 
+import { replayLabel } from "@/lib/playthroughs";
 import { dossierReviewQuote } from "@/lib/micro-review";
 
 import { useId, type Ref } from "react";
@@ -123,6 +124,7 @@ function CyberpunkIdCard({ data, identity, timestamp, artwork, cardRef, artworkL
                   <text x={x + 154} y="500" textAnchor="middle" fontSize="11" fill="#91a4b9">{game.coverUrl ? artworkLoading ? "SYNCING ARTWORK…" : "ARTWORK OFFLINE" : "NO COVER ON FILE"}</text>
                 </>}
                 <text x={x + 12} y="539" fontSize="14" fontWeight="700" fill="#f5f7e8">{dossierTitleLines(game.title).map((line, lineIndex) => <tspan key={lineIndex} x={x + 12} dy={lineIndex === 0 ? 0 : 18}>{line}</tspan>)}</text>
+                {(game.playthroughCount ?? 0) > 1 && <text x={x + 12} y="470" fontSize="10" fontWeight="700" fill="#72ffd1" stroke="#080d16" strokeWidth="3" paintOrder="stroke">{replayLabel(game.playthroughCount!, false)}</text>}
                 {dossierReviewQuote(game) && <text x={x + 12} y="580" fontSize="10" fill="#b8d3d8">{dossierReviewQuote(game)}</text>}
                 <text x={x + 12} y="602" fontSize={slot?.pinned ? "11" : "16"} fill="#fcee0a">{slot?.pinned ? "★ FAVORITE" : "★★★★★"}</text>
                 <text x={x + 296} y="602" textAnchor="end" fontSize="15" fontWeight="700" fill="#fcee0a">+{game.earnedXp.toLocaleString("en-US")} XP</text>

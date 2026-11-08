@@ -40,7 +40,7 @@ test('play journal date inputs preserve blank/known values and badges use stable
   const editor = render(PlayJournalEditor, { title: 'Quest', startedAt: '2020-02-29', completedAt: '', originalStartedAt: '2020-02-29' });
   assert(editor.includes('type="date"')); assert(editor.includes('value="2020-02-29"'));
   assert(editor.includes('name="startedAtOriginal"')); assert(editor.includes('Completion date for Quest'));
-  assert(editor.includes('Changing status preserves recorded history'));
+  assert(editor.includes('additional clears update the latest completion date'));
   const badges = render(PlayJournalBadges, { startedAt: '2020-02-29', completedAt: '2020-03-01' });
   assert(badges.includes('Feb 29, 2020')); assert(badges.includes('Mar 1, 2020'));
   assert.equal(render(PlayJournalBadges, {}), '');

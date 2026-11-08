@@ -158,7 +158,9 @@ function ActivityEntry({ item }: { item: FriendActivity }) {
   let description: string;
   switch (item.type) {
     case "game_started": description = `started ${item.metadata.title}`; break;
-    case "game_completed": description = `completed ${item.metadata.title}`; break;
+    case "game_completed": description = (item.metadata.playthroughCount ?? 0) >= 2
+      ? `${copy("logged a New Game+ clear of", "chronicled another journey through")} ${item.metadata.title} (${item.metadata.playthroughCount}× ${copy("cleared", "chronicled")})`
+      : `completed ${item.metadata.title}`; break;
     case "game_flatlined": description = `${copy("shelved", "set aside")} ${item.metadata.title}`; break;
     case "rating_logged": description = `rated ${item.metadata.title} ${item.metadata.rating}/5`; break;
     case "achievement_unlocked": description = `unlocked ${item.metadata.title}`; break;

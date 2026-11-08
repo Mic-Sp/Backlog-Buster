@@ -6,6 +6,7 @@ import { buildSagaChains } from "@/lib/sagas";
 import { isReleasedYear } from "@/lib/game-release";
 import type { Prisma } from "@/generated/prisma/client";
 import { appendActivityEvents } from "@/lib/activity-events";
+import { completedRuns } from "@/lib/playthroughs";
 
 export const achievementDefinitions = [
   { key: "first-blood", title: "First Blood", description: "Complete your first gig.", icon: "⚔", xpBonus: 100, target: 1 },
@@ -19,6 +20,7 @@ export const achievementDefinitions = [
   { key: "cyberware-critic", title: "Cyberware Critic", description: "Log a star rating on 5 completed gigs.", icon: "⭐", xpBonus: 350, target: 5 },
   { key: "second-heart", title: "Second Heart", description: "Revive a Flatlined gig and see it through to completion.", icon: "⚡", xpBonus: 400, target: 1 },
   { key: "saga-completionist", title: "Saga Completionist", description: "Complete every game in a multi-game Saga Chain (minimum 2 games in the saga).", icon: "⛓️", xpBonus: 500, target: 1 },
+  { key: "new-game-plus", title: "New Game+", description: "Complete a second playthrough of any gig.", icon: "⟳", xpBonus: 300, target: 2 },
 ] as const;
 
 export type Achievement = {
@@ -39,7 +41,7 @@ export async function syncAchievementsForPlayer(tx: Prisma.TransactionClient, us
   const [games, existing] = await Promise.all([
     tx.game.findMany({
       where: { userId },
-      select: { id: true, title: true, franchise: true, releaseYear: true, status: true, wasFlatlined: true, lengthHours: true, hoursPlayed: true, difficulty: true, platform: true, genre: true, rating: true },
+      select: { id: true, title: true, franchise: true, releaseYear: true, status: true, playthroughCount: true, wasFlatlined: true, lengthHours: true, hoursPlayed: true, difficulty: true, platform: true, genre: true, rating: true },
     }),
     tx.userAchievement.findMany({ where: { userId } }),
   ]);
@@ -71,6 +73,7 @@ export async function syncAchievementsForPlayer(tx: Prisma.TransactionClient, us
     "cyberware-critic": completed.filter((game) => typeof game.rating === "number" && game.rating >= 1 && game.rating <= 5).length,
     "second-heart": completed.filter((game) => game.wasFlatlined).length,
     "saga-completionist": completedSagaCount,
+    "new-game-plus": Math.max(0, ...games.map(completedRuns)),
   };
   const owned = new Set(existing.map((achievement) => achievement.achievementKey));
   const newlyEligible = achievementDefinitions.filter((definition) =>

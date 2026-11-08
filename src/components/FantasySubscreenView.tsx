@@ -1,5 +1,8 @@
 "use client";
 
+import { ReplayBadge, ReplayCountEditor, ReplayLogForm } from "@/components/ReplayTracking";
+import { achievementPersona } from "@/lib/achievement-persona";
+
 import WorkspaceSection from "@/components/WorkspaceSection";
 import CustomLists from "@/components/CustomLists";
 
@@ -83,7 +86,7 @@ export default function FantasySubscreenView({ controller: c }: { controller: Ga
       <WorkspaceSection sectionKey="medallions" className="fantasy-medallions" headingId="fantasy-medallions-title" label="sage medallions" title="Sage Medallions" eyebrow="TOKENS OF YOUR TRAVELS"
         summary={<span className="workspace-section-count">{unlocked.length} / {c.achievements.length} awakened</span>}>
         {c.achievements.length ? <ul className="fantasy-medallion-grid">{c.achievements.map((achievement, index) => <li key={achievement.key} data-unlocked={achievement.unlocked} style={{ "--medallion-hue": `${index * 47 % 360}` } as CSSProperties}>
-          <span className="fantasy-medallion" aria-hidden="true">{achievement.unlocked ? achievement.icon : "◇"}</span><h4>{achievement.title}</h4><p>{achievement.description}</p><small>{achievement.unlocked ? `Awakened · +${achievement.xpAwarded} XP` : `${achievement.current} / ${achievement.target} · sleeping`}</small>
+          <span className="fantasy-medallion" aria-hidden="true">{achievement.unlocked ? achievementPersona(achievement, true).icon : "◇"}</span><h4>{achievementPersona(achievement, true).title}</h4><p>{achievementPersona(achievement, true).description}</p><small>{achievement.unlocked ? `Awakened · +${achievement.xpAwarded} XP` : `${achievement.current} / ${achievement.target} · sleeping`}</small>
         </li>)}</ul> : <p className="fantasy-hint">Your first medallion awaits. Complete quests to awaken your collection.</p>}
       </WorkspaceSection>
       <FantasyEquipmentDeck deck={c.deck} />
@@ -122,7 +125,7 @@ export default function FantasySubscreenView({ controller: c }: { controller: Ga
               <img src={game.coverUrl} alt="" loading="lazy" decoding="async" width={160} height={160} draggable={false} /> : <span className="fantasy-item-icon" aria-hidden="true">{game.status === "Completed" ? "♜" : game.status === "Flatlined" ? "☠" : "⚔"}</span>}
             <span className="fantasy-slot-title">{game.title}</span><span className="fantasy-slot-status">{game.pinnedOrder !== null ? `C ${game.pinnedOrder} · Equipped` : game.status === "Playing" ? "Active quest" : game.status === "Backlog" && !c.canDragToDeck(game) ? "Sealed · Unreleased" : game.status}</span>
             <QuestRating rating={game.rating} />
-            <OwnershipBadge value={game.ownershipType} />
+            <OwnershipBadge value={game.ownershipType} /><ReplayBadge count={game.playthroughCount} fantasy />
           </button>
           {c.canDragToDeck(game) && <span className="fantasy-inventory-quick-pin" onClick={event => event.stopPropagation()} onFocus={() => previewGame(game)}>
             <DeckPinButton gameId={game.id} pinnedOrder={game.pinnedOrder} pinnedCount={c.pinnedCount} releaseYear={game.releaseYear} disabled={c.rowReorderBusy} />
@@ -176,7 +179,7 @@ function FantasyQuestDialogue({ controller: c, game, onSelectSaga }: { controlle
   const draft = c.getGameDraft(game);
   const saga = c.byGameId.get(game.id);
   return <section className="fantasy-dialogue" aria-label={`Quest details for ${game.title}`}>
-    <OwnershipBadge value={game.ownershipType} />
+    <OwnershipBadge value={game.ownershipType} /><ReplayBadge count={game.playthroughCount} fantasy />
     <PlayJournalBadges startedAt={game.startedAt} completedAt={game.completedAt} />
     <MicroReview review={game.review} reviewSpoiler={game.reviewSpoiler} />
     <div className="fantasy-dialogue-heading"><span className="fantasy-dialogue-gem" aria-hidden="true">◆</span><div><p className="fantasy-kicker">YOU FOUND A QUEST</p><h4>{game.title}</h4><p>{game.platform} · {game.genre?.trim() || "Unknown discipline"} · {game.releaseYear ?? "Year unknown"} · {game.status === "Flatlined" ? "Abandoned" : game.status}</p></div><QuestRating rating={game.rating} /></div>
@@ -185,6 +188,7 @@ function FantasyQuestDialogue({ controller: c, game, onSelectSaga }: { controlle
     {saga && <SagaBadge saga={saga} onSelect={onSelectSaga} />}
     <QuestReorderControls controller={c} game={game} />
     {game.status === "Playing" && <div className="fantasy-session-log"><span>Record your journey</span><button type="button" disabled={c.isLogging} onClick={() => c.logSession(game.id, 1)}>+1H</button><button type="button" disabled={c.isLogging} onClick={() => c.logSession(game.id, 2)}>+2H</button>{c.sessionError?.gameId === game.id && <p role="alert">{c.sessionError.message}</p>}</div>}
+    <ReplayLogForm game={game} />
     <SafeForm className="fantasy-quest-editor" action={c.actions.updateGame} data-game-editor-id={game.id}>
       <input type="hidden" name="id" value={game.id} />
       <div className="fantasy-editor-fields">
@@ -194,6 +198,7 @@ function FantasyQuestDialogue({ controller: c, game, onSelectSaga }: { controlle
         <label>Difficulty<select name="difficulty" defaultValue={draft.difficulty} aria-label={`Difficulty for ${game.title}`}><option value="1">1 · Easy</option><option value="2">2 · Medium</option><option value="3">3 · Tough</option></select></label>
       </div>
       <StarRatingInput glyph="heart" defaultValue={draft.rating === "" ? null : Number(draft.rating)} label={`Rating for ${game.title}`} onChange={rating => c.setGameDraftRating(game, rating)} />
+      <ReplayCountEditor game={game} value={draft.playthroughCount} />
       <OwnershipField title={game.title} value={draft.ownershipType} />
       <PlayJournalEditor title={game.title} startedAt={draft.startedAt} completedAt={draft.completedAt} originalStartedAt={game.startedAt?.slice(0, 10)} originalCompletedAt={game.completedAt?.slice(0, 10)} />
       <MicroReviewEditor title={game.title} review={draft.review} reviewSpoiler={draft.reviewSpoiler === "true"} />

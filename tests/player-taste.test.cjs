@@ -94,6 +94,21 @@ test("anchor cap is deterministic under library/catalog reordering, with missing
 
 const dot = (a, b) => a.reduce((sum, value, index) => sum + value * b[index], 0);
 
+test("multiple clears modestly boost positive taste weight and compound with the Hall of Fame multiplier", () => {
+  const rows = [row(1), row(2)], games = [game(1), game(2)];
+  const before = taste.buildPlayerTasteProfile(games, rows);
+  const replayed = [{ ...games[0], playthroughCount: 2 }, games[1]];
+  const after = taste.buildPlayerTasteProfile(replayed, rows);
+  assert.equal(after.anchors[0].weight, 2 * 1.15);
+  assert(dot(after.values, vector(1)) > dot(before.values, vector(1)));
+  assert(Math.abs(after.values[1] / after.values[2] - 1.15) < 1e-12);
+  const both = taste.buildPlayerTasteProfile(replayed, rows, [], rows, [1]);
+  assert.equal(both.anchors[0].weight, 2 * 1.35 * 1.15);
+  assert.deepEqual(after, taste.buildPlayerTasteProfile([{ ...games[0], playthroughCount: 99 }, games[1]], rows), "Replay affinity is a fixed bonus, not linear XP or taste farming");
+  const negative = taste.buildPlayerTasteProfile([game(1, { rating: 1, playthroughCount: 2 })], rows);
+  assert.equal(negative.anchors.length, 0, "Replay count does not override explicit low-rating feedback");
+});
+
 test("Hall of Fame pin multiplies rating weight and rotates the normalized centroid toward that favorite", () => {
   const games = [game(1), game(2, { rating: 4 })], rows = [row(1), row(2, { genre: "Puzzle", estimatedHours: 10 })];
   const before = taste.buildPlayerTasteProfile(games, rows);

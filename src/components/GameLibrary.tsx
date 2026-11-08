@@ -37,6 +37,7 @@ export type LibraryGame = {
   platform: string;
   ownershipType: OwnershipType | null;
   status: string;
+  playthroughCount: number;
   wasFlatlined: boolean;
   pinnedOrder: number | null;
   backlogOrder: number | null;

@@ -20,6 +20,7 @@ import SagaChains, { SagaBadge, SagaOrderControls } from "@/components/SagaChain
 import { SagaChronologyDebuggerView } from "@/components/SagaChronologyDebugger";
 import StarRatingInput from "@/components/StarRatingInput";
 import { TacticalAdvisorView } from "@/components/TacticalAdvisor";
+import { ReplayBadge, ReplayCountEditor, ReplayLogForm } from "@/components/ReplayTracking";
 import TrophyRatingEditor from "@/components/TrophyRatingEditor";
 import { UpNextDeckView } from "@/components/UpNextDeck";
 import { isUnreleasedYear } from "@/lib/game-release";
@@ -197,6 +198,7 @@ export default function CyberpunkLibraryView({ controller }: { controller: GameL
             <StarRatingInput defaultValue={controller.getGameDraft(game).rating === "" ? null : Number(controller.getGameDraft(game).rating)} onChange={rating => controller.setGameDraftRating(game, rating)} label={`Rating for ${game.title}`} />
           </div>
         </div>
+        <ReplayCountEditor game={game} value={controller.getGameDraft(game).playthroughCount} />
         <OwnershipField title={game.title} value={controller.getGameDraft(game).ownershipType} />
         <PlayJournalEditor title={game.title} startedAt={controller.getGameDraft(game).startedAt} completedAt={controller.getGameDraft(game).completedAt} originalStartedAt={game.startedAt?.slice(0, 10)} originalCompletedAt={game.completedAt?.slice(0, 10)} />
         <MicroReviewEditor title={game.title} review={controller.getGameDraft(game).review} reviewSpoiler={controller.getGameDraft(game).reviewSpoiler === "true"} />
@@ -426,6 +428,7 @@ export default function CyberpunkLibraryView({ controller }: { controller: GameL
                   </div>
                   {game.status === "Playing" && <AgentBriefing game={game} />}
                   <OwnershipBadge value={game.ownershipType} />
+                  <ReplayBadge count={game.playthroughCount} />
                   <PlayJournalBadges startedAt={game.startedAt} completedAt={game.completedAt} />
                   <MicroReview review={game.review} reviewSpoiler={game.reviewSpoiler} />
                   {renderCardControls(game)}
@@ -461,9 +464,11 @@ export default function CyberpunkLibraryView({ controller }: { controller: GameL
                   )}
                   <p className="trophy-reward">+{game.earnedXp.toLocaleString()} XP</p>
                   <OwnershipBadge value={game.ownershipType} />
+                  <ReplayBadge count={game.playthroughCount} />
                   <PlayJournalBadges startedAt={game.startedAt} completedAt={game.completedAt} />
                   <MicroReview review={game.review} reviewSpoiler={game.reviewSpoiler} />
                   <TrophyRatingEditor game={game} />
+                  <ReplayLogForm game={game} />
                   <details className="trophy-edit-drawer">
                     <summary>Manage Record</summary>
                     <SafeForm action={controller.actions.updateGame}
@@ -549,8 +554,10 @@ export default function CyberpunkLibraryView({ controller }: { controller: GameL
                       <span className="game-title-heading"><strong title={game.title}>{game.title}</strong>{renderTimelinePill(game)}</span>
                       <CommunityStatsReadout game={game} />
                       <OwnershipBadge value={game.ownershipType} />
+                      <ReplayBadge count={game.playthroughCount} />
                       <PlayJournalBadges startedAt={game.startedAt} completedAt={game.completedAt} />
                       <MicroReview review={game.review} reviewSpoiler={game.reviewSpoiler} />
+                      <ReplayCountEditor game={game} value={controller.getGameDraft(game).playthroughCount} />
                       <MicroReviewEditor title={game.title} review={controller.getGameDraft(game).review} reviewSpoiler={controller.getGameDraft(game).reviewSpoiler === "true"} />
                       <span className="game-title-actions">
                         {(game.status === "Backlog" || game.status === "Flatlined") && (

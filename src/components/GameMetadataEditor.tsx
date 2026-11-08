@@ -1,5 +1,6 @@
 "use client";
 
+import { ReplayCountEditor } from "@/components/ReplayTracking";
 import { PlayJournalEditor } from "@/components/PlayJournal";
 import { MicroReviewEditor } from "@/components/MicroReview";
 import { OwnershipField } from "@/components/Ownership";
@@ -102,7 +103,7 @@ export default function GameMetadataEditor({ controller }: { controller: GameLib
             ref={metadataModalRef}
             action={controller.actions.updateGame}
             onSuccess={closeMetadata}
-            key={`${editingMetaGame.id}-${editingMetaGame.status}-${editingMetaGame.lengthHours}-${editingMetaGame.difficulty}-${editingMetaGame.title}-${editingMetaGame.platform}-${editingMetaGame.genre ?? ""}-${editingMetaGame.releaseYear ?? ""}-${editingMetaGame.coverUrl ?? ""}-${editingMetaGame.hoursPlayed}-${editingMetaGame.notes ?? ""}-${editingMetaGame.rating ?? ""}-${editingMetaGame.franchise ?? ""}-${editingMetaGame.chronologicalOrder ?? ""}`}
+            key={`${editingMetaGame.id}-${editingMetaGame.status}-${editingMetaGame.lengthHours}-${editingMetaGame.difficulty}-${editingMetaGame.title}-${editingMetaGame.platform}-${editingMetaGame.genre ?? ""}-${editingMetaGame.releaseYear ?? ""}-${editingMetaGame.coverUrl ?? ""}-${editingMetaGame.hoursPlayed}-${editingMetaGame.notes ?? ""}-${editingMetaGame.rating ?? ""}-${editingMetaGame.franchise ?? ""}-${editingMetaGame.chronologicalOrder ?? ""}-${editingMetaGame.playthroughCount}`}
           >
             <FantasyCorners />
             <p className="eyebrow">{copy("RECORD // METADATA EDITOR", "THE SCRIBE’S DESK · QUEST DETAILS")}</p>
@@ -116,6 +117,7 @@ export default function GameMetadataEditor({ controller }: { controller: GameLib
               <CommunityRatingDistribution game={editingMetaGame} />
             </div>
             <MetadataFields game={editingMetaGame} formRef={metadataModalRef} />
+            <ReplayCountEditor game={editingMetaGame} />
             <PlayJournalEditor title={editingMetaGame.title} startedAt={editingMetaGame.startedAt} completedAt={editingMetaGame.completedAt} originalStartedAt={editingMetaGame.startedAt?.slice(0, 10)} originalCompletedAt={editingMetaGame.completedAt?.slice(0, 10)} />
             <MicroReviewEditor title={editingMetaGame.title} review={editingMetaGame.review} reviewSpoiler={editingMetaGame.reviewSpoiler} />
             <div className="metadata-modal-actions">

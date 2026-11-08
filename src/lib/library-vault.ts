@@ -38,7 +38,7 @@ export async function getLibraryExport(format: "json" | "csv") {
       title: true, platform: true, status: true, wasFlatlined: true, pinnedOrder: true, backlogOrder: true,
       lengthHours: true, hoursPlayed: true, difficulty: true, earnedXp: true, rating: true, notes: true, review: true, reviewSpoiler: true,
       genre: true, franchise: true, releaseYear: true, chronologicalOrder: true, coverUrl: true,
-      startedAt: true, completedAt: true,
+      startedAt: true, completedAt: true, playthroughCount: true,
       ownershipType: true,
     },
   });

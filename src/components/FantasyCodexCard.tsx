@@ -1,5 +1,7 @@
 "use client";
 
+import { replayLabel } from "@/lib/playthroughs";
+import { achievementPersona } from "@/lib/achievement-persona";
 import { dossierReviewQuote } from "@/lib/micro-review";
 
 import { useId } from "react";
@@ -67,7 +69,7 @@ export default function FantasyCodexCard({ data, identity, timestamp, artwork, c
       <text x="32" y="378" fontSize="14" fontWeight="700" fill={accent}>SAGE MEDALLIONS</text>
       <text x="968" y="378" textAnchor="end" fontSize="12" fill="#75612f">{unlocked.length} / {data.achievements.length} AWAKENED</text>
       {unlocked.map((achievement, index) => <g key={achievement.key} transform={`translate(${32 + index * 42} 389)`}>
-        <title>{`${achievement.title} · +${achievement.xpAwarded} XP`}</title>
+        <title>{`${achievementPersona(achievement, true).title} · +${achievement.xpAwarded} XP`}</title>
         <circle cx="16" cy="16" r="16" fill="#356149" stroke="#b99b4e" strokeWidth="2" />
         <DossierMilestoneGlyph achievementKey={achievement.key} color="#e5cc82" />
       </g>)}
@@ -84,7 +86,8 @@ export default function FantasyCodexCard({ data, identity, timestamp, artwork, c
             {cover ? <image href={cover} x={x} y="454" width="308" height="64" preserveAspectRatio="xMidYMid slice" clipPath={`url(#${prefix}-cover-${index})`} />
               : <text x={x + 154} y="501" textAnchor="middle" fontSize="12" fill="#d2d8bd">{game.coverUrl ? artworkLoading ? "UNFURLING ARTWORK…" : "ARTWORK UNAVAILABLE" : "NO QUEST ARTWORK"}</text>}
             <text x={x + 12} y="539" fontSize="14" fontWeight="700" fill="#f4e6b9">{dossierTitleLines(game.title).map((line, lineIndex) => <tspan key={lineIndex} x={x + 12} dy={lineIndex === 0 ? 0 : 18}>{line}</tspan>)}</text>
-            {dossierReviewQuote(game) && <text x={x + 12} y="580" fontSize="10" fill="#e0d5ad">{dossierReviewQuote(game)}</text>}
+            {(game.playthroughCount ?? 0) > 1 && <text x={x + 12} y="470" fontSize="10" fontWeight="700" fill="#e8d69d" stroke="#294b40" strokeWidth="3" paintOrder="stroke">{replayLabel(game.playthroughCount!, true)}</text>}
+                {dossierReviewQuote(game) && <text x={x + 12} y="580" fontSize="10" fill="#e0d5ad">{dossierReviewQuote(game)}</text>}
             <text x={x + 12} y="602" fontSize={slot?.pinned ? "12" : "17"} fill="#f08086">{slot?.pinned ? "♥ FAVORITE" : "♥♥♥♥♥"}</text>
             <text x={x + 296} y="602" textAnchor="end" fontSize="15" fill="#ebd897">+{game.earnedXp.toLocaleString("en-US")} XP</text>
           </> : <>

@@ -1,14 +1,16 @@
 import { buildCatalogVector, CATALOG_VECTOR_DIMENSIONS, CATALOG_VECTOR_VERSION, normalizeFeatureList, normalizeVector } from "@/lib/catalog-vector";
 import { gameLineage, isPositiveTasteRating } from "@/lib/backlog-advisor";
 import { normalizeGameTitle } from "@/lib/game-title";
+import { completedRuns, REPLAY_TASTE_MULTIPLIER } from "@/lib/playthroughs";
 
-export const PLAYER_TASTE_VERSION = "player-taste-v3";
+export const PLAYER_TASTE_VERSION = "player-taste-v4";
 export const MAX_TASTE_ANCHORS = 8;
 export const NEGATIVE_TASTE_WEIGHT = .25;
 export const HALL_OF_FAME_WEIGHT_MULTIPLIER = 1.35;
 export type TasteLibraryGame = {
   id: number; title: string; releaseYear: number | null; status: string; rating: number | null;
   pinnedOrder: number | null; platform: string; franchise: string | null; earnedXp: number;
+  playthroughCount?: number;
 };
 export type CatalogTitle = { key: string; title: string; releaseYear: number | null };
 export type StoredTasteGame = CatalogTitle & {
@@ -133,7 +135,8 @@ function buildPositiveTasteProfile(games: readonly TasteLibraryGame[], catalog: 
     // explicit favorite intent. Other anchors keep their existing base weights.
     const baseWeight = hallOfFame || completed.length > 0
       ? (game.rating === 5 ? 2 : 1) : (game.status === "Playing" ? 1 : .75);
-    const weight = baseWeight * (hallOfFame ? HALL_OF_FAME_WEIGHT_MULTIPLIER : 1);
+    const weight = baseWeight * (hallOfFame ? HALL_OF_FAME_WEIGHT_MULTIPLIER : 1) *
+      (completedRuns(game) >= 2 ? REPLAY_TASTE_MULTIPLIER : 1);
     values.forEach((value, index) => { sum[index] += value * weight; });
     return { key: row.key, title: game.title, rating: game.rating, weight, platform: game.platform, hallOfFame,
       genres: normalizeFeatureList([...row.genres, ...(row.genre ? [row.genre] : [])]),

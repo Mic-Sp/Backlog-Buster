@@ -2,10 +2,14 @@
 
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useUIEffects } from "@/components/ThemeProvider";
+import { achievementPersona } from "@/lib/achievement-persona";
 import type { Achievement } from "@/lib/achievements";
 import "./HudMilestones.css";
 
 export default function HudMilestones({ achievements }: { achievements: Achievement[] }) {
+  const fantasy = useUIEffects().layoutMode === "fantasy";
+  const persona = (achievement: Achievement) => achievementPersona(achievement, fantasy);
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
@@ -102,7 +106,7 @@ export default function HudMilestones({ achievements }: { achievements: Achievem
             type="button"
             key={achievement.key}
             data-unlocked={achievement.unlocked}
-            aria-label={`${achievement.title}, ${achievement.unlocked ? "unlocked" : "locked"}`}
+            aria-label={`${persona(achievement).title}, ${achievement.unlocked ? "unlocked" : "locked"}`}
             aria-describedby={activeKey === achievement.key ? tooltipId : undefined}
             onPointerEnter={(event) => {
               if (event.pointerType === "mouse" && !pinnedKey.current) showTooltip(event.currentTarget, achievement.key);
@@ -122,7 +126,7 @@ export default function HudMilestones({ achievements }: { achievements: Achievem
             }}
             onBlur={closeTooltip}
           >
-            <span className="hud-achievement-icon" aria-hidden="true">{achievement.key === "second-heart" ? "🫀" : achievement.icon}</span>
+            <span className="hud-achievement-icon" aria-hidden="true">{achievement.key === "second-heart" ? "🫀" : persona(achievement).icon}</span>
           </button>
         ))}
       </div>
@@ -138,10 +142,10 @@ export default function HudMilestones({ achievements }: { achievements: Achievem
           onMouseLeave={closeAfterHover}
         >
           <div className="hud-milestone-tooltip-heading">
-            <strong>{activeAchievement.title}</strong>
+            <strong>{persona(activeAchievement).title}</strong>
             <span>+{(activeAchievement.unlocked ? activeAchievement.xpAwarded : activeAchievement.xpBonus).toLocaleString("en-US")} XP</span>
           </div>
-          <p>{activeAchievement.description}</p>
+          <p>{persona(activeAchievement).description}</p>
           <span className="hud-milestone-tooltip-status">
             {activeAchievement.unlocked
               ? `✓ UNLOCKED${activeAchievement.unlockedAt ? ` · ${activeAchievement.unlockedAt.slice(0, 10)}` : ""}`
