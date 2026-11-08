@@ -1,9 +1,10 @@
 import { buildCatalogVector, CATALOG_VECTOR_DIMENSIONS, CATALOG_VECTOR_VERSION, normalizeFeatureList, normalizeVector } from "@/lib/catalog-vector";
-import { gameLineage, isPositiveTasteRating } from "@/lib/backlog-advisor";
+import { gameLineage } from "@/lib/franchise";
+import { isPositiveTasteRating } from "@/lib/taste-signals";
 import { normalizeGameTitle } from "@/lib/game-title";
 import { completedRuns, REPLAY_TASTE_MULTIPLIER } from "@/lib/playthroughs";
 
-export const PLAYER_TASTE_VERSION = "player-taste-v4";
+export const PLAYER_TASTE_VERSION = "player-taste-v5";
 export const MAX_TASTE_ANCHORS = 8;
 export const NEGATIVE_TASTE_WEIGHT = .25;
 export const HALL_OF_FAME_WEIGHT_MULTIPLIER = 1.35;
@@ -91,7 +92,7 @@ export function parseTasteVector(text: string): number[] | null {
 }
 
 export function catalogSeries(game: Pick<StoredTasteGame, "title" | "seriesHints">): string[] {
-  return normalizeFeatureList([...game.seriesHints, gameLineage({ title: game.title, franchise: null })]);
+  return normalizeFeatureList([...game.seriesHints.map(title => gameLineage({ title })), gameLineage({ title: game.title })]);
 }
 
 function coldStartProfile(): PositiveTasteProfile {
@@ -140,7 +141,7 @@ function buildPositiveTasteProfile(games: readonly TasteLibraryGame[], catalog: 
     values.forEach((value, index) => { sum[index] += value * weight; });
     return { key: row.key, title: game.title, rating: game.rating, weight, platform: game.platform, hallOfFame,
       genres: normalizeFeatureList([...row.genres, ...(row.genre ? [row.genre] : [])]),
-      series: normalizeFeatureList([...catalogSeries(row), ...(game.franchise ? [game.franchise] : [])]),
+      series: normalizeFeatureList([...catalogSeries(row), gameLineage(game)]),
       estimatedHours: row.estimatedHours !== null && Number.isFinite(row.estimatedHours) && row.estimatedHours > 0 ? row.estimatedHours : null };
   });
   let values: number[];
@@ -198,7 +199,7 @@ export function buildPlayerTasteProfile(
     values.forEach((value, index) => { sum[index] += value; });
     negativeAnchors.push({ key: row.key, title: row.title, rating, source, weight: 1,
       genres: normalizeFeatureList([...row.genres, ...(row.genre ? [row.genre] : [])]),
-      series: normalizeFeatureList([...catalogSeries(row), ...(franchise ? [franchise] : [])]) });
+      series: normalizeFeatureList([...catalogSeries(row), gameLineage({ title: row.title, franchise })]) });
   }
   let negativeValues: number[] | null = null;
   if (negativeAnchors.length) {
@@ -213,4 +214,31 @@ export function buildPlayerTasteProfile(
   }
   return { ...positive, values: shiftTasteVector(positive.values, negativeValues), negativeValues, negativeAnchors,
     negativeGenres: aggregate("genres"), negativeSeries: aggregate("series") };
+}
+
+export type OwnedTasteScore = { similarity: number; reason: string };
+
+/** Local counterpart of catalog discovery: score owned vectors against exactly
+ * the same weighted/negative-steered profile, without excluding owned titles.
+ * Missing or ambiguous matches simply retain the advisor's heuristic score.
+ */
+export function scoreOwnedTasteGames(games: readonly TasteLibraryGame[], catalog: readonly StoredTasteGame[],
+  dismissedTitles: readonly string[] = [], matchingCatalog: readonly CatalogTitle[] = catalog,
+  featuredTrophyIds: unknown = []): Map<number, OwnedTasteScore> {
+  const taste = buildPlayerTasteProfile(games, catalog, dismissedTitles, matchingCatalog, featuredTrophyIds);
+  const scores = new Map<number, OwnedTasteScore>();
+  if (!taste.anchors.length && !taste.negativeAnchors.length) return scores;
+  const source = taste.source === "hall-of-fame" ? "Hall of Fame favorites" : taste.source === "completed-favorites"
+    ? "highly rated completions" : taste.source === "active-pinned" ? "active and pinned games" : "developing taste profile";
+  for (const game of games) {
+    if (game.status !== "Backlog") continue;
+    const match = matchTasteCatalogGame(game, matchingCatalog);
+    const row = match ? catalog.find(row => row.key === match.key && row.featureVectorVersion === CATALOG_VECTOR_VERSION) : null;
+    const values = row ? parseTasteVector(row.vectorText) : null;
+    if (!values) continue;
+    const similarity = Math.max(-1, Math.min(1, values.reduce((sum, value, index) => sum + value * taste.values[index], 0)));
+    scores.set(game.id, { similarity,
+      reason: `Taste fit: compared with your ${source}${taste.negativeAnchors.length ? ", adjusted for low ratings and dismissed recommendations" : ""}.` });
+  }
+  return scores;
 }

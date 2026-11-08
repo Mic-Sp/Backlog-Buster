@@ -276,7 +276,7 @@ export function useTacticalAdvisorController({ games, isAdmin = false }: { isAdm
               <AgentBriefing game={{ ...pick.game, lengthHours: savedGame?.lengthHours ?? pick.game.lengthHours, hoursPlayed: savedGame?.hoursPlayed }} />
             </div>
           </>
-        ) : <p className="advisor-empty">{copy("No matching backlog gig available.", "No matching quest awaits in your journal.")}</p>}
+        ) : <p className="advisor-empty">{copy("No other eligible backlog gig is available from a different franchise.", "No other eligible quest awaits from a different saga.")}</p>}
       </article>
     );
   }
@@ -365,7 +365,7 @@ export function TacticalAdvisorView({ controller, part = "all" }: { controller: 
               <div><p className="eyebrow">{copy("BACKLOG INTELLIGENCE // EXTERNAL SCOUT ONLINE", "A FAIRY’S COUNSEL · THE NEXT CHAPTER AWAITS")}</p><h2 id="advisor-title">{copy("CORTEX // TACTICAL GIG ADVISOR", "Navi Guidance")}</h2></div>
               <button className="advisor-close" type="button" aria-label="Close tactical advisor" disabled={isStarting || isAdding} onClick={close}>✕</button>
             </header>
-            <p className="advisor-intro">{copy("Two tactical routes through your saved backlog, informed by your completions, ratings, and current gigs.", "Two paths through your quest journal, guided by your completed adventures, ratings, and current journeys.")}</p>
+            <p className="advisor-intro">{copy("Two tactical routes through your saved backlog, guided by your taste and franchise progression. Finish earlier installments before starting their sequels.", "Two paths through your quest journal, guided by your tastes and saga progression. Finish earlier chapters before beginning their sequels.")}</p>
             {isFetching && <p className="advisor-loading" role="status">{copy("SCANNING LIBRARY // CALIBRATING NEXT GIG…", "CONSULTING THE QUEST SCROLLS…")}</p>}
             {error && <p className="advisor-error" role="alert">{error}</p>}
             {!isFetching && picks && (
@@ -374,7 +374,7 @@ export function TacticalAdvisorView({ controller, part = "all" }: { controller: 
                   {renderPick(picks.continuationPick, "continuation")}
                   {renderPick(picks.palateCleanserPick, "cleanser")}
                 </div>
-              ) : <p className="advisor-empty" role="status">{copy("No released backlog gigs are eligible. CORTEX requires a saved release year of this year or earlier.", "No released quests are eligible. Guidance requires a saved release year of this year or earlier.")}</p>
+              ) : <p className="advisor-empty" role="status">{copy("No backlog gigs are eligible right now. Finish earlier installments already in progress, or add another game; future releases must wait.", "No quests are eligible right now. Finish earlier saga chapters already in progress, or add another adventure; future releases must wait.")}</p>
             )}
             {!isFetching && <button className="advisor-refresh" type="button" disabled={isStarting || isAdding} onClick={loadPicks}>{error ? copy("RETRY SCAN", "SEEK GUIDANCE AGAIN") : copy("REFRESH SCAN", "CONSULT THE FAIRY AGAIN")}</button>}
             <section className="advisor-external-section" aria-labelledby="external-scout-title">

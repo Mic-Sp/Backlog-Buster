@@ -69,6 +69,19 @@ export function normalizeChronologyTitle(title: string): string {
     return index > 0 ? roman(token) : token;
   }).join("-");
 }
+
+/** Sequence evidence only; edition years and platform suffixes are not sequels. */
+export function parseSequelNumber(title: string): number | null {
+  const base = baseChronologyTitle(title);
+  // Common official abbreviations still carry sequence evidence (FFIX / FF12).
+  const expanded = base.replace(/^ff\s*(\d+|[ivxl]+)\b/i, (_, numeral: string) => `Final Fantasy ${numeral}`);
+  const normalized = normalizeChronologyTitle(expanded);
+  const match = normalized.match(/(?:^|-)(\d+(?:-\d+)?)(?=-|$)/);
+  if (!match) return null;
+  // A hyphenated numbered sub-entry (X-2) follows its main installment (X).
+  const value = Number(match[1].replace("-", "."));
+  return Number.isFinite(value) && value >= 0 && value < 1800 ? value : null;
+}
 export function explainChronologyMatch(games: CanonicalGame[], game: { title: string; releaseYear?: number | null }): { match: CanonicalGame | null; reason: string } {
   const canon = collapseChronologyGames(games, false);
   const exactKey = normalizeChronologyTitle(game.title), baseKey = normalizeChronologyTitle(baseChronologyTitle(game.title));

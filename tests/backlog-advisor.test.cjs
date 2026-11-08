@@ -12,7 +12,7 @@ function load(file) {
   cache.set(file, instance.exports); return instance.exports;
 }
 const { selectBacklogRecommendations: select } = load('src/lib/backlog-advisor.ts');
-const game = (id, fields = {}) => ({ id, title: `Adventure ${id}`, status: 'Backlog', platform: 'PC', genre: 'RPG', lengthHours: 45, difficulty: 3, coverUrl: null, releaseYear: 2020, rating: null, earnedXp: 0, createdAt: new Date('2026-01-01'), pinnedOrder: null, franchise: null, chronologicalOrder: null, ...fields });
+const game = (id, fields = {}) => ({ id, title: `Standalone ${String.fromCharCode(65 + id)}`, status: 'Backlog', platform: 'PC', genre: 'RPG', lengthHours: 45, difficulty: 3, coverUrl: null, releaseYear: 2020, rating: null, earnedXp: 0, createdAt: new Date('2026-01-01'), pinnedOrder: null, franchise: null, chronologicalOrder: null, ...fields });
 const favorite = game(100, { title: 'Favorite', status: 'Completed', rating: 5, lengthHours: 80 });
 const ids = result => [result.continuationPick?.game.id, result.palateCleanserPick?.game.id].filter(id => id !== undefined);
 const seededRandom = (seed = 7) => () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
@@ -36,7 +36,7 @@ test('pinned priorities and verified next saga chapters supply affinity signals'
 });
 
 test('weighted top-tier draws vary both roles without selecting weak candidates', () => {
-  const games = [favorite, game(1, { title: 'Favorite: Sequel' }), game(2, { title: 'Favorite: Another' }), game(3, { genre: 'Puzzle', lengthHours: 5 }), game(4, { genre: 'Puzzle', lengthHours: 7 }), game(5, { genre: 'Racing', lengthHours: 100 })];
+  const games = [favorite, { ...favorite, id: 101, title: 'Other Favorite' }, game(1, { title: 'Favorite: Sequel' }), game(2, { title: 'Other Favorite: Another' }), game(3, { genre: 'Puzzle', lengthHours: 5 }), game(4, { genre: 'Puzzle', lengthHours: 7 }), game(5, { genre: 'Racing', lengthHours: 100 })];
   const low = select(games, [], () => 0), high = select(games, [], () => .999);
   assert.notEqual(low.continuationPick.game.id, high.continuationPick.game.id);
   assert.notEqual(low.palateCleanserPick.game.id, high.palateCleanserPick.game.id);

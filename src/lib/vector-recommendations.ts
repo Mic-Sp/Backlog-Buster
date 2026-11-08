@@ -3,9 +3,10 @@ import { prisma } from "@/lib/prisma";
 import { CATALOG_VECTOR_VERSION, normalizeFeatureList, normalizeVector, vectorLiteral } from "@/lib/catalog-vector";
 import { normalizeGameTitle } from "@/lib/game-title";
 import { isReleasedYear } from "@/lib/game-release";
+import { loadTasteCatalog } from "@/lib/taste-catalog";
 import type { CatalogSuggestion } from "@/lib/catalog-types";
-import { buildPlayerTasteProfile, catalogSeries, HALL_OF_FAME_WEIGHT_MULTIPLIER, matchNegativeTasteCatalogGames, matchTasteCatalogGame, potentialTasteGames,
-  type CatalogTitle, type PlayerTasteProfile, type StoredTasteGame, type TasteLibraryGame } from "@/lib/player-taste";
+import { buildPlayerTasteProfile, catalogSeries, HALL_OF_FAME_WEIGHT_MULTIPLIER,
+  type CatalogTitle, type PlayerTasteProfile, type TasteLibraryGame } from "@/lib/player-taste";
 
 export type CosineCandidate = CatalogSuggestion & { key: string; genres: string[]; seriesHints: string[]; distance: number; negativeSimilarity?: number | null };
 export type VectorRecommendation = CosineCandidate & {
@@ -123,22 +124,7 @@ export function rerankVectorCandidates(candidates: readonly CosineCandidate[], t
 export async function recommendCatalogGames(games: readonly TasteLibraryGame[], excludedTitles: readonly string[] = [],
   { limit = 3, currentYear = new Date().getFullYear(), collectDiagnostics = false, dismissedTitles = [], featuredTrophyIds = [] }: VectorRecommendationOptions = {}): Promise<VectorRecommendationResult> {
   bounds(limit, currentYear, 20);
-  // Initial catalog is small (89 rows). Build the normalization index in JS to reuse the exact
-  // ownership helper, including accents/numerals, without introducing another PostgreSQL extension.
-  const titles = await prisma.gameCatalog.findMany({
-    where: { featureVectorVersion: CATALOG_VECTOR_VERSION }, select: { key: true, title: true, releaseYear: true },
-  });
-  const anchorKeys = [...new Set([...potentialTasteGames(games, featuredTrophyIds).flatMap(game => {
-    const match = matchTasteCatalogGame(game, titles);
-    return match ? [match.key] : [];
-  }), ...matchNegativeTasteCatalogGames(games, titles, dismissedTitles).map(({ row }) => row.key)])];
-  const stored = anchorKeys.length ? await prisma.$queryRaw<StoredTasteGame[]>`
-    SELECT "key", "title", "releaseYear", "genre", "genres", "seriesHints", "estimatedHours", "featureVectorVersion",
-      "featureVector"::text AS "vectorText"
-    FROM "GameCatalog"
-    WHERE "key" IN (SELECT jsonb_array_elements_text(${JSON.stringify(anchorKeys)}::jsonb))
-      AND "featureVector" IS NOT NULL AND "featureVectorVersion" = ${CATALOG_VECTOR_VERSION}
-  ` : [];
+  const { titles, stored } = await loadTasteCatalog(games, dismissedTitles, featuredTrophyIds);
   const taste = buildPlayerTasteProfile(games, stored, dismissedTitles, titles, featuredTrophyIds);
   const ownedTitles = games.map(game => game.title);
   const exclusions = [...excludedTitles, ...dismissedTitles];

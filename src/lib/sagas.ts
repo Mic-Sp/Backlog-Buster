@@ -1,4 +1,5 @@
-import { baseChronologyTitle, compareChronologyTitles } from "@/lib/chronology-titles";
+import { compareChronologyTitles } from "@/lib/chronology-titles";
+import { gameLineage, getFranchiseName } from "@/lib/franchise";
 
 type SagaGame = {
   id: number;
@@ -43,49 +44,14 @@ export function compareSagaGames(
   return compareChronologyTitles(left.title, right.title) || left.id - right.id;
 }
 
-const knownSeries: [RegExp, string][] = [
-  [/^(?:the )?legend of zelda\b|^zelda\b/, "Legend of Zelda"],
-  [/^final fantasy\b/, "Final Fantasy"],
-  [/^resident evil\b/, "Resident Evil"],
-  [/^batman arkham\b/, "Batman: Arkham"],
-  [/^alan wakes?\b/, "Alan Wake"],
-  [/^kingdom hearts\b/, "Kingdom Hearts"],
-  [/^star wars jedi\b/, "Star Wars Jedi"],
-  [/^(?:the )?witcher\b/, "The Witcher"],
-  [/^mass effect\b/, "Mass Effect"],
-  [/^assassins creed\b/, "Assassin's Creed"],
-  [/^super mario\b/, "Super Mario"],
-  [/^mario kart\b/, "Mario Kart"],
-  [/^metroid\b/, "Metroid"],
-  [/^the last of us\b/, "The Last of Us"],
-  [/^yakuza\b|^like a dragon\b/, "Yakuza / Like a Dragon"],
-];
-
-function normalize(value: string) {
-  return value.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
-    .replace(/['’]/g, "").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
-}
-
-export function getSagaName(game: Pick<SagaGame, "title" | "franchise">): string | null {
-  const manual = game.franchise?.trim().replace(/\s+/g, " ");
-  if (manual) return manual;
-  const baseTitle = baseChronologyTitle(game.title);
-  const normalizedTitle = normalize(baseTitle);
-  const known = knownSeries.find(([pattern]) => pattern.test(normalizedTitle));
-  if (known) return known[1];
-
-  const stem = baseTitle.split(/[:：]|\s[-–—]\s/)[0]
-    .replace(/\s+(?:\d+(?:\.\d+)?|xviii|xvii|xvi|xv|xiv|xiii|xii|xi|ix|viii|vii|vi|iv|iii|ii|xx|x|v|i)\b.*$/i, "")
-    .trim();
-  return normalize(stem).length >= 2 ? stem : null;
-}
+export const getSagaName = getFranchiseName;
 
 export function buildSagaChains(games: readonly SagaGame[]) {
   const groups = new Map<string, SagaChain & { hasManualName: boolean }>();
   for (const game of games) {
     const name = getSagaName(game);
     if (!name) continue;
-    const key = normalize(name);
+    const key = gameLineage(game);
     if (!key) continue;
     const manual = Boolean(game.franchise?.trim());
     let group = groups.get(key);

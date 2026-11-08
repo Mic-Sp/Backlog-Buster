@@ -29,6 +29,66 @@ const stored = { key: "owned", title: favorite.title, releaseYear: 2020, genre: 
   seriesHints: ["Favorite Saga"], estimatedHours: 20, featureVectorVersion: CATALOG_VECTOR_VERSION,
   vectorText: JSON.stringify(buildCatalogVector({ genre: "RPG", estimatedHours: 20, releaseYear: 2020 }).values) };
 
+test("local advisor reads owned vectors and player preferences without provider calls or discovery exclusions", async () => {
+  const anchor = { ...favorite, title: "Taste Anchor", createdAt: new Date('2020-01-01Z'), chronologicalOrder: null, franchise: null, lengthHours: 40, difficulty: 3, coverUrl: null };
+  const games = [anchor, { ...anchor, id: 2, title: "Similar Choice", status: "Backlog", rating: null },
+    { ...anchor, id: 3, title: "Different Choice", status: "Backlog", rating: null }];
+  const unit = index => JSON.stringify(Array.from({ length: 128 }, (_, i) => Number(i === index)));
+  const rows = games.map((game, i) => ({ ...stored, key: `key-${game.id}`, title: game.title, vectorText: unit(i === 2 ? 1 : 0) }));
+  const calls = [];
+  const api = loader({
+    '@/lib/player': { getCurrentPlayerId: async () => 'local-player' },
+    '@/lib/rawg': { resizeRawgImageUrl: value => value, lookupRawgGame: () => { throw Error('No providers allowed'); } },
+    '@/lib/scout-ai': { getAIScoutCandidates: () => { throw Error('No providers allowed'); } },
+    '@/lib/prisma': { prisma: {
+      game: { findMany: async args => {
+        assert.equal(args.where.userId, 'local-player');
+        for (const field of ['completedAt', 'startedAt', 'playthroughCount', 'franchise', 'chronologicalOrder']) assert.equal(args.select[field], true);
+        return games;
+      } },
+      player: { findUnique: async args => { assert.equal(args.where.id, 'local-player'); return { featuredTrophyIds: [1] }; } },
+      recommendationDismissal: { findMany: async args => { assert.equal(args.where.userId, 'local-player'); return []; } },
+      gameCatalog: { findMany: async () => rows },
+      $queryRaw: async (strings, ...values) => {
+        calls.push(strings.join('?'));
+        assert.deepEqual(new Set(JSON.parse(values[0])), new Set(rows.map(row => row.key)));
+        assert(!strings.join('').includes('<=>'), 'No discovery retrieval that excludes owned games');
+        return rows;
+      },
+    } },
+  })('src/lib/recommendations.ts');
+  const result = await api.getBacklogRecommendations();
+  assert.equal(result.continuationPick.game.id, 2);
+  assert.match(result.continuationPick.reason, /Taste fit.*Hall of Fame/);
+  assert.equal(calls.length, 1);
+  assert.deepEqual(Object.keys(result.continuationPick.game).sort(), ['coverUrl', 'difficulty', 'genre', 'id', 'lengthHours', 'platform', 'releaseYear', 'title']);
+  const rotated = await api.getBacklogRecommendations('local-player', result.seenGameIds);
+  assert.equal(rotated.continuationPick.game.id, 2, 'History is rotation only; it never trains a negative preference');
+});
+
+test("local optional taste-read failures retain heuristic picks and sequence gating", async () => {
+  for (const failure of ['profile', 'dismissals', 'catalog', 'vectors']) {
+    const games = [4, 7].map(number => ({ ...favorite, id: number, title: `Resident Evil ${number}`, franchise: null,
+      status: 'Backlog', rating: null, chronologicalOrder: null, createdAt: new Date('2020-01-01Z'), lengthHours: 20, difficulty: 2, coverUrl: null }));
+    const fail = stage => { if (stage === failure) throw Error('Optional store unavailable'); };
+    const api = loader({
+      '@/lib/player': { getCurrentPlayerId: async () => 'local-player' },
+      '@/lib/rawg': { resizeRawgImageUrl: value => value },
+      '@/lib/prisma': { prisma: {
+        game: { findMany: async () => games },
+        player: { findUnique: async () => { fail('profile'); return { featuredTrophyIds: [] }; } },
+        recommendationDismissal: { findMany: async () => { fail('dismissals'); return []; } },
+        gameCatalog: { findMany: async () => { fail('catalog'); return games.map(game => ({ key: String(game.id), title: game.title, releaseYear: game.releaseYear })); } },
+        $queryRaw: async () => { fail('vectors'); return []; },
+      } },
+    })('src/lib/recommendations.ts');
+    const result = await api.getBacklogRecommendations('local-player', [4]);
+    assert.equal(result.continuationPick.game.id, 4, failure);
+    assert.equal(result.palateCleanserPick, null);
+    assert.doesNotMatch(result.continuationPick.reason, /Taste fit/);
+  }
+});
+
 test("exclusion filtering normalizes accents, punctuation and numerals, removes unreleased/unknown years, and deduplicates closest first", () => {
   const result = engine.filterVectorCandidates([
     candidate("Cafe Adventure II", .01), candidate("Seen: Game 3", .02), candidate("Future", .03, { releaseYear: 2027 }),

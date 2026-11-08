@@ -12,6 +12,8 @@ import { createScoutVectorDebug } from "@/lib/scout-debug";
 import type { VectorRecommendationOptions } from "@/lib/vector-recommendations";
 import { getAIScoutCandidates } from "@/lib/scout-ai";
 import { getDismissedRecommendationTitles } from "@/lib/recommendation-dismissals";
+import { loadTasteCatalog } from "@/lib/taste-catalog";
+import { scoreOwnedTasteGames, type OwnedTasteScore } from "@/lib/player-taste";
 
 import { selectBacklogRecommendations, type AdvisorGame, type BacklogRecommendations } from "@/lib/backlog-advisor";
 export type { BacklogRecommendation, BacklogRecommendations } from "@/lib/backlog-advisor";
@@ -52,10 +54,23 @@ export async function getBacklogRecommendations(userId?: string, excludedGameIds
     select: {
       id: true, title: true, platform: true, genre: true, lengthHours: true,
       difficulty: true, coverUrl: true, releaseYear: true, status: true, rating: true,
-      earnedXp: true, createdAt: true, pinnedOrder: true, franchise: true, chronologicalOrder: true,
+      earnedXp: true, createdAt: true, completedAt: true, startedAt: true, playthroughCount: true,
+      pinnedOrder: true, franchise: true, chronologicalOrder: true,
     },
   });
-  const result = selectBacklogRecommendations(games, excludedGameIds);
+  let tasteScores = new Map<number, OwnedTasteScore>();
+  try {
+    const [profile, dismissed] = await Promise.all([
+      prisma.player.findUnique({ where: { id: userId }, select: { featuredTrophyIds: true } }),
+      getDismissedRecommendationTitles(userId),
+    ]);
+    const featured = profile?.featuredTrophyIds ?? [];
+    const { titles, stored } = await loadTasteCatalog(games, dismissed, featured, true);
+    tasteScores = scoreOwnedTasteGames(games, stored, dismissed, titles, featured);
+  } catch {
+    // Optional catalog/profile availability must never disable owned-library picks.
+  }
+  const result = selectBacklogRecommendations(games, excludedGameIds, Math.random, tasteScores);
   for (const pick of [result.continuationPick, result.palateCleanserPick]) {
     if (pick?.game.coverUrl) pick.game.coverUrl = resizeRawgImageUrl(pick.game.coverUrl);
   }

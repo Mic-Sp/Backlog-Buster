@@ -1,7 +1,70 @@
-import { compareChronologyTitles, matchChronologyGame, normalizeChronologyTitle, type CanonicalGame } from "@/lib/chronology-titles";
+import { baseChronologyTitle, compareChronologyTitles, matchChronologyGame, normalizeChronologyTitle, parseSequelNumber, type CanonicalGame } from "@/lib/chronology-titles";
 import { isReleasedYear } from "@/lib/game-release";
+import { gameLineage, getFranchiseName } from "@/lib/franchise";
 
 type SagaGame = { id: number; title: string; releaseYear: number | null };
+
+export type OwnedSequenceGame = SagaGame & { status: string; franchise?: string | null; chronologicalOrder?: number | null };
+
+/** Saved story ranks lead; unranked games form a numeral/release-order tail.
+ * Resolve once for the whole library, BEFORE session exclusions or slot scoring.
+ * Flatlined games represent abandoned adventures and do not block progression.
+ */
+export function resolveOwnedSagaProgression<T extends OwnedSequenceGame>(games: readonly T[]) {
+  const groups = new Map<string, T[]>();
+  for (const game of games) {
+    const key = gameLineage(game);
+    const members = groups.get(key) ?? [];
+    members.push(game);
+    groups.set(key, members);
+  }
+  const eligibleBacklogIds = new Set<number>();
+  const previousCompleted = new Map<number, T>();
+  for (const members of groups.values()) {
+    const sequence = (game: T) => parseSequelNumber(game.title) ??
+      (normalizeChronologyTitle(baseChronologyTitle(game.title)) === normalizeChronologyTitle(getFranchiseName(game) ?? "") ? 1 : null);
+    const numbered = members.flatMap(game => {
+      const number = sequence(game);
+      return number === null ? [] : [{ game, number }];
+    });
+    const dated = numbered.filter(entry => entry.game.releaseYear != null)
+      .sort((a, b) => a.game.releaseYear! - b.game.releaseYear!);
+    const precedingNumbers: number[] = [];
+    for (const entry of dated) precedingNumbers.push(Math.max(precedingNumbers.at(-1) ?? -Infinity, entry.number));
+    // Place unnumbered subtitles relative to dated numbered installments. This
+    // gives every item one fixed sort key (pairwise numeral/year fallbacks can
+    // create non-transitive comparators). With no evidence, use release order.
+    const fallbackKey = (game: T) => {
+      const number = sequence(game);
+      if (number !== null) return number;
+      if (game.releaseYear == null) return Infinity;
+      let low = 0, high = dated.length;
+      while (low < high) {
+        const middle = Math.floor((low + high) / 2);
+        if (dated[middle].game.releaseYear! <= game.releaseYear) low = middle + 1;
+        else high = middle;
+      }
+      return low ? precedingNumbers[low - 1] + .5 : numbered.length ? -.5 : 0;
+    };
+    const fallbackKeys = new Map(members.map(game => [game.id, fallbackKey(game)]));
+    const ordered = [...members].sort((a, b) => {
+      const ar = a.chronologicalOrder ?? Infinity, br = b.chronologicalOrder ?? Infinity;
+      if (ar !== br) return ar - br;
+      const an = fallbackKeys.get(a.id)!, bn = fallbackKeys.get(b.id)!;
+      if (an !== bn) return an - bn;
+      const ay = a.releaseYear ?? Infinity, by = b.releaseYear ?? Infinity;
+      if (ay !== by) return ay - by;
+      return compareChronologyTitles(normalizeChronologyTitle(a.title), normalizeChronologyTitle(b.title)) || a.id - b.id;
+    });
+    const first = ordered.find(game => game.status === "Playing" || game.status === "Backlog");
+    if (!first || first.status !== "Backlog") continue;
+    eligibleBacklogIds.add(first.id);
+    const index = ordered.indexOf(first);
+    const previous = ordered.slice(0, index).reverse().find(game => game.status === "Completed");
+    if (previous) previousCompleted.set(first.id, previous);
+  }
+  return { eligibleBacklogIds, previousCompleted };
+}
 
 /** Local, deterministic fallback only. Never queries an AI provider or shared cache. */
 export function buildReleaseYearOrder(games: readonly SagaGame[]): Map<number, number> {
