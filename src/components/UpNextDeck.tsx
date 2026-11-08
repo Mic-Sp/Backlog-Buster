@@ -2,6 +2,7 @@
 
 import { unwrapActionResult } from "@/lib/action-result";
 
+import WorkspaceSection from "@/components/WorkspaceSection";
 import SafeForm from "@/components/SafeForm";
 import { DeckPinsContext, useDeckPins } from "@/components/useDeckPins";
 
@@ -147,11 +148,8 @@ export function UpNextDeckView({ controller }: { controller: UpNextDeckControlle
     dropIntoSlot,
   } = controller;
   return (
-    <section className="up-next-deck" aria-labelledby="deck-title" ref={sectionRef}>
-      <div className="deck-heading">
-        <h3 id="deck-title">ON DECK // UP NEXT</h3>
-        <span>{pinned.length} / {DECK_CAPACITY} SLOTS</span>
-      </div>
+    <WorkspaceSection sectionKey="deck" className="up-next-deck" sectionRef={sectionRef} headingId="deck-title" label="on deck" title="On Deck // Up Next"
+      summary={<span className="workspace-section-count">{pinned.length} / {DECK_CAPACITY} slots</span>}>
       <ol className="deck-grid">
         {Array.from({ length: DECK_CAPACITY }, (_, index) => {
           const slot = index + 1;
@@ -228,6 +226,6 @@ export function UpNextDeckView({ controller }: { controller: UpNextDeckControlle
         })}
       </ol>
       {notice && <p className="deck-reorder-notice" role="status" data-error={notice.error}>{notice.text}</p>}
-    </section>
+    </WorkspaceSection>
   );
 }

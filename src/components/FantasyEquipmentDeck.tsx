@@ -1,5 +1,6 @@
 "use client";
 
+import WorkspaceSection from "@/components/WorkspaceSection";
 import { CButtonBadge } from "@/components/FantasyAccents";
 import DeckPinButton from "@/components/DeckPinButton";
 import SafeForm from "@/components/SafeForm";
@@ -9,8 +10,8 @@ import { isUnreleasedYear } from "@/lib/game-release";
 
 export default function FantasyEquipmentDeck({ deck }: { deck: UpNextDeckController }) {
   const { sectionRef } = deck;
-  return <section className="fantasy-equipment" ref={sectionRef} aria-labelledby="fantasy-equipment-title">
-    <div className="fantasy-section-heading"><div><p className="fantasy-kicker">READY FOR THE JOURNEY</p><h3 id="fantasy-equipment-title">Prepping For The Next Quest</h3></div><span>{deck.pinned.length} / {DECK_CAPACITY} equipped</span></div>
+  return <WorkspaceSection sectionKey="deck" className="fantasy-equipment" sectionRef={sectionRef} headingId="fantasy-equipment-title" label="C-Buttons" title="Prepping For The Next Quest"
+    eyebrow="READY FOR THE JOURNEY" summary={<span className="workspace-section-count">{deck.pinned.length} / {DECK_CAPACITY} equipped</span>}>
     <p className="fantasy-hint">Equip a released Backlog quest. Drag to a C-Button, or use its pin.</p>
     <ol className="fantasy-equipment-grid">
       {Array.from({ length: DECK_CAPACITY }, (_, index) => {
@@ -40,5 +41,5 @@ export default function FantasyEquipmentDeck({ deck }: { deck: UpNextDeckControl
       })}
     </ol>
     {deck.notice && <p role="status" className="fantasy-notice" data-error={deck.notice.error}>{deck.notice.text}</p>}
-  </section>;
+  </WorkspaceSection>;
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import WorkspaceSection from "@/components/WorkspaceSection";
 import { useMemo, useState } from "react";
 import type { LibraryGame } from "@/components/GameLibrary";
 import { calculateLibraryTelemetry, sortTelemetryGroups, type TelemetryGroup, type TelemetrySort } from "@/lib/library-telemetry";
@@ -40,19 +41,22 @@ export default function LibraryTelemetry({ games }: { games: LibraryGame[] }) {
   }
 
   return (
-    <details className="telemetry-drawer">
-      <summary>📊 02 // NETRUNNER TELEMETRY &amp; CRITIC MATRIX</summary>
+    <WorkspaceSection sectionKey="telemetry" className="telemetry-drawer" label="telemetry" title="Netrunner Telemetry & Critic Matrix" defaultOpen={false}
+      summary={<span className="workspace-section-count">{telemetry.totalGames} games</span>}>
       <div className="telemetry-content">
         <p className="telemetry-intro">ANALYTICS &amp; CRITIC BREAKDOWN // Entire library · {telemetry.totalGames.toLocaleString("en-US")} games</p>
+        <WorkspaceSection sectionKey="telemetry-stats" className="telemetry-subsection" label="library stats" title="Library stats" headingLevel={4}
+          summary={<span className="workspace-section-count">{telemetry.completedCount} cleared</span>}>
         <dl className="telemetry-stats-grid">
           <div className="telemetry-stat"><dt>Completion Rate</dt><dd>{telemetry.completionRate.toFixed(1)}%</dd><span>{telemetry.completedCount} / {telemetry.totalGames} gigs cleared</span></div>
           <div className="telemetry-stat"><dt>Active Hours Logged</dt><dd>{telemetry.activeHours.toLocaleString("en-US")}h</dd><span>Completed + playing + flatlined sessions</span></div>
           <div className="telemetry-stat"><dt>Remaining Backlog</dt><dd>{telemetry.backlogHours.toLocaleString("en-US")}h</dd><span>Estimated hours to clear</span></div>
           <div className="telemetry-stat telemetry-critic-stat"><dt>Average Star Rating</dt><dd>{telemetry.avgRating !== null ? `${telemetry.avgRating.toFixed(1)} ★` : "UNRATED"}</dd><span>{telemetry.ratedCount} rated games</span></div>
         </dl>
+        </WorkspaceSection>
 
-        <section className="telemetry-distribution" aria-label="Star rating distribution">
-          <h3>CRITIC SCORE DISTRIBUTION <span>Share of rated games</span></h3>
+        <WorkspaceSection sectionKey="rating-distribution" className="telemetry-distribution" label="star rating distribution" title="Critic score distribution" headingLevel={4}
+          summary={<span className="workspace-section-count">{telemetry.ratedCount} rated</span>}>
           <ul>
             {telemetry.distribution.map(({ rating, count, percentage }) => (
               <li key={rating}>
@@ -63,10 +67,10 @@ export default function LibraryTelemetry({ games }: { games: LibraryGame[] }) {
               </li>
             ))}
           </ul>
-        </section>
+        </WorkspaceSection>
 
-        <div className="telemetry-matrix-heading">
-          <h3>LIBRARY BREAKDOWN</h3>
+        <WorkspaceSection sectionKey="library-breakdown" className="telemetry-library-breakdown" label="library breakdown" title="Library breakdown" headingLevel={4}
+          summary={<span className="workspace-section-count">{telemetry.genres.length} genres · {telemetry.platforms.length} platforms</span>}>
           <div className="telemetry-sort" role="group" aria-label="Sort telemetry breakdowns">
             {([
               ["hours", "Most Hours"], ["rating", "Highest Avg Rating"], ["games", "Most Games"],
@@ -74,17 +78,17 @@ export default function LibraryTelemetry({ games }: { games: LibraryGame[] }) {
               <button key={value} type="button" aria-pressed={sortBy === value} onClick={() => setSortBy(value)}>{label}</button>
             ))}
           </div>
-        </div>
         <p className="telemetry-legend">Cyan: share of {shareUsesHours ? "active hours" : "games"} across the library. Gold: completion within each group.</p>
         <div className="telemetry-matrix">
           {breakdowns.map(({ title, groups }) => (
-            <section className="telemetry-breakdown" key={title} aria-label={title === "BY GENRE" ? "Genre breakdown" : "Platform breakdown"}>
-              <h3>{title}</h3>
+            <WorkspaceSection sectionKey={title === "BY GENRE" ? "genre-breakdown" : "platform-breakdown"} className="telemetry-breakdown" key={title} label={title === "BY GENRE" ? "genre breakdown" : "platform breakdown"} title={title} headingLevel={4}
+              summary={<span className="workspace-section-count">{groups.length} groups</span>}>
               {groups.length > 0 ? <ul>{groups.map(renderGroup)}</ul> : <p className="telemetry-empty">No games yet. Add or import a gig to start tracking.</p>}
-            </section>
+            </WorkspaceSection>
           ))}
         </div>
+        </WorkspaceSection>
       </div>
-    </details>
+    </WorkspaceSection>
   );
 }

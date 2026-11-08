@@ -94,6 +94,8 @@ function useGameLibraryController({ games: serverGames, customLists = [], achiev
   const { playSfx, layoutMode } = useUIEffects();
   const { showPane } = useSubscreen();
   const [selectedGameId, setSelectedGameId] = useState<number | null>(null);
+  const [libraryRevealKey, revealLibrary] = useState(0);
+  const [sagaRevealKey, revealSaga] = useState(0);
   const [customListId, setCustomListId] = useState("");
   const selectedCustomList = customLists.find(list => list.id === customListId);
   const customListPositions = useMemo(() => new Map(selectedCustomList?.gameIds.map((id, index) => [id, index])), [selectedCustomList]);
@@ -376,6 +378,7 @@ function useGameLibraryController({ games: serverGames, customLists = [], achiev
       sagaFilterRef.current = "";
       setSagaNotice(null);
       setSortBy("default");
+      revealLibrary(value => value + 1);
       setRevealedGameId(id);
       setSelectedGameId(id);
       showPane("items");
@@ -402,12 +405,15 @@ function useGameLibraryController({ games: serverGames, customLists = [], achiev
     if (selectedCustomList) selectCustomList(selectedCustomList.id);
     else { clearFilters(); setActiveView("Playing"); }
     showPane("items");
+    revealLibrary(value => value + 1);
     setRevealedGameId(Number(data.get("id")));
     setSelectedGameId(Number(data.get("id")));
     return result;
   }
 
   function selectSaga(key: string) {
+    revealSaga(value => value + 1);
+    revealLibrary(value => value + 1);
     setCustomListId("");
     if (key !== sagaFilter) playSfx("page");
     setSagaFilter(key);
@@ -686,6 +692,7 @@ function useGameLibraryController({ games: serverGames, customLists = [], achiev
   }
 
   function selectCustomList(id: string) {
+    revealLibrary(value => value + 1);
     clearFilters();
     setCustomListId(id);
     if (id) setActiveView("All");
@@ -706,6 +713,9 @@ function useGameLibraryController({ games: serverGames, customLists = [], achiev
   const controller = {
     ...drafts,
     customLists,
+    libraryRevealKey,
+    sagaRevealKey,
+    openLibraryInventory: () => revealLibrary(value => value + 1),
     selectedCustomList,
     selectCustomList,
     socialEnabled,

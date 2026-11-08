@@ -1,5 +1,6 @@
 "use client";
 
+import WorkspaceSection from "@/components/WorkspaceSection";
 import CustomLists from "@/components/CustomLists";
 
 import { OwnershipBadge, OwnershipField, OwnershipFilterControl } from "@/components/Ownership";
@@ -77,18 +78,22 @@ export default function FantasySubscreenView({ controller: c }: { controller: Ga
       </div>
     </header>
 
-    <section className="fantasy-quest-pane fantasy-panel" data-workspace-pane="quest" aria-label="Quest status and medallions"><FantasyCorners />
-      <section className="fantasy-medallions" aria-labelledby="fantasy-medallions-title"><div className="fantasy-section-heading"><div><p className="fantasy-kicker">TOKENS OF YOUR TRAVELS</p><h3 id="fantasy-medallions-title">Sage Medallions</h3></div><span>{unlocked.length} / {c.achievements.length} awakened</span></div>
+    <WorkspaceSection sectionKey="quest-status" className="fantasy-quest-pane fantasy-panel" pane="quest" label="quest status and equipment" title="Quest status & equipment" decorations={<FantasyCorners />}
+      summary={<span className="workspace-section-count">{unlocked.length} medallions · {c.pinnedCount} equipped</span>}>
+      <WorkspaceSection sectionKey="medallions" className="fantasy-medallions" headingId="fantasy-medallions-title" label="sage medallions" title="Sage Medallions" eyebrow="TOKENS OF YOUR TRAVELS"
+        summary={<span className="workspace-section-count">{unlocked.length} / {c.achievements.length} awakened</span>}>
         {c.achievements.length ? <ul className="fantasy-medallion-grid">{c.achievements.map((achievement, index) => <li key={achievement.key} data-unlocked={achievement.unlocked} style={{ "--medallion-hue": `${index * 47 % 360}` } as CSSProperties}>
           <span className="fantasy-medallion" aria-hidden="true">{achievement.unlocked ? achievement.icon : "◇"}</span><h4>{achievement.title}</h4><p>{achievement.description}</p><small>{achievement.unlocked ? `Awakened · +${achievement.xpAwarded} XP` : `${achievement.current} / ${achievement.target} · sleeping`}</small>
         </li>)}</ul> : <p className="fantasy-hint">Your first medallion awaits. Complete quests to awaken your collection.</p>}
-      </section>
+      </WorkspaceSection>
       <FantasyEquipmentDeck deck={c.deck} />
-    </section>
+    </WorkspaceSection>
 
-    <section className="fantasy-item-pane fantasy-panel" data-workspace-pane="items" aria-labelledby="fantasy-inventory-title"><FantasyCorners />
-      <div className="fantasy-section-heading"><div><p className="fantasy-kicker">ITEM SUBSCREEN</p><h3 id="fantasy-inventory-title">The Adventurer’s Inventory</h3></div><span role="status">{c.visibleGames.length} / {c.games.length} quests</span></div>
+    <WorkspaceSection sectionKey="inventory" className="fantasy-item-pane fantasy-panel" pane="items" headingId="fantasy-inventory-title" label="quest inventory" title="The Adventurer’s Inventory" eyebrow="ITEM SUBSCREEN" decorations={<FantasyCorners />} revealKey={c.libraryRevealKey}
+      summary={<><span className="workspace-section-count">{c.visibleGames.length} / {c.games.length} quests</span>{c.selectedCustomList && <span className="workspace-section-filter">Active: {c.selectedCustomList.title}</span>}</>}>
       <CustomLists controller={c} />
+      <WorkspaceSection sectionKey="library-filters" className="fantasy-filter-panel" headingLevel={4} label="library filters" title="Quest filters"
+        summary={<span className="workspace-section-count">{c.activeView} · {c.visibleGames.length} matches</span>}>
       <div className="fantasy-status-tabs" role="group" aria-label="Library view">{views.map(view => <button key={view} type="button" data-ui-sound="custom" aria-pressed={c.activeView === view} onClick={() => c.changeView(view)}>{view === "Flatlined" ? "Abandoned" : view} <span>{c.viewCounts[view]}</span></button>)}</div>
       <div className="fantasy-scroll-filters">
         <label>Search quests<input type="search" value={c.searchQuery} placeholder="Find a title, realm, or genre…" onChange={event => c.setSearchQuery(event.target.value)} /></label>
@@ -98,6 +103,7 @@ export default function FantasySubscreenView({ controller: c }: { controller: Ga
         <label>Arrange<select aria-label="Sort games" value={c.sortBy} onChange={event => c.setSortBy(event.target.value)}>{sorts.filter(([value]) => value !== "custom-priority" || c.activeView === "Backlog" && !c.selectedSaga).map(([value, label]) => <option key={value} value={value}>{value === "default" && c.activeView === "Completed" ? "Completion: newest first (default)" : label}</option>)}</select></label>
         {c.hasActiveFilters && <button type="button" onClick={c.clearFilters}>Clear filters</button>}
       </div>
+      </WorkspaceSection>
       {c.backlogNotice && <p className="fantasy-notice" role="status" data-error={c.backlogNotice.error}>{c.backlogNotice.text}</p>}
       {c.deckReturnNotice && <p className="fantasy-notice" role="status" data-error={c.deckReturnNotice.error}>{c.deckReturnNotice.text}</p>}
       <p className="fantasy-inventory-mode" id={inspectionHelpId} aria-live="polite">{locked
@@ -126,27 +132,31 @@ export default function FantasySubscreenView({ controller: c }: { controller: Ga
         {c.visibleGames.length === 0 && <p className="fantasy-empty-inventory">{c.games.length === 0 ? "Your satchel is empty. Inscribe your first quest in the Chronicle." : "No quests match this scroll. Clear your filters to reveal more."}</p>}
         {c.canReturnToBacklog && <p className="fantasy-drop-hint">Release your equipped quest here to return it to the Backlog.</p>}
       </div>
+      <WorkspaceSection sectionKey="quest-inspection" className="fantasy-inspection-section" label="quest inspection" title="Quest inspection" headingLevel={4} revealKey={c.selectedGameId}
+        summary={<span className="workspace-section-filter">{selected?.title ?? "No quest selected"}</span>}>
       {selected ? <FantasyQuestDialogue controller={c} game={selected} onSelectSaga={selectSaga} key={gameRecordKey(selected)} /> : <div className="fantasy-dialogue fantasy-dialogue-empty"><span aria-hidden="true">◇</span><p>Select a quest to read its story and choose your next action.</p></div>}
-    </section>
+      </WorkspaceSection>
+    </WorkspaceSection>
 
-    <section className="fantasy-chronicle-pane fantasy-panel" data-workspace-pane="chronicle" aria-labelledby="fantasy-chronicle-title"><FantasyCorners />
-      <div className="fantasy-section-heading"><div><p className="fantasy-kicker">CHRONICLE & INSCRIBE</p><h3 id="fantasy-chronicle-title">The Hylian Chronicle</h3></div><span aria-hidden="true">◇ ─ ◇ ─ ◇</span></div>
+    <WorkspaceSection sectionKey="chronicle" className="fantasy-chronicle-pane fantasy-panel" pane="chronicle" headingId="fantasy-chronicle-title" label="chronicle" title="The Hylian Chronicle" eyebrow="CHRONICLE & INSCRIBE" decorations={<FantasyCorners />} revealKey={c.sagaRevealKey}
+      summary={<><span className="workspace-section-count">{c.chains.length} sagas</span>{c.selectedSaga && <span className="workspace-section-filter">Active: {c.selectedSaga.name}</span>}</>}>
       <label className="fantasy-saga-select">Open a saga scroll<select aria-label="Filter by saga" value={c.selectedSaga?.key ?? ""} onChange={event => c.selectSaga(event.target.value)}><option value="">Choose a saga…</option>{c.chains.map(chain => <option value={chain.key} key={chain.key}>{chain.name} · {chain.completed}/{chain.total} cleared</option>)}</select></label>
-      {c.selectedSaga ? <>
-        <div className="fantasy-map-heading"><h4>{c.selectedSaga.name}</h4><SagaOrderControls {...c.sagaOrderControls} /></div>
+      {c.selectedSaga ? <WorkspaceSection sectionKey="saga-timeline" className="fantasy-saga-map" headingLevel={4} label="saga map" title={c.selectedSaga.name} revealKey={c.sagaRevealKey}
+        summary={<span className="workspace-section-count">{c.selectedSaga.completed} / {c.selectedSaga.total} cleared</span>}>
+        <SagaOrderControls {...c.sagaOrderControls} />
         <p className="fantasy-hint">Follow the dungeon’s path in release or story order. Drag a floor to reorder its timeline, or use its arrows. Hidden quests keep their positions.</p>
         {c.sagaNotice?.key === c.selectedSaga.key && <p role="status" className="fantasy-notice" data-error={c.sagaNotice.error}>{c.sagaNotice.text}</p>}
         <ol className="fantasy-dungeon-map" aria-label={`${c.selectedSaga.name} saga timeline`}>{c.visibleGames.map((game, index) => <li key={game.id} data-reorder-row-id={game.id} data-library-game-id={game.id} data-cleared={game.status === "Completed"} data-drop-target={c.dropTargetId === game.id || undefined} draggable={c.inTimelineView && !c.rowReorderBusy}
           onPointerDownCapture={event => c.rememberDragOrigin({ gameId: game.id, source: "table" }, event.target instanceof Element && Boolean(event.target.closest("button, a")))}
           onDragStart={event => c.startLibraryDrag(event, { gameId: game.id, source: "table" })} onDragOver={event => dragOver(event, game)} onDragLeave={event => c.leaveLibraryGame(event, game.id)} onDragEnd={c.endRowDrag} onDrop={event => c.dropRowGame(event, game.id)}>
-          <span className="fantasy-floor-number">{String(index + 1).padStart(2, "0")}F</span><div><strong>{game.title}</strong><p>{game.releaseYear ?? "Year unknown"} · {game.status} · {game.chronologicalOrder === null ? "Unassigned timeline" : `Canon rank ${game.chronologicalOrder}`}</p></div><button type="button" onClick={() => { c.setSelectedGameId(game.id); showPane("items"); }}>Inspect quest</button>
+          <span className="fantasy-floor-number">{String(index + 1).padStart(2, "0")}F</span><div><strong>{game.title}</strong><p>{game.releaseYear ?? "Year unknown"} · {game.status} · {game.chronologicalOrder === null ? "Unassigned timeline" : `Canon rank ${game.chronologicalOrder}`}</p></div><button type="button" onClick={() => { c.openLibraryInventory(); c.setSelectedGameId(game.id); showPane("items"); }}>Inspect quest</button>
           {c.inTimelineView && <QuestReorderControls controller={c} game={game} />}
         </li>)}</ol>
         {c.visibleGames.length === 0 && <p className="fantasy-hint">No saga quests match your current inventory filters. Clear filters or choose this saga again.</p>}
         {c.isAdmin && <SagaChronologyDebuggerView controller={c.debuggerController} />}
-      </> : <p className="fantasy-hint">Choose a saga to reveal its dungeon map. Assign a franchise in Edit Metadata to connect your quests.</p>}
+      </WorkspaceSection> : <p className="fantasy-hint">Choose a saga to reveal its dungeon map. Assign a franchise in Edit Metadata to connect your quests.</p>}
       <p className="fantasy-inscribe-pointer">✎ Continue below to inscribe a new quest in your journal.</p>
-    </section>
+    </WorkspaceSection>
   </>;
 }
 

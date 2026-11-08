@@ -4,6 +4,7 @@ import { OwnershipBadge, OwnershipField, OwnershipFilterControl } from "@/compon
 import { PlayJournalBadges, PlayJournalEditor } from "@/components/PlayJournal";
 import { MicroReview, MicroReviewEditor } from "@/components/MicroReview";
 import { SocialHubTrigger } from "@/components/SocialHub";
+import WorkspaceSection from "@/components/WorkspaceSection";
 import CustomLists from "@/components/CustomLists";
 
 import { gameRecordKey } from "@/lib/game-record";
@@ -245,6 +246,11 @@ export default function CyberpunkLibraryView({ controller }: { controller: GameL
       <CustomLists controller={controller} />
       <SagaChains chains={chains} selectedKey={selectedSaga?.key ?? ""} onSelect={selectSaga} {...sagaOrderControls} />
 
+      {(activeView === "All" || activeView === "Backlog") && <UpNextDeckView controller={deck} />}
+      <WorkspaceSection sectionKey="inventory" className="library-inventory-panel" headingLevel={3} label="library inventory" title="Library inventory" revealKey={controller.libraryRevealKey}
+        summary={<><span className="workspace-section-count">{visibleGames.length} / {games.length} games</span><span className="workspace-section-filter">{activeView}{controller.selectedCustomList && ` · ${controller.selectedCustomList.title}`}</span></>}>
+      <WorkspaceSection sectionKey="library-filters" className="library-filter-panel" headingLevel={4} label="library filters" title="Library filters"
+        summary={<span className="workspace-section-count">{activeView} · {visibleGames.length} matches</span>}>
       <div className="library-tabs" role="group" aria-label="Library view">
         {views.map((view) => (
           <button
@@ -322,25 +328,19 @@ export default function CyberpunkLibraryView({ controller }: { controller: GameL
         )}
       </div>
 
+      </WorkspaceSection>
       {inBacklogPriorityView && backlogNotice && <p className="backlog-order-notice" role="status" data-error={backlogNotice.error}>{backlogNotice.text}</p>}
       {deckReturnNotice && <p className="backlog-order-notice" role="status" data-deck-return-notice="true" data-error={deckReturnNotice.error}>{deckReturnNotice.text}</p>}
 
       {selectedSaga && (
-        <section className="saga-timeline-panel" aria-label={`${selectedSaga.name} saga timeline`}>
-          <div className="saga-timeline-heading">
-            <div>
-              <p className="saga-chain-count">⛓️ SAGA CHAIN // {selectedSaga.completed}/{selectedSaga.total} CLEARED</p>
-              <h3>{selectedSaga.name}</h3>
-            </div>
-            <SagaOrderControls {...sagaOrderControls} />
-          </div>
+        <WorkspaceSection sectionKey="saga-timeline" className="saga-timeline-panel" label="saga timeline" title={selectedSaga.name} revealKey={controller.sagaRevealKey}
+          summary={<span className="workspace-section-count">{selectedSaga.completed} / {selectedSaga.total} cleared</span>}>
+          <SagaOrderControls {...sagaOrderControls} />
           <p className="saga-chains-hint">Unassigned games follow ranked games in release order. Use ▲ / ▼ to swap visible games, or drag table rows to reorder. Hidden saga games keep their relative positions.</p>
           {sagaNotice?.key === selectedSaga.key && <p className="saga-order-notice" role="status" data-error={sagaNotice.error}>{sagaNotice.text}</p>}
           {isAdmin && <SagaChronologyDebuggerView controller={debuggerController} />}
-        </section>
+        </WorkspaceSection>
       )}
-
-      {(activeView === "All" || activeView === "Backlog") && <UpNextDeckView controller={deck} />}
       <div data-view={activeView.toLowerCase()} className={activeView === "Completed" ? "trophy-room" : undefined}>
         {activeView === "Completed" && (
           <>
@@ -645,6 +645,7 @@ export default function CyberpunkLibraryView({ controller }: { controller: GameL
           </div>
         )}
       </div>
+      </WorkspaceSection>
       {activeView === "Playing" && <UpNextDeckView controller={deck} />}
 
     </>

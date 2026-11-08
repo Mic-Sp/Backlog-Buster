@@ -1,4 +1,5 @@
 "use client";
+import WorkspaceSection from "@/components/WorkspaceSection";
 import { cooldownLabel } from "@/lib/cooldown";
 
 import type { SagaChain, SagaOrderMode } from "@/lib/sagas";
@@ -48,11 +49,8 @@ export function SagaBadge({ saga, onSelect, layout = "default" }: { saga: SagaCh
 export default function SagaChains({ chains, selectedKey, onSelect, ...orderControls }: { chains: SagaChain[]; selectedKey: string } & SagaSelection & SagaOrderControlsProps) {
   const selected = chains.find((chain) => chain.key === selectedKey);
   return (
-    <details className="saga-chains-drawer">
-      <summary>
-        <span>⛓️ ACTIVE SAGA CHAINS</span>
-        <span className="saga-chains-summary">{selected ? selected.name : `${chains.length} ${chains.length === 1 ? "CHAIN" : "CHAINS"} DETECTED`}</span>
-      </summary>
+    <WorkspaceSection sectionKey="saga-chains" className="saga-chains-drawer" label="saga chains" title="Active Saga Chains" defaultOpen={false}
+      summary={<><span className="workspace-section-count">{chains.length} {chains.length === 1 ? "chain" : "chains"}</span>{selected && <span className="workspace-section-filter">Active: {selected.name}</span>}</>}>
       <div className="saga-chains-body">
         <label className="saga-filter-label">
           SAGA
@@ -79,6 +77,6 @@ export default function SagaChains({ chains, selectedKey, onSelect, ...orderCont
         ) : <p className="saga-chains-hint">No multi-game sagas detected yet. Use Edit Metadata → Franchise / Saga Name to connect games across different titles.</p>}
         {chains.length > 0 && <p className="saga-chains-hint">Progress covers your full library. Select a saga to switch between release and timeline order. Edit Metadata lets you override grouping and timeline ranks.</p>}
       </div>
-    </details>
+    </WorkspaceSection>
   );
 }

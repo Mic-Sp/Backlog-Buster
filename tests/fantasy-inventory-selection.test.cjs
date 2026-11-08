@@ -21,6 +21,7 @@ function fixture(selectedGameId = null) {
       return [state[slot], next => { state[slot] = typeof next === "function" ? next(state[slot]) : next; }]; }, useId: () => "inventory-help" },
     "@/components/SocialHub": { SocialHubTrigger: empty },
     "@/components/CustomLists": { default: empty },
+    "@/components/WorkspaceSection": { default: empty },
     "@/components/FantasyAccents": { FantasyCorners: empty, NaviFairy: empty, SlotBrackets: empty },
     "@/components/WorkspaceShell": { useSubscreen: () => ({ showPane() {} }) },
     "@/components/ThemeProvider": { useUIEffects: () => ({ playSfx: sound => sounds.push(sound) }) },

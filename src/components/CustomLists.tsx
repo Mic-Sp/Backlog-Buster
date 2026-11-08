@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
+import WorkspaceSection from "@/components/WorkspaceSection";
 import { useLayoutCopy } from "@/components/LayoutText";
 import type { GameLibraryController, LibraryGame } from "@/components/GameLibrary";
 import { createCustomList, updateCustomList, deleteCustomList, updateCustomListItems } from "@/app/custom-list-actions";
@@ -31,8 +32,9 @@ export default function CustomLists({ controller: c }: { controller: GameLibrary
   }
   function edit(id: string) { setEditorId(id); setConfirmDelete(false); setNotice(null); if (managerRef.current) managerRef.current.open = true; }
 
-  return <section className="custom-lists-panel" aria-label="Custom lists" aria-busy={pending}>
-    <div className="custom-lists-heading"><div><p className="custom-lists-kicker">{copy("DATA SHARDS // CUSTOM QUEUES", "CURATED SCROLLS // TAVERN SHELVES")}</p><h3>{copy("Your curated collections", "The curator’s shelves")}</h3></div><span>{c.customLists.length} / {MAX_CUSTOM_LISTS}</span></div>
+  return <WorkspaceSection sectionKey="custom-lists" className="custom-lists-panel" label="custom lists" busy={pending}
+    title={copy("Your curated collections", "The curator’s shelves")} eyebrow={copy("DATA SHARDS // CUSTOM QUEUES", "CURATED SCROLLS // TAVERN SHELVES")}
+    summary={<><span className="workspace-section-count">{c.customLists.length} / {MAX_CUSTOM_LISTS} shelves</span>{c.selectedCustomList && <span className="workspace-section-filter" title={`Active list: ${c.selectedCustomList.title}`}>Active: {c.selectedCustomList.title}</span>}</>}>
     {!c.socialEnabled ? <p>Sign in to create your own lists and ranked shelves.</p> : <>
       <div className="custom-list-toolbar">
         <label>View custom list<select value={c.selectedCustomList?.id ?? ""} onChange={event => c.selectCustomList(event.target.value)} disabled={pending}>
@@ -69,7 +71,7 @@ export default function CustomLists({ controller: c }: { controller: GameLibrary
       </details>
     </>}
     {notice && <p className="custom-list-notice" role={notice.error ? "alert" : "status"} data-error={notice.error}>{notice.text}</p>}
-  </section>;
+  </WorkspaceSection>;
 }
 
 function ListDetailsForm({ list, onSave }: { list?: CustomListData; onSave: (details: Record<string, unknown>) => void }) {
@@ -91,8 +93,8 @@ function ListItems({ list, games, change }: { list: CustomListData; games: Libra
   const available = games.filter(game => !list.gameIds.includes(game.id)).sort((a, b) => a.title.localeCompare(b.title) || a.id - b.id);
   const selectedId = available.some(game => String(game.id) === gameId) ? gameId : "";
   const byId = new Map(games.map(game => [game.id, game]));
-  return <div className="custom-list-membership">
-    <div className="custom-list-items-heading"><h4>{list.isRanked ? "Ranked picks" : "Shelf contents"}</h4><span>{list.gameIds.length} / {MAX_LIST_GAMES}</span></div>
+  return <WorkspaceSection sectionKey="list-membership" className="custom-list-membership" label="list contents" headingLevel={4}
+    title={list.isRanked ? "Ranked picks" : "Shelf contents"} summary={<span className="workspace-section-count">{list.gameIds.length} / {MAX_LIST_GAMES} games</span>}>
     <div className="custom-list-toolbar"><label>Add a library game<select value={selectedId} onChange={event => setGameId(event.target.value)} disabled={list.gameIds.length >= MAX_LIST_GAMES}><option value="">Choose a game…</option>{available.map(game => <option value={game.id} key={game.id}>{game.title} · {game.platform}</option>)}</select></label><button type="button" disabled={!selectedId || list.gameIds.length >= MAX_LIST_GAMES} onClick={() => change({ type: "add", gameId: Number(selectedId) }, "Game added.")}>Add game</button></div>
     <ol className="custom-list-items" data-ranked={list.isRanked}>{list.gameIds.map((id, index) => {
       const game = byId.get(id);
@@ -103,5 +105,5 @@ function ListItems({ list, games, change }: { list: CustomListData; games: Libra
     })}</ol>
     {!list.gameIds.length && <p className="custom-list-empty">An empty shelf, ready for your first pick.</p>}
     {list.gameIds.length >= MAX_LIST_GAMES && <p>This shelf is full. Remove a game to add another.</p>}
-  </div>;
+  </WorkspaceSection>;
 }

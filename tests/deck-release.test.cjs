@@ -25,6 +25,7 @@ function deckFixture(releaseYear, source = "table", status = "Backlog") {
     "@/lib/deck": loader()("src/lib/deck.ts"),
     "@/components/useDeckPins": { useDeckPins: () => ({ isPending: false }), DeckPinsContext: {} },
     "@/components/SafeForm": {}, "@/components/DeckPinButton": {},
+    "@/components/WorkspaceSection": { default: () => null },
   });
   const controller = mod.useUpNextDeckController({ games: [game], draggedGame: { gameId: 1, source },
     onDragGameChange: game => cleared.push(game), onDragPointerDown: noop, onGameDragStart: noop });
