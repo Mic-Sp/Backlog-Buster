@@ -30,8 +30,9 @@ import { DeckPinsContext } from "@/components/useDeckPins";
 import { SocialHubOverlay, useSocialHubController } from "@/components/SocialHub";
 import { compareCompletionDates } from "@/lib/play-journal";
 import { matchesOwnership, type OwnershipFilter, type OwnershipType } from "@/lib/ownership-type";
+import type { SteamProgressFields } from "@/lib/steam-progress";
 
-export type LibraryGame = {
+export type LibraryGame = SteamProgressFields & {
   id: number;
   title: string;
   platform: string;

@@ -1,5 +1,7 @@
 "use client";
 
+import SteamProgress from "@/components/SteamProgress";
+
 import { OwnershipBadge, OwnershipField, OwnershipFilterControl } from "@/components/Ownership";
 import { PlayJournalBadges, PlayJournalEditor } from "@/components/PlayJournal";
 import { MicroReview, MicroReviewEditor } from "@/components/MicroReview";
@@ -428,6 +430,7 @@ export default function CyberpunkLibraryView({ controller }: { controller: GameL
                   </div>
                   {game.status === "Playing" && <AgentBriefing game={game} />}
                   <OwnershipBadge value={game.ownershipType} />
+                  <SteamProgress game={game} />
                   <ReplayBadge count={game.playthroughCount} />
                   <PlayJournalBadges startedAt={game.startedAt} completedAt={game.completedAt} />
                   <MicroReview review={game.review} reviewSpoiler={game.reviewSpoiler} />
@@ -464,6 +467,7 @@ export default function CyberpunkLibraryView({ controller }: { controller: GameL
                   )}
                   <p className="trophy-reward">+{game.earnedXp.toLocaleString()} XP</p>
                   <OwnershipBadge value={game.ownershipType} />
+                  <SteamProgress game={game} />
                   <ReplayBadge count={game.playthroughCount} />
                   <PlayJournalBadges startedAt={game.startedAt} completedAt={game.completedAt} />
                   <MicroReview review={game.review} reviewSpoiler={game.reviewSpoiler} />
@@ -554,6 +558,7 @@ export default function CyberpunkLibraryView({ controller }: { controller: GameL
                       <span className="game-title-heading"><strong title={game.title}>{game.title}</strong>{renderTimelinePill(game)}</span>
                       <CommunityStatsReadout game={game} />
                       <OwnershipBadge value={game.ownershipType} />
+                      <SteamProgress game={game} />
                       <ReplayBadge count={game.playthroughCount} />
                       <PlayJournalBadges startedAt={game.startedAt} completedAt={game.completedAt} />
                       <MicroReview review={game.review} reviewSpoiler={game.reviewSpoiler} />

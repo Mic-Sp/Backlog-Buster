@@ -31,6 +31,7 @@ import { saveRecommendationDismissal } from "@/lib/recommendation-dismissals";
 import { readMicroReviewFields } from "@/lib/micro-review";
 import { readPlayJournalFields, resolvePlayJournal } from "@/lib/play-journal";
 import { readOwnershipField } from "@/lib/ownership-type";
+import { refreshSteamGameAchievements } from "@/lib/steam-achievement-sync";
 import { completedRuns, MAX_PLAYTHROUGHS, parsePlaythroughCount, readPlaythroughFields, resolvePlaythroughCount } from "@/lib/playthroughs";
 
 export async function dismissScoutRecommendation(title: string) {
@@ -565,6 +566,14 @@ export async function syncSteamLibrary(payload: SteamSyncPayload) {
     const { summary } = await syncSteamLibraryGames(payload);
     revalidatePath("/");
     return summary;
+  });
+}
+
+export async function syncSteamAchievements(gameId: number) {
+  return safeAction(async () => {
+    const result = await refreshSteamGameAchievements(gameId);
+    if (result.updated) revalidatePath("/");
+    return result;
   });
 }
 

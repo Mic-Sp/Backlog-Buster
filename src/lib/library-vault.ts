@@ -16,6 +16,7 @@ import { randomUUID } from "node:crypto";
 import { appendActivityEvents } from "@/lib/activity-events";
 import { syncAchievementsForPlayer } from "@/lib/achievements";
 import { libraryMetadataKey, loadLibraryMetadata } from "@/lib/library-metadata";
+import { fetchSteamAchievementBatch, selectSteamAchievementTargets } from "@/lib/steam-achievement-sync";
 
 async function requireVaultSession() {
   const tokenHash = await readSessionHash();
@@ -40,6 +41,8 @@ export async function getLibraryExport(format: "json" | "csv") {
       genre: true, franchise: true, releaseYear: true, chronologicalOrder: true, coverUrl: true,
       startedAt: true, completedAt: true, playthroughCount: true,
       ownershipType: true,
+      steamAppId: true, steamRecentMinutes: true, steamLastSyncedAt: true, steamAchievementsUnlocked: true, steamAchievementsTotal: true,
+      steamAchievementsCheckedAt: true, steamAchievementsSyncedAt: true,
     },
   });
   const operator = (player.handle || player.operatorName).normalize("NFKD").toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 48) || "operator";
@@ -90,10 +93,12 @@ export async function importLibraryGames(payload: LibraryImportPayload) {
     // Recheck after potentially slow RAWG lookups; logout/account deletion must stop the import.
     const active = await tx.playerSession.findUnique({ where: { tokenHash, userId: player.id, expiresAt: { gt: new Date() } }, select: { tokenHash: true } });
     if (!active) throw new InputError("Your session expired. Sign in again before importing.");
-    const existing = await tx.game.findMany({ where: { userId: player.id }, select: { title: true, platform: true, pinnedOrder: true } });
+    const existing = await tx.game.findMany({ where: { userId: player.id }, select: { title: true, platform: true, pinnedOrder: true, steamAppId: true } });
     const pairKey = (game: { title: string; platform: string }) => JSON.stringify([game.title.trim().toLowerCase(), game.platform.trim().toLowerCase()]);
     const seen = new Set(existing.map(pairKey));
-    const unique = records.filter(game => { const key = pairKey(game); if (seen.has(key)) return false; seen.add(key); return true; });
+    const seenApps = new Set(existing.flatMap(game => game.steamAppId ? [game.steamAppId] : []));
+    const unique = records.filter(game => { const key = pairKey(game); if (seen.has(key) || game.steamAppId && seenApps.has(game.steamAppId)) return false;
+      seen.add(key); if (game.steamAppId) seenApps.add(game.steamAppId); return true; });
     const used = new Set(existing.flatMap(game => game.pinnedOrder === null ? [] : [game.pinnedOrder]));
     for (const game of [...unique].sort((left, right) => (left.pinnedOrder ?? Infinity) - (right.pinnedOrder ?? Infinity))) {
       if (game.pinnedOrder === null) continue;
@@ -105,9 +110,11 @@ export async function importLibraryGames(payload: LibraryImportPayload) {
     const result = unique.length ? await tx.game.createMany({ data: unique.map(game => ({ ...game, userId: player.id })) }) : { count: 0 };
     let restoredListCount = 0;
     if (archivedLists !== null) {
-      const ownedGames = await tx.game.findMany({ where: { userId: player.id }, orderBy: { id: "asc" }, select: { id: true, title: true, platform: true } });
+      const ownedGames = await tx.game.findMany({ where: { userId: player.id }, orderBy: { id: "asc" }, select: { id: true, title: true, platform: true, steamAppId: true } });
       const idsByPair = new Map<string, number>();
       for (const game of ownedGames) if (!idsByPair.has(pairKey(game))) idsByPair.set(pairKey(game), game.id);
+      const idsByApp = new Map(ownedGames.flatMap(game => game.steamAppId ? [[game.steamAppId, game.id] as const] : []));
+      for (const record of records) if (record.steamAppId && idsByApp.has(record.steamAppId)) idsByPair.set(pairKey(record), idsByApp.get(record.steamAppId)!);
       const existingLists = await tx.customList.findMany({ where: { userId: player.id },
         select: { title: true, description: true, isRanked: true, isPublic: true, entries: { orderBy: { position: "asc" }, select: { gameId: true } } } });
       const signatures = new Set(existingLists.map(list => JSON.stringify([list.title, list.description, list.isRanked, list.isPublic, list.entries.map(entry => entry.gameId)])));
@@ -143,7 +150,8 @@ export type SteamSyncSummary = { steamId: string; addedCount: number; updatedCou
 export type SteamSyncSession = { userId: string; tokenHash: string };
 export type SteamAutoSyncClaim = { steamId: string; attemptedAt: Date };
 const STEAM_WRITE_BATCH_SIZE = 500;
-const steamExistingSelect = { id: true, title: true, platform: true, steamAppId: true, hoursPlayed: true, ownershipType: true } as const;
+const steamExistingSelect = { id: true, title: true, platform: true, steamAppId: true, hoursPlayed: true, ownershipType: true,
+  status: true, pinnedOrder: true, steamAchievementsTotal: true, steamAchievementsSyncedAt: true } as const;
 type SteamExistingGame = Prisma.GameGetPayload<{ select: typeof steamExistingSelect }>;
 
 function steamMatches(existing: SteamExistingGame[], incoming: SteamOwnedGame[]) {
@@ -180,14 +188,23 @@ export async function syncSteamLibraryForSession(payload: SteamSyncPayload, sess
   const updateHoursPlayed = payload.updateHoursPlayed ?? false;
   // Automatic work never consumes the manual vault's short request cooldown.
   return guardedRequest(userId, automatic ? "steam-auto-sync" : "steam-sync", JSON.stringify([identifier, includeUnplayed, updateHoursPlayed]), async () => {
-    const [library, initial] = await Promise.all([
+    const snapshotAt = new Date();
+    const [library, initial, profile] = await Promise.all([
       fetchSteamLibrary(payload.identifier),
       prisma.game.findMany({ where: { userId }, select: steamExistingSelect }),
+      prisma.player.findUnique({ where: { id: userId }, select: { steamId: true, featuredTrophyIds: true } }),
     ]);
     const incoming = library.games.filter(game => (includeUnplayed || game.playtimeMinutes > 0) &&
       game.title.length <= 120 && normalizeGameTitle(game.title));
     const newGames = steamMatches(initial, incoming).filter(match => !match.existing).map(match => match.game);
-    const metadata = await loadLibraryMetadata(newGames);
+    const relinking = Boolean(profile?.steamId && profile.steamId !== library.steamId);
+    const favorites = new Set(Array.isArray(profile?.featuredTrophyIds) ? profile.featuredTrophyIds : []);
+    const targets = selectSteamAchievementTargets(steamMatches(initial, incoming).map(({ game, existing }) => ({
+      steamAppId: game.steamAppId, recentMinutes: game.recentMinutes, status: existing?.status, pinnedOrder: existing?.pinnedOrder,
+      hallOfFame: existing ? favorites.has(existing.id) : false, total: relinking ? null : existing?.steamAchievementsTotal,
+      syncedAt: relinking ? null : existing?.steamAchievementsSyncedAt,
+    })));
+    const [metadata, achievements] = await Promise.all([loadLibraryMetadata(newGames), fetchSteamAchievementBatch(library.steamId, targets)]);
     const summary = await prisma.$transaction(async tx => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`backlogbuster-deck:${userId}`}, 0))`;
       const active = await tx.playerSession.findUnique({
@@ -198,6 +215,12 @@ export async function syncSteamLibraryForSession(payload: SteamSyncPayload, sess
         select: { tokenHash: true },
       });
       if (!active) throw new InputError("Your session expired. Sign in again before syncing Steam.");
+      const currentProfile = await tx.player.findUnique({ where: { id: userId }, select: { steamId: true } });
+      if (currentProfile?.steamId !== profile?.steamId && currentProfile?.steamId !== library.steamId) throw new InputError("Your Steam link changed during sync. Try again.");
+      if (currentProfile?.steamId && currentProfile.steamId !== library.steamId) await tx.game.updateMany({ where: { userId, steamAppId: { not: null } }, data: {
+        steamRecentMinutes: null, steamLastSyncedAt: null, steamAchievementsUnlocked: null, steamAchievementsTotal: null,
+        steamAchievementsCheckedAt: null, steamAchievementsSyncedAt: null,
+      } });
       // A parallel import may have linked/created rows while metadata was loading.
       const existing = await tx.game.findMany({ where: { userId }, select: steamExistingSelect });
       const additions: Prisma.GameCreateManyInput[] = [];
@@ -231,6 +254,28 @@ export async function syncSteamLibraryForSession(payload: SteamSyncPayload, sess
           FROM jsonb_to_recordset(${JSON.stringify(updates.slice(index, index + STEAM_WRITE_BATCH_SIZE))}::jsonb)
             AS change("id" integer, "steamAppId" text, "hoursPlayed" integer)
           WHERE game."id" = change."id" AND game."userId" = ${userId}
+        `;
+      }
+      // Telemetry has its own batch, so existing library summary counts keep their
+      // meaning (new/link/hour changes), and zero recent minutes clears old activity.
+      const telemetry = incoming.flatMap(game => {
+        const stats = achievements.get(game.steamAppId);
+        return game.recentMinutes !== undefined || stats ? [{ steamAppId: game.steamAppId,
+          recentMinutes: game.recentMinutes ?? null, hasRecent: game.recentMinutes !== undefined,
+          checkedAt: stats?.counts ? stats.checkedAt.toISOString() : null, unlocked: stats?.counts.unlocked ?? null, total: stats?.counts.total ?? null }] : [];
+      });
+      for (let index = 0; index < telemetry.length; index += STEAM_WRITE_BATCH_SIZE) {
+        await tx.$executeRaw`
+          UPDATE "Game" AS telemetry SET
+            "steamRecentMinutes" = CASE WHEN change."hasRecent" AND (telemetry."steamLastSyncedAt" IS NULL OR telemetry."steamLastSyncedAt" <= ${snapshotAt}) THEN change."recentMinutes" ELSE telemetry."steamRecentMinutes" END,
+            "steamLastSyncedAt" = CASE WHEN change."hasRecent" THEN GREATEST(telemetry."steamLastSyncedAt", ${snapshotAt}) ELSE telemetry."steamLastSyncedAt" END,
+            "steamAchievementsCheckedAt" = CASE WHEN change."total" IS NOT NULL AND (telemetry."steamAchievementsSyncedAt" IS NULL OR telemetry."steamAchievementsSyncedAt" <= change."checkedAt") THEN change."checkedAt" ELSE telemetry."steamAchievementsCheckedAt" END,
+            "steamAchievementsUnlocked" = CASE WHEN change."unlocked" IS NOT NULL AND (telemetry."steamAchievementsSyncedAt" IS NULL OR telemetry."steamAchievementsSyncedAt" <= change."checkedAt") THEN change."unlocked" ELSE telemetry."steamAchievementsUnlocked" END,
+            "steamAchievementsTotal" = CASE WHEN change."total" IS NOT NULL AND (telemetry."steamAchievementsSyncedAt" IS NULL OR telemetry."steamAchievementsSyncedAt" <= change."checkedAt") THEN change."total" ELSE telemetry."steamAchievementsTotal" END,
+            "steamAchievementsSyncedAt" = CASE WHEN change."total" IS NOT NULL AND (telemetry."steamAchievementsSyncedAt" IS NULL OR telemetry."steamAchievementsSyncedAt" <= change."checkedAt") THEN change."checkedAt" ELSE telemetry."steamAchievementsSyncedAt" END
+          FROM jsonb_to_recordset(${JSON.stringify(telemetry.slice(index, index + STEAM_WRITE_BATCH_SIZE))}::jsonb)
+            AS change("steamAppId" text, "recentMinutes" integer, "hasRecent" boolean, "checkedAt" timestamptz, "unlocked" integer, "total" integer)
+          WHERE telemetry."userId" = ${userId} AND telemetry."steamAppId" = change."steamAppId"
         `;
       }
       await tx.player.update({ where: { id: userId }, data: { steamId: library.steamId, steamLastSyncedAt: new Date() }, select: { id: true } });

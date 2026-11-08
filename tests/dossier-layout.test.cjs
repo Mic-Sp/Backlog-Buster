@@ -24,6 +24,16 @@ const props = {
 };
 const render = fields => renderToStaticMarkup(React.createElement(Card, { ...props, ...fields }));
 
+test('both exported trophy themes show exact Steam mastery and partial progress without mastering zero achievements', () => {
+  for (const layoutMode of ['cyberpunk', 'fantasy']) {
+    for (const [unlocked, total] of [[38, 50], [50, 50], [0, 0]]) {
+      const html = render({ layoutMode, data: { ...props.data, trophies: props.data.trophies.map(game => ({ ...game, steamAchievementsUnlocked: unlocked, steamAchievementsTotal: total })) } });
+      assert.equal(html.includes('MASTERED'), total > 0 && unlocked === total);
+      if (unlocked === 38) assert(html.includes('38/50'));
+    }
+  }
+});
+
 test('Cyberpunk default and explicit modes produce the original neon card', () => {
   assert.equal(render({}), render({ layoutMode: 'cyberpunk' }));
   const html = render({});

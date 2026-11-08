@@ -1,9 +1,12 @@
 import "server-only";
 import { resilientFetch, retryAfterSeconds } from "@/lib/api-resilience";
 import { InputError, RateLimitError } from "@/lib/action-result";
+import { MAX_STEAM_ACHIEVEMENTS, STEAM_RECENT_WINDOW_MINUTES, validSteamAppId } from "@/lib/steam-progress";
 
 export type SteamErrorCode = "INVALID_IDENTIFIER" | "MISSING_API_KEY" | "API_KEY_REJECTED" |
-  "VANITY_NOT_FOUND" | "PRIVATE_LIBRARY" | "INVALID_RESPONSE" | "TIMEOUT" | "UPSTREAM_ERROR";
+  "VANITY_NOT_FOUND" | "PRIVATE_LIBRARY" | "PRIVATE_ACHIEVEMENTS" | "INVALID_RESPONSE" | "TIMEOUT" | "UPSTREAM_ERROR";
+
+export const STEAM_ACHIEVEMENT_REQUEST_TIMEOUT_MS = 10000;
 
 export class SteamAPIError extends InputError {
   constructor(public code: SteamErrorCode, message: string) {
@@ -19,6 +22,7 @@ export type SteamOwnedGame = {
   playtimeMinutes: number;
   // Lifetime playtime, not a completion time or a Main Story estimate.
   hoursPlayed: number;
+  recentMinutes?: number | null;
   coverUrl: string;
 };
 export type SteamLibrary = { steamId: string; games: SteamOwnedGame[] };
@@ -81,17 +85,29 @@ function invalidResponse(): never {
   throw new SteamAPIError("INVALID_RESPONSE", "Steam returned an unexpected library response. Please retry the sync.");
 }
 
-type Endpoint = "ISteamUser/ResolveVanityURL/v1/" | "IPlayerService/GetOwnedGames/v1/";
-async function steamRequest(endpoint: Endpoint, params: Record<string, string>, key: string): Promise<Record<string, unknown>> {
+type Endpoint = "ISteamUser/ResolveVanityURL/v1/" | "IPlayerService/GetOwnedGames/v1/" | "ISteamUserStats/GetPlayerAchievements/v0001/";
+function privateAchievements(result: unknown): boolean {
+  return isRecord(result) && result.success === false && typeof result.error === "string" &&
+    /profile.*(?:not public|private)|private.*profile/i.test(result.error);
+}
+function achievementPrivacyError(): never {
+  throw new SteamAPIError("PRIVATE_ACHIEVEMENTS", "Steam reports this profile or its Game details are private. Set both My profile and Game details to Public in Steam Privacy Settings, then retry. Your last saved progress was kept.");
+}
+async function steamRequest(endpoint: Endpoint, params: Record<string, string>, key: string, signal?: AbortSignal): Promise<Record<string, unknown>> {
   // Fixed API origin and disabled redirects keep the server key away from user URLs.
   const url = new URL(endpoint, "https://api.steampowered.com/");
   url.search = new URLSearchParams({ key, format: "json", ...params }).toString();
   try {
     const response = await resilientFetch(url.toString(), {
       method: "GET", headers: { Accept: "application/json" }, cache: "no-store",
-      redirect: "error", signal: AbortSignal.timeout(10000),
+      redirect: "error", signal: AbortSignal.any([AbortSignal.timeout(STEAM_ACHIEVEMENT_REQUEST_TIMEOUT_MS), ...(signal ? [signal] : [])]),
     });
     if (response.status === 429) throw new RateLimitError(retryAfterSeconds(response.headers.get("Retry-After")));
+    if (response.status === 403 && endpoint === "ISteamUserStats/GetPlayerAchievements/v0001/") {
+      // Steam also uses 403 for private game details; this does not mean the key is invalid.
+      const payload: unknown = await response.json().catch(() => null);
+      if (isRecord(payload) && privateAchievements(payload.playerstats)) achievementPrivacyError();
+    }
     if (response.status === 401 || response.status === 403) {
       throw new SteamAPIError("API_KEY_REJECTED", "Steam rejected the server API key. Check its Steam Web API access.");
     }
@@ -102,8 +118,9 @@ async function steamRequest(endpoint: Endpoint, params: Record<string, string>, 
       if (error instanceof SyntaxError) return invalidResponse();
       throw error;
     }
-    if (!isRecord(payload) || !isRecord(payload.response)) return invalidResponse();
-    return payload.response;
+    const root = endpoint === "ISteamUserStats/GetPlayerAchievements/v0001/" ? "playerstats" : "response";
+    if (!isRecord(payload) || !isRecord(payload[root])) return invalidResponse();
+    return payload[root];
   } catch (error) {
     if (error instanceof SteamAPIError || error instanceof RateLimitError) throw error;
     if (error instanceof Error && (error.name === "AbortError" || error.name === "TimeoutError")) {
@@ -160,9 +177,29 @@ export async function fetchSteamLibrary(input: string): Promise<SteamLibrary> {
     return {
       steamAppId, title: title || `Steam App ${steamAppId}`,
       playtimeMinutes: game.playtime_forever, hoursPlayed: steamMinutesToHours(game.playtime_forever),
+      recentMinutes: game.playtime_2weeks === undefined ? 0 : typeof game.playtime_2weeks === "number" &&
+        Number.isSafeInteger(game.playtime_2weeks) && game.playtime_2weeks >= 0 && game.playtime_2weeks <= STEAM_RECENT_WINDOW_MINUTES ? game.playtime_2weeks : null,
       // Best-effort fallback: GetOwnedGames has icons, not full cover art.
       coverUrl: `https://cdn.cloudflare.steamstatic.com/steam/apps/${steamAppId}/header.jpg`,
     };
   });
   return { steamId, games };
+}
+
+export type SteamAchievementCounts = { unlocked: number; total: number };
+/** Optional progress: private/unavailable stats stay unknown; an explicit empty list means no achievements. */
+export async function fetchSteamAchievements(steamId: string, appId: string, signal?: AbortSignal): Promise<SteamAchievementCounts | null> {
+  if (!isSteamId(steamId) || !validSteamAppId(appId)) throw new InputError("Choose a valid linked Steam game.");
+  const result = await steamRequest("ISteamUserStats/GetPlayerAchievements/v0001/", { steamid: steamId, appid: appId, l: "english" }, apiKey(), signal);
+  if (privateAchievements(result)) achievementPrivacyError();
+  if (result.success !== true || (result.steamID !== undefined && result.steamID !== steamId) ||
+    !Array.isArray(result.achievements) || result.achievements.length > MAX_STEAM_ACHIEVEMENTS) return null;
+  const seen = new Set<string>();
+  let unlocked = 0;
+  for (const row of result.achievements) {
+    if (!isRecord(row) || typeof row.apiname !== "string" || !row.apiname.trim() || seen.has(row.apiname) ||
+      (row.achieved !== 0 && row.achieved !== 1)) return null;
+    seen.add(row.apiname); unlocked += row.achieved;
+  }
+  return { unlocked, total: seen.size };
 }

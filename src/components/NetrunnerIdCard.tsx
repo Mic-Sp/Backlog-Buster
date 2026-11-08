@@ -1,5 +1,6 @@
 "use client";
 
+import { steamAchievementProgress } from "@/lib/steam-progress";
 import { replayLabel } from "@/lib/playthroughs";
 import { dossierReviewQuote } from "@/lib/micro-review";
 
@@ -110,6 +111,7 @@ function CyberpunkIdCard({ data, identity, timestamp, artwork, cardRef, artworkL
         {Array.from({ length: 3 }, (_, index) => {
           const slot = showcase[index];
           const game = slot?.game;
+          const steam = game ? steamAchievementProgress(game) : null;
           const x = 32 + index * 314;
           const cover = game?.coverUrl ? artwork[game.coverUrl] : null;
           return (
@@ -125,6 +127,7 @@ function CyberpunkIdCard({ data, identity, timestamp, artwork, cardRef, artworkL
                 </>}
                 <text x={x + 12} y="539" fontSize="14" fontWeight="700" fill="#f5f7e8">{dossierTitleLines(game.title).map((line, lineIndex) => <tspan key={lineIndex} x={x + 12} dy={lineIndex === 0 ? 0 : 18}>{line}</tspan>)}</text>
                 {(game.playthroughCount ?? 0) > 1 && <text x={x + 12} y="470" fontSize="10" fontWeight="700" fill="#72ffd1" stroke="#080d16" strokeWidth="3" paintOrder="stroke">{replayLabel(game.playthroughCount!, false)}</text>}
+                {steam && steam.total > 0 && <text x={x + 12} y="486" fontSize="10" fontWeight="700" fill="#fcee0a" stroke="#080d16" strokeWidth="3" paintOrder="stroke">{steam.mastered ? "100% MASTERED ON STEAM" : `STEAM ${steam.unlocked}/${steam.total} · ${steam.percent}%`}</text>}
                 {dossierReviewQuote(game) && <text x={x + 12} y="580" fontSize="10" fill="#b8d3d8">{dossierReviewQuote(game)}</text>}
                 <text x={x + 12} y="602" fontSize={slot?.pinned ? "11" : "16"} fill="#fcee0a">{slot?.pinned ? "★ FAVORITE" : "★★★★★"}</text>
                 <text x={x + 296} y="602" textAnchor="end" fontSize="15" fontWeight="700" fill="#fcee0a">+{game.earnedXp.toLocaleString("en-US")} XP</text>

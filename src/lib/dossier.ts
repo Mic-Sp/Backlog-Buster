@@ -1,8 +1,9 @@
 import type { Achievement } from "@/lib/achievements";
 import type { PlayerProfile } from "@/lib/player-profile-types";
 import type { AnnualReviewData } from "@/lib/year-in-review";
+import type { SteamProgressFields } from "@/lib/steam-progress";
 
-export type DossierGame = { id: number; title: string; platform: string; coverUrl: string | null; earnedXp: number; playthroughCount?: number; review?: string | null; reviewSpoiler?: boolean };
+export type DossierGame = Pick<SteamProgressFields, "steamAchievementsUnlocked" | "steamAchievementsTotal"> & { id: number; title: string; platform: string; coverUrl: string | null; earnedXp: number; playthroughCount?: number; review?: string | null; reviewSpoiler?: boolean };
 export type DossierData = {
   profile: PlayerProfile;
   level: number;

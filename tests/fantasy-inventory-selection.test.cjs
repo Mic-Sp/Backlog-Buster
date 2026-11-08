@@ -27,6 +27,7 @@ function fixture(selectedGameId = null) {
     "@/components/ThemeProvider": { useUIEffects: () => ({ playSfx: sound => sounds.push(sound) }) },
     "@/components/SagaChains": { SagaBadge: empty, SagaOrderControls: empty },
     "@/components/Ownership": { OwnershipField: () => null, OwnershipBadge: () => null, OwnershipFilterControl: () => null },
+    "@/components/SteamProgress": { default: empty },
     "@/components/ReplayTracking": { ReplayBadge: empty, ReplayCountEditor: empty, ReplayLogForm: empty },
     "@/lib/achievement-persona": { achievementPersona: a => a },
     "@/components/PlayJournal": { PlayJournalBadges: () => null, PlayJournalEditor: () => null },

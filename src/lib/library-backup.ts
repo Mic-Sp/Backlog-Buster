@@ -6,13 +6,15 @@ const fields = [
   "title", "platform", "status", "wasFlatlined", "pinnedOrder", "backlogOrder", "lengthHours", "hoursPlayed", "difficulty",
   "earnedXp", "rating", "notes", "review", "reviewSpoiler", "genre", "franchise", "releaseYear", "chronologicalOrder", "coverUrl",
   "startedAt", "completedAt", "ownershipType", "playthroughCount",
+  "steamAppId", "steamRecentMinutes", "steamLastSyncedAt", "steamAchievementsUnlocked", "steamAchievementsTotal", "steamAchievementsCheckedAt", "steamAchievementsSyncedAt",
 ] as const;
 
 export function serializeLibraryBackup(games: (Omit<Pick<LibraryGame, typeof fields[number]>, "startedAt" | "completedAt"> & { startedAt?: Date | string | null; completedAt?: Date | string | null; backupCoverUrl?: string | null })[], format: "json" | "csv") {
   const records = games.map((game) => Object.fromEntries(fields.map((field) => [
     field, field === "coverUrl"
       ? (game.backupCoverUrl !== undefined ? game.backupCoverUrl : game.coverUrl)
-      : field === "startedAt" || field === "completedAt" ? journalDateInput(game[field]) || null : game[field],
+      : field === "startedAt" || field === "completedAt" ? journalDateInput(game[field]) || null
+      : game[field] instanceof Date ? game[field].toISOString() : game[field],
   ])));
   if (format === "json") return JSON.stringify(records, null, 2);
   const escapeCell = (value: unknown) => {

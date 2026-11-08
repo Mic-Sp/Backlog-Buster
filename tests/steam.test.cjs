@@ -91,8 +91,8 @@ test("vanity resolution precedes one owned-games request with app info and playe
     : envelope({ game_count: 2, games: [owned(), { appid: 4294967295, playtime_forever: 1 }] }));
   const result = await f.fetchSteamLibrary("https://steamcommunity.com/id/test-player");
   assert.deepEqual(result, { steamId, games: [
-    { steamAppId: "440", title: "Team Fortress 2", playtimeMinutes: 90, hoursPlayed: 1.5, coverUrl: "https://cdn.cloudflare.steamstatic.com/steam/apps/440/header.jpg" },
-    { steamAppId: "4294967295", title: "Steam App 4294967295", playtimeMinutes: 1, hoursPlayed: 1 / 60, coverUrl: "https://cdn.cloudflare.steamstatic.com/steam/apps/4294967295/header.jpg" },
+    { steamAppId: "440", title: "Team Fortress 2", playtimeMinutes: 90, hoursPlayed: 1.5, recentMinutes: 0, coverUrl: "https://cdn.cloudflare.steamstatic.com/steam/apps/440/header.jpg" },
+    { steamAppId: "4294967295", title: "Steam App 4294967295", playtimeMinutes: 1, hoursPlayed: 1 / 60, recentMinutes: 0, coverUrl: "https://cdn.cloudflare.steamstatic.com/steam/apps/4294967295/header.jpg" },
   ] });
   assert.equal(f.requests.length, 2);
   const [resolve, library] = f.requests;
@@ -182,4 +182,63 @@ test("the real resilience wrapper coalesces library bursts and retains upstream 
   const afterLimit = calls;
   await assert.rejects(limited.fetchSteamLibrary(steamId), error => error.retryAfterSeconds > 0);
   assert.equal(calls, afterLimit);
+});
+
+test("owned games capture two-week minutes, default absent activity to zero and isolate malformed optional telemetry", async t => {
+  configured(t);
+  for (const [value, expected] of [[252, 252], [0, 0], [undefined, 0], [-1, null], [20161, null], [1.5, null], ['60', null]]) {
+    const f = fixture(() => envelope({ game_count: 1, games: [{ ...owned(), playtime_2weeks: value }] }));
+    assert.equal((await f.fetchSteamLibrary(steamId)).games[0].recentMinutes, expected);
+  }
+});
+
+test("achievement adapter reads playerstats, validates each achievement and distinguishes none from private/unknown", async t => {
+  configured(t);
+  const rows = [0, 1, 1].map((achieved, i) => ({ apiname: `ACH_${i}`, achieved }));
+  const f = fixture(() => Response.json({ playerstats: { success: true, steamID: steamId, achievements: rows } }));
+  assert.deepEqual(await f.fetchSteamAchievements(steamId, '440'), { unlocked: 2, total: 3 });
+  assert.equal(f.requests[0].url.pathname, '/ISteamUserStats/GetPlayerAchievements/v0001/');
+  assert.equal(f.requests[0].url.searchParams.get('steamid'), steamId); assert.equal(f.requests[0].url.searchParams.get('appid'), '440');
+  assert.equal(f.requests[0].url.searchParams.get('l'), 'english');
+  assert.equal(f.requests[0].options.redirect, 'error'); assert(f.requests[0].options.signal instanceof AbortSignal);
+  const empty = fixture(() => Response.json({ playerstats: { success: true, achievements: [] } }));
+  assert.deepEqual(await empty.fetchSteamAchievements(steamId, '440'), { unlocked: 0, total: 0 });
+  for (const playerstats of [{ success: false, error: 'Requested app has no stats' }, { success: true },
+    { success: true, steamID: 'another-account', achievements: rows },
+    ...[[{ apiname: 'A', achieved: 2 }], [{ apiname: 'A', achieved: 1 }, { apiname: 'A', achieved: 1 }], [null], [{ achieved: 1 }]].map(achievements => ({ success: true, achievements }))]) {
+    assert.equal(await fixture(() => Response.json({ playerstats })).fetchSteamAchievements(steamId, '440'), null);
+  }
+  const invalid = fixture(() => assert.fail('Invalid identity cannot dispatch'));
+  for (const appId of ['0', '-1', '4294967296', '440/key', 440]) await assert.rejects(invalid.fetchSteamAchievements(steamId, appId));
+  await assert.rejects(invalid.fetchSteamAchievements('bad', '440'));
+});
+
+test('live Steam privacy envelope is distinct from invalid API keys and never leaks the raw provider body', async t => {
+  configured(t);
+  const payload = { playerstats: { error: 'Profile is not public', success: false } };
+  for (const status of [200, 403]) {
+    const f = fixture(() => Response.json(payload, { status }));
+    await assert.rejects(f.fetchSteamAchievements(steamId, '108710'), error => isError('PRIVATE_ACHIEVEMENTS')(error) &&
+      /My profile and Game details to Public/.test(error.message) && !error.message.includes('fixture-steam-secret'));
+  }
+  await assert.rejects(fixture(() => new Response('Access denied for fixture-steam-secret', { status: 403 })).fetchSteamAchievements(steamId, '108710'), isError('API_KEY_REJECTED'));
+});
+
+test('Alan Wake, Marvel Rivals and Final Fantasy IX counts parse including a valid zero-unlock profile', async t => {
+  configured(t);
+  for (const [appId, unlocked, total] of [['108710', 19, 67], ['2767030', 4, 49], ['377840', 0, 85]]) {
+    const f = fixture(() => Response.json({ playerstats: { success: true, steamID: steamId,
+      achievements: Array.from({ length: total }, (_, i) => ({ apiname: `ACH_${i}`, achieved: i < unlocked ? 1 : 0, unlocktime: 0 })) } }));
+    assert.deepEqual(await f.fetchSteamAchievements(steamId, appId), { unlocked, total });
+    assert.equal(f.requests[0].url.searchParams.get('l'), 'english');
+  }
+});
+
+test('achievement requests retain a full ten-second budget instead of the old premature 2.5-second abort', async t => {
+  configured(t);
+  const budgets = [];
+  t.mock.method(AbortSignal, 'timeout', milliseconds => { budgets.push(milliseconds); return new AbortController().signal; });
+  const f = fixture(() => Response.json({ playerstats: { success: true, achievements: [{ apiname: 'FIRST', achieved: 1 }] } }));
+  assert.deepEqual(await f.fetchSteamAchievements(steamId, '108710'), { unlocked: 1, total: 1 });
+  assert.deepEqual(budgets, [10000]);
 });

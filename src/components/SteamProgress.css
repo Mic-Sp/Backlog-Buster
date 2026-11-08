@@ -1,0 +1,15 @@
+.steam-progress { --steam-ink: #b0e7ff; --steam-accent: #65d4f5; --steam-line: #326278; display: grid; gap: .4rem; min-width: 0; max-width: 100%; margin-block: .6rem; padding: .65rem; border: 1px solid var(--steam-line); background: #0e202c; color: var(--steam-ink); font-size: .7rem; line-height: 1.5; overflow-wrap: anywhere; }
+.steam-progress-heading { font-weight: 700; }
+.steam-achievement-track { display: block; height: 5px; background: #203642; overflow: hidden; }
+.steam-achievement-track > span { display: block; height: 100%; background: var(--steam-accent); }
+.steam-mastery-badge { color: #fcee0a; letter-spacing: .03em; }
+.steam-recent { color: var(--steam-accent); font-weight: 700; }
+.steam-start-hint, .steam-progress small { font-size: .65rem; opacity: .9; }
+:root .steam-progress .steam-refresh-button { width: fit-content; max-width: 100%; min-height: 44px; padding: .45rem .65rem; border: 1px solid var(--steam-line); background: transparent; color: var(--steam-ink); font: inherit; cursor: pointer; }
+.steam-progress .steam-refresh-button:disabled { opacity: .6; cursor: default; }
+.steam-progress .steam-refresh-button:focus-visible { outline: 2px solid var(--steam-accent); outline-offset: 3px; }
+.steam-progress[data-compact="true"] { padding: .35rem; font-size: .6rem; margin-block: .3rem; }
+:root[data-layout-mode="fantasy"] .steam-progress { --steam-ink: #f2e4bb; --steam-accent: #dbcf85; --steam-line: #ae965a; background: #294c42; border-radius: .35rem; font-family: Georgia, serif; }
+:root[data-layout-mode="fantasy"] .steam-progress .steam-mastery-badge { color: #fbe5a1; }
+:root[data-layout-mode="fantasy"] .fantasy-inventory-grid > li > .steam-progress[data-compact="true"] { position: relative; z-index: 3; margin: 6px 0 0; padding: 3px; gap: 2px; font-size: 8px; line-height: 1.3; pointer-events: none; }
+@media (max-width: 600px) { :root .steam-progress .steam-refresh-button { width: 100%; } }

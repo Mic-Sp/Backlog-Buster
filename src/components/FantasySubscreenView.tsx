@@ -1,5 +1,7 @@
 "use client";
 
+import SteamProgress from "@/components/SteamProgress";
+
 import { ReplayBadge, ReplayCountEditor, ReplayLogForm } from "@/components/ReplayTracking";
 import { achievementPersona } from "@/lib/achievement-persona";
 
@@ -127,6 +129,7 @@ export default function FantasySubscreenView({ controller: c }: { controller: Ga
             <QuestRating rating={game.rating} />
             <OwnershipBadge value={game.ownershipType} /><ReplayBadge count={game.playthroughCount} fantasy />
           </button>
+          <SteamProgress game={game} compact />
           {c.canDragToDeck(game) && <span className="fantasy-inventory-quick-pin" onClick={event => event.stopPropagation()} onFocus={() => previewGame(game)}>
             <DeckPinButton gameId={game.id} pinnedOrder={game.pinnedOrder} pinnedCount={c.pinnedCount} releaseYear={game.releaseYear} disabled={c.rowReorderBusy} />
           </span>}
@@ -180,6 +183,7 @@ function FantasyQuestDialogue({ controller: c, game, onSelectSaga }: { controlle
   const saga = c.byGameId.get(game.id);
   return <section className="fantasy-dialogue" aria-label={`Quest details for ${game.title}`}>
     <OwnershipBadge value={game.ownershipType} /><ReplayBadge count={game.playthroughCount} fantasy />
+    <SteamProgress game={game} />
     <PlayJournalBadges startedAt={game.startedAt} completedAt={game.completedAt} />
     <MicroReview review={game.review} reviewSpoiler={game.reviewSpoiler} />
     <div className="fantasy-dialogue-heading"><span className="fantasy-dialogue-gem" aria-hidden="true">◆</span><div><p className="fantasy-kicker">YOU FOUND A QUEST</p><h4>{game.title}</h4><p>{game.platform} · {game.genre?.trim() || "Unknown discipline"} · {game.releaseYear ?? "Year unknown"} · {game.status === "Flatlined" ? "Abandoned" : game.status}</p></div><QuestRating rating={game.rating} /></div>

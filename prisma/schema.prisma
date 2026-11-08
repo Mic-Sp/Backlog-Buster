@@ -250,6 +250,13 @@ model Game {
 
   // Decimal AppID string avoids signed-Int limits; null for non-Steam copies.
   steamAppId  String?
+  // Optional cached snapshots, separate from player-authored progress and journal dates.
+  steamRecentMinutes Int?
+  steamLastSyncedAt DateTime?
+  steamAchievementsUnlocked Int?
+  steamAchievementsTotal Int?
+  steamAchievementsCheckedAt DateTime?
+  steamAchievementsSyncedAt DateTime?
   activityEvents ActivityEvent[]
   customListEntries CustomListEntry[]
 

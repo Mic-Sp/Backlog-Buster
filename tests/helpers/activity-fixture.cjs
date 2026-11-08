@@ -15,6 +15,14 @@ function fixture({ games: initial = [game()], realAchievements = false } = {}) {
   const tx = {
     customList: { findMany: async () => [] },
     $executeRaw: async (sql, ...values) => {
+      if (sql.join("").includes('UPDATE "Game" AS telemetry')) {
+        const updates = JSON.parse(values[2]);
+        for (const update of updates) {
+          const row = games.find(game => game.steamAppId === update.steamAppId && game.userId === values[3]);
+          if (row && update.checkedAt) row.steamAchievementsCheckedAt = new Date(update.checkedAt);
+        }
+        return updates.length;
+      }
       if (sql.join("").includes('UPDATE "Game"')) {
         const updates = JSON.parse(values[0]);
         for (const update of updates) { const row = games.find(game => game.id === update.id && game.userId === values[1]);
@@ -23,7 +31,7 @@ function fixture({ games: initial = [game()], realAchievements = false } = {}) {
       }
       assert.match(sql.join(""), /pg_advisory_xact_lock/); locks.push(values[0]); return 1;
     },
-    player: { findFirst: async ({ where }) => registered && where.id === "owner" ? { id: "owner" } : null,
+    player: { findUnique: async () => ({ steamId: null, featuredTrophyIds: [] }), findFirst: async ({ where }) => registered && where.id === "owner" ? { id: "owner" } : null,
       update: async () => ({ id: "owner" }) },
     playerSession: { findUnique: async ({ select }) => !authenticated ? null : select.player
       ? { player: { id: "owner", handle: "owner", operatorName: "Owner" } } : { tokenHash: "token" } },

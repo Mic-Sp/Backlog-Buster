@@ -52,6 +52,7 @@ The additive SQL scripts can be rerun; they preserve existing library/catalog ro
 The playthrough backfill sets legacy Completed games to one clear, leaves journal dates
 and activity untouched, and enforces counts from 0–99 (Completed requires at least 1).
 Restart a running development server after regenerating the Prisma client.
+
 The friendship CHECK constraints enforce sorted, distinct player pairs and valid
 request/block states. Reapply `friendship-constraints.sql` after each schema sync.
 `vector` must be available on the PostgreSQL server. Prisma 7 represents the optional
@@ -180,6 +181,29 @@ Restart the development server after generating the updated Prisma Client.
 
 Dossier identity settings autosave to the current Player profile in PostgreSQL.
 Pinned favorites must belong to that player; unpinned slots use completed five-star trophies.
+
+### Steam progress
+
+Steam sync stores a dated two-week activity snapshot from `playtime_2weeks` and
+optional achievement counts. Automatic achievement checks prioritize Playing games,
+recently played games, Hall of Fame favorites, then On Deck games: at most six apps,
+two simultaneous requests, a ten-second request timeout, a thirty-second overall
+budget, and a 24-hour cache for successfully fetched counts. Manual refreshes coalesce
+in-flight requests and apply a one-minute cooldown only after a successful read.
+Unknown counts, skipped checks and failed reads never start a cooldown. The action
+rechecks ownership, the active session, and the linked Steam account before saving. Private profiles,
+missing achievement stats, and API failures keep the last successful counts. A
+successful empty list records 0/0; only a nonzero exact completion earns Steam mastery.
+Recent Backlog activity displays a start suggestion; Steam never changes status,
+clear counts, journal dates, ratings, or reviews. Existing opt-in lifetime-hour updates
+are unchanged. JSON/CSV archives retain AppIDs, counts, recent minutes and sync dates;
+they do not link a Steam account or grant access to someone else's progress.
+
+`GetPlayerAchievements/v0001/` uses `key`, `steamid`, `appid` and `l=english`.
+Steam can return HTTP 403 with `playerstats.error: "Profile is not public"` even
+when the game schema is readable. This is reported as a profile/Game details privacy
+issue, separately from a rejected API key; it never becomes 0 unlocked or a successful
+sync timestamp. Check both privacy settings on Steam and retry the individual game.
 
 ### Year in Review
 

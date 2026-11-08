@@ -1,5 +1,6 @@
 "use client";
 
+import { steamAchievementProgress } from "@/lib/steam-progress";
 import { replayLabel } from "@/lib/playthroughs";
 import { achievementPersona } from "@/lib/achievement-persona";
 import { dossierReviewQuote } from "@/lib/micro-review";
@@ -78,6 +79,7 @@ export default function FantasyCodexCard({ data, identity, timestamp, artwork, c
       {Array.from({ length: 3 }, (_, index) => {
         const slot = showcase[index];
         const game = slot?.game;
+        const steam = game ? steamAchievementProgress(game) : null;
         const x = 32 + index * 314;
         const cover = game?.coverUrl ? artwork[game.coverUrl] : null;
         return <g key={index}>
@@ -87,7 +89,8 @@ export default function FantasyCodexCard({ data, identity, timestamp, artwork, c
               : <text x={x + 154} y="501" textAnchor="middle" fontSize="12" fill="#d2d8bd">{game.coverUrl ? artworkLoading ? "UNFURLING ARTWORK…" : "ARTWORK UNAVAILABLE" : "NO QUEST ARTWORK"}</text>}
             <text x={x + 12} y="539" fontSize="14" fontWeight="700" fill="#f4e6b9">{dossierTitleLines(game.title).map((line, lineIndex) => <tspan key={lineIndex} x={x + 12} dy={lineIndex === 0 ? 0 : 18}>{line}</tspan>)}</text>
             {(game.playthroughCount ?? 0) > 1 && <text x={x + 12} y="470" fontSize="10" fontWeight="700" fill="#e8d69d" stroke="#294b40" strokeWidth="3" paintOrder="stroke">{replayLabel(game.playthroughCount!, true)}</text>}
-                {dossierReviewQuote(game) && <text x={x + 12} y="580" fontSize="10" fill="#e0d5ad">{dossierReviewQuote(game)}</text>}
+            {steam && steam.total > 0 && <text x={x + 12} y="486" fontSize="10" fontWeight="700" fill="#f6e4a6" stroke="#294b40" strokeWidth="3" paintOrder="stroke">{steam.mastered ? "100% MASTERED ON STEAM" : `STEAM ${steam.unlocked}/${steam.total} · ${steam.percent}%`}</text>}
+            {dossierReviewQuote(game) && <text x={x + 12} y="580" fontSize="10" fill="#e0d5ad">{dossierReviewQuote(game)}</text>}
             <text x={x + 12} y="602" fontSize={slot?.pinned ? "12" : "17"} fill="#f08086">{slot?.pinned ? "♥ FAVORITE" : "♥♥♥♥♥"}</text>
             <text x={x + 296} y="602" textAnchor="end" fontSize="15" fill="#ebd897">+{game.earnedXp.toLocaleString("en-US")} XP</text>
           </> : <>

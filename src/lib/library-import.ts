@@ -4,6 +4,7 @@ import { normalizeMicroReview } from "@/lib/micro-review";
 import { importJournalDate, validateJournalDates } from "@/lib/play-journal";
 import { defaultOwnershipType } from "@/lib/ownership-type";
 import { parsePlaythroughCount, completedRuns } from "@/lib/playthroughs";
+import { importSteamProgress } from "@/lib/steam-progress";
 import { MAX_CUSTOM_LISTS, MAX_LIST_GAMES, validateListDetails, type CustomListDetails } from "@/lib/custom-list-types";
 
 export const MAX_IMPORT_BYTES = 500000;
@@ -69,6 +70,7 @@ export function sanitizeImportedGame(value: unknown) {
   // Deliberate allowlist: uploaded primary keys, account ownership and XP are never trusted.
   return {
     title, platform, status, lengthHours, difficulty, playthroughCount,
+    ...importSteamProgress(game),
     ownershipType: defaultOwnershipType(game.ownershipType, game.steamAppId),
     hoursPlayed: integer(game.hoursPlayed, 0, 10000, 0),
     earnedXp: status === "Completed" ? lengthHours * difficulty * 10 : 0,

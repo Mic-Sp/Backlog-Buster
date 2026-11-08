@@ -26,9 +26,9 @@ const request = (extra = {}) => ({ identifier: steamId, ...extra });
 
 function fixture(initial = [], snapshot = [], options = {}) {
   let games = structuredClone(initial), player = { id: "owner", steamId: options.linkedSteamId ?? null,
-    steamAutoSyncAttemptedAt: options.attemptedAt ?? null, steamLastSyncedAt: null }, token = "owner-token", revoked = false;
+    steamAutoSyncAttemptedAt: options.attemptedAt ?? null, steamLastSyncedAt: null, featuredTrophyIds: options.featuredTrophyIds ?? [] }, token = "owner-token", revoked = false;
   let inTransaction = false, sequence = Promise.resolve(), providerCalls = 0, nextId = 10000;
-  const rawgCalls = [], igdbCalls = [], cacheCalls = [], locks = [], updateBatches = [], createBatches = [], guardCalls = [];
+  const rawgCalls = [], igdbCalls = [], cacheCalls = [], locks = [], updateBatches = [], createBatches = [], guardCalls = [], telemetryBatches = [], achievementCalls = [];
   const selectRows = ({ where, select }) => {
     assert.deepEqual(where, { userId: "owner" });
     return games.filter(game => game.userId === "owner").map(game => Object.fromEntries(Object.keys(select).map(key => [key, game[key]])));
@@ -42,6 +42,22 @@ function fixture(initial = [], snapshot = [], options = {}) {
       const sql = strings.join("?");
       if (sql.includes("pg_advisory_xact_lock")) {
         assert.equal(values[0], "backlogbuster-deck:owner"); locks.push(values[0]); return 1;
+      }
+      if (sql.includes('UPDATE "Game" AS telemetry')) {
+        const changes = JSON.parse(values.at(-2)), userId = values.at(-1), snapshotAt = values[0];
+        assert.equal(userId, 'owner'); telemetryBatches.push(changes);
+        for (const change of changes) {
+          const row = games.find(row => row.userId === userId && row.steamAppId === change.steamAppId);
+          if (!row) continue;
+          if (change.hasRecent && (!row.steamLastSyncedAt || row.steamLastSyncedAt <= snapshotAt)) {
+            row.steamRecentMinutes = change.recentMinutes; row.steamLastSyncedAt = snapshotAt;
+          }
+          if (change.total !== null && change.checkedAt && (!row.steamAchievementsSyncedAt || row.steamAchievementsSyncedAt <= new Date(change.checkedAt))) {
+            row.steamAchievementsCheckedAt = new Date(change.checkedAt);
+            if (change.total !== null) { row.steamAchievementsUnlocked = change.unlocked; row.steamAchievementsTotal = change.total; row.steamAchievementsSyncedAt = new Date(change.checkedAt); }
+          }
+        }
+        return changes.length;
       }
       assert.match(sql, /UPDATE "Game"/);
       assert.match(sql, /game\."userId" = \?/);
@@ -71,7 +87,10 @@ function fixture(initial = [], snapshot = [], options = {}) {
       const staleLink = automatic && (where.player.steamId !== player.steamId || automatic.getTime() !== player.steamAutoSyncAttemptedAt?.getTime());
       return revoked || staleLink ? null : { tokenHash: "owner-token" };
     } },
-    game: { findMany: async args => selectRows(args), createMany: async ({ data }) => {
+    game: { updateMany: async ({ where, data }) => {
+      assert(inTransaction); for (const row of games.filter(row => row.userId === where.userId && row.steamAppId)) Object.assign(row, data);
+      return { count: games.length };
+    }, findMany: async args => selectRows(args), createMany: async ({ data }) => {
       assert(inTransaction); createBatches.push(data);
       if (options.failCreateBatch === createBatches.length) throw Error("private database detail");
       for (const row of data) {
@@ -80,13 +99,14 @@ function fixture(initial = [], snapshot = [], options = {}) {
       }
       return { count: data.length };
     } },
-    player: { update: async ({ where, data, select }) => {
+    player: { findUnique: async ({ where }) => { assert.equal(where.id, "owner"); return { steamId: player.steamId, featuredTrophyIds: player.featuredTrophyIds }; }, update: async ({ where, data, select }) => {
       assert(inTransaction); assert.deepEqual(where, { id: "owner" }); assert.deepEqual(select, { id: true });
       assert.deepEqual(Object.keys(data), ["steamId", "steamLastSyncedAt"]); assert(data.steamLastSyncedAt instanceof Date);
       Object.assign(player, data); return { id: "owner" };
     } },
   };
   const prisma = {
+    player: { findUnique: tx.player.findUnique },
     playerSession: { findUnique: async ({ where }) => {
       assert.equal(where.tokenHash, "owner-token"); assert(where.player.email.not === null && where.player.passwordHash.not === null);
       return revoked ? null : { player: { id: "owner", operatorName: "Owner", handle: "owner" } };
@@ -118,7 +138,10 @@ function fixture(initial = [], snapshot = [], options = {}) {
     "@/lib/api-resilience": { ...loader()("src/lib/api-resilience.ts"), guardedRequest: async (id, feature, input, work) => {
       assert.equal(id, "owner"); assert(["steam-sync", "steam-auto-sync"].includes(feature)); guardCalls.push({ feature, input: JSON.parse(input) }); return work();
     } },
-    "@/lib/steam": { parseSteamIdentifier, fetchSteamLibrary: async identifier => {
+    "@/lib/steam": { parseSteamIdentifier, fetchSteamAchievements: async (id, appId) => {
+      assert(!inTransaction); assert.equal(id, steamId); achievementCalls.push(appId);
+      return options.achievement ? options.achievement(appId) : null;
+    }, fetchSteamLibrary: async identifier => {
       assert(!inTransaction); assert.equal(identifier, steamId); providerCalls++;
       if (options.providerFailure) throw Error("Steam unavailable");
       return { steamId, games: structuredClone(snapshot) };
@@ -136,7 +159,7 @@ function fixture(initial = [], snapshot = [], options = {}) {
       return result ? [{ ...result, title, estimatedHours: result.playtime, rawgId: 1 }] : [];
     } },
   });
-  return { vault: load("src/lib/library-vault.ts"), rawgCalls, igdbCalls, cacheCalls, locks, updateBatches, createBatches, guardCalls,
+  return { vault: load("src/lib/library-vault.ts"), telemetryBatches, achievementCalls, rawgCalls, igdbCalls, cacheCalls, locks, updateBatches, createBatches, guardCalls,
     get games() { return games; }, get player() { return player; }, get providerCalls() { return providerCalls; },
     signOut: () => { token = null; }, revoke: () => { revoked = true; }, relink: id => { player.steamId = id; } };
 }
@@ -332,4 +355,54 @@ test('Steam defaults new/unspecified games to Digital and preserves every explic
   await f.vault.syncSteamLibraryGames(request({ updateHoursPlayed: true }));
   assert.equal(f.games.find(game => game.id === 1).ownershipType, 'Borrowed');
   assert.deepEqual(f.games.filter(game => game.id >= 3 && game.id <= 6).map(game => game.ownershipType), types);
+});
+
+test('a massive recent library fetches at most six achievements, batches telemetry and records no user status or journal changes', async () => {
+  const snapshot = Array.from({ length: 650 }, (_, i) => ({ ...incoming(i + 1), recentMinutes: i + 1 }));
+  const f = fixture([], snapshot, { achievement: async () => ({ unlocked: 38, total: 50 }) });
+  assert.equal((await f.vault.syncSteamLibraryGames(request())).summary.addedCount, 650);
+  assert.equal(f.achievementCalls.length, 6); assert.deepEqual(f.telemetryBatches.map(batch => batch.length), [500, 150]);
+  assert(f.games.every(game => game.steamRecentMinutes > 0 && game.status === 'Backlog' && game.earnedXp === 0));
+  assert.equal(f.games.filter(game => game.steamAchievementsUnlocked === 38).length, 6);
+  const before = f.achievementCalls.length;
+  await f.vault.syncSteamLibraryGames(request());
+  assert.equal(f.achievementCalls.length - before, 6, 'Freshly checked games are skipped; the next bounded group is eligible');
+});
+
+test('priority stats failures keep the last successful snapshot and zero recent minutes clears old activity', async () => {
+  const successful = new Date('2020-01-01Z');
+  const initial = [saved(1, { steamAppId: '1', status: 'Playing', steamRecentMinutes: 180, steamAchievementsUnlocked: 4, steamAchievementsTotal: 5, steamAchievementsSyncedAt: successful })];
+  const f = fixture(initial, [{ ...incoming(1), recentMinutes: 0 }], { achievement: async () => { throw Error('private provider details'); } });
+  await f.vault.syncSteamLibraryGames(request());
+  assert.equal(f.games[0].steamRecentMinutes, 0); assert.equal(f.games[0].steamAchievementsUnlocked, 4); assert.equal(f.games[0].steamAchievementsTotal, 5);
+  assert.deepEqual(f.games[0].steamAchievementsSyncedAt, successful); assert.equal(f.games[0].steamAchievementsCheckedAt, undefined);
+  await f.vault.syncSteamLibraryGames(request()); assert.equal(f.achievementCalls.length, 2, 'Failed attempts must be immediately retryable');
+});
+
+test('relinking a Steam account clears the old account telemetry and does not inherit its daily achievement cache', async () => {
+  const f = fixture([saved(1, { steamAppId: '1', status: 'Playing', steamAchievementsUnlocked: 5, steamAchievementsTotal: 5,
+    steamAchievementsCheckedAt: new Date(), steamRecentMinutes: 100 })], [{ ...incoming(1), recentMinutes: 0 }],
+  { linkedSteamId: '76561198000000001', achievement: async () => null });
+  await f.vault.syncSteamLibraryGames(request());
+  assert.equal(f.achievementCalls.length, 1); assert.equal(f.games[0].steamAchievementsUnlocked, null); assert.equal(f.games[0].steamRecentMinutes, 0);
+});
+
+test('Playing and recently played titles lead bulk achievement checks ahead of favorites and queue pins', async () => {
+  const initial = [saved(1, { steamAppId: '108710', title: 'Alan Wake', status: 'Playing', steamAchievementsTotal: null, steamAchievementsCheckedAt: new Date() }),
+    saved(2, { steamAppId: '2767030', title: 'Marvel Rivals', status: 'Backlog' }),
+    ...Array.from({ length: 8 }, (_, i) => saved(3 + i, { steamAppId: String(100 + i), pinnedOrder: i < 3 ? i + 1 : null }))];
+  const snapshots = initial.map(row => ({ ...incoming(row.steamAppId, row.title), recentMinutes: row.id === 1 ? 234 : row.id === 2 ? 190 : 0 }));
+  const f = fixture(initial, snapshots, { featuredTrophyIds: [6, 7, 8], achievement: async appId => appId === '108710' ? { unlocked: 19, total: 67 } : { unlocked: 4, total: 49 } });
+  await f.vault.syncSteamLibraryGames(request());
+  assert.deepEqual(f.achievementCalls.slice(0, 2), ['108710', '2767030']);
+  assert.equal(f.games[0].steamAchievementsTotal, 67); assert.equal(f.games[1].steamAchievementsTotal, 49);
+  assert.equal(f.achievementCalls.length, 6);
+});
+
+test('recent-only telemetry writes never stamp achievement success or consume the manual refresh window', async () => {
+  const f = fixture([saved(1, { steamAppId: '1', steamAchievementsTotal: null })], [{ ...incoming(1), recentMinutes: 234 }], { achievement: async () => null });
+  await f.vault.syncSteamLibraryGames(request());
+  assert.equal(f.games[0].steamRecentMinutes, 234);
+  for (const field of ['steamAchievementsCheckedAt', 'steamAchievementsSyncedAt']) assert.equal(f.games[0][field] ?? null, null);
+  assert.equal(f.telemetryBatches[0][0].checkedAt, null);
 });
