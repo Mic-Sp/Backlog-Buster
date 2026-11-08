@@ -1,5 +1,6 @@
 import type { Achievement } from "@/lib/achievements";
 import type { PlayerProfile } from "@/lib/player-profile-types";
+import type { AnnualReviewData } from "@/lib/year-in-review";
 
 export type DossierGame = { id: number; title: string; platform: string; coverUrl: string | null; earnedXp: number; playthroughCount?: number; review?: string | null; reviewSpoiler?: boolean };
 export type DossierData = {
@@ -14,9 +15,10 @@ export type DossierData = {
   trophies: DossierGame[];
   // All owned choices locally; only displayed tiles on the public DTO.
   showcaseGames?: DossierGame[];
+  annualReview?: AnnualReviewData;
 };
 
-export type DossierCardData = Omit<DossierData, "profile">;
+export type DossierCardData = Omit<DossierData, "profile" | "annualReview">;
 
 export const dossierAccents = { cyan: "#00f0ff", gold: "#fcee0a", magenta: "#ff2a6d" } as const;
 export type DossierAccent = keyof typeof dossierAccents;

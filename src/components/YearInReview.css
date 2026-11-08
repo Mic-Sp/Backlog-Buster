@@ -1,0 +1,38 @@
+.year-review { --annual-bg: #0a1520; --annual-tile: #102432; --annual-ink: #e1f5fb; --annual-muted: #a8bfce; --annual-accent: #65f9d1; --annual-line: #32616a; width: 100%; min-width: 0; margin-block: 1.2rem; border: 1px solid var(--annual-line); border-radius: .25rem; background: var(--annual-bg); color: var(--annual-ink); text-align: left; }
+.year-review[data-fantasy="true"] { --annual-bg: #f5e8c6; --annual-tile: #ecddb4; --annual-ink: #264b3d; --annual-muted: #665735; --annual-accent: #386849; --annual-line: #b29960; border: 3px ridge var(--annual-line); border-radius: .5rem; font-family: Georgia, serif; }
+.year-review > summary { padding: 1rem; cursor: pointer; color: var(--annual-accent); font-size: .85rem; font-weight: 700; overflow-wrap: anywhere; }
+.year-review > summary > span { display: inline-block; margin: .35rem 0 .1rem .6rem; font-size: .75rem; color: var(--annual-muted); }
+.year-review-content { min-width: 0; padding: 0 1rem 1rem; }
+.year-review-content p { font-size: .8rem; line-height: 1.65; color: var(--annual-muted); overflow-wrap: anywhere; }
+.year-review-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; margin-block: .5rem 1rem; }
+.year-review-controls label { display: flex; align-items: center; gap: .5rem; font-size: .8rem; }
+.year-review .year-review-controls select { min-height: 44px; width: auto; max-width: 100%; padding: .5rem; border: 1px solid var(--annual-line); color: var(--annual-ink); background: var(--annual-tile); font: inherit; }
+.year-review-starts input { width: 20px; height: 20px; flex-shrink: 0; accent-color: var(--annual-accent); }
+.year-review .annual-summary-card { display: block; width: 100%; height: auto; max-width: 100%; border: 1px solid var(--annual-line); }
+.year-review-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .6rem; margin-block: 1rem; }
+.year-review-stats > div { padding: .7rem; border: 1px solid var(--annual-line); background: var(--annual-tile); min-width: 0; }
+.year-review dt { color: var(--annual-muted); font-size: .75rem; }
+.year-review dd { margin: .35rem 0 0; color: var(--annual-ink); overflow-wrap: anywhere; }
+.year-review-stats dd { font-weight: 700; font-size: 1rem; }
+.year-review-data { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); gap: 1rem; margin-block: 1rem; }
+.year-review-data table { width: 100%; border-collapse: collapse; font-size: .75rem; }
+.year-review-data caption { text-align: left; color: var(--annual-accent); margin-bottom: .5rem; }
+.year-review-data :is(th, td) { text-align: left; padding: .35rem .5rem; border-bottom: 1px solid var(--annual-line); }
+.year-review-highlights { display: grid; gap: .8rem; margin: 0; align-content: start; }
+.year-review-highlights > div { padding: .75rem; background: var(--annual-tile); border-left: 2px solid var(--annual-accent); }
+.year-review-highlights strong { font-size: .9rem; }
+.year-review-highlights span { display: block; margin-top: .4rem; font-size: .75rem; line-height: 1.5; }
+.year-review :is(.year-review-method, .year-review-text) { margin-block: .75rem; border-top: 1px solid var(--annual-line); padding-top: .75rem; }
+.year-review :is(.year-review-method, .year-review-text) > summary { cursor: pointer; color: var(--annual-accent); font-size: .8rem; }
+.year-review-share { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: 1rem; }
+.year-review .year-review-share button { min-height: 44px; max-width: 100%; padding: .6rem .8rem; color: var(--annual-ink); background: var(--annual-tile); border: 1px solid var(--annual-line); font: inherit; font-size: .8rem; cursor: pointer; overflow-wrap: anywhere; }
+.year-review .year-review-share button:disabled { opacity: .6; cursor: default; }
+.year-review .year-review-text textarea { display: block; box-sizing: border-box; width: 100%; margin-top: .6rem; padding: .6rem; color: var(--annual-ink); background: var(--annual-tile); border: 1px solid var(--annual-line); font: inherit; font-size: .75rem; line-height: 1.6; }
+.year-review :is(select, input, button, textarea, summary):focus-visible { outline: 2px solid var(--annual-accent); outline-offset: 3px; }
+@media (max-width: 600px) {
+  .year-review-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .year-review-data { grid-template-columns: minmax(0, 1fr); }
+  .year-review-content { padding-inline: .65rem; }
+  .year-review-controls { align-items: flex-start; flex-direction: column; }
+  .year-review-share button { width: 100%; }
+}

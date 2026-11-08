@@ -7,6 +7,7 @@ import { notFound } from "next/navigation";
 import { getPublicDossier, getPublicDossierArtwork } from "@/lib/public-dossier";
 import PublicDossierCard from "@/components/PublicDossierCard";
 import PublicCustomLists from "@/components/PublicCustomLists";
+import YearInReview from "@/components/YearInReview";
 import DossierSignalLost from "@/components/DossierSignalLost";
 import { getDossierSocialContext } from "@/lib/social";
 import DossierRelationshipControls from "@/components/SocialControls";
@@ -47,6 +48,7 @@ async function Dossier({ params }: { params: Promise<{ handle: string }> }) {
         </header>
         {relationship && <DossierRelationshipControls key={`${relationship.target.id}:${relationship.relationship}`} context={relationship} />}
         <PublicDossierCard dossier={dossier} artwork={artwork} timestamp={new Date().toISOString()} />
+        {dossier.annualReview && <YearInReview data={dossier.annualReview} callsign={dossier.identity.callsign} />}
         <PublicCustomLists lists={dossier.customLists} />
         <footer className="public-dossier-footer"><Link className="public-dossier-gateway" href="/" prefetch={false}>⚡ INITIALIZE YOUR OWN ARCHIVE // BACKLOG BUSTER</Link></footer>
       </section>

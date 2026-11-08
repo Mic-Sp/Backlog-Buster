@@ -13,8 +13,9 @@ import { getOptionalAuthenticatedPlayerId } from "@/lib/player";
 import { visibleProfileWhere } from "@/lib/profile-privacy";
 import type { ProfileVisibility } from "@/lib/friendship-types";
 import { MAX_CUSTOM_LISTS, MAX_LIST_GAMES, type PublicCustomList } from "@/lib/custom-list-types";
+import { buildAnnualReview, type AnnualReviewData } from "@/lib/year-in-review";
 
-export type PublicDossier = { identity: DossierIdentity; card: DossierCardData; visibility: ProfileVisibility; customLists: PublicCustomList[] };
+export type PublicDossier = { identity: DossierIdentity; card: DossierCardData; visibility: ProfileVisibility; customLists: PublicCustomList[]; annualReview: AnnualReviewData };
 
 export async function getPublicDossier(value: unknown): Promise<PublicDossier | null> {
   if (typeof value !== "string") return null;
@@ -31,7 +32,8 @@ export async function getPublicDossier(value: unknown): Promise<PublicDossier | 
     select: {
       profileVisibility: true,
       operatorName: true, handle: true, tagline: true, neonAccent: true, avatarUrl: true, featuredTrophyIds: true,
-      games: { select: { status: true, lengthHours: true, hoursPlayed: true, rating: true, earnedXp: true } },
+      games: { select: { id: true, title: true, genre: true, platform: true, status: true, lengthHours: true, hoursPlayed: true, rating: true, earnedXp: true,
+        startedAt: true, completedAt: true, playthroughCount: true } },
       userAchievements: { select: { achievementKey: true, xpAwarded: true, unlockedAt: true } },
       customLists: { where: { isPublic: true }, take: MAX_CUSTOM_LISTS, orderBy: [{ createdAt: "asc" }, { id: "asc" }],
         select: { id: true, title: true, description: true, isRanked: true,
@@ -74,6 +76,7 @@ export async function getPublicDossier(value: unknown): Promise<PublicDossier | 
   }, publicGames);
   return {
     visibility: profile.profileVisibility,
+    annualReview: buildAnnualReview(profile.games, profile.featuredTrophyIds),
     customLists: (profile.customLists ?? []).map(list => ({ id: list.id, title: list.title, description: list.description, isRanked: list.isRanked,
       games: list.entries.map(({ game }) => ({ title: game.title, platform: game.platform, coverUrl: game.coverUrl ? resizeRawgImageUrl(game.coverUrl) : null })) })),
     identity,

@@ -10,6 +10,7 @@ function route(viewer, targetMode = "cyberpunk") {
     "@/components/ThemeProvider": { ThemePlayerSync: sync, ThemeToggle: () => null },
     "@/components/PublicDossierCard": { default: () => null }, "@/components/DossierSignalLost": { default: () => null },
     "@/components/PublicCustomLists": { default: () => null },
+    "@/components/YearInReview": { default: () => null },
     "@/components/SocialControls": { default: () => null }, "@/lib/dossier-metadata": {},
     "@/lib/player": { getCurrentPlayer: async () => { if (viewer instanceof Error) throw viewer; return viewer; } },
     "@/lib/social": { getDossierSocialContext: async () => null },

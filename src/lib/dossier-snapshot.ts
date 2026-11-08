@@ -63,11 +63,15 @@ export async function captureDossierPng(card: SVGSVGElement): Promise<Blob> {
 }
 
 export function downloadDossier(blob: Blob, callsign: string, layoutMode: LayoutMode = "cyberpunk") {
+  const name = callsign.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "operator";
+  downloadSnapshot(blob, `${layoutMode === "fantasy" ? "adventurers-codex" : "netrunner-id"}-${name}-${new Date().toISOString().slice(0, 10)}.png`);
+}
+
+export function downloadSnapshot(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  const name = callsign.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "operator";
-  link.download = `${layoutMode === "fantasy" ? "adventurers-codex" : "netrunner-id"}-${name}-${new Date().toISOString().slice(0, 10)}.png`;
+  link.download = filename;
   document.body.append(link);
   link.click();
   link.remove();

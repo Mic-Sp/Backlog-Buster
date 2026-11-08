@@ -179,7 +179,40 @@ and checks every game and achievement row before committing. It is safe to rerun
 Restart the development server after generating the updated Prisma Client.
 
 Dossier identity settings autosave to the current Player profile in PostgreSQL.
-Featured trophies must belong to that player and be completed five-star games.
+Pinned favorites must belong to that player; unpinned slots use completed five-star trophies.
+
+### Year in Review
+
+Open the annual recap inside the personal Dossier / Adventurer’s Codex, or beneath the
+card on `/dossier/[handle]`. Both themes offer year selection, a Jan–Dec cadence chart
+and table, genre/platform leaders, critic average, and Game of the Year, Longest Odyssey,
+First Clear and Final Clear highlights. Copy the formatted text or download an intrinsic
+SVG-based 2000 × 1360 PNG; the readable data view accompanies the compact share card.
+
+`src/lib/year-in-review.ts` is a pure aggregation engine. Calendar attribution uses valid
+UTC journal `completedAt` dates and a positive completed-run count, even if a title is
+currently being replayed. No library-added or estimated dates substitute for missing
+history. The selector includes dated completion/start years and the current UTC year;
+it defaults to the current year with clears, otherwise the most recent past clear year.
+
+The schema retains only the latest clear date, lifetime runs and cumulative hours.
+Each title therefore contributes **one known dated clear**; recorded repeat clears count
+titles whose latest clear is a replay. Lifetime run/replay totals across those titles are
+labeled separately. Replaying or editing a journal can change an older recap: this is a
+live latest-clear snapshot, not an immutable archive of every playthrough. Undated clears
+are counted separately and excluded from annual metrics. Empty years remain selectable.
+
+Hours use actual saved `hoursPlayed`, without duration-estimate substitution or multiplying
+by run counts. The optional started-title toggle adds cumulative hours from titles with
+`startedAt` in the year, counting overlapping titles once. It does not change completion
+cadence, rating or clear highlights. Exact calendar-year session hours and annual XP cannot
+be reconstructed from these records. Existing lifetime XP and achievement behavior is unchanged.
+
+Game of the Year ties use rating, Hall of Fame selection, lifetime runs, logged hours,
+title and ID. Genre/platform leaders rank by cleared-title count, then logged hours and
+name. First/final dates use title and ID for ties; Longest Odyssey requires logged hours.
+Public recaps are built inside the existing visibility/block-authorized dossier query and
+return aggregates and highlight projections, never raw library rows, notes or reviews.
 
 ### Friendships and profile privacy
 

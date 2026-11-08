@@ -67,3 +67,25 @@ test("restricted or missing dossiers produce generic metadata without share prev
   }
   assert.equal(build(null).robots.index, false);
 });
+
+test("annual recaps share the dossier's privacy and block gate and expose only aggregate/highlight DTOs", async () => {
+  const f = fixture();
+  f.players[0].games = [
+    { id: 77, userId: 'PRIVATE_ACTOR_ID', title: 'Annual Highlight', status: 'Completed', platform: 'PC', genre: 'Puzzle',
+      completedAt: new Date('2025-07-01Z'), startedAt: null, playthroughCount: 2, hoursPlayed: 20, lengthHours: 30,
+      earnedXp: 300, rating: 5, notes: 'PRIVATE_NOTES', review: 'SECRET_SPOILER', ownershipType: 'Borrowed' },
+    { id: 78, title: 'UNDATED_TITLE', status: 'Completed', platform: 'PC', completedAt: null, playthroughCount: 1, hoursPlayed: 4, lengthHours: 10, earnedXp: 100, rating: null },
+  ];
+  const read = id => f.as(id).load('src/lib/public-dossier.ts').getPublicDossier('alice-handle');
+  const recap = (await read(null)).annualReview;
+  assert.equal(recap.summaries.find(summary => summary.year === 2025).clearedGames, 1);
+  assert.equal(recap.undatedClears, 1);
+  const json = JSON.stringify(recap);
+  assert(json.includes('Annual Highlight'));
+  for (const secret of ['PRIVATE_ACTOR_ID', 'PRIVATE_NOTES', 'SECRET_SPOILER', 'Borrowed', 'UNDATED_TITLE', '"id":']) assert(!json.includes(secret), secret);
+  f.players[0].profileVisibility = 'friends'; assert.equal(await read(null), null); assert.equal(await read('bob'), null);
+  f.setRelationship(pair('accepted')); assert((await read('bob')).annualReview);
+  f.setRelationship(pair('blocked', { blockedByHigh: true })); assert.equal(await read('bob'), null);
+  assert((await read('alice')).annualReview);
+  f.players[0].profileVisibility = 'private'; assert.equal(await read(null), null); assert((await read('alice')).annualReview);
+});

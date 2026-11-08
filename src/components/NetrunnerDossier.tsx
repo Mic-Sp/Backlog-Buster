@@ -11,6 +11,7 @@ import { createPortal } from "react-dom";
 import OperatorAvatar from "@/components/OperatorAvatar";
 import { avatarPresets, customAvatarUrl, DEFAULT_AVATAR_URL, resolveAvatarPreset } from "@/lib/operator-avatar";
 import NetrunnerIdCard from "@/components/NetrunnerIdCard";
+import YearInReview from "@/components/YearInReview";
 import { dossierAccents, dossierIdentityFromProfile, resolveDossierShowcase, type DossierAccent, type DossierData, type DossierIdentity } from "@/lib/dossier";
 import { savePlayerProfile } from "@/app/profile-actions";
 import type { PlayerProfile } from "@/lib/player-profile-types";
@@ -265,6 +266,8 @@ export default function NetrunnerDossier({ data, socialEnabled = true }: { data:
               <NetrunnerIdCard layoutMode={layoutMode} data={data} identity={identity} timestamp={timestamp} artwork={artworkState.images} artworkLoading={!artworkReady} cardRef={cardRef} />
             </div>
             <p className="dossier-artwork-status" role="status">{!artworkReady ? copy("SYNCING PORTRAIT & TROPHY ARTWORK…", "UNFURLING PORTRAIT & RELIQUARY ARTWORK…") : missingArtwork ? "Some artwork is offline. The snapshot includes the offline tiles shown above." : copy("SNAPSHOT READY // HIGH-RESOLUTION PNG", "CODEX READY · HIGH-RESOLUTION PNG")}</p>
+
+            {data.annualReview && <YearInReview data={data.annualReview} callsign={identity.callsign} />}
 
             <details className="dossier-customize" ref={customizeRef} open>
               <summary>{copy("⚙ PERSONALIZE IDENTITY", "✎ PERSONALIZE YOUR CODEX")}</summary>

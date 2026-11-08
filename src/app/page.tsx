@@ -25,6 +25,7 @@ import AccountControls, { AccountGate } from "@/components/AccountControls";
 import { ThemePlayerSync } from "@/components/ThemeProvider";
 import { readSessionHash } from "@/lib/auth-session";
 import { autoSyncSteamLibrary } from "@/lib/steam-auto-sync";
+import { buildAnnualReview } from "@/lib/year-in-review";
 
 export const maxDuration = 60;
 
@@ -45,7 +46,7 @@ async function PlayerSummary({ player }: { player: CurrentPlayer }) {
   const [games, achievements, profile] = await Promise.all([
     prisma.game.findMany({
       where: { userId: player.id },
-      select: { id: true, title: true, platform: true, genre: true, coverUrl: true, rating: true, playthroughCount: true, review: true, reviewSpoiler: true, earnedXp: true, status: true, lengthHours: true, hoursPlayed: true },
+      select: { id: true, title: true, platform: true, genre: true, coverUrl: true, rating: true, playthroughCount: true, review: true, reviewSpoiler: true, earnedXp: true, status: true, lengthHours: true, hoursPlayed: true, startedAt: true, completedAt: true },
     }),
     getPageAchievements(player.id),
     getCurrentPlayerProfile(),
@@ -134,7 +135,7 @@ async function PlayerSummary({ player }: { player: CurrentPlayer }) {
           level: progress.level, totalXp,
           counts: { Backlog: backlogCount, Playing: playingCount, Completed: completedCount, Flatlined: flatlinedCount },
           activeHours: telemetry.activeHours, completionRate: telemetry.completionRate, avgRating: telemetry.avgRating,
-          achievements, trophies,
+          achievements, trophies, annualReview: buildAnnualReview(games, profile.featuredTrophyIds),
           showcaseGames: games.map(game => ({ id: game.id, title: game.title, platform: game.platform, earnedXp: game.earnedXp, playthroughCount: game.playthroughCount, review: game.review, reviewSpoiler: game.reviewSpoiler, coverUrl: game.coverUrl ? resizeRawgImageUrl(game.coverUrl) : null })),
         }} />
       </div>
