@@ -11,12 +11,13 @@ function fixture(layout, mode = 'login', count = 4) {
     react: { ...React, useState: initial => [stateIndex++ === 0 ? mode : initial, () => {}], useActionState: () => [{}, async () => {}, false] },
     '@/components/LayoutText': { useLayoutCopy: () => copy, default: props => copy(props.cyberpunk, props.fantasy) },
     '@/components/ThemeProvider': { ThemeToggle: () => null },
+    '@/components/SteamAuthButton': { default: () => React.createElement('button', { type: 'button' }, 'Continue with Steam') },
     '@/components/GoogleAuthButton': { default: () => React.createElement('button', { type: 'button' }, 'Continue with Google') },
-    '@/lib/auth-policy': { registeredPlayerWhere: { email: { not: null }, OR: [{ passwordHash: { not: null } }, { googleId: { not: null } }] } },
+    '@/lib/auth-policy': { registeredPlayerWhere: { OR: [{ email: { not: null }, OR: [{ passwordHash: { not: null } }, { googleId: { not: null } }] }, { steamVerifiedId: { not: null } }] } },
     '@/components/useCooldown': { default: () => ({ seconds: 0, start() {} }) },
     'next/server': { connection: async () => {} },
     '@/lib/prisma': { prisma: { player: { count: async ({ where }) => {
-      assert.deepEqual(where, { email: { not: null }, OR: [{ passwordHash: { not: null } }, { googleId: { not: null } }] });
+      assert.deepEqual(where, { OR: [{ email: { not: null }, OR: [{ passwordHash: { not: null } }, { googleId: { not: null } }] }, { steamVerifiedId: { not: null } }] });
       if (count instanceof Error) throw count;
       return count;
     } } } },

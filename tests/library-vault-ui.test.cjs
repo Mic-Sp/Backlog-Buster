@@ -23,6 +23,7 @@ function fixture({ savedSteamId, layout = "cyberpunk", response = async () => ({
   };
   const cooldown = { seconds: 0, start: (...args) => cooldownCalls.push(args) };
   const vaultModule = load("src/components/LibraryDataVault.tsx", {
+    "@/components/SteamConnection": { default: () => null },
     react, "react-dom": { createPortal: child => child },
     "@/components/LayoutText": { useLayoutCopy: () => (cyber, fantasy) => layout === "fantasy" ? fantasy : cyber },
     "@/components/FantasyAccents": { FantasyCorners: () => null },

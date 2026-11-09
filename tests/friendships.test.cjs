@@ -51,6 +51,16 @@ test("a claimed default-player archive participates through its registered sessi
   assert.equal(f.rows.length, 1);
 });
 
+test("Steam-only players can discover each other, form friendships and update profile visibility", async () => {
+  const f = fixture([player("alice", { email: null, passwordHash: null, googleId: null, steamVerifiedId: "76561198000000000" }),
+    player("bob", { email: null, passwordHash: null, googleId: null, steamVerifiedId: "76561198000000001" })]);
+  const alice = f.as("alice").actions, bob = f.as("bob").actions;
+  assert.equal((await alice.searchPlayers("bob")).players[0].id, "bob");
+  assert.deepEqual(await alice.sendFriendRequest("bob"), outcome("bob", "outgoing"));
+  assert.deepEqual(await bob.acceptFriendRequest("alice"), outcome("alice", "friends"));
+  assert.deepEqual(await alice.updateProfileVisibility("private"), { profileVisibility: "private" });
+});
+
 test("pending requests are idempotent; only their recipient can accept, and either friend can remove", async () => {
   const f = fixture(), alice = f.as("alice").actions, bob = f.as("bob").actions;
   assert.deepEqual(await alice.sendFriendRequest("bob"), outcome("bob", "outgoing"));
@@ -167,7 +177,7 @@ test("visibility updates validate the enum and update only the session's registe
     assert.match((await actions.updateProfileVisibility(value)).error, /public, friends or private/);
   }
   assert.equal(f.players.find(p => p.id === "bob").profileVisibility, "public");
-  assert(f.writes.every(([, args]) => args.where.id === "alice" && args.where.AND[0].email.not === null));
+  assert(f.writes.every(([, args]) => args.where.id === "alice" && args.where.AND[0].OR[0].email.not === null));
 });
 
 test("database failures are sanitized, transactions roll back, and failed actions do not revalidate", async () => {

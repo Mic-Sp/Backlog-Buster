@@ -132,7 +132,7 @@ test("claimed archives require a valid session, and private sessions return only
       player: { findUnique: async () => local },
       playerSession: { findUnique: async ({ where, select }) => {
         assert(where.expiresAt.gt instanceof Date);
-        assert.deepEqual(where.player, { email: { not: null }, OR: [{ passwordHash: { not: null } }, { googleId: { not: null } }] });
+        assert.deepEqual(where.player, { OR: [{ email: { not: null }, OR: [{ passwordHash: { not: null } }, { googleId: { not: null } }] }, { steamVerifiedId: { not: null } }] });
         if (select.userId) return session ? { userId: session.player.id } : null;
         assert.deepEqual(select, { player: { select: { id: true, operatorName: true, handle: true, isAdmin: true, isOwner: true, preferredLayoutMode: true } } });
         return session;

@@ -35,7 +35,7 @@ export async function registerPlayer(input: Omit<Registration, "password"> & { p
     // Serialize first claims and normalized email/handle checks across server instances.
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended('backlogbuster-account-registration', 0))`;
     const local = await tx.player.findUnique({ where: { id: "default-player" } });
-    const claimLocal = !local || (local.email === null && local.passwordHash === null);
+    const claimLocal = !local || (local.email === null && local.passwordHash === null && !local.googleId && !local.steamVerifiedId);
     const emailTaken = await tx.player.findFirst({ where: { email: { equals: escapeLike(input.email), mode: "insensitive" } }, select: { id: true } });
     if (emailTaken) throw new InputError("That email is already registered. Sign in instead.");
     if (input.handle) {

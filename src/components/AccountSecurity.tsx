@@ -12,6 +12,7 @@ import { ActionFailure, actionErrorMessage, unwrapActionResult } from "@/lib/act
 import type { AccountSecuritySummary } from "@/lib/account-security";
 import SafeForm from "@/components/SafeForm";
 import GoogleAuthButton from "@/components/GoogleAuthButton";
+import SteamConnection from "@/components/SteamConnection";
 import useCooldown from "@/components/useCooldown";
 import "./AccountSecurity.css";
 
@@ -62,7 +63,7 @@ function SecurityPanel({ onClose }: { onClose: () => void }) {
     initialRequest.current ??= getAccountSecuritySummary();
     void initialRequest.current.then(result => {
       const data = unwrapActionResult(result);
-      if (!disposed) { setSummary(data); setNewEmail(data.email); }
+      if (!disposed) { setSummary(data); setNewEmail(data.email ?? ""); }
     }).catch(cause => { if (!disposed) setError(actionErrorMessage(cause, "Security gateway unavailable. Close and reopen to retry.")); })
       .finally(() => { if (!disposed) setLoading(false); });
     return () => { disposed = true; };
@@ -124,7 +125,7 @@ function SecurityPanel({ onClose }: { onClose: () => void }) {
     setError(""); setConfirmation("");
     if (summary.hasPassword && !currentPassword.trim()) { setError("Enter your current password to authorize changes."); return; }
     const email = newEmail.trim().toLowerCase();
-    if (!newPassword && (!email || email === summary.email.toLowerCase())) { setError("Provide a changed email or a new password."); return; }
+    if (!newPassword && (!email || email === summary.email?.toLowerCase())) { setError("Provide a changed email or a new password."); return; }
     if (newPassword && (!newPassword.trim() || newPassword.length < 8 || newPassword.length > 128)) { setError("New passwords must contain 8–128 characters and cannot be only spaces."); return; }
     const form = new FormData(); form.set("currentPassword", currentPassword); form.set("newEmail", email); form.set("newPassword", newPassword);
     busyRef.current = true; setSaving(true);
@@ -132,7 +133,7 @@ function SecurityPanel({ onClose }: { onClose: () => void }) {
       try {
         const result = unwrapActionResult(await updateAccountCredentials(form));
         setSummary(previous => previous ? { ...previous, hasPassword: result.hasPassword, email: result.email, emailVerifiedAt: result.emailVerifiedAt, sessionExpiresAt: result.sessionExpiresAt } : previous);
-        setNewEmail(result.email); setCurrentPassword(""); setNewPassword(""); setConfirmation(result.message);
+        setNewEmail(result.email ?? ""); setCurrentPassword(""); setNewPassword(""); setConfirmation(result.message);
       } catch (cause) {
         if (cause instanceof ActionFailure) cooldown.start(cause.retryAfterSeconds);
         setError(actionErrorMessage(cause, "Security update unavailable. Please try again."));
@@ -147,12 +148,12 @@ function SecurityPanel({ onClose }: { onClose: () => void }) {
       {loading && <p role="status">VERIFYING SECURE SESSION…</p>}
       {summary && <>
         <dl className="security-account-summary">
-          <div><dt>Registered Email Address</dt><dd>{summary.email}</dd></div>
+          <div><dt>Registered Email Address</dt><dd>{summary.email ?? "No email added"}</dd></div>
           <div><dt>{copy("Operator Handle", "Adventurer Handle")}</dt><dd>{summary.handle ? `@${summary.handle}` : "Unclaimed"}</dd></div>
           <div><dt>Account Created Date</dt><dd>{new Date(summary.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}</dd></div>
           <div><dt>Active Session Status</dt><dd>● ACTIVE // Expires {new Date(summary.sessionExpiresAt).toLocaleDateString("en-US")}</dd></div>
         </dl>
-        <section className="security-verification" aria-label="Email verification">
+        {summary.email && <section className="security-verification" aria-label="Email verification">
           <span className="security-verification-badge" data-verified={Boolean(summary.emailVerifiedAt)}>{summary.emailVerifiedAt ? "✓ Email verified" : "Email verification pending"}</span>
           {!summary.emailVerifiedAt && <>
             <p className="security-hint">You can keep signing in and using your library. Verify your email when you’re ready.</p>
@@ -167,12 +168,13 @@ function SecurityPanel({ onClose }: { onClose: () => void }) {
             }}>{verificationCooldown.seconds > 0 ? verificationCooldown.label : "Resend verification email"}</button>
             {process.env.NODE_ENV !== "production" && <p className="security-hint">Local development: without email delivery configured, verification links appear in the server terminal.</p>}
           </>}
-        </section>
+        </section>}
         <section className="security-google" aria-label="Google connection">
           <h3>{copy("GOOGLE CONNECTION // IDENTITY LINK", "GOOGLE CONNECTION · TRUSTED SEAL")}</h3>
           <span className="security-google-status">{summary.googleConnected ? "✓ Google account connected" : "Google account not connected"}</span>
           {!summary.googleConnected && <><p className="security-hint">Link Google to sign in to this same account. Your library and current email stay with this player.</p><GoogleAuthButton mode="link" disabled={locked} /></>}
         </section>
+        <SteamConnection summary={summary} disabled={locked} />
         <SafeForm action={logout} className="security-device-logout"><fieldset disabled={locked}><DeviceLogout /></fieldset></SafeForm>
         <form className="security-update-form" onSubmit={submit} onInvalidCapture={event => {
           hidePasswords();
@@ -182,10 +184,10 @@ function SecurityPanel({ onClose }: { onClose: () => void }) {
             : "New passwords must contain 8–128 characters and cannot be only spaces.");
         }}>
           <fieldset disabled={locked || cooldown.seconds > 0}>
-            <legend>{summary.hasPassword ? "UPDATE EMAIL & PASSWORD" : "SET A LOCAL PASSWORD"}</legend>
+            <legend>{summary.hasPassword ? "UPDATE EMAIL & PASSWORD" : summary.email ? "SET A LOCAL PASSWORD" : "ADD EMAIL OR LOCAL PASSWORD"}</legend>
             {summary.hasPassword ? <PasswordField label="Current Password" name="currentPassword" value={currentPassword} onChange={setCurrentPassword} visible={currentVisible} onToggle={() => setCurrentVisible(value => !value)} required />
-              : <p className="security-hint">You sign in with Google. Add an optional local password to also sign in with email and password. No current password is required.</p>}
-            {summary.hasPassword && <label>New Email <span>(optional)</span><input type="email" name="newEmail" value={newEmail} onChange={event => setNewEmail(event.target.value)} autoComplete="email" maxLength={254} spellCheck={false} autoCapitalize="none" /></label>}
+              : <p className="security-hint">You sign in with {summary.steamVerifiedId ? "Steam" : "Google"}. Add optional credentials here. Email and a local password let you also sign in with email and password. No current password is required.</p>}
+            {(summary.hasPassword || !summary.email) && <label>New Email <span>(optional)</span><input type="email" name="newEmail" value={newEmail} onChange={event => setNewEmail(event.target.value)} autoComplete="email" maxLength={254} spellCheck={false} autoCapitalize="none" /></label>}
             <PasswordField label="New Password" name="newPassword" value={newPassword} onChange={setNewPassword} visible={newVisible} onToggle={() => setNewVisible(value => !value)} />
             <p className="security-hint">8–128 characters. Passwords are salted and hashed on the server. Saving signs out other devices. Changing your email sends a new verification link.</p>
             <button className="security-save-button" type="submit">{saving ? "VERIFYING & SECURING ARCHIVE…" : cooldown.seconds > 0 ? cooldown.label : "🔐 UPDATE SECURITY CREDENTIALS"}</button>
@@ -194,7 +196,8 @@ function SecurityPanel({ onClose }: { onClose: () => void }) {
       </>}
       {error && <p className="security-error" role="alert">{error}</p>}
       {confirmation && <p className="security-confirmation" role="status">{confirmation}</p>}
-      {summary && !summary.hasPassword && <p className="security-hint">Set a local password above before changing your email or using library reset and account deletion.</p>}
+      {summary && !summary.email && <p className="security-hint">Steam does not share an email address. Add one whenever you want email recovery. Verify the address using the link we send.</p>}
+      {summary && !summary.hasPassword && <p className="security-hint">Set a local password above before changing an existing email address or using library reset and account deletion.</p>}
       {summary?.hasPassword && <section className="security-danger-zone" aria-labelledby={`${titleId}-danger`}>
         <h3 id={`${titleId}-danger`}>{copy("⚠ DANGER ZONE // ARCHIVE TERMINATION", "⚠ DANGER ZONE · IRREVERSIBLE ARCHIVE CHANGES")}</h3>
         {(["reset", "wipe"] as const).map(mode => {

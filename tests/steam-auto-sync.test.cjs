@@ -35,11 +35,12 @@ function fixture(overrides = {}) {
       const sql = strings.join("?");
       assert.match(sql, /UPDATE "Player"/); assert.match(sql, /EXISTS[\s\S]*"PlayerSession"/);
       assert.match(sql, /"expiresAt" > CURRENT_TIMESTAMP/);
+      assert.match(sql, /OR player\."steamVerifiedId" IS NOT NULL/);
       assert.match(sql, /"steamLastSyncedAt" <= CURRENT_TIMESTAMP - INTERVAL '24 hours'/);
       assert.match(sql, /"steamAutoSyncAttemptedAt" <= CURRENT_TIMESTAMP - INTERVAL '24 hours'/);
       assert.deepEqual(values, ["owner", "session-token-hash"]);
       if (databaseFailure) throw Error("private database details");
-      if (!validSession || !player.email || !player.passwordHash || !player.steamId ||
+      if (!validSession || (!(player.email && (player.passwordHash || player.googleId)) && !player.steamVerifiedId) || !player.steamId ||
         [player.steamLastSyncedAt, player.steamAutoSyncAttemptedAt].some(value => value && value.getTime() > now - DAY)) return [];
       // No await between eligibility and claim: model the atomic UPDATE, not read/write races.
       player.steamAutoSyncAttemptedAt = new Date(now);
@@ -58,6 +59,11 @@ function fixture(overrides = {}) {
     get queries() { return queries; }, advance: ms => { now += ms; }, setFailure: value => { fail = value; },
     revoke: () => { validSession = false; }, failDatabase: () => { databaseFailure = true; } };
 }
+
+test("Steam-only verified accounts can auto-sync without email, password or Google", async t => {
+  configured(t); const f = fixture({ email: null, passwordHash: null, googleId: null, steamVerifiedId: steamId });
+  assert.equal(await f.run(), true); assert.equal(f.syncs.length, 1);
+});
 
 test("linked players sync once per rolling 24 hours, including the exact boundary", async t => {
   configured(t); const f = fixture();

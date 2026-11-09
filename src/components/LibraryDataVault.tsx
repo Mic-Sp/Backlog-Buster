@@ -2,6 +2,7 @@
 
 import { useLayoutCopy } from "@/components/LayoutText";
 import { FantasyCorners } from "@/components/FantasyAccents";
+import SteamConnection from "@/components/SteamConnection";
 
 import { ActionFailure, unwrapActionResult } from "@/lib/action-result";
 import useCooldown from "@/components/useCooldown";
@@ -59,7 +60,7 @@ export function useLibraryDataVaultController({ games, savedSteamId }: { games: 
       if (event.key !== "Tab") return;
       const dialog = dialogRef.current;
       const controls = dialog?.querySelectorAll<HTMLElement>(
-        'button:not(:disabled), input:not(:disabled), textarea:not(:disabled)',
+        'a[href], button:not(:disabled), input:not(:disabled), textarea:not(:disabled)',
       );
       const first = controls?.[0];
       const last = controls?.[controls.length - 1];
@@ -266,6 +267,7 @@ export function LibraryDataVaultView({ controller, part = "all" }: { controller:
               </div>
               {mode === "steam" ? (
                 <form className="vault-steam-form" onSubmit={event => { event.preventDefault(); syncSteam(); }}>
+                  <SteamConnection disabled={busy} />
                   <p>Sync your owned Steam games directly. Set your Steam profile and Game details to Public so your library is visible.</p>
                   <label className="vault-field">Steam ID / Profile URL / Vanity handle
                     <input name="steamIdentifier" value={steamIdentifier} onChange={event => setSteamIdentifier(event.target.value)} maxLength={512} placeholder="76561198… or steamcommunity.com/id/your-handle" autoComplete="off" autoCapitalize="none" spellCheck={false} disabled={busy} required />

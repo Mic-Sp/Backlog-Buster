@@ -40,13 +40,13 @@ function fixture() {
     $executeRaw: async sql => { assert.match(sql.join(""), /backlogbuster-account-registration/); state.onLock(); },
     player: {
       findUnique: async ({ where, select }) => {
-        assert.deepEqual(where.AND, [{ email: { not: null }, OR: [{ passwordHash: { not: null } }, { googleId: { not: null } }] }]);
+        assert.deepEqual(where.AND, [{ OR: [{ email: { not: null }, OR: [{ passwordHash: { not: null } }, { googleId: { not: null } }] }, { steamVerifiedId: { not: null } }] }]);
         assert.deepEqual(select, { id: true, email: true, isAdmin: true, isOwner: true });
         const player = db.players.find(p => matches(p, where));
         return player ? Object.fromEntries(Object.keys(select).map(key => [key, player[key]])) : null;
       },
       count: async ({ where }) => {
-        assert.deepEqual(where, { email: { not: null }, OR: [{ passwordHash: { not: null } }, { googleId: { not: null } }], isAdmin: true });
+        assert.deepEqual(where, { OR: [{ email: { not: null }, OR: [{ passwordHash: { not: null } }, { googleId: { not: null } }] }, { steamVerifiedId: { not: null } }], isAdmin: true });
         return state.adminCount ?? db.players.filter(p => p.isAdmin && p.email !== null && p.passwordHash !== null).length;
       },
       update: async ({ where, data, select }) => {
@@ -68,7 +68,7 @@ function fixture() {
   let tail = Promise.resolve();
   const prisma = {
     playerSession: { findUnique: async ({ where }) => {
-      assert(where.expiresAt.gt instanceof Date); assert.deepEqual(where.player, { email: { not: null }, OR: [{ passwordHash: { not: null } }, { googleId: { not: null } }] });
+      assert(where.expiresAt.gt instanceof Date); assert.deepEqual(where.player, { OR: [{ email: { not: null }, OR: [{ passwordHash: { not: null } }, { googleId: { not: null } }] }, { steamVerifiedId: { not: null } }] });
       const player = db.players.find(p => p.id === where.tokenHash);
       const session = db.sessions.find(s => s.userId === where.tokenHash && s.expiresAt > where.expiresAt.gt);
       return player && session ? { player: { id: player.id, isAdmin: player.isAdmin, isOwner: player.isOwner } } : null;

@@ -35,7 +35,7 @@ function fixture({ realHash = false, owner = false } = {}) {
   };
   const initial = structuredClone(db), calls = { hashes: [], transactions: 0, writes: 0, paths: [] };
   function target(where) {
-    assert.deepEqual(where.AND, [{ email: { not: null }, OR: [{ passwordHash: { not: null } }, { googleId: { not: null } }] }]);
+    assert.deepEqual(where.AND, [{ OR: [{ email: { not: null }, OR: [{ passwordHash: { not: null } }, { googleId: { not: null } }] }, { steamVerifiedId: { not: null } }] }]);
     return db.players.find(p => p.id === where.id && p.email !== null && p.passwordHash !== null && (where.isAdmin === undefined || p.isAdmin === where.isAdmin) && (where.email === undefined || p.email === where.email));
   }
   const missing = () => { throw Object.assign(new Error("PRIVATE record missing"), { code: "P2025" }); };
@@ -82,7 +82,7 @@ function fixture({ realHash = false, owner = false } = {}) {
   };
   const prisma = {
     playerSession: { findUnique: async ({ where }) => {
-      assert(where.expiresAt.gt instanceof Date); assert.deepEqual(where.player, { email: { not: null }, OR: [{ passwordHash: { not: null } }, { googleId: { not: null } }] });
+      assert(where.expiresAt.gt instanceof Date); assert.deepEqual(where.player, { OR: [{ email: { not: null }, OR: [{ passwordHash: { not: null } }, { googleId: { not: null } }] }, { steamVerifiedId: { not: null } }] });
       return state.active && db.sessions.some(s => s.userId === actorId) ? { player: { id: actorId, isAdmin: state.admin, isOwner: owner } } : null;
     } },
     $transaction: async (work, options) => {

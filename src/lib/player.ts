@@ -23,9 +23,9 @@ export const getCurrentPlayer = cache(async (): Promise<CurrentPlayer | null> =>
   }
   // A deleted local archive must stay deleted; only explicit registration may recreate it.
   const local = await prisma.player.findUnique({ where: { id: "default-player" },
-    select: { id: true, operatorName: true, handle: true, email: true, passwordHash: true },
+    select: { id: true, operatorName: true, handle: true, email: true, passwordHash: true, googleId: true, steamVerifiedId: true },
   });
-  if (!local || local.email !== null || local.passwordHash !== null) return null;
+  if (!local || local.email !== null || local.passwordHash !== null || local.googleId || local.steamVerifiedId) return null;
   return { id: local.id, operatorName: local.operatorName, handle: local.handle, isLocal: true, isAdmin: false, isOwner: false, preferredLayoutMode: "cyberpunk" };
 });
 

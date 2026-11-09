@@ -1,0 +1,16 @@
+:is(.auth-panel, .security-modal, .vault-modal) .steam-auth-button { display: flex; align-items: center; justify-content: center; gap: 12px; width: 100%; min-height: 46px; margin-top: 12px; padding: 12px 16px; border: 1px solid #67c1f5; background: #172d42; color: #d6efff; font: 600 14px/1.4 Arial, sans-serif; letter-spacing: 0; text-decoration: none; box-shadow: none; text-shadow: none; cursor: pointer; }
+.steam-auth-button svg { flex: 0 0 22px; }
+:is(.auth-panel, .security-modal, .vault-modal) .steam-auth-button:hover:not([aria-disabled="true"]) { background: #254d66; color: #fff; }
+.steam-auth-button[aria-disabled="true"] { opacity: .45; cursor: wait; }
+.steam-auth-button:focus-visible { outline: 2px solid #fcee0a; outline-offset: 3px; }
+.security-steam { margin: 18px 0; padding: 14px; border: 1px solid #32616a; }
+.security-steam h3 { margin: 0 0 10px; font-size: 13px; }
+.steam-verification-status { color: #a2ffdb; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.steam-connection-hint { color: #9dafc2; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.steam-notice-links { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 24px; font-size: 13px; }
+.steam-notice-links a { color: #94f7ff; text-underline-offset: 4px; }
+:root[data-layout-mode="fantasy"] :is(.auth-panel, .security-modal, .vault-modal) .steam-auth-button { background: #314c38; border-color: #849c57; color: #fff6d6; }
+:root[data-layout-mode="fantasy"] :is(.auth-panel, .security-modal, .vault-modal) .steam-auth-button:hover:not([aria-disabled="true"]) { background: #456b43; color: #fff; }
+:root[data-layout-mode="fantasy"] .security-steam { border-color: #ad945d; background: #e6d6ae; }
+:root[data-layout-mode="fantasy"] :is(.security-steam h3, .steam-verification-status, .steam-notice-links a) { color: #365d3b; }
+:root[data-layout-mode="fantasy"] .steam-connection-hint { color: #655234; }

@@ -9,24 +9,26 @@ import { InputError } from "@/lib/action-result";
 import { isValidPassword } from "@/lib/password-validation";
 import { isValidEmail, normalizeEmail } from "@/lib/email-validation";
 
-export type AccountSecuritySummary = { email: string; emailVerifiedAt: string | null; hasPassword: boolean; googleConnected: boolean; handle: string | null; createdAt: string; sessionExpiresAt: string };
+export type AccountSecuritySummary = { email: string | null; emailVerifiedAt: string | null; hasPassword: boolean; googleConnected: boolean; steamVerifiedId: string | null; steamVerifiedAt: string | null; steamSyncId: string | null; handle: string | null; createdAt: string; sessionExpiresAt: string };
 
 export async function getCredentialSession() {
   const tokenHash = await readSessionHash();
   if (!tokenHash) throw new InputError("Sign in to manage your account security.");
   const session = await prisma.playerSession.findUnique({
     where: { tokenHash, expiresAt: { gt: new Date() }, player: { ...registeredPlayerWhere } },
-    select: { expiresAt: true, player: { select: { id: true, email: true, emailVerifiedAt: true, passwordHash: true, googleId: true, handle: true, createdAt: true, isAdmin: true, isOwner: true } } },
+    select: { expiresAt: true, player: { select: { id: true, email: true, emailVerifiedAt: true, passwordHash: true, googleId: true, steamVerifiedId: true, steamVerifiedAt: true, steamId: true, handle: true, createdAt: true, isAdmin: true, isOwner: true } } },
   });
-  if (!session?.player.email || (!session.player.passwordHash && !session.player.googleId)) throw new InputError("Sign in to manage your account security.");
+  if (!session || (!session.player.steamVerifiedId && (!session.player.email || (!session.player.passwordHash && !session.player.googleId)))) throw new InputError("Sign in to manage your account security.");
   return { tokenHash, session, player: session.player };
 }
 
-export function credentialSummary(player: { email: string | null; emailVerifiedAt?: Date | null; passwordHash?: string | null; googleId?: string | null; handle: string | null; createdAt: Date }, expiresAt: Date): AccountSecuritySummary {
-  return { email: player.email!, emailVerifiedAt: player.emailVerifiedAt?.toISOString() ?? null, hasPassword: Boolean(player.passwordHash), googleConnected: Boolean(player.googleId), handle: player.handle, createdAt: player.createdAt.toISOString(), sessionExpiresAt: expiresAt.toISOString() };
+export function credentialSummary(player: { email: string | null; emailVerifiedAt?: Date | null; passwordHash?: string | null; googleId?: string | null; steamVerifiedId?: string | null; steamVerifiedAt?: Date | null; steamId?: string | null; handle: string | null; createdAt: Date }, expiresAt: Date): AccountSecuritySummary {
+  return { email: player.email, emailVerifiedAt: player.emailVerifiedAt?.toISOString() ?? null, hasPassword: Boolean(player.passwordHash), googleConnected: Boolean(player.googleId),
+    steamVerifiedId: player.steamVerifiedId ?? null, steamVerifiedAt: player.steamVerifiedAt?.toISOString() ?? null, steamSyncId: player.steamId ?? null,
+    handle: player.handle, createdAt: player.createdAt.toISOString(), sessionExpiresAt: expiresAt.toISOString() };
 }
 
-export function readCredentialChanges(data: FormData, currentEmail: string, hasPassword = true) {
+export function readCredentialChanges(data: FormData, currentEmail: string | null, hasPassword = true) {
   if (!(data instanceof FormData)) throw new InputError("Provide your current password and the credentials to update.");
   const currentPassword = data.get("currentPassword");
   const emailValue = data.get("newEmail"), passwordValue = data.get("newPassword");
@@ -37,8 +39,8 @@ export function readCredentialChanges(data: FormData, currentEmail: string, hasP
   const newPassword = typeof passwordValue === "string" ? passwordValue : "";
   if (email && !isValidEmail(email)) throw new InputError("Enter a valid new email address.");
   if (newPassword && !isValidPassword(newPassword)) throw new InputError("New passwords must contain 8–128 characters and cannot be only spaces.");
-  const newEmail = email && email !== currentEmail.toLowerCase() ? email : null;
-  if (!hasPassword && newEmail) throw new InputError("Set a local password before changing your email address.");
+  const newEmail = email && email !== currentEmail?.toLowerCase() ? email : null;
+  if (!hasPassword && currentEmail && newEmail) throw new InputError("Set a local password before changing your email address.");
   if (!newEmail && !newPassword) throw new InputError("Provide a changed email or a new password.");
   return { currentPassword: typeof currentPassword === "string" ? currentPassword : "", newEmail, newPassword };
 }

@@ -70,14 +70,14 @@ function refreshFixture(provider = async () => ({ unlocked: 38, total: 50 }), in
       updateMany: async ({ where, data }) => {
         writes.push({ where, data }); assert.equal(where.userId, 'owner'); assert.equal(where.player.steamId, steamId);
         assert.deepEqual(Object.keys(data).sort(), ['steamAchievementsCheckedAt', 'steamAchievementsSyncedAt', 'steamAchievementsTotal', 'steamAchievementsUnlocked']);
-        assert.equal(where.player.email.not, null); assert.equal(where.player.OR[0].passwordHash.not, null);
+        assert.equal(where.player.OR[0].email.not, null); assert.equal(where.player.OR[0].OR[0].passwordHash.not, null);
         const requestedAt = data.steamAchievementsSyncedAt;
         if (!sessionValid || linkedId !== steamId || owner !== 'owner' || appId !== where.steamAppId ||
           (row.steamAchievementsSyncedAt > requestedAt && row.steamAchievementsSyncedAt <= new Date(+requestedAt + 300000) && row.steamAchievementsTotal !== null)) return { count: 0 };
         Object.assign(row, data); return { count: 1 };
       } },
     playerSession: { findUnique: async ({ where }) => {
-      assert.equal(where.tokenHash, 'token'); assert.equal(where.userId, 'owner'); assert.equal(where.player.email.not, null); assert.equal(where.player.OR[0].passwordHash.not, null);
+      assert.equal(where.tokenHash, 'token'); assert.equal(where.userId, 'owner'); assert.equal(where.player.OR[0].email.not, null); assert.equal(where.player.OR[0].OR[0].passwordHash.not, null);
       return sessionValid ? { player: { steamId: linkedId } } : null;
     } },
   };

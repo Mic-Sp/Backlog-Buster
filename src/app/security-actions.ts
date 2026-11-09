@@ -19,11 +19,11 @@ export async function getAccountSecuritySummary() {
 export async function updateAccountCredentials(formData: FormData) {
   return safeAction(async () => {
     const { player, tokenHash } = await getCredentialSession();
-    const input = readCredentialChanges(formData, player.email!, Boolean(player.passwordHash));
+    const input = readCredentialChanges(formData, player.email, Boolean(player.passwordHash));
     const retryAfter = await consumeCredentialAttempt(player.id);
     if (retryAfter) throw new RateLimitError(retryAfter);
     if (player.passwordHash && !await verifyPassword(input.currentPassword, player.passwordHash)) throw new InputError("Current password is incorrect.");
-    if (!player.passwordHash && !player.googleId) throw new InputError("Sign in again to set a local password.");
+    if (!player.passwordHash && !player.googleId && !player.steamVerifiedId) throw new InputError("Sign in again to set a local password.");
     const passwordHash = input.newPassword ? await hashPassword(input.newPassword) : null;
     try {
       const refreshed = await createPlayerSession(player.id, async tx => {
@@ -38,7 +38,7 @@ export async function updateAccountCredentials(formData: FormData) {
           if (taken) throw new InputError("That email address is already in use. Choose another.");
         }
         await tx.player.update({
-          where: { id: player.id, passwordHash: player.passwordHash, email: player.email! },
+          where: { id: player.id, passwordHash: player.passwordHash, ...(player.email === null ? { AND: [{ email: null }] } : { email: player.email }) },
           data: { ...(input.newEmail ? { email: input.newEmail, emailVerifiedAt: null } : {}), ...(passwordHash ? { passwordHash } : {}) }, select: { id: true },
         });
         await tx.playerAuthToken.deleteMany({ where: { userId: player.id } });
@@ -46,7 +46,7 @@ export async function updateAccountCredentials(formData: FormData) {
       });
       if (input.newEmail) after(() => deliverAuthEmail(input.newEmail!, "verify_email", player.id));
       revalidatePath("/", "layout");
-      return { success: true, hasPassword: Boolean(passwordHash || player.passwordHash), email: input.newEmail ?? player.email!, emailVerifiedAt: input.newEmail ? null : player.emailVerifiedAt?.toISOString() ?? null, sessionExpiresAt: refreshed.expiresAt.toISOString(), message: "SECURITY CREDENTIALS UPDATED // ARCHIVE LOCKED" };
+      return { success: true, hasPassword: Boolean(passwordHash || player.passwordHash), email: input.newEmail ?? player.email, emailVerifiedAt: input.newEmail ? null : player.emailVerifiedAt?.toISOString() ?? null, sessionExpiresAt: refreshed.expiresAt.toISOString(), message: "SECURITY CREDENTIALS UPDATED // ARCHIVE LOCKED" };
     } catch (error) {
       if (error && typeof error === "object" && "code" in error) {
         if (error.code === "P2002") throw new InputError("That email address is already in use. Choose another.");
@@ -78,7 +78,7 @@ export async function resetOperatorLibrary(formData: FormData) {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`backlogbuster-deck:${player.id}`}, 0))`;
         // Lock the owner and reject credentials changed since password verification.
         // Everything else on the profile, including every device session, is retained.
-        await tx.player.update({ where: { id: player.id, passwordHash: player.passwordHash, email: player.email! }, data: { featuredTrophyIds: [] }, select: { id: true } });
+        await tx.player.update({ where: { id: player.id, passwordHash: player.passwordHash, ...(player.email === null ? { AND: [{ email: null }] } : { email: player.email }) }, data: { featuredTrophyIds: [] }, select: { id: true } });
         // Includes compact summaries with no game/achievement source relation.
         await tx.activityEvent.deleteMany({ where: { actorId: player.id } });
         await tx.game.deleteMany({ where: { userId: player.id } });
@@ -114,7 +114,7 @@ export async function wipeOperatorAccount(formData: FormData) {
         const active = await tx.playerSession.findUnique({ where: { tokenHash, userId: player.id, expiresAt: { gt: new Date() } }, select: { tokenHash: true } });
         if (!active) throw new InputError("Your session expired. Sign in again before terminating this archive.");
         // Database cascades remove this player's games, achievements and every device session.
-        await tx.player.delete({ where: { id: player.id, passwordHash: player.passwordHash, email: player.email!, isAdmin: false, isOwner: false }, select: { id: true } });
+        await tx.player.delete({ where: { id: player.id, passwordHash: player.passwordHash, ...(player.email === null ? { AND: [{ email: null }] } : { email: player.email }), isAdmin: false, isOwner: false }, select: { id: true } });
       }, { timeout: 15000 });
     } catch (error) {
       if (error && typeof error === "object" && "code" in error && error.code === "P2025") throw new InputError("Your account changed. Reopen the security gateway and verify again.");

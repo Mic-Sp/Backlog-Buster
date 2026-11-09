@@ -17,6 +17,8 @@
 /.next/
 /.next-google-qa/
 /.google-qa-tsconfig.json
+/.next-steam-qa/
+/.steam-qa-tsconfig.json
 /out/
 
 # production

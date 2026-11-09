@@ -162,7 +162,7 @@ export default function AdminPlayerDirectory({ currentPlayerId, currentPlayerIsO
       {!directory.players.length && !loading && <p className="admin-hint">No registered player accounts to display.</p>}
       <ul className="admin-player-list">{directory.players.map(player => {
         const manageable = canManage(player);
-        const ownAccount = player.id === currentPlayerId, claimed = Boolean(player.email);
+        const ownAccount = player.id === currentPlayerId, claimed = Boolean(player.email || player.steamConnected);
         const canChangeRole = manageable && currentPlayerIsOwner && !ownAccount && claimed;
         const rowId = `${headingId}-${player.id}`, resetting = manageable && resetId === player.id, editingEmail = manageable && emailId === player.id, confirming = manageable && !ownAccount && deleteId === player.id;
         const rowFeedback = feedback?.id === player.id ? feedback : null;

@@ -7,6 +7,7 @@ import { createPortal, useFormStatus } from "react-dom";
 import { authenticate, logout, type AuthState } from "@/app/auth-actions";
 import AccountSecurity from "@/components/AccountSecurity";
 import GoogleAuthButton from "@/components/GoogleAuthButton";
+import SteamAuthButton from "@/components/SteamAuthButton";
 import AdminControlPanel from "@/components/AdminControlPanel";
 import SafeForm from "@/components/SafeForm";
 import type { CurrentPlayer } from "@/lib/player";
@@ -68,6 +69,7 @@ function AuthPanel({ localArchive = false, onClose }: { localArchive?: boolean; 
     <ThemeToggle />
     <p className="auth-intro">{localArchive ? copy("Your first account inherits this local library, XP, trophies, and dossier. Nothing is moved or deleted.", "Your first account inherits this local quest journal, XP, trophies, and adventurer's codex. Nothing is moved or deleted.") : copy("Sign in to your private library, or register a new operator with an empty archive.", "Open your personal quest journal, or inscribe a new adventurer's ledger.")}</p>
     <GoogleAuthButton disabled={pending} />
+    <SteamAuthButton disabled={pending} />
     <div className="google-auth-divider">or use email and password</div>
     <div className="auth-tabs" role="group" aria-label="Account access">
       <button type="button" aria-pressed={mode === "login"} disabled={pending} onClick={() => switchMode("login")}>LOGIN</button>

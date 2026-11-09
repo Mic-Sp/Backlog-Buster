@@ -82,7 +82,7 @@ function fixture(initial = [], snapshot = [], options = {}) {
     },
     playerSession: { findUnique: async ({ where }) => {
       assert(inTransaction); assert.equal(where.tokenHash, "owner-token"); assert.equal(where.userId, "owner");
-      assert(where.expiresAt.gt instanceof Date); assert(where.player.email.not === null);
+      assert(where.expiresAt.gt instanceof Date); assert(where.player.OR[0].email.not === null);
       const automatic = where.player.steamAutoSyncAttemptedAt;
       const staleLink = automatic && (where.player.steamId !== player.steamId || automatic.getTime() !== player.steamAutoSyncAttemptedAt?.getTime());
       return revoked || staleLink ? null : { tokenHash: "owner-token" };
@@ -108,7 +108,7 @@ function fixture(initial = [], snapshot = [], options = {}) {
   const prisma = {
     player: { findUnique: tx.player.findUnique },
     playerSession: { findUnique: async ({ where }) => {
-      assert.equal(where.tokenHash, "owner-token"); assert(where.player.email.not === null && where.player.OR[0].passwordHash.not === null);
+      assert.equal(where.tokenHash, "owner-token"); assert(where.player.OR[0].email.not === null && where.player.OR[0].OR[0].passwordHash.not === null);
       return revoked ? null : { player: { id: "owner", operatorName: "Owner", handle: "owner" } };
     } },
     game: { findMany: async args => selectRows(args) },

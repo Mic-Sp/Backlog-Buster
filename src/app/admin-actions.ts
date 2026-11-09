@@ -51,7 +51,7 @@ export async function getAdminPlayerDirectory(page = 1, pageSize = 50) {
         tx.player.findMany({
           where: registeredPlayers, orderBy: [{ createdAt: "desc" }, { id: "asc" }],
           skip: (page - 1) * pageSize, take: pageSize,
-          select: { id: true, operatorName: true, handle: true, email: true, isAdmin: true, isOwner: true, createdAt: true, updatedAt: true, preferredLayoutMode: true },
+          select: { id: true, operatorName: true, handle: true, email: true, steamVerifiedId: true, isAdmin: true, isOwner: true, createdAt: true, updatedAt: true, preferredLayoutMode: true },
         }),
       ]);
       const where = { userId: { in: players.map(player => player.id) } };
@@ -76,7 +76,7 @@ export async function getAdminPlayerDirectory(page = 1, pageSize = 50) {
           const activity = [player.updatedAt, game?._max.createdAt, achievement?._max.unlockedAt, latestSessionAt]
             .filter((date): date is Date => date instanceof Date);
           return {
-            id: player.id, operatorName: player.operatorName, handle: player.handle, email: player.email,
+            id: player.id, operatorName: player.operatorName, handle: player.handle, email: player.email, steamConnected: Boolean(player.steamVerifiedId),
             isAdmin: player.isAdmin, isOwner: player.isOwner, gameCount: game?._count._all ?? 0, totalXp, level: calculateLevelProgress(totalXp).level,
             activeSessionCount: activeSessionsByPlayer.get(player.id) ?? 0,
             preferredLayoutMode: normalizeLayoutMode(player.preferredLayoutMode),
@@ -191,8 +191,8 @@ export async function adminUpdatePlayerEmail(targetPlayerId: string, newEmail: s
         // Share registration/credential-update serialization across server instances.
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended('backlogbuster-account-registration', 0))`;
         const { target, guard } = await manageableTarget(tx, admin.id, id);
-        if (!target?.email) throw new InputError("Choose an existing registered player account. Unclaimed local archives are protected.");
-        if (email === target.email.toLowerCase()) throw new InputError("Provide a changed email address.");
+        if (!target) throw new InputError("Choose an existing registered player account. Unclaimed local archives are protected.");
+        if (email === target.email?.toLowerCase()) throw new InputError("Provide a changed email address.");
         const taken = await tx.player.findFirst({
           // Prisma's case-insensitive PostgreSQL lookup uses ILIKE; escape pattern
           // characters exactly as self-service credential updates do.
@@ -200,7 +200,8 @@ export async function adminUpdatePlayerEmail(targetPlayerId: string, newEmail: s
           select: { id: true },
         });
         if (taken) throw new InputError("That email address is already in use. Choose another.");
-        await tx.player.update({ where: { id, email: target.email, ...guard, AND: [registeredPlayers] }, data: { email, emailVerifiedAt: null }, select: { id: true } });
+        await tx.player.update({ where: { id, ...(target.email === null ? {} : { email: target.email }), ...guard,
+          AND: [registeredPlayers, ...(target.email === null ? [{ email: null }] : [])] }, data: { email, emailVerifiedAt: null }, select: { id: true } });
         await tx.playerAuthToken.deleteMany({ where: { userId: id } });
         // An admin cannot rotate another device's cookie. Revoke all target
         // sessions atomically, matching admin password resets and login rechecks.

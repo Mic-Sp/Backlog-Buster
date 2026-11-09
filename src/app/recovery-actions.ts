@@ -23,6 +23,7 @@ export async function requestPasswordReset(formData: FormData) {
 export async function resendVerificationEmail() {
   return safeAction(async () => {
     const { player } = await getCredentialSession();
+    if (!player.email) throw new InputError("Add an email address in Account Security first.");
     after(() => deliverAuthEmail(player.email!, "verify_email", player.id));
     return { message: "Verification requested. Check your inbox; you can request another link in one minute.", retryAfterSeconds: 60 };
   });

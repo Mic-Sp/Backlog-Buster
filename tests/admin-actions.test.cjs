@@ -34,7 +34,7 @@ function fixture() {
   const caches = [{ slug: "saga-one" }, { slug: "saga-two" }];
   function read() { calls.queries++; if (state.fail) throw new Error("PRIVATE database connection secret"); state.onRead(); }
   function registered(where) {
-    assert.deepEqual({ email: where.email, OR: where.OR }, { email: { not: null }, OR: [{ passwordHash: { not: null } }, { googleId: { not: null } }] });
+    assert.deepEqual({ OR: where.OR }, { OR: [{ email: { not: null }, OR: [{ passwordHash: { not: null } }, { googleId: { not: null } }] }, { steamVerifiedId: { not: null } }] });
     return players.filter(player => player.email !== null && player.passwordHash !== null && (!where.isAdmin || player.isAdmin));
   }
   function group(rows, fields) {
@@ -52,7 +52,7 @@ function fixture() {
     playerSession: {
       findUnique: async ({ where }) => {
         assert.equal(where.tokenHash, "verified-hash"); assert(where.expiresAt.gt instanceof Date);
-        assert.deepEqual(where.player, { email: { not: null }, OR: [{ passwordHash: { not: null } }, { googleId: { not: null } }] });
+        assert.deepEqual(where.player, { OR: [{ email: { not: null }, OR: [{ passwordHash: { not: null } }, { googleId: { not: null } }] }, { steamVerifiedId: { not: null } }] });
         return state.active ? { player: { id: "owner", isAdmin: state.admin } } : null;
       },
       groupBy: async args => {
@@ -67,7 +67,7 @@ function fixture() {
       count: async ({ where }) => { read(); return registered(where).length; },
       findMany: async ({ where, select, skip, take, orderBy }) => {
         read();
-        assert.deepEqual(Object.keys(select).sort(), ["id", "operatorName", "handle", "email", "isAdmin", "isOwner", "createdAt", "updatedAt", "preferredLayoutMode"].sort());
+        assert.deepEqual(Object.keys(select).sort(), ["id", "operatorName", "handle", "email", "steamVerifiedId", "isAdmin", "isOwner", "createdAt", "updatedAt", "preferredLayoutMode"].sort());
         assert.deepEqual(orderBy, [{ createdAt: "desc" }, { id: "asc" }]);
         return registered(where).slice(skip, skip + take);
       },
@@ -118,7 +118,7 @@ test("directory serializes safe paginated summaries, includes achievement XP, an
   assert.equal(result.players.length, 2);
   const [admin, member] = result.players;
   assert.deepEqual(admin, {
-    id: "owner", operatorName: "Admin", handle: "admin", email: "admin@example.com", isAdmin: true, isOwner: true,
+    id: "owner", operatorName: "Admin", handle: "admin", email: "admin@example.com", steamConnected: false, isAdmin: true, isOwner: true,
     gameCount: 3, totalXp: 1350, level: 3, activeSessionCount: 2, preferredLayoutMode: "cyberpunk",
     createdAt: "2020-02-01T00:00:00.000Z", updatedAt: "2020-03-01T00:00:00.000Z",
     latestSessionAt: "2020-06-01T00:00:00.000Z", lastRecordedActivityAt: "2020-07-01T00:00:00.000Z",

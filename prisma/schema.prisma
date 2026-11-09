@@ -51,6 +51,9 @@ model Player {
   profileVisibility ProfileVisibility @default(public)
   // Public profile identifier only; this is not proof of Steam account ownership.
   steamId           String?
+  // OpenID-verified login identity, independent of the manually editable sync target.
+  steamVerifiedId   String?           @unique
+  steamVerifiedAt   DateTime?
   steamLastSyncedAt  DateTime?
   // Claim attempts too, so private/unreachable profiles do not retry every visit.
   steamAutoSyncAttemptedAt DateTime?
@@ -170,6 +173,21 @@ model AuthRollout {
 // cookie; only a digest of the random CSRF state is stored here.
 model GoogleOAuthAttempt {
   stateHash String @id
+  expiresAt DateTime
+
+  @@index([expiresAt])
+}
+
+model SteamOpenIDAttempt {
+  stateHash String @id
+  expiresAt DateTime
+
+  @@index([expiresAt])
+}
+
+// Reject a signed assertion reused across attempts/replicas. Only nonce digests persist.
+model SteamOpenIDNonce {
+  nonceHash String @id
   expiresAt DateTime
 
   @@index([expiresAt])
