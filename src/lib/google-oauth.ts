@@ -9,10 +9,9 @@ import { getSessionSigningKey, readSessionHash } from "@/lib/auth-session";
 import { registeredPlayerWhere } from "@/lib/auth-policy";
 import { isValidEmail, normalizeEmail } from "@/lib/email-validation";
 import { escapeLike } from "@/lib/handle-validation";
-
-export class GoogleOAuthError extends Error {
-  constructor(public reason: "unavailable" | "state" | "cancelled" | "conflict" | "session" | "profile" | "failed") { super(reason); }
-}
+import { GoogleOAuthError, googleDiagnosticOrigin, googleOAuthStep, safeGoogleProviderError } from "@/lib/google-oauth-diagnostics";
+import { googleOAuthOrigin } from "@/lib/google-oauth-origin";
+export { GoogleOAuthError } from "@/lib/google-oauth-diagnostics";
 
 export const googleCookieName = process.env.NODE_ENV === "production" ? "__Host-bb_google_oauth_v1" : "bb_google_oauth_v1";
 const lifetimeMs = 10 * 60 * 1000;
@@ -24,15 +23,14 @@ export type GoogleContext = {
 };
 export type GoogleProfile = { googleId: string; email: string; name: string };
 
-export function googleConfiguration(requestUrl: string) {
+function googleCredentials() {
   const clientId = process.env.GOOGLE_CLIENT_ID?.trim(), clientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
-  if (!clientId || !clientSecret) throw new GoogleOAuthError("unavailable");
-  const url = new URL(process.env.APP_URL || requestUrl);
-  // Use APP_URL on hosted environments; local development also works without it.
-  // Ignore forwarded headers and never accept a return URL from query parameters.
-  const local = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
-  if (url.username || url.password || (url.protocol !== "https:" && !(local && url.protocol === "http:"))) throw new GoogleOAuthError("unavailable");
-  return { clientId, clientSecret, redirectUri: new URL("/api/auth/google/callback", url.origin).toString() };
+  if (!clientId || !clientSecret) throw new GoogleOAuthError("unavailable", !clientId ? "missing_google_client_id" : "missing_google_client_secret", { stage: "configuration" });
+  return { clientId, clientSecret };
+}
+
+export function googleConfiguration(requestUrl: string, requestHeaders?: Headers) {
+  return { ...googleCredentials(), redirectUri: new URL("/api/auth/google/callback", googleOAuthOrigin(requestUrl, requestHeaders)).toString() };
 }
 
 export function googleStateHash(state: string) { return createHash("sha256").update(`google-state-v1:${state}`).digest("hex"); }
@@ -44,40 +42,44 @@ export function signGoogleContext(context: GoogleContext, secret: Buffer) {
 }
 
 export function readGoogleContext(value: string | undefined, state: string | null, secret: Buffer): GoogleContext {
-  const fail = () => { throw new GoogleOAuthError("state"); };
-  if (!value || value.length > 4096 || !state || !/^[A-Za-z0-9_-]{43}$/.test(state)) return fail();
+  const fail = (failure: string) => { throw new GoogleOAuthError("state", failure, { stage: "state_validation", cookiePresent: Boolean(value), statePresent: Boolean(state) }); };
+  if (!value) return fail("missing_state_cookie");
+  if (value.length > 4096) return fail("invalid_state_cookie");
+  if (!state || !/^[A-Za-z0-9_-]{43}$/.test(state)) return fail("missing_or_invalid_state");
   const [payload, signature, extra] = value.split(".");
   const expected = createHmac("sha256", secret).update(`google-context-v1:${payload}`).digest("base64url");
-  if (extra !== undefined || signature?.length !== expected.length || !timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) return fail();
+  if (extra !== undefined || signature?.length !== expected.length || !timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) return fail("state_signature_mismatch");
   let parsed;
-  try { parsed = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")); } catch { return fail(); }
-  if (!parsed || typeof parsed !== "object" || parsed.state !== state || typeof parsed.expiresAt !== "number" ||
-      parsed.expiresAt <= Date.now() || parsed.expiresAt > Date.now() + lifetimeMs ||
+  try { parsed = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")); } catch { return fail("invalid_state_payload"); }
+  if (!parsed || typeof parsed !== "object") return fail("invalid_state_payload");
+  if (parsed.state !== state) return fail("state_mismatch");
+  if (typeof parsed.expiresAt !== "number" || parsed.expiresAt <= Date.now() || parsed.expiresAt > Date.now() + lifetimeMs) return fail("state_expired");
+  if (
       !/^[A-Za-z0-9_-]{43}$/.test(parsed.verifier) || !/^[A-Za-z0-9_-]{43}$/.test(parsed.nonce) ||
       !["signin", "link"].includes(parsed.mode) || !["cyberpunk", "fantasy"].includes(parsed.layoutMode) ||
       !(parsed.sessionHash === null || /^[a-f0-9]{64}$/.test(parsed.sessionHash)) ||
       !(parsed.userId === null || typeof parsed.userId === "string") || typeof parsed.redirectUri !== "string" ||
-      (parsed.mode === "link" && (!parsed.userId || !parsed.sessionHash)) || (parsed.mode === "signin" && parsed.userId !== null)) return fail();
+      (parsed.mode === "link" && (!parsed.userId || !parsed.sessionHash)) || (parsed.mode === "signin" && parsed.userId !== null)) return fail("invalid_state_payload");
   return parsed as GoogleContext;
 }
 
-export async function beginGoogleOAuth(requestUrl: string, mode: "signin" | "link", layoutMode: "cyberpunk" | "fantasy") {
-  const configuration = googleConfiguration(requestUrl);
-  const sessionHash = await readSessionHash();
-  const session = sessionHash ? await prisma.playerSession.findUnique({ where: {
+export async function beginGoogleOAuth(requestUrl: string, mode: "signin" | "link", layoutMode: "cyberpunk" | "fantasy", requestHeaders?: Headers) {
+  const configuration = googleConfiguration(requestUrl, requestHeaders);
+  const sessionHash = await googleOAuthStep("session_lookup", readSessionHash);
+  const session = sessionHash ? await googleOAuthStep("session_lookup", () => prisma.playerSession.findUnique({ where: {
     tokenHash: sessionHash, expiresAt: { gt: new Date() }, player: registeredPlayerWhere,
-  }, select: { userId: true } }) : null;
-  if ((mode === "link" && !session) || (mode === "signin" && session)) throw new GoogleOAuthError("session");
+  }, select: { userId: true } })) : null;
+  if ((mode === "link" && !session) || (mode === "signin" && session)) throw new GoogleOAuthError("session", "invalid_initiating_session", { stage: "session_lookup" });
   const context: GoogleContext = {
     state: randomBytes(32).toString("base64url"), verifier: randomBytes(32).toString("base64url"), nonce: randomBytes(32).toString("base64url"),
     mode, sessionHash, userId: mode === "link" ? session!.userId : null, redirectUri: configuration.redirectUri,
     layoutMode, expiresAt: Date.now() + lifetimeMs,
   };
-  await prisma.googleOAuthAttempt.deleteMany({ where: { expiresAt: { lte: new Date() } } });
-  await prisma.googleOAuthAttempt.create({ data: { stateHash: googleStateHash(context.state), expiresAt: new Date(context.expiresAt) } });
-  (await cookies()).set(googleCookieName, signGoogleContext(context, await getSessionSigningKey()), {
+  await googleOAuthStep("state_persistence", () => prisma.googleOAuthAttempt.deleteMany({ where: { expiresAt: { lte: new Date() } } }));
+  await googleOAuthStep("state_persistence", () => prisma.googleOAuthAttempt.create({ data: { stateHash: googleStateHash(context.state), expiresAt: new Date(context.expiresAt) } }));
+  await googleOAuthStep("state_cookie", async () => { (await cookies()).set(googleCookieName, signGoogleContext(context, await getSessionSigningKey()), {
     httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: lifetimeMs / 1000,
-  });
+  }); });
   const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
   url.search = new URLSearchParams({
     client_id: configuration.clientId, redirect_uri: configuration.redirectUri, response_type: "code", scope: "openid email profile",
@@ -86,16 +88,19 @@ export async function beginGoogleOAuth(requestUrl: string, mode: "signin" | "lin
   return url.toString();
 }
 
-export async function consumeGoogleContext(requestUrl: string) {
-  const url = new URL(requestUrl), jar = await cookies();
-  const context = readGoogleContext(jar.get(googleCookieName)?.value, url.searchParams.get("state"), await getSessionSigningKey());
-  if (googleConfiguration(requestUrl).redirectUri !== context.redirectUri) throw new GoogleOAuthError("state");
-  if (await readSessionHash() !== context.sessionHash) throw new GoogleOAuthError("session");
+export async function consumeGoogleContext(requestUrl: string, requestHeaders?: Headers) {
+  const url = new URL(requestUrl);
+  const context = await googleOAuthStep("state_validation", async () => readGoogleContext((await cookies()).get(googleCookieName)?.value, url.searchParams.get("state"), await getSessionSigningKey()));
+  const expectedRedirectUri = googleConfiguration(requestUrl, requestHeaders).redirectUri;
+  if (expectedRedirectUri !== context.redirectUri) throw new GoogleOAuthError("state", "redirect_uri_mismatch", {
+    stage: "state_validation", expectedOrigin: googleDiagnosticOrigin(expectedRedirectUri), storedOrigin: googleDiagnosticOrigin(context.redirectUri),
+  });
+  if (await googleOAuthStep("session_validation", readSessionHash) !== context.sessionHash) throw new GoogleOAuthError("session", "browser_session_changed", { stage: "session_validation" });
   // Atomic replay prevention, including simultaneous callbacks and restored cookies.
-  const consumed = await prisma.googleOAuthAttempt.deleteMany({ where: {
+  const consumed = await googleOAuthStep("state_consumption", () => prisma.googleOAuthAttempt.deleteMany({ where: {
     stateHash: googleStateHash(context.state), expiresAt: { gt: new Date() },
-  } });
-  if (consumed.count !== 1) throw new GoogleOAuthError("state");
+  } }));
+  if (consumed.count !== 1) throw new GoogleOAuthError("state", "state_attempt_missing_expired_or_used", { stage: "state_consumption" });
   return context;
 }
 
@@ -104,28 +109,33 @@ export async function clearGoogleContext() {
 }
 
 export function googleProfileFromClaims(claims: JWTPayload, nonce: string, clientId: string): GoogleProfile {
-  if (claims.nonce !== nonce || (claims.azp !== undefined && claims.azp !== clientId) ||
-      (Array.isArray(claims.aud) && claims.aud.length > 1 && claims.azp !== clientId) ||
-      typeof claims.sub !== "string" || !claims.sub || claims.sub.length > 255 || claims.email_verified !== true ||
-      typeof claims.email !== "string" || !isValidEmail(normalizeEmail(claims.email))) throw new GoogleOAuthError("profile");
+  const fail = (failure: string) => { throw new GoogleOAuthError("profile", failure, { stage: "profile_validation" }); };
+  if (claims.nonce !== nonce) fail("nonce_mismatch");
+  if ((claims.azp !== undefined && claims.azp !== clientId) || (Array.isArray(claims.aud) && claims.aud.length > 1 && claims.azp !== clientId)) fail("authorized_party_mismatch");
+  if (typeof claims.sub !== "string" || !claims.sub || claims.sub.length > 255) return fail("invalid_google_subject");
+  if (claims.email_verified !== true) fail("google_email_unverified");
+  if (typeof claims.email !== "string" || !isValidEmail(normalizeEmail(claims.email))) return fail("invalid_google_email");
   return { googleId: claims.sub, email: normalizeEmail(claims.email), name: typeof claims.name === "string" ? claims.name : "" };
 }
 
 export async function exchangeGoogleCode(code: string, context: GoogleContext): Promise<GoogleProfile> {
-  const configuration = googleConfiguration(context.redirectUri);
-  const response = await fetch("https://oauth2.googleapis.com/token", {
+  const configuration = googleCredentials();
+  const response = await googleOAuthStep("token_exchange", () => fetch("https://oauth2.googleapis.com/token", {
     method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ code, client_id: configuration.clientId, client_secret: configuration.clientSecret,
       redirect_uri: context.redirectUri, grant_type: "authorization_code", code_verifier: context.verifier }),
     signal: AbortSignal.timeout(10000), cache: "no-store",
-  });
-  if (!response.ok) throw new GoogleOAuthError("failed");
-  const tokens = await response.json();
-  if (typeof tokens.id_token !== "string") throw new GoogleOAuthError("profile");
-  const { payload } = await jwtVerify(tokens.id_token, googleKeys, {
+  }));
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    throw new GoogleOAuthError("failed", "token_endpoint_rejected", { stage: "token_exchange", httpStatus: response.status, providerError: safeGoogleProviderError(body?.error) });
+  }
+  const tokens = await googleOAuthStep("token_response", () => response.json());
+  if (typeof tokens?.id_token !== "string") throw new GoogleOAuthError("profile", "missing_id_token", { stage: "token_response" });
+  const { payload } = await googleOAuthStep("id_token_verification", () => jwtVerify(tokens.id_token, googleKeys, {
     issuer: ["https://accounts.google.com", "accounts.google.com"], audience: configuration.clientId,
     algorithms: ["RS256"], requiredClaims: ["exp", "iat", "sub", "nonce", "email", "email_verified"], maxTokenAge: "10m", clockTolerance: 5,
-  });
+  }));
   // Neither access/refresh tokens nor ID tokens are persisted or logged.
   return googleProfileFromClaims(payload, context.nonce, configuration.clientId);
 }
@@ -137,10 +147,11 @@ export async function resolveGooglePlayer(tx: Prisma.TransactionClient, profile:
   const linked = await tx.player.findUnique({ where: { googleId: profile.googleId }, select: { id: true } });
   if (context.mode === "link") {
     const active = await tx.playerSession.findUnique({ where: { tokenHash: context.sessionHash!, userId: context.userId!, expiresAt: { gt: new Date() }, player: registeredPlayerWhere }, select: { userId: true } });
-    if (!active) throw new GoogleOAuthError("session");
+    if (!active) throw new GoogleOAuthError("session", "link_session_expired");
     const current = await tx.player.findUnique({ where: { id: context.userId! }, select: { id: true, email: true, googleId: true, emailVerifiedAt: true } });
-    if (!current) throw new GoogleOAuthError("session");
-    if ((linked && linked.id !== current.id) || (current.googleId && current.googleId !== profile.googleId)) throw new GoogleOAuthError("conflict");
+    if (!current) throw new GoogleOAuthError("session", "link_player_missing");
+    if (linked && linked.id !== current.id) throw new GoogleOAuthError("conflict", "google_identity_already_linked");
+    if (current.googleId && current.googleId !== profile.googleId) throw new GoogleOAuthError("conflict", "player_has_other_google_identity");
     await tx.player.update({ where: { id: current.id }, data: {
       googleId: profile.googleId,
       ...(current.email?.toLowerCase() === profile.email && !current.emailVerifiedAt ? { emailVerifiedAt: new Date() } : {}),
@@ -148,11 +159,11 @@ export async function resolveGooglePlayer(tx: Prisma.TransactionClient, profile:
     return current.id;
   }
   // Reject a session introduced in another tab while Google was open.
-  if (context.sessionHash && await tx.playerSession.findUnique({ where: { tokenHash: context.sessionHash, expiresAt: { gt: new Date() } }, select: { userId: true } })) throw new GoogleOAuthError("session");
+  if (context.sessionHash && await tx.playerSession.findUnique({ where: { tokenHash: context.sessionHash, expiresAt: { gt: new Date() } }, select: { userId: true } })) throw new GoogleOAuthError("session", "sign_in_session_became_active");
   if (linked) return linked.id;
   const existing = await tx.player.findFirst({ where: { email: { equals: escapeLike(profile.email), mode: "insensitive" } }, select: { id: true, googleId: true, emailVerifiedAt: true } });
   if (existing) {
-    if (existing.googleId && existing.googleId !== profile.googleId) throw new GoogleOAuthError("conflict");
+    if (existing.googleId && existing.googleId !== profile.googleId) throw new GoogleOAuthError("conflict", "email_already_has_other_google_identity");
     await tx.player.update({ where: { id: existing.id }, data: { googleId: profile.googleId, ...(!existing.emailVerifiedAt ? { emailVerifiedAt: new Date() } : {}) } });
     return existing.id;
   }
@@ -163,7 +174,7 @@ export async function resolveGooglePlayer(tx: Prisma.TransactionClient, profile:
     const candidate = `${stem}-${randomBytes(4).toString("hex")}`;
     if (!await tx.player.findFirst({ where: { handle: { equals: escapeLike(candidate), mode: "insensitive" } }, select: { id: true } })) { handle = candidate; break; }
   }
-  if (!handle) throw new GoogleOAuthError("failed");
+  if (!handle) throw new GoogleOAuthError("failed", "unique_handle_unavailable");
   return (await tx.player.create({ data: { email: profile.email, googleId: profile.googleId, emailVerifiedAt: new Date(), passwordHash: null,
     handle, operatorName: name, preferredLayoutMode: context.layoutMode }, select: { id: true } })).id;
 }

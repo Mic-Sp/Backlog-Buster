@@ -22,7 +22,7 @@ const context = overrides => ({ state: randomBytes(32).toString('base64url'), ve
   redirectUri: 'http://localhost:3000/api/auth/google/callback', layoutMode: 'fantasy', expiresAt: Date.now() + 599000, ...overrides });
 const player = overrides => ({ id: 'member', email: profile.email, passwordHash: 'legacy-scrypt-hash', googleId: null, emailVerifiedAt: null, isAdmin: true, isOwner: true, games: ['PRIVATE_LIBRARY'], handle: 'old-handle', operatorName: 'Old name', ...overrides });
 
-function fixture(initial = []) {
+function fixture(initial = [], overrides = {}) {
   let rows = structuredClone(initial), sessions = [{ userId: 'member', tokenHash: 'a'.repeat(64), expiresAt: new Date(Date.now() + 600000) }];
   let writes = [], sequence = Promise.resolve(), sessionHash = null, failSession = false;
   const attempts = new Map(), jar = new Map(), cookieOptions = [];
@@ -64,7 +64,7 @@ function fixture(initial = []) {
   };
   const secret = Buffer.alloc(32, 1);
   const load = loader({ '@/lib/prisma': { prisma }, '@/lib/auth-session': { readSessionHash: async () => sessionHash, getSessionSigningKey: async () => secret },
-    'next/headers': { cookies: async () => ({ get: name => jar.has(name) ? { value: jar.get(name) } : undefined, set: (name, value, options) => { jar.set(name, value); cookieOptions.push(options); } }) } });
+    'next/headers': { cookies: async () => ({ get: name => jar.has(name) ? { value: jar.get(name) } : undefined, set: (name, value, options) => { jar.set(name, value); cookieOptions.push(options); } }) }, ...overrides });
   const api = load('src/lib/google-oauth.ts');
   return { api, prisma, tx, load, jar, cookieOptions, attempts, secret, get rows() { return rows; }, get sessions() { return sessions; }, get writes() { return writes; },
     set sessionHash(value) { sessionHash = value; }, set failSession(value) { failSession = value; } };
@@ -239,3 +239,148 @@ test('OAuth notices accept only known status messages and render safely in both 
     assert(renderToStaticMarkup(React.createElement(Notice, { status: 'linked' })).includes('Your Google account is connected.'));
   }
 });
+
+async function withOAuthEnvironment(work) {
+  const names = ['APP_URL', 'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'NODE_ENV'];
+  const original = Object.fromEntries(names.map(name => [name, process.env[name]]));
+  process.env.GOOGLE_CLIENT_ID = 'unit-client'; process.env.GOOGLE_CLIENT_SECRET = 'CLIENT_SECRET_MUST_NOT_APPEAR';
+  delete process.env.APP_URL;
+  try { return await work(); }
+  finally { for (const name of names) if (original[name] === undefined) delete process.env[name]; else process.env[name] = original[name]; }
+}
+const publicOrigin = 'https://backlog-buster-chi.vercel.app';
+const publicHeaders = () => new Headers({ 'x-forwarded-host': 'backlog-buster-chi.vercel.app', 'x-forwarded-proto': 'https', host: 'backlog-buster-deployment.vercel.app' });
+const responses = { NextResponse: { redirect: (url, options = {}) => new Response(null, { status: 307, headers: { ...options.headers, Location: String(url) } }) } };
+
+test('canonical callback resolution prefers APP_URL, then public forwarded headers, and preserves localhost', async () => withOAuthEnvironment(async () => {
+  const { api } = fixture(), internal = 'http://backlog-buster-internal-a.vercel.app/api/auth/google';
+  assert.equal(api.googleConfiguration(internal, publicHeaders()).redirectUri, `${publicOrigin}/api/auth/google/callback`);
+  process.env.APP_URL = `${publicOrigin}/ignored-path`;
+  assert.equal(api.googleConfiguration('https://internal-b.vercel.app/api/auth/google/callback', new Headers({ 'x-forwarded-host': 'other.example', 'x-forwarded-proto': 'https' })).redirectUri, `${publicOrigin}/api/auth/google/callback`);
+  delete process.env.APP_URL;
+  assert.equal(api.googleConfiguration('http://localhost:3000/api/auth/google', new Headers({ host: 'localhost:3000', 'x-forwarded-proto': 'http' })).redirectUri, 'http://localhost:3000/api/auth/google/callback');
+  assert.equal(api.googleConfiguration('https://deployment.vercel.app/api/auth/google', new Headers({ host: 'backlog-buster-chi.vercel.app' })).redirectUri, `${publicOrigin}/api/auth/google/callback`);
+  for (const host of ['evil.example/path', 'user:secret@evil.example', 'evil.example,backlog-buster-chi.vercel.app', 'evil.example?token=SECRET', 'evil.example\\path']) {
+    assert.throws(() => api.googleConfiguration(internal, new Headers({ 'x-forwarded-host': host, 'x-forwarded-proto': 'https' })), error => error.failure === 'invalid_forwarded_origin');
+  }
+  assert.throws(() => api.googleConfiguration(internal, new Headers({ 'x-forwarded-host': 'backlog-buster-chi.vercel.app', 'x-forwarded-proto': 'https,http' })), error => error.failure === 'invalid_forwarded_origin');
+}));
+
+test('production state cookie and database attempt survive different deployment hosts and separate replicas', async () => withOAuthEnvironment(async () => {
+  process.env.NODE_ENV = 'production';
+  const first = fixture(), authorization = new URL(await first.api.beginGoogleOAuth('http://internal-a.vercel.app/api/auth/google', 'signin', 'cyberpunk', publicHeaders()));
+  assert.equal(authorization.searchParams.get('redirect_uri'), `${publicOrigin}/api/auth/google/callback`);
+  assert.equal(first.api.googleCookieName, '__Host-bb_google_oauth_v1');
+  assert.deepEqual(first.cookieOptions[0], { httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 600 });
+  const callbackReplica = fixture([], { '@/lib/prisma': { prisma: first.prisma } });
+  callbackReplica.jar.set(callbackReplica.api.googleCookieName, first.jar.get(first.api.googleCookieName));
+  const callback = `http://internal-b.vercel.app/api/auth/google/callback?state=${authorization.searchParams.get('state')}&code=CODE_MUST_NOT_LOG`;
+  const ctx = await callbackReplica.api.consumeGoogleContext(callback, publicHeaders());
+  assert.equal(ctx.redirectUri, `${publicOrigin}/api/auth/google/callback`); assert.equal(first.attempts.size, 0);
+  await assert.rejects(callbackReplica.api.consumeGoogleContext(callback, publicHeaders()), error => error.failure === 'state_attempt_missing_expired_or_used');
+}));
+
+test('a genuine public-origin mismatch is rejected and retains the one-time state attempt', async () => withOAuthEnvironment(async () => {
+  const f = fixture(), authorization = new URL(await f.api.beginGoogleOAuth('https://internal-a.vercel.app/api/auth/google', 'signin', 'cyberpunk', publicHeaders()));
+  const callback = `https://internal-b.vercel.app/api/auth/google/callback?state=${authorization.searchParams.get('state')}`;
+  await assert.rejects(f.api.consumeGoogleContext(callback, new Headers({ 'x-forwarded-host': 'different.example', 'x-forwarded-proto': 'https' })), error => {
+    assert.equal(error.reason, 'state'); assert.equal(error.failure, 'redirect_uri_mismatch');
+    assert.equal(error.detail.expectedOrigin, 'https://different.example'); assert.equal(error.detail.storedOrigin, publicOrigin); return true;
+  });
+  assert.equal(f.attempts.size, 1);
+}));
+
+test('authorize and callback routes keep a public alias across internal hosts through session creation', async () => withOAuthEnvironment(async () => {
+  const f = fixture(), diagnostics = f.load('src/lib/google-oauth-diagnostics.ts');
+  const routeLoad = loader({
+    'next/server': responses, 'next/cache': { revalidatePath() {} },
+    '@/lib/google-oauth-diagnostics': diagnostics,
+    '@/lib/google-oauth': { ...f.api, exchangeGoogleCode: async () => profile },
+    '@/lib/auth-session': { createPlayerSession: async resolve => f.prisma.$transaction(async tx => { const userId = await resolve(tx); await tx.playerSession.create({ data: { userId, tokenHash: 'session', expiresAt: new Date() } }); }) },
+  });
+  const authorize = routeLoad('src/app/api/auth/google/route.ts').GET;
+  const response = await authorize(new Request('http://internal-a.vercel.app/api/auth/google?theme=fantasy', { headers: publicHeaders() }));
+  const google = new URL(response.headers.get('location'));
+  assert.equal(google.origin, 'https://accounts.google.com'); assert.equal(google.searchParams.get('redirect_uri'), `${publicOrigin}/api/auth/google/callback`);
+  const callback = routeLoad('src/app/api/auth/google/callback/route.ts').GET;
+  const result = await callback(new Request(`http://internal-b.vercel.app/api/auth/google/callback?code=opaque-code&state=${google.searchParams.get('state')}`, { headers: publicHeaders() }));
+  assert.equal(result.status, 307); assert.equal(result.headers.get('location'), `${publicOrigin}/`);
+  assert.equal(result.headers.get('referrer-policy'), 'no-referrer'); assert.equal(result.headers.get('cache-control'), 'no-store');
+  assert.equal(f.rows[0].googleId, profile.googleId); assert.equal(f.rows[0].preferredLayoutMode, 'fantasy');
+  assert.equal(f.jar.get(f.api.googleCookieName), '');
+}));
+
+test('APP_URL canonicalizes a deployment-host entry before creating its host-only cookie', async () => withOAuthEnvironment(async () => {
+  process.env.APP_URL = publicOrigin; let began = false;
+  const diagnostics = loader()('src/lib/google-oauth-diagnostics.ts');
+  const load = loader({ 'next/server': responses, '@/lib/google-oauth-diagnostics': diagnostics,
+    '@/lib/google-oauth': { beginGoogleOAuth: async () => { began = true; return 'https://accounts.google.com'; } } });
+  const response = await load('src/app/api/auth/google/route.ts').GET(new Request('https://internal.vercel.app/api/auth/google?mode=link&theme=fantasy', { headers: { host: 'internal.vercel.app', 'x-forwarded-proto': 'https' } }));
+  assert.equal(response.headers.get('location'), `${publicOrigin}/api/auth/google?mode=link&theme=fantasy`); assert.equal(began, false);
+}));
+
+test('token exchange uses the exact saved redirect URI and logs only safe provider rejection codes', async () => withOAuthEnvironment(async () => {
+  const originalFetch = global.fetch, originalError = console.error, logs = [];
+  const diagnostics = loader()('src/lib/google-oauth-diagnostics.ts');
+  const api = loader({ '@/lib/prisma': {}, '@/lib/auth-session': {}, 'next/headers': {}, '@/lib/google-oauth-diagnostics': diagnostics,
+    jose: { createRemoteJWKSet: () => ({}), jwtVerify: async () => ({ payload: { sub: profile.googleId, email: profile.email, email_verified: true, nonce: 'nonce' } }) } })('src/lib/google-oauth.ts');
+  try {
+    console.error = (...args) => logs.push(args);
+    // Even if APP_URL changes mid-flight, the provider receives the URI from the
+    // signed initiating context, never a reconstructed deployment URL.
+    process.env.APP_URL = 'https://internal-new-deployment.vercel.app';
+    const ctx = context({ redirectUri: `${publicOrigin}/api/auth/google/callback`, nonce: 'nonce' });
+    global.fetch = async (_url, options) => {
+      assert.equal(options.body.get('redirect_uri'), ctx.redirectUri);
+      return Response.json({ error: 'invalid_grant', error_description: 'AUTH_CODE_SECRET CLIENT_SECRET_MUST_NOT_APPEAR', access_token: 'ACCESS_TOKEN_SECRET' }, { status: 400 });
+    };
+    let rejection;
+    try { await api.exchangeGoogleCode('AUTH_CODE_SECRET', ctx); } catch (error) { rejection = error; }
+    assert(rejection); diagnostics.logGoogleOAuthFailure(rejection, { route: 'callback', stage: 'exchange_code', requestUrl: 'https://internal.vercel.app/api/auth/google/callback?code=AUTH_CODE_SECRET&state=STATE_SECRET', canonicalOrigin: publicOrigin });
+    assert.equal(logs[0][0], '[google-oauth]'); assert.equal(logs[0][1], 'failed');
+    assert.equal(logs[0][2].stage, 'token_exchange'); assert.equal(logs[0][2].httpStatus, 400); assert.equal(logs[0][2].providerError, 'invalid_grant');
+    for (const secret of ['AUTH_CODE_SECRET', 'CLIENT_SECRET_MUST_NOT_APPEAR', 'ACCESS_TOKEN_SECRET', 'STATE_SECRET']) assert(!JSON.stringify(logs).includes(secret));
+    assert.equal(diagnostics.safeGoogleProviderError('RAW_PROVIDER_SECRET'), 'unrecognized_provider_error');
+    global.fetch = async () => Response.json({ id_token: 'ID_TOKEN_SECRET' });
+    assert.equal((await api.exchangeGoogleCode('AUTH_CODE_SECRET', ctx)).googleId, profile.googleId);
+  } finally { global.fetch = originalFetch; console.error = originalError; }
+}));
+
+test('all route failure paths log the failing stage without exposing cookies, codes, credentials or database messages', async () => withOAuthEnvironment(async () => {
+  const diagnostics = loader()('src/lib/google-oauth-diagnostics.ts');
+  const { GoogleOAuthError } = diagnostics;
+  const originalError = console.error, logs = [];
+  console.error = (...args) => logs.push(args);
+  const secret = 'DATABASE_PASSWORD_AND_QUERY_SECRET';
+  try {
+    for (const entry of [
+      { route: 'authorize', fail: 'begin', error: new GoogleOAuthError('unavailable', 'missing_google_client_secret', { stage: 'configuration' }), stage: 'configuration', reason: 'unavailable' },
+      { route: 'authorize', fail: 'begin', error: new GoogleOAuthError('failed', 'operation_failed', { stage: 'state_persistence' }, { cause: Object.assign(new Error(secret), { code: 'P2021', meta: { modelName: 'GoogleOAuthAttempt', query: secret } }) }), stage: 'state_persistence' },
+      { route: 'callback', fail: 'state', error: new GoogleOAuthError('state', 'missing_state_cookie'), stage: 'consume_state', reason: 'state' },
+      { route: 'callback', query: '&error=access_denied&error_description=TOKEN_SECRET', stage: 'provider_callback', reason: 'cancelled' },
+      { route: 'callback', noCode: true, stage: 'provider_callback' },
+      { route: 'callback', fail: 'exchange', error: new GoogleOAuthError('failed', 'operation_failed', { stage: 'id_token_verification' }, { cause: Object.assign(new Error('ID_TOKEN_SECRET'), { code: 'ERR_JWT_CLAIM_VALIDATION_FAILED', claim: 'aud' }) }), stage: 'id_token_verification' },
+      { route: 'callback', fail: 'account', error: Object.assign(new Error(secret), { code: 'P2022', meta: { modelName: 'Player', column: secret } }), stage: 'account_resolution' },
+      { route: 'callback', fail: 'session', error: Object.assign(new Error(secret), { code: 'P2021', meta: { modelName: 'PlayerSession' } }), stage: 'create_session' },
+      { route: 'callback', fail: 'revalidate', error: new Error(secret), stage: 'revalidate' },
+      { route: 'callback', fail: 'cleanup', error: new Error(secret), stage: 'clear_cookie', success: true },
+    ]) {
+      const before = logs.length, errorAt = key => { if (entry.fail === key) throw entry.error; };
+      const load = loader({ 'next/server': responses, 'next/cache': { revalidatePath: () => errorAt('revalidate') }, '@/lib/google-oauth-diagnostics': diagnostics,
+        '@/lib/google-oauth': { GoogleOAuthError, beginGoogleOAuth: async () => { errorAt('begin'); return 'https://accounts.google.com'; },
+          consumeGoogleContext: async () => { errorAt('state'); return context(); }, exchangeGoogleCode: async () => { errorAt('exchange'); return profile; },
+          resolveGooglePlayer: async () => { errorAt('account'); return 'member'; }, clearGoogleContext: async () => errorAt('cleanup') },
+        '@/lib/auth-session': { createPlayerSession: async resolve => { errorAt('session'); await resolve({}); } },
+      });
+      const relative = entry.route === 'authorize' ? 'src/app/api/auth/google/route.ts' : 'src/app/api/auth/google/callback/route.ts';
+      const request = new Request(`https://internal-deployment.vercel.app/api/auth/google${entry.route === 'callback' ? '/callback' : ''}?state=STATE_SECRET${entry.noCode ? '' : '&code=AUTH_CODE_SECRET'}${entry.query || ''}`, { headers: publicHeaders() });
+      const response = await load(relative).GET(request);
+      assert.equal(logs.length, before + 1); assert.equal(logs[before][0], '[google-oauth]'); assert.equal(logs[before][2].stage, entry.stage);
+      assert.equal(logs[before][2].canonicalOrigin, publicOrigin);
+      assert.equal(response.headers.get('location'), entry.success ? `${publicOrigin}/` : `${publicOrigin}/google-auth?status=${entry.reason || 'failed'}`);
+    }
+    const serialized = JSON.stringify(logs);
+    for (const value of [secret, 'TOKEN_SECRET', 'STATE_SECRET', 'AUTH_CODE_SECRET', 'ID_TOKEN_SECRET', 'CLIENT_SECRET_MUST_NOT_APPEAR']) assert(!serialized.includes(value));
+    assert(serialized.includes('P2022')); assert(serialized.includes('GoogleOAuthAttempt')); assert(serialized.includes('ERR_JWT_CLAIM_VALIDATION_FAILED')); assert(serialized.includes('"claim":"aud"'));
+  } finally { console.error = originalError; }
+}));
