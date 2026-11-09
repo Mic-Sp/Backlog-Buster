@@ -3,6 +3,7 @@ const test = require("node:test"), assert = require("node:assert/strict");
 const fs = require("node:fs"), path = require("node:path"), Module = require("node:module"), ts = require("typescript");
 
 function loader(mocks) {
+  mocks = { 'next/server': { after() {} }, '@/lib/auth-email': {}, ...mocks };
   const cache = new Map();
   function load(file) {
     if (cache.has(file)) return cache.get(file);
@@ -33,7 +34,7 @@ function fixture() {
   const caches = [{ slug: "saga-one" }, { slug: "saga-two" }];
   function read() { calls.queries++; if (state.fail) throw new Error("PRIVATE database connection secret"); state.onRead(); }
   function registered(where) {
-    assert.deepEqual({ email: where.email, passwordHash: where.passwordHash }, { email: { not: null }, passwordHash: { not: null } });
+    assert.deepEqual({ email: where.email, OR: where.OR }, { email: { not: null }, OR: [{ passwordHash: { not: null } }, { googleId: { not: null } }] });
     return players.filter(player => player.email !== null && player.passwordHash !== null && (!where.isAdmin || player.isAdmin));
   }
   function group(rows, fields) {
@@ -51,7 +52,7 @@ function fixture() {
     playerSession: {
       findUnique: async ({ where }) => {
         assert.equal(where.tokenHash, "verified-hash"); assert(where.expiresAt.gt instanceof Date);
-        assert.deepEqual(where.player, { email: { not: null }, passwordHash: { not: null } });
+        assert.deepEqual(where.player, { email: { not: null }, OR: [{ passwordHash: { not: null } }, { googleId: { not: null } }] });
         return state.active ? { player: { id: "owner", isAdmin: state.admin } } : null;
       },
       groupBy: async args => {

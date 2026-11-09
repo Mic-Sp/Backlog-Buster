@@ -1,4 +1,6 @@
 import "server-only";
+
+import { registeredPlayerWhere } from "@/lib/auth-policy";
 import { prisma } from "@/lib/prisma";
 import { getAuthenticatedPlayerId, AuthenticationRequiredError } from "@/lib/player";
 import { visibleProfileWhere } from "@/lib/profile-privacy";
@@ -30,7 +32,7 @@ export async function getFriendActivityFeed(input: unknown = {}): Promise<Activi
     where: {
       actorId: { not: viewerId }, createdAt: { gte: new Date(Date.now() - MAX_AGE_MS) },
       actor: { AND: [
-        { email: { not: null }, passwordHash: { not: null } }, visibleProfileWhere(viewerId),
+        { ...registeredPlayerWhere }, visibleProfileWhere(viewerId),
         { OR: [
           { friendshipsLow: { some: { playerHighId: viewerId, status: "accepted" } } },
           { friendshipsHigh: { some: { playerLowId: viewerId, status: "accepted" } } },

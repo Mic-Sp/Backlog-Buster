@@ -1,4 +1,6 @@
 import "server-only";
+
+import { registeredPlayerWhere } from "@/lib/auth-policy";
 import { prisma } from "@/lib/prisma";
 import { getAuthenticatedPlayerId, getOptionalAuthenticatedPlayerId, AuthenticationRequiredError } from "@/lib/player";
 import { InputError } from "@/lib/action-result";
@@ -11,7 +13,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { normalizeGameTitle } from "@/lib/game-title";
 
 const identitySelect = { id: true, handle: true, operatorName: true, avatarUrl: true } as const;
-const registered = { email: { not: null }, passwordHash: { not: null } } as const;
+const registered = { ...registeredPlayerWhere } as const;
 function acceptedAudience(viewerId: string): Prisma.PlayerWhereInput {
   return { AND: [registered, visibleProfileWhere(viewerId), { OR: [
     { friendshipsLow: { some: { playerHighId: viewerId, status: "accepted" } } },
@@ -51,7 +53,7 @@ export async function getDossierSocialContext(value: string): Promise<DossierSoc
   if (!viewerId) return null;
   const handle = normalizeHandle(value);
   if (!isValidHandle(handle)) return null;
-  const target = await prisma.player.findFirst({ where: { handle: { equals: escapeLike(handle), mode: "insensitive" }, ...registered, ...visibleProfileWhere(viewerId) }, select: identitySelect });
+  const target = await prisma.player.findFirst({ where: { handle: { equals: escapeLike(handle), mode: "insensitive" }, AND: [registered, visibleProfileWhere(viewerId)] }, select: identitySelect });
   if (!target) return null;
   if (target.id === viewerId) return { target, relationship: "self" };
   const pair = await prisma.friendship.findUnique({ where: { playerLowId_playerHighId: friendshipPair(viewerId, target.id) },

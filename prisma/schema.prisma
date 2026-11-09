@@ -40,7 +40,9 @@ enum ActivityEventType {
 model Player {
   id                String            @id @default(cuid())
   email             String?           @unique
+  emailVerifiedAt   DateTime?
   passwordHash      String?
+  googleId          String?           @unique
   isAdmin           Boolean           @default(false)
   // Singleton and immutable-owner constraints live in owner-constraints.sql.
   isOwner           Boolean           @default(false)
@@ -65,6 +67,7 @@ model Player {
   games             Game[]
   userAchievements  UserAchievement[]
   sessions          PlayerSession[]
+  authTokens        PlayerAuthToken[]
   friendshipsLow    Friendship[]      @relation("FriendshipLow")
   friendshipsHigh   Friendship[]      @relation("FriendshipHigh")
   activityEvents    ActivityEvent[]
@@ -134,6 +137,41 @@ model PlayerSession {
   createdAt DateTime @default(now())
 
   @@index([userId])
+  @@index([expiresAt])
+}
+
+enum AuthTokenPurpose {
+  verify_email
+  reset_password
+}
+
+// Only SHA-256 digests are persisted. Email binding prevents using an old
+// address's link after a credential change; one outstanding link per purpose.
+model PlayerAuthToken {
+  tokenHash String @id
+  userId String
+  player Player @relation(fields: [userId], references: [id], onDelete: Cascade)
+  email String
+  purpose AuthTokenPurpose
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@unique([userId, purpose])
+  @@index([expiresAt])
+}
+
+// Durable one-time data rollout markers; never invoked during signup/login.
+model AuthRollout {
+  id String @id
+  completedAt DateTime @default(now())
+}
+
+// Single-use browser OAuth attempts. The verifier stays in a signed HttpOnly
+// cookie; only a digest of the random CSRF state is stored here.
+model GoogleOAuthAttempt {
+  stateHash String @id
+  expiresAt DateTime
+
   @@index([expiresAt])
 }
 

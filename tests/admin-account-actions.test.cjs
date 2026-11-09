@@ -2,6 +2,7 @@
 const test = require("node:test"), assert = require("node:assert/strict");
 const fs = require("node:fs"), path = require("node:path"), Module = require("node:module"), ts = require("typescript");
 function loader(mocks = {}) {
+  mocks = { 'next/server': { after() {} }, '@/lib/auth-email': {}, ...mocks };
   const cache = new Map();
   function load(file) {
     if (cache.has(file)) return cache.get(file);
@@ -34,7 +35,7 @@ function fixture({ realHash = false, owner = false } = {}) {
   };
   const initial = structuredClone(db), calls = { hashes: [], transactions: 0, writes: 0, paths: [] };
   function target(where) {
-    assert.deepEqual(where.AND, [{ email: { not: null }, passwordHash: { not: null } }]);
+    assert.deepEqual(where.AND, [{ email: { not: null }, OR: [{ passwordHash: { not: null } }, { googleId: { not: null } }] }]);
     return db.players.find(p => p.id === where.id && p.email !== null && p.passwordHash !== null && (where.isAdmin === undefined || p.isAdmin === where.isAdmin) && (where.email === undefined || p.email === where.email));
   }
   const missing = () => { throw Object.assign(new Error("PRIVATE record missing"), { code: "P2025" }); };
@@ -54,7 +55,8 @@ function fixture({ realHash = false, owner = false } = {}) {
         return p ? { id: p.id } : null;
       },
       update: async ({ where, data, select }) => {
-        assert.deepEqual(select, { id: true }); assert.equal(Object.keys(data).length, 1); assert(["passwordHash", "email", "isAdmin", "preferredLayoutMode"].includes(Object.keys(data)[0]));
+        assert.deepEqual(select, { id: true }); assert.equal(Object.keys(data).length, data.email ? 2 : 1); assert(["passwordHash", "email", "isAdmin", "preferredLayoutMode"].includes(Object.keys(data)[0]));
+        if (data.email) assert.equal(data.emailVerifiedAt, null);
         const p = target(where); if (!p) missing();
         if (state.failUpdateCode) throw Object.assign(new Error("PRIVATE update failed"), { code: state.failUpdateCode });
         if (data.email) assert.equal(where.email, p.email, "Email update guards the current credential snapshot");
@@ -70,6 +72,7 @@ function fixture({ realHash = false, owner = false } = {}) {
         return { handle: p.handle };
       },
     },
+    playerAuthToken: { deleteMany: async ({ where }) => { assert.deepEqual(Object.keys(where), ['userId']); assert(db.players.some(player => player.id === where.userId)); } },
     playerSession: { deleteMany: async ({ where }) => {
       assert.deepEqual(Object.keys(where).sort(), ["userId", "player", ...(where.expiresAt ? ["expiresAt"] : [])].sort()); assert.equal(where.player.isOwner, false); if (state.failRevocation) throw Error("PRIVATE revocation failed");
       const before = db.sessions.length;
@@ -79,7 +82,7 @@ function fixture({ realHash = false, owner = false } = {}) {
   };
   const prisma = {
     playerSession: { findUnique: async ({ where }) => {
-      assert(where.expiresAt.gt instanceof Date); assert.deepEqual(where.player, { email: { not: null }, passwordHash: { not: null } });
+      assert(where.expiresAt.gt instanceof Date); assert.deepEqual(where.player, { email: { not: null }, OR: [{ passwordHash: { not: null } }, { googleId: { not: null } }] });
       return state.active && db.sessions.some(s => s.userId === actorId) ? { player: { id: actorId, isAdmin: state.admin, isOwner: owner } } : null;
     } },
     $transaction: async (work, options) => {

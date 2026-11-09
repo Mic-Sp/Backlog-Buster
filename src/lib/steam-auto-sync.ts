@@ -13,7 +13,7 @@ export async function autoSyncSteamLibrary(userId: string, tokenHash: string): P
       UPDATE "Player" AS player
       SET "steamAutoSyncAttemptedAt" = CURRENT_TIMESTAMP
       WHERE player."id" = ${userId}
-        AND player."email" IS NOT NULL AND player."passwordHash" IS NOT NULL
+        AND player."email" IS NOT NULL AND (player."passwordHash" IS NOT NULL OR player."googleId" IS NOT NULL)
         AND player."steamId" IS NOT NULL AND player."steamId" <> ''
         AND (player."steamLastSyncedAt" IS NULL OR player."steamLastSyncedAt" <= CURRENT_TIMESTAMP - INTERVAL '24 hours')
         AND (player."steamAutoSyncAttemptedAt" IS NULL OR player."steamAutoSyncAttemptedAt" <= CURRENT_TIMESTAMP - INTERVAL '24 hours')

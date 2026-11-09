@@ -1,4 +1,6 @@
 import "server-only";
+
+import { registeredPlayerWhere } from "@/lib/auth-policy";
 import { prisma } from "@/lib/prisma";
 import { readSessionHash } from "@/lib/auth-session";
 import { getAuthenticatedPlayerId } from "@/lib/player";
@@ -54,7 +56,7 @@ export async function refreshSteamGameAchievements(gameId: number) {
     const [game, session] = await Promise.all([
       prisma.game.findUnique({ where: { id: gameId, userId }, select: { steamAppId: true, steamAchievementsTotal: true, steamAchievementsSyncedAt: true } }),
       prisma.playerSession.findUnique({ where: { tokenHash, userId, expiresAt: { gt: requestedAt },
-        player: { email: { not: null }, passwordHash: { not: null } } }, select: { player: { select: { steamId: true } } } }),
+        player: { ...registeredPlayerWhere } }, select: { player: { select: { steamId: true } } } }),
     ]);
     if (!session) throw new InputError("Your session expired. Sign in before refreshing Steam progress.");
     const steamId = session.player.steamId;
@@ -74,7 +76,7 @@ export async function refreshSteamGameAchievements(gameId: number) {
     // Recheck the session/link and prevent an older request overwriting a newer success.
     const saved = await prisma.game.updateMany({ where: { id: gameId, userId, steamAppId: appId,
       OR: [{ steamAchievementsTotal: null }, { steamAchievementsSyncedAt: null }, { steamAchievementsSyncedAt: { lte: requestedAt } }, { steamAchievementsSyncedAt: { gt: new Date(requestedAt.getTime() + 300000) } }],
-      player: { steamId, email: { not: null }, passwordHash: { not: null }, sessions: { some: { tokenHash, expiresAt: { gt: new Date() } } } },
+      player: { steamId, ...registeredPlayerWhere, sessions: { some: { tokenHash, expiresAt: { gt: new Date() } } } },
     }, data: { steamAchievementsUnlocked: counts.unlocked, steamAchievementsTotal: counts.total,
       steamAchievementsCheckedAt: requestedAt, steamAchievementsSyncedAt: requestedAt } });
     if (!saved.count) throw new InputError("Your session or Steam link changed, or newer progress was saved. Reload before trying again.");

@@ -2,6 +2,7 @@
 const test = require('node:test'), assert = require('node:assert/strict');
 const fs = require('node:fs'), path = require('node:path'), Module = require('node:module'), ts = require('typescript');
 function loader(mocks = {}) {
+  mocks = { 'next/server': { after() {} }, '@/lib/auth-email': {}, ...mocks };
   const cache = new Map();
   function load(file) {
     if (cache.has(file)) return cache.get(file);
@@ -32,7 +33,8 @@ test('security actions require a live session, verify current password, enforce 
   const expiry=new Date(Date.now()+60000);
   const tx={
     $executeRaw:async()=>{},
-    playerSession:{findUnique:async({where})=>{assert.equal(where.userId,'owner-id');assert.equal(where.tokenHash,'session-hash');return revoked?null:{tokenHash:token};}},
+    playerAuthToken:{deleteMany:async({where})=>{assert.deepEqual(where,{userId:'owner-id'});}},
+    playerSession:{deleteMany:async({where})=>{assert.deepEqual(where,{userId:'owner-id'});},findUnique:async({where})=>{assert.equal(where.userId,'owner-id');assert.equal(where.tokenHash,'session-hash');return revoked?null:{tokenHash:token};}},
     player:{findFirst:async({where})=>{assert.equal(where.id.not,'owner-id');assert.equal(where.email.mode,'insensitive');return taken?{id:'another'}:null;},
       update:async({where,data})=>{assert.equal(where.id,'owner-id');assert.equal(where.passwordHash,player.passwordHash);if(stale)throw{code:'P2025'};if(race)throw{code:'P2002'};writes++;player={...player,...data};return{id:player.id};}},
   };
@@ -99,7 +101,7 @@ test('account wipe requires intent and password, shares rate limits, cascades on
   changed=true;assert.match((await wipeOperatorAccount(form(data))).error,/account changed/);changed=false;
   failing=true;assert.match((await wipeOperatorAccount(form(data))).error,/Could not save/);assert.equal(db.players.length,2);assert.equal(db.games.length,2);assert.equal(clears,0);failing=false;
   const result=await wipeOperatorAccount(form(data));assert.equal(result.redirectTo,'/access?archive=wiped');assert.equal(result.message,'OPERATOR ARCHIVE WIPED // CONNECTION TERMINATED');assert.equal(clears,1);assert.equal(deletes,1);assert.deepEqual(db.players,['other-id']);for(const table of ['games','achievements','sessions'])assert.deepEqual(db[table],[{userId:'other-id'}]);assert.deepEqual(revalidated,['/','/dossier/owner']);
-  const schema=fs.readFileSync(path.resolve(__dirname,'../prisma/schema.prisma'),'utf8');assert.equal((schema.match(/@relation\(fields: \[userId\], references: \[id\], onDelete: Cascade\)/g)||[]).length,5);
+  const schema=fs.readFileSync(path.resolve(__dirname,'../prisma/schema.prisma'),'utf8');assert.match(schema,/model PlayerAuthToken[\s\S]*?player Player @relation\(fields: \[userId\], references: \[id\], onDelete: Cascade\)/);
 });
 
 test('library reset verifies identity and intent, rolls back failures and preserves profiles/sessions/other players', async () => {

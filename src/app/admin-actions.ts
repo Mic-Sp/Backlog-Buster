@@ -1,6 +1,10 @@
 "use server";
 
+import { registeredPlayerWhere } from "@/lib/auth-policy";
+
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
+import { deliverAuthEmail } from "@/lib/auth-email";
 import { AdminRequiredError, requireAdmin } from "@/lib/admin";
 import { InputError, safeAction } from "@/lib/action-result";
 import { normalizeFranchiseKey } from "@/lib/franchise-key";
@@ -13,7 +17,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { isLayoutMode, normalizeLayoutMode } from "@/lib/appearance";
 
 // Match registration/member counts, excluding unclaimed local archives.
-const registeredPlayers = { email: { not: null }, passwordHash: { not: null } };
+const registeredPlayers = { ...registeredPlayerWhere };
 
 export async function getAdminSystemOverview() {
   return safeAction(async () => {
@@ -164,6 +168,7 @@ export async function adminResetPlayerPassword(targetPlayerId: string, newPasswo
         // Recheck after expensive hashing/lock waits, before changing credentials.
         const { guard } = await manageableTarget(tx, admin.id, id);
         await tx.player.update({ where: { id, ...guard, AND: [registeredPlayers] }, data: { passwordHash }, select: { id: true } });
+        await tx.playerAuthToken.deleteMany({ where: { userId: id } });
         // Includes every device, even expired records. Hash update and revocation
         // commit together; a revocation failure rolls back the password change.
         await tx.playerSession.deleteMany({ where: { userId: id, player: guard } });
@@ -195,7 +200,8 @@ export async function adminUpdatePlayerEmail(targetPlayerId: string, newEmail: s
           select: { id: true },
         });
         if (taken) throw new InputError("That email address is already in use. Choose another.");
-        await tx.player.update({ where: { id, email: target.email, ...guard, AND: [registeredPlayers] }, data: { email }, select: { id: true } });
+        await tx.player.update({ where: { id, email: target.email, ...guard, AND: [registeredPlayers] }, data: { email, emailVerifiedAt: null }, select: { id: true } });
+        await tx.playerAuthToken.deleteMany({ where: { userId: id } });
         // An admin cannot rotate another device's cookie. Revoke all target
         // sessions atomically, matching admin password resets and login rechecks.
         await tx.playerSession.deleteMany({ where: { userId: id, player: guard } });
@@ -207,6 +213,7 @@ export async function adminUpdatePlayerEmail(targetPlayerId: string, newEmail: s
       accountMutationError(error);
     }
     revalidatePath("/", "layout");
+    after(() => deliverAuthEmail(email, "verify_email", id));
     return { success: true, email };
   });
 }

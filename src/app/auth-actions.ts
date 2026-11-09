@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { actionErrorMessage, InputError, RateLimitError } from "@/lib/action-result";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
+import { deliverAuthEmail } from "@/lib/auth-email";
 import { prisma } from "@/lib/prisma";
 import { readCredentials, registerPlayer } from "@/lib/auth-accounts";
 import { hashPassword, verifyPassword } from "@/lib/auth-crypto";
@@ -23,7 +25,7 @@ export async function authenticate(mode: "login" | "register", _previous: AuthSt
     if (mode === "register") {
       const passwordHash = await hashPassword(input.password);
       verifiedHash = passwordHash;
-      try { playerId = (await registerPlayer(input, passwordHash)).id; }
+      try { playerId = (await registerPlayer({ ...input, preferredLayoutMode: formData.get("layoutMode") === "fantasy" ? "fantasy" : "cyberpunk" }, passwordHash)).id; }
       catch (error) {
         if (error instanceof Error && /^(That email|That handle)/.test(error.message)) return { mode, error: error.message };
         if (error && typeof error === "object" && "code" in error && error.code === "P2002") return { mode, error: "That email or handle is already registered." };
@@ -31,7 +33,7 @@ export async function authenticate(mode: "login" | "register", _previous: AuthSt
       }
     } else {
       const player = await prisma.player.findFirst({
-        where: { email: { equals: input.email, mode: "insensitive" } }, select: { id: true, passwordHash: true, email: true },
+        where: { email: { equals: input.email.replace(/[\\%_]/g, "\\$&"), mode: "insensitive" } }, select: { id: true, passwordHash: true, email: true },
       });
       if (!await verifyPassword(input.password, player?.passwordHash ?? null) || !player) return { mode, error: "Incorrect email or password." };
       playerId = player.id;
@@ -47,6 +49,7 @@ export async function authenticate(mode: "login" | "register", _previous: AuthSt
       });
       if (!current) throw new InputError("Credentials changed. Sign in again with your current password.");
     });
+    if (mode === "register") after(() => deliverAuthEmail(input.email, "verify_email", playerId));
   } catch (error) {
     if (error instanceof RateLimitError) return { mode, error: "Too many account attempts. Wait for the cooldown before retrying.", retryAfterSeconds: error.retryAfterSeconds };
     if (error instanceof InputError) return { mode, error: error.message };

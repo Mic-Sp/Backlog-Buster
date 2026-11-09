@@ -7,9 +7,11 @@ import { startTransition, useCallback, useEffect, useId, useRef, useState } from
 import { createPortal, useFormStatus } from "react-dom";
 import { getAccountSecuritySummary, updateAccountCredentials, resetOperatorLibrary, wipeOperatorAccount } from "@/app/security-actions";
 import { logout } from "@/app/auth-actions";
+import { resendVerificationEmail } from "@/app/recovery-actions";
 import { ActionFailure, actionErrorMessage, unwrapActionResult } from "@/lib/action-result";
 import type { AccountSecuritySummary } from "@/lib/account-security";
 import SafeForm from "@/components/SafeForm";
+import GoogleAuthButton from "@/components/GoogleAuthButton";
 import useCooldown from "@/components/useCooldown";
 import "./AccountSecurity.css";
 
@@ -49,6 +51,7 @@ function SecurityPanel({ onClose }: { onClose: () => void }) {
   const [currentVisible, setCurrentVisible] = useState(false);
   const [newVisible, setNewVisible] = useState(false);
   const cooldown = useCooldown();
+  const verificationCooldown = useCooldown();
   const busyRef = useRef(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const initialRequest = useRef<ReturnType<typeof getAccountSecuritySummary> | null>(null);
@@ -73,7 +76,7 @@ function SecurityPanel({ onClose }: { onClose: () => void }) {
     function onKey(event: KeyboardEvent) {
       if (event.key === "Escape" && !busyRef.current) { event.preventDefault(); onClose(); }
       if (event.key !== "Tab") return;
-      const controls = panelRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled)');
+      const controls = panelRef.current?.querySelectorAll<HTMLElement>('a[href], button:not(:disabled), input:not(:disabled)');
       const first = controls?.[0], last = controls?.[controls.length - 1];
       if (event.shiftKey && (document.activeElement === first || !panelRef.current?.contains(document.activeElement))) { event.preventDefault(); last?.focus(); }
       else if (!event.shiftKey && (document.activeElement === last || !panelRef.current?.contains(document.activeElement))) { event.preventDefault(); first?.focus(); }
@@ -119,7 +122,7 @@ function SecurityPanel({ onClose }: { onClose: () => void }) {
     event.preventDefault(); hidePasswords();
     if (!summary || busyRef.current || cooldown.seconds > 0) return;
     setError(""); setConfirmation("");
-    if (!currentPassword.trim()) { setError("Enter your current password to authorize changes."); return; }
+    if (summary.hasPassword && !currentPassword.trim()) { setError("Enter your current password to authorize changes."); return; }
     const email = newEmail.trim().toLowerCase();
     if (!newPassword && (!email || email === summary.email.toLowerCase())) { setError("Provide a changed email or a new password."); return; }
     if (newPassword && (!newPassword.trim() || newPassword.length < 8 || newPassword.length > 128)) { setError("New passwords must contain 8–128 characters and cannot be only spaces."); return; }
@@ -128,7 +131,7 @@ function SecurityPanel({ onClose }: { onClose: () => void }) {
     startTransition(async () => {
       try {
         const result = unwrapActionResult(await updateAccountCredentials(form));
-        setSummary(previous => previous ? { ...previous, email: result.email, sessionExpiresAt: result.sessionExpiresAt } : previous);
+        setSummary(previous => previous ? { ...previous, hasPassword: result.hasPassword, email: result.email, emailVerifiedAt: result.emailVerifiedAt, sessionExpiresAt: result.sessionExpiresAt } : previous);
         setNewEmail(result.email); setCurrentPassword(""); setNewPassword(""); setConfirmation(result.message);
       } catch (cause) {
         if (cause instanceof ActionFailure) cooldown.start(cause.retryAfterSeconds);
@@ -149,6 +152,27 @@ function SecurityPanel({ onClose }: { onClose: () => void }) {
           <div><dt>Account Created Date</dt><dd>{new Date(summary.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}</dd></div>
           <div><dt>Active Session Status</dt><dd>● ACTIVE // Expires {new Date(summary.sessionExpiresAt).toLocaleDateString("en-US")}</dd></div>
         </dl>
+        <section className="security-verification" aria-label="Email verification">
+          <span className="security-verification-badge" data-verified={Boolean(summary.emailVerifiedAt)}>{summary.emailVerifiedAt ? "✓ Email verified" : "Email verification pending"}</span>
+          {!summary.emailVerifiedAt && <>
+            <p className="security-hint">You can keep signing in and using your library. Verify your email when you’re ready.</p>
+            <button type="button" disabled={locked || verificationCooldown.seconds > 0} onClick={() => {
+              if (busyRef.current) return;
+              busyRef.current = true; setSaving(true); setError(""); setConfirmation("");
+              void resendVerificationEmail().then(result => {
+                const data = unwrapActionResult(result);
+                verificationCooldown.start(data.retryAfterSeconds); setConfirmation(data.message);
+              }).catch(cause => setError(actionErrorMessage(cause, "Verification email unavailable. Please try again.")))
+                .finally(() => { busyRef.current = false; setSaving(false); });
+            }}>{verificationCooldown.seconds > 0 ? verificationCooldown.label : "Resend verification email"}</button>
+            {process.env.NODE_ENV !== "production" && <p className="security-hint">Local development: without email delivery configured, verification links appear in the server terminal.</p>}
+          </>}
+        </section>
+        <section className="security-google" aria-label="Google connection">
+          <h3>{copy("GOOGLE CONNECTION // IDENTITY LINK", "GOOGLE CONNECTION · TRUSTED SEAL")}</h3>
+          <span className="security-google-status">{summary.googleConnected ? "✓ Google account connected" : "Google account not connected"}</span>
+          {!summary.googleConnected && <><p className="security-hint">Link Google to sign in to this same account. Your library and current email stay with this player.</p><GoogleAuthButton mode="link" disabled={locked} /></>}
+        </section>
         <SafeForm action={logout} className="security-device-logout"><fieldset disabled={locked}><DeviceLogout /></fieldset></SafeForm>
         <form className="security-update-form" onSubmit={submit} onInvalidCapture={event => {
           hidePasswords();
@@ -158,18 +182,20 @@ function SecurityPanel({ onClose }: { onClose: () => void }) {
             : "New passwords must contain 8–128 characters and cannot be only spaces.");
         }}>
           <fieldset disabled={locked || cooldown.seconds > 0}>
-            <legend>UPDATE EMAIL &amp; PASSWORD</legend>
-            <PasswordField label="Current Password" name="currentPassword" value={currentPassword} onChange={setCurrentPassword} visible={currentVisible} onToggle={() => setCurrentVisible(value => !value)} required />
-            <label>New Email <span>(optional)</span><input type="email" name="newEmail" value={newEmail} onChange={event => setNewEmail(event.target.value)} autoComplete="email" maxLength={254} spellCheck={false} autoCapitalize="none" /></label>
+            <legend>{summary.hasPassword ? "UPDATE EMAIL & PASSWORD" : "SET A LOCAL PASSWORD"}</legend>
+            {summary.hasPassword ? <PasswordField label="Current Password" name="currentPassword" value={currentPassword} onChange={setCurrentPassword} visible={currentVisible} onToggle={() => setCurrentVisible(value => !value)} required />
+              : <p className="security-hint">You sign in with Google. Add an optional local password to also sign in with email and password. No current password is required.</p>}
+            {summary.hasPassword && <label>New Email <span>(optional)</span><input type="email" name="newEmail" value={newEmail} onChange={event => setNewEmail(event.target.value)} autoComplete="email" maxLength={254} spellCheck={false} autoCapitalize="none" /></label>}
             <PasswordField label="New Password" name="newPassword" value={newPassword} onChange={setNewPassword} visible={newVisible} onToggle={() => setNewVisible(value => !value)} />
-            <p className="security-hint">8–128 characters. Passwords are salted and hashed on the server.</p>
+            <p className="security-hint">8–128 characters. Passwords are salted and hashed on the server. Saving signs out other devices. Changing your email sends a new verification link.</p>
             <button className="security-save-button" type="submit">{saving ? "VERIFYING & SECURING ARCHIVE…" : cooldown.seconds > 0 ? cooldown.label : "🔐 UPDATE SECURITY CREDENTIALS"}</button>
           </fieldset>
         </form>
       </>}
       {error && <p className="security-error" role="alert">{error}</p>}
       {confirmation && <p className="security-confirmation" role="status">{confirmation}</p>}
-      {summary && <section className="security-danger-zone" aria-labelledby={`${titleId}-danger`}>
+      {summary && !summary.hasPassword && <p className="security-hint">Set a local password above before changing your email or using library reset and account deletion.</p>}
+      {summary?.hasPassword && <section className="security-danger-zone" aria-labelledby={`${titleId}-danger`}>
         <h3 id={`${titleId}-danger`}>{copy("⚠ DANGER ZONE // ARCHIVE TERMINATION", "⚠ DANGER ZONE · IRREVERSIBLE ARCHIVE CHANGES")}</h3>
         {(["reset", "wipe"] as const).map(mode => {
           const isReset = mode === "reset";

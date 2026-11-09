@@ -2,7 +2,7 @@
 CREATE OR REPLACE FUNCTION protect_activity_event() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
   IF TG_OP = 'UPDATE' THEN RAISE EXCEPTION 'Activity events are append-only'; END IF;
-  IF NOT EXISTS (SELECT 1 FROM "Player" WHERE "id" = NEW."actorId" AND "email" IS NOT NULL AND "passwordHash" IS NOT NULL) THEN
+  IF NOT EXISTS (SELECT 1 FROM "Player" WHERE "id" = NEW."actorId" AND "email" IS NOT NULL AND ("passwordHash" IS NOT NULL OR "googleId" IS NOT NULL)) THEN
     RAISE EXCEPTION 'Activity requires a registered actor';
   END IF;
   IF NEW."gameId" IS NOT NULL AND NOT EXISTS (SELECT 1 FROM "Game" WHERE "id" = NEW."gameId" AND "userId" = NEW."actorId") THEN

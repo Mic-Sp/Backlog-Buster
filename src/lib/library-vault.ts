@@ -1,4 +1,6 @@
 import "server-only";
+
+import { registeredPlayerWhere } from "@/lib/auth-policy";
 import { prisma } from "@/lib/prisma";
 import { readSessionHash } from "@/lib/auth-session";
 import { InputError } from "@/lib/action-result";
@@ -22,7 +24,7 @@ async function requireVaultSession() {
   const tokenHash = await readSessionHash();
   if (!tokenHash) throw new InputError("Sign in to import or export your operator archive.");
   const session = await prisma.playerSession.findUnique({
-    where: { tokenHash, expiresAt: { gt: new Date() }, player: { email: { not: null }, passwordHash: { not: null } } },
+    where: { tokenHash, expiresAt: { gt: new Date() }, player: { ...registeredPlayerWhere } },
     select: { player: { select: { id: true, handle: true, operatorName: true } } },
   });
   if (!session) throw new InputError("Your session expired. Sign in to import or export your operator archive.");
@@ -208,7 +210,7 @@ export async function syncSteamLibraryForSession(payload: SteamSyncPayload, sess
     const summary = await prisma.$transaction(async tx => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`backlogbuster-deck:${userId}`}, 0))`;
       const active = await tx.playerSession.findUnique({
-        where: { tokenHash, userId, expiresAt: { gt: new Date() }, player: { email: { not: null }, passwordHash: { not: null },
+        where: { tokenHash, userId, expiresAt: { gt: new Date() }, player: { ...registeredPlayerWhere,
           // A manual relink/logout during the fetch must invalidate this background job.
           ...(automatic ? { steamId: automatic.steamId, steamAutoSyncAttemptedAt: automatic.attemptedAt } : {}),
         } },

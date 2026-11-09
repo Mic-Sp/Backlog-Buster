@@ -30,13 +30,13 @@ export function readCredentials(form: FormData, register = false): Registration 
 }
 
 // Kept separate from cookies so the in-place claim can be tested in a rollback-only transaction.
-export async function registerPlayer(input: Omit<Registration, "password">, passwordHash: string) {
+export async function registerPlayer(input: Omit<Registration, "password"> & { preferredLayoutMode?: "cyberpunk" | "fantasy" }, passwordHash: string) {
   return prisma.$transaction(async (tx) => {
     // Serialize first claims and normalized email/handle checks across server instances.
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended('backlogbuster-account-registration', 0))`;
     const local = await tx.player.findUnique({ where: { id: "default-player" } });
     const claimLocal = !local || (local.email === null && local.passwordHash === null);
-    const emailTaken = await tx.player.findFirst({ where: { email: { equals: input.email, mode: "insensitive" } }, select: { id: true } });
+    const emailTaken = await tx.player.findFirst({ where: { email: { equals: escapeLike(input.email), mode: "insensitive" } }, select: { id: true } });
     if (emailTaken) throw new InputError("That email is already registered. Sign in instead.");
     if (input.handle) {
       const handleTaken = await tx.player.findFirst({ where: {
@@ -45,7 +45,8 @@ export async function registerPlayer(input: Omit<Registration, "password">, pass
       if (handleTaken) throw new InputError("That handle is already in use. Choose another.");
     }
     const data = {
-      email: input.email, passwordHash,
+      email: input.email, passwordHash, emailVerifiedAt: null,
+      ...(input.preferredLayoutMode ? { preferredLayoutMode: input.preferredLayoutMode } : {}),
       handle: input.handle ?? (claimLocal ? local?.handle ?? null : null),
       operatorName: input.operatorName ?? (claimLocal ? local?.operatorName : input.handle) ?? "ANONYMOUS NETRUNNER",
     };

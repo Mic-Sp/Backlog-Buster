@@ -15,12 +15,14 @@
     "test:auth": "node --test tests/auth.test.cjs",
     "test:validation": "node --test tests/validation.test.cjs",
     "admin:bootstrap": "node scripts/bootstrap-admin.cjs",
+    "auth:backfill-verification": "node scripts/backfill-email-verification.cjs",
     "postinstall": "prisma generate"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",
     "@prisma/adapter-neon": "^7.10.0",
     "@prisma/client": "^7.10.0",
+    "jose": "^6.2.16",
     "next": "16.4.1",
     "react": "19.3.0",
     "react-dom": "19.3.0",

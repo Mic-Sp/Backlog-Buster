@@ -5,6 +5,7 @@ const fs = require("node:fs"), path = require("node:path"), Module = require("no
 const { bootstrapAdmin, bootstrapOwner } = require("../scripts/bootstrap-admin.cjs");
 
 function loadGuard(mocks) {
+  mocks = { '@/lib/auth-policy': { registeredPlayerWhere: { email: { not: null }, OR: [{ passwordHash: { not: null } }, { googleId: { not: null } }] } }, ...mocks };
   const filename = path.resolve(__dirname, "../src/lib/admin.ts");
   const instance = new Module(filename, module);
   instance.filename = filename;
@@ -29,7 +30,7 @@ test("admin guard checks fresh authenticated database state and never uses local
       queries++;
       assert.equal(where.tokenHash, "signed-session-hash");
       assert(where.expiresAt.gt instanceof Date);
-      assert.deepEqual(where.player, { email: { not: null }, passwordHash: { not: null } });
+      assert.deepEqual(where.player, { email: { not: null }, OR: [{ passwordHash: { not: null } }, { googleId: { not: null } }] });
       assert.deepEqual(select, { player: { select: { id: true, isAdmin: true, isOwner: true } } });
       return active ? { player: { id: "registered-player", isAdmin } } : null;
     } } } },

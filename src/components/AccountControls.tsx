@@ -6,10 +6,12 @@ import { useActionState, useCallback, useEffect, useId, useRef, useState } from 
 import { createPortal, useFormStatus } from "react-dom";
 import { authenticate, logout, type AuthState } from "@/app/auth-actions";
 import AccountSecurity from "@/components/AccountSecurity";
+import GoogleAuthButton from "@/components/GoogleAuthButton";
 import AdminControlPanel from "@/components/AdminControlPanel";
 import SafeForm from "@/components/SafeForm";
 import type { CurrentPlayer } from "@/lib/player";
 import "./AccountControls.css";
+import "./AccountRecovery.css";
 import useCooldown from "@/components/useCooldown";
 import { ThemeToggle } from "@/components/ThemeProvider";
 import { HANDLE_HELP, HANDLE_INPUT_PATTERN, HANDLE_MAX_LENGTH } from "@/lib/handle-validation";
@@ -48,7 +50,7 @@ function AuthPanel({ localArchive = false, onClose }: { localArchive?: boolean; 
     function onKey(event: KeyboardEvent) {
       if (event.key === "Escape" && !pendingRef.current) { event.preventDefault(); onClose?.(); }
       if (event.key !== "Tab") return;
-      const controls = panelRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled)');
+      const controls = panelRef.current?.querySelectorAll<HTMLElement>('a[href], button:not(:disabled), input:not(:disabled)');
       const first = controls?.[0], last = controls?.[controls.length - 1];
       if (event.shiftKey && (document.activeElement === first || !panelRef.current?.contains(document.activeElement))) { event.preventDefault(); last?.focus(); }
       else if (!event.shiftKey && (document.activeElement === last || !panelRef.current?.contains(document.activeElement))) { event.preventDefault(); first?.focus(); }
@@ -65,6 +67,8 @@ function AuthPanel({ localArchive = false, onClose }: { localArchive?: boolean; 
     </header>
     <ThemeToggle />
     <p className="auth-intro">{localArchive ? copy("Your first account inherits this local library, XP, trophies, and dossier. Nothing is moved or deleted.", "Your first account inherits this local quest journal, XP, trophies, and adventurer's codex. Nothing is moved or deleted.") : copy("Sign in to your private library, or register a new operator with an empty archive.", "Open your personal quest journal, or inscribe a new adventurer's ledger.")}</p>
+    <GoogleAuthButton disabled={pending} />
+    <div className="google-auth-divider">or use email and password</div>
     <div className="auth-tabs" role="group" aria-label="Account access">
       <button type="button" aria-pressed={mode === "login"} disabled={pending} onClick={() => switchMode("login")}>LOGIN</button>
       <button type="button" aria-pressed={mode === "register"} disabled={pending} onClick={() => switchMode("register")}>{localArchive ? copy("REGISTER // CLAIM ARCHIVE", "INSCRIBE // CLAIM JOURNAL") : copy("REGISTER // NEW ARCHIVE", "INSCRIBE // NEW LEDGER")}</button>
@@ -87,6 +91,7 @@ function AuthPanel({ localArchive = false, onClose }: { localArchive?: boolean; 
         }
       }
     }}>
+      <input type="hidden" name="layoutMode" value={copy("cyberpunk", "fantasy")} />
       <fieldset disabled={pending}>
         <legend className="auth-sr-only">{mode === "register" ? "Register account" : "Log in"}</legend>
         <label>Email<input ref={emailRef} type="email" name="email" autoComplete="username" maxLength={254} required spellCheck={false} autoCapitalize="none" aria-describedby={error ? errorId : undefined} /></label>
@@ -110,6 +115,7 @@ function AuthPanel({ localArchive = false, onClose }: { localArchive?: boolean; 
       {error && <p className="auth-error" role="alert" id={errorId}>{error}</p>}
       <button className="auth-submit" type="submit" disabled={pending || cooldown.seconds > 0}>{cooldown.seconds > 0 ? cooldown.label : pending ? copy("VERIFYING IDENTITY…", "VERIFYING YOUR SEAL…") : mode === "login" ? copy("▶ SIGN IN", "▶ ENTER THE ARCHIVE") : localArchive ? copy("⚡ CREATE ACCOUNT & CLAIM ARCHIVE", "▶ INSCRIBE & CLAIM JOURNAL") : copy("⚡ CREATE NETRUNNER ACCOUNT", "▶ INSCRIBE LEDGER")}</button>
     </form>
+    {mode === "login" && <a className="auth-recovery-link" href="/forgot-password">Forgot password?</a>}
     <p className="auth-hint">{localArchive ? copy("Only the first registration claims the local archive. Later accounts start fresh.", "Only the first inscription claims the local quest journal. Later adventurers begin with a new ledger.") : "Sessions expire after 7 days. Log out to revoke this device’s session."}</p>
   </div>;
   return onClose ? <div className="auth-modal-backdrop" onClick={(event) => { if (event.target === event.currentTarget && !pendingRef.current) onClose(); }}>{panel}</div> : panel;

@@ -1,0 +1,12 @@
+.recovery-shell { display: grid; place-items: center; min-height: 100dvh; padding: 32px 16px; }
+.recovery-panel { position: relative; }
+.recovery-panel h1 { margin: 0; font: 400 32px/1.2 var(--font-terminal), monospace; color: #e6fff9; }
+.recovery-panel fieldset { min-width: 0; padding: 0; margin: 0; border: 0; }
+.recovery-links { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 24px; font-size: 13px; }
+.recovery-links a, .auth-recovery-link { color: #94f7ff; text-underline-offset: 4px; }
+.auth-recovery-link { display: inline-block; margin-top: 16px; font-size: 13px; }
+.recovery-success { padding: 12px; border: 1px solid #05ffa1; background: #0c211b; color: #a2ffdb; line-height: 1.7; font-size: 13px; }
+.recovery-links a:focus-visible, .auth-recovery-link:focus-visible { outline: 2px solid #fcee0a; outline-offset: 4px; }
+:root[data-layout-mode="fantasy"] .recovery-panel h1 { color: #3a3024; font-family: Georgia, serif; }
+:root[data-layout-mode="fantasy"] :is(.recovery-links a, .auth-recovery-link) { color: #365d3b; }
+:root[data-layout-mode="fantasy"] .recovery-panel .recovery-success { color: #365d3b; background: #e3dfb5; border-color: #7d9153; }

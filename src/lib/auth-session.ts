@@ -36,19 +36,20 @@ export async function readSessionHash(): Promise<string | null> {
   return verifySessionToken(value, await getSessionSigningKey());
 }
 
-export async function createPlayerSession(userId: string, beforeCreate?: (tx: Prisma.TransactionClient) => Promise<void>) {
+export async function createPlayerSession(userId: string | ((tx: Prisma.TransactionClient) => Promise<string>), beforeCreate?: (tx: Prisma.TransactionClient) => Promise<void>) {
   const secret = await getSessionSigningKey();
   const previous = await readSessionHash();
   const token = randomBytes(32).toString("base64url");
   const expiresAt = new Date(Date.now() + sessionSeconds * 1000);
-  if (beforeCreate) {
+  if (beforeCreate || typeof userId === "function") {
     // Credential updates and session rotation commit or roll back together.
     await prisma.$transaction(async tx => {
-      await beforeCreate(tx);
+      const resolvedUserId = typeof userId === "function" ? await userId(tx) : userId;
+      await beforeCreate?.(tx);
       await tx.playerSession.deleteMany({ where: { OR: [
         { expiresAt: { lte: new Date() } }, ...(previous ? [{ tokenHash: previous }] : []),
       ] } });
-      await tx.playerSession.create({ data: { userId, tokenHash: sessionTokenHash(token), expiresAt } });
+      await tx.playerSession.create({ data: { userId: resolvedUserId, tokenHash: sessionTokenHash(token), expiresAt } });
     }, { timeout: 15000 });
   } else {
     await prisma.$transaction([

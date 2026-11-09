@@ -1,4 +1,6 @@
 import "server-only";
+
+import { registeredPlayerWhere } from "@/lib/auth-policy";
 import type { Friendship, Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getAuthenticatedPlayerId, AuthenticationRequiredError } from "@/lib/player";
@@ -9,7 +11,7 @@ import { profileVisibilities, type DiscoveredPlayer, type ProfileVisibility, typ
 
 type Command = "send" | "accept" | "decline" | "cancel" | "remove" | "block" | "unblock";
 type State = Pick<Friendship, "status" | "requestedById" | "blockedByLow" | "blockedByHigh">;
-const registered = { email: { not: null }, passwordHash: { not: null } } as const;
+const registered = { ...registeredPlayerWhere } as const;
 
 export function friendshipPair(actorId: string, targetId: string) {
   if (actorId === targetId) throw new InputError("Choose another player.");

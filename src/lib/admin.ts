@@ -1,5 +1,7 @@
 import "server-only";
 
+import { registeredPlayerWhere } from "@/lib/auth-policy";
+
 import { prisma } from "@/lib/prisma";
 import { readSessionHash } from "@/lib/auth-session";
 import { AuthenticationRequiredError } from "@/lib/player";
@@ -14,7 +16,7 @@ export async function requireAdmin(): Promise<{ id: string; isAdmin: true; isOwn
   const tokenHash = await readSessionHash();
   if (!tokenHash) throw new AuthenticationRequiredError();
   const session = await prisma.playerSession.findUnique({
-    where: { tokenHash, expiresAt: { gt: new Date() }, player: { email: { not: null }, passwordHash: { not: null } } },
+    where: { tokenHash, expiresAt: { gt: new Date() }, player: { ...registeredPlayerWhere } },
     select: { player: { select: { id: true, isAdmin: true, isOwner: true } } },
   });
   if (!session) throw new AuthenticationRequiredError();

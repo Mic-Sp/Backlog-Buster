@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
+import { deliverAuthEmail } from "@/lib/auth-email";
 import { InputError, RateLimitError, safeAction } from "@/lib/action-result";
 import { consumeCredentialAttempt, credentialSummary, getCredentialSession, readCredentialChanges } from "@/lib/account-security";
 import { hashPassword, verifyPassword } from "@/lib/auth-crypto";
@@ -17,10 +19,11 @@ export async function getAccountSecuritySummary() {
 export async function updateAccountCredentials(formData: FormData) {
   return safeAction(async () => {
     const { player, tokenHash } = await getCredentialSession();
-    const input = readCredentialChanges(formData, player.email!);
+    const input = readCredentialChanges(formData, player.email!, Boolean(player.passwordHash));
     const retryAfter = await consumeCredentialAttempt(player.id);
     if (retryAfter) throw new RateLimitError(retryAfter);
-    if (!await verifyPassword(input.currentPassword, player.passwordHash)) throw new InputError("Current password is incorrect.");
+    if (player.passwordHash && !await verifyPassword(input.currentPassword, player.passwordHash)) throw new InputError("Current password is incorrect.");
+    if (!player.passwordHash && !player.googleId) throw new InputError("Sign in again to set a local password.");
     const passwordHash = input.newPassword ? await hashPassword(input.newPassword) : null;
     try {
       const refreshed = await createPlayerSession(player.id, async tx => {
@@ -36,11 +39,14 @@ export async function updateAccountCredentials(formData: FormData) {
         }
         await tx.player.update({
           where: { id: player.id, passwordHash: player.passwordHash, email: player.email! },
-          data: { ...(input.newEmail ? { email: input.newEmail } : {}), ...(passwordHash ? { passwordHash } : {}) }, select: { id: true },
+          data: { ...(input.newEmail ? { email: input.newEmail, emailVerifiedAt: null } : {}), ...(passwordHash ? { passwordHash } : {}) }, select: { id: true },
         });
+        await tx.playerAuthToken.deleteMany({ where: { userId: player.id } });
+        await tx.playerSession.deleteMany({ where: { userId: player.id } });
       });
+      if (input.newEmail) after(() => deliverAuthEmail(input.newEmail!, "verify_email", player.id));
       revalidatePath("/", "layout");
-      return { success: true, email: input.newEmail ?? player.email!, sessionExpiresAt: refreshed.expiresAt.toISOString(), message: "SECURITY CREDENTIALS UPDATED // ARCHIVE LOCKED" };
+      return { success: true, hasPassword: Boolean(passwordHash || player.passwordHash), email: input.newEmail ?? player.email!, emailVerifiedAt: input.newEmail ? null : player.emailVerifiedAt?.toISOString() ?? null, sessionExpiresAt: refreshed.expiresAt.toISOString(), message: "SECURITY CREDENTIALS UPDATED // ARCHIVE LOCKED" };
     } catch (error) {
       if (error && typeof error === "object" && "code" in error) {
         if (error.code === "P2002") throw new InputError("That email address is already in use. Choose another.");
@@ -55,6 +61,7 @@ export async function updateAccountCredentials(formData: FormData) {
 export async function resetOperatorLibrary(formData: FormData) {
   return safeAction(async () => {
     const { player, tokenHash } = await getCredentialSession();
+    if (!player.passwordHash) throw new InputError("Set a local password in Account Security before resetting your library.");
     if (!(formData instanceof FormData)) throw new InputError("Confirm your password and type RESET LIBRARY.");
     const phrase = formData.get("confirmation");
     const password = formData.get("currentPassword");
@@ -90,6 +97,7 @@ export async function resetOperatorLibrary(formData: FormData) {
 export async function wipeOperatorAccount(formData: FormData) {
   return safeAction(async () => {
     const { player, tokenHash } = await getCredentialSession();
+    if (!player.passwordHash) throw new InputError("Set a local password in Account Security before deleting your account.");
     if (player.isOwner) throw new InputError("The Owner account cannot be deleted.");
     if (player.isAdmin) throw new InputError("Admin accounts must be demoted by the Owner before account deletion.");
     if (!(formData instanceof FormData)) throw new InputError("Confirm your password and type WIPE ARCHIVE.");

@@ -42,3 +42,9 @@
 .security-modal :is(button.security-wipe-reveal, button.security-wipe-confirm):hover:not(:disabled) { background: #ff2a6d; color: #080a0e; }
 .security-wipe-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
 .security-wipe-actions :is(.security-wipe-confirm, .security-reset-confirm) { flex: 1; }
+.security-verification { margin: 18px 0; padding: 14px; border: 1px solid #32616a; }
+.security-verification-badge { display: inline-block; padding: 5px 9px; border: 1px solid #bda04a; color: #f3d67e; background: #282310; font-size: 12px; }
+.security-verification-badge[data-verified="true"] { color: #a2ffdb; border-color: #398c70; background: #0c211b; }
+:root[data-layout-mode="fantasy"] .security-verification { border-color: #ad945d; background: #e6d6ae; }
+:root[data-layout-mode="fantasy"] .security-verification-badge { color: #704d1c; border-color: #a58c50; background: #f3e3b4; }
+:root[data-layout-mode="fantasy"] .security-verification-badge[data-verified="true"] { color: #365d3b; border-color: #7d9153; background: #e3dfb5; }

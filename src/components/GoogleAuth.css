@@ -1,0 +1,18 @@
+:is(.auth-panel, .security-modal) .google-oauth-button { display: flex; align-items: center; justify-content: center; gap: 12px; width: 100%; min-height: 44px; margin-top: 18px; padding: 12px 16px; border: 1px solid #81aeb6; background: #f5f7fa; color: #1b2530; font: 600 14px/1.4 Arial, sans-serif; letter-spacing: 0; box-shadow: none; text-shadow: none; text-decoration: none; cursor: pointer; }
+:is(.auth-panel, .security-modal) .google-oauth-button:hover:not([aria-disabled="true"]) { background: #e0f8fa; color: #122a32; border-color: #00f0ff; }
+.google-oauth-mark { flex: 0 0 20px; background: white; border-radius: 50%; }
+.google-auth-divider { display: flex; align-items: center; gap: 12px; margin: 20px 0 8px; color: #8295aa; font-size: 11px; }
+.google-auth-divider::before, .google-auth-divider::after { content: ""; height: 1px; flex: 1; background: #32616a; }
+.security-google { margin: 18px 0; padding: 14px; border: 1px solid #32616a; }
+.security-google h3 { margin: 0 0 10px; font-size: 13px; }
+.security-google-status { display: inline-block; color: #a2ffdb; font-size: 12px; }
+.google-notice-links { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 24px; font-size: 13px; }
+.google-notice-links a { color: #94f7ff; text-underline-offset: 4px; }
+:root[data-layout-mode="fantasy"] :is(.auth-panel, .security-modal) .google-oauth-button { color: #294a40; background: #fffaf0; border-color: #ad945d; font-family: Arial, sans-serif; }
+:root[data-layout-mode="fantasy"] :is(.auth-panel, .security-modal) .google-oauth-button:hover:not([aria-disabled="true"]) { color: #1c3c27; background: #efe7c7; border-color: #597a46; }
+:root[data-layout-mode="fantasy"] .security-google { border-color: #ad945d; background: #e6d6ae; }
+:root[data-layout-mode="fantasy"] :is(.security-google h3, .security-google-status, .google-notice-links a) { color: #365d3b; }
+:root[data-layout-mode="fantasy"] .google-auth-divider { color: #76613d; }
+:root[data-layout-mode="fantasy"] .google-auth-divider::before, :root[data-layout-mode="fantasy"] .google-auth-divider::after { background: #ad945d; }
+
+.google-oauth-button[aria-disabled="true"] { opacity: .45; cursor: wait; }

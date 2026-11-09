@@ -1,4 +1,6 @@
 import "server-only";
+
+import { registeredPlayerWhere } from "@/lib/auth-policy";
 import { prisma } from "@/lib/prisma";
 import { getAuthenticatedPlayerId, AuthenticationRequiredError } from "@/lib/player";
 import type { IncomingFriendRequests } from "@/lib/social-types";
@@ -6,7 +8,7 @@ import type { IncomingFriendRequests } from "@/lib/social-types";
 /** Request identity only. Privacy settings never expose library/profile details here. */
 export async function getIncomingFriendRequests(): Promise<IncomingFriendRequests> {
   const viewerId = await getAuthenticatedPlayerId();
-  const registered = { email: { not: null }, passwordHash: { not: null } };
+  const registered = { ...registeredPlayerWhere };
   const where = {
     status: "pending" as const, requestedById: { not: viewerId }, blockedByLow: false, blockedByHigh: false,
     OR: [{ playerLowId: viewerId }, { playerHighId: viewerId }], playerLow: registered, playerHigh: registered,

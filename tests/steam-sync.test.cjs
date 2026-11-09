@@ -108,7 +108,7 @@ function fixture(initial = [], snapshot = [], options = {}) {
   const prisma = {
     player: { findUnique: tx.player.findUnique },
     playerSession: { findUnique: async ({ where }) => {
-      assert.equal(where.tokenHash, "owner-token"); assert(where.player.email.not === null && where.player.passwordHash.not === null);
+      assert.equal(where.tokenHash, "owner-token"); assert(where.player.email.not === null && where.player.OR[0].passwordHash.not === null);
       return revoked ? null : { player: { id: "owner", operatorName: "Owner", handle: "owner" } };
     } },
     game: { findMany: async args => selectRows(args) },

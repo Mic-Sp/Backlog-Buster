@@ -1,4 +1,6 @@
 import "server-only";
+
+import { registeredPlayerWhere } from "@/lib/auth-policy";
 import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 import { readSessionHash } from "@/lib/auth-session";
@@ -14,7 +16,7 @@ export const getCurrentPlayer = cache(async (): Promise<CurrentPlayer | null> =>
   const tokenHash = await readSessionHash();
   if (tokenHash) {
     const session = await prisma.playerSession.findUnique({
-      where: { tokenHash, expiresAt: { gt: new Date() }, player: { email: { not: null }, passwordHash: { not: null } } },
+      where: { tokenHash, expiresAt: { gt: new Date() }, player: { ...registeredPlayerWhere } },
       select: { player: { select: { id: true, operatorName: true, handle: true, isAdmin: true, isOwner: true, preferredLayoutMode: true } } },
     });
     if (session) return { ...session.player, preferredLayoutMode: normalizeLayoutMode(session.player.preferredLayoutMode), isLocal: false };
@@ -38,7 +40,7 @@ export async function getAuthenticatedPlayerId(): Promise<string> {
   const tokenHash = await readSessionHash();
   if (!tokenHash) throw new AuthenticationRequiredError();
   const session = await prisma.playerSession.findUnique({
-    where: { tokenHash, expiresAt: { gt: new Date() }, player: { email: { not: null }, passwordHash: { not: null } } },
+    where: { tokenHash, expiresAt: { gt: new Date() }, player: { ...registeredPlayerWhere } },
     select: { userId: true },
   });
   if (!session) throw new AuthenticationRequiredError();

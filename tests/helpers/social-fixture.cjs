@@ -18,7 +18,7 @@ function loader(mocks = {}) {
   }
   return load;
 }
-const player = (id, overrides = {}) => ({ id, email: `${id}@example.test`, passwordHash: "SECRET_HASH",
+const player = (id, overrides = {}) => ({ id, email: `${id}@example.test`, passwordHash: "SECRET_HASH", googleId: null,
   handle: `${id}-handle`, operatorName: `${id} Callsign`, avatarUrl: null, profileVisibility: "public",
   tagline: "One more gig.", neonAccent: "CYAN", featuredTrophyIds: [], games: [], userAchievements: [], ...overrides });
 function patternRegex(pattern, contains = false) {
@@ -107,7 +107,7 @@ function fixture(initial = [player("alice"), player("bob"), player("carol"), pla
   function as(id) {
     const authenticate = async () => {
       const row = players.find(row => row.id === id);
-      if (!row?.email || !row.passwordHash || revoked.has(id)) throw new AuthenticationRequiredError();
+      if (!row?.email || (!row.passwordHash && !row.googleId) || revoked.has(id)) throw new AuthenticationRequiredError();
       return id;
     };
     const load = loader({ "@/lib/prisma": { prisma }, "@/lib/player": { AuthenticationRequiredError, getAuthenticatedPlayerId: authenticate,

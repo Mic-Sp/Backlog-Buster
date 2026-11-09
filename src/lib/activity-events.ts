@@ -1,4 +1,6 @@
 import "server-only";
+
+import { registeredPlayerWhere } from "@/lib/auth-policy";
 import type { Prisma } from "@/generated/prisma/client";
 import type { ActivityPayload } from "@/lib/activity-types";
 import { normalizeMicroReview } from "@/lib/micro-review";
@@ -57,7 +59,7 @@ export function safeActivityPayload(type: unknown, value: unknown): ActivityPayl
 /** Must run in the source mutation's transaction. Duplicate deliveries never update old events. */
 export async function appendActivityEvents(tx: Prisma.TransactionClient, actorId: string, events: NewEvent[]): Promise<number> {
   if (!events.length) return 0;
-  const actor = await tx.player.findFirst({ where: { id: actorId, email: { not: null }, passwordHash: { not: null } }, select: { id: true } });
+  const actor = await tx.player.findFirst({ where: { id: actorId, ...registeredPlayerWhere }, select: { id: true } });
   if (!actor) return 0; // Page-load achievement checks may still serve the unclaimed local archive.
   const data: Prisma.ActivityEventCreateManyInput[] = events.flatMap(event => {
     const payload = safeActivityPayload(event.type, event.metadata);
