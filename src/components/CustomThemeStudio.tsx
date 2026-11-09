@@ -6,6 +6,7 @@ import type { LayoutMode } from "@/lib/appearance";
 import { customThemeSchema, newCustomTheme, parseCustomThemeJSON, themeColorFields, themeTermFields, type CustomTheme, type ThemeColorKey, type ThemeTermKey } from "@/lib/custom-theme";
 import type { CustomThemesController } from "@/components/useCustomThemes";
 import { createThemeShareUrl } from "@/lib/theme-share";
+import { applyThemeTemplate, getThemeTemplates, themeTemplateGroups } from "@/lib/theme-templates";
 import "./CustomThemeStudio.css";
 
 export default function CustomThemeStudio({ controller, baseLayout, haunted }: { controller: CustomThemesController; baseLayout: LayoutMode; haunted: boolean }) {
@@ -44,6 +45,7 @@ export default function CustomThemeStudio({ controller, baseLayout, haunted }: {
 
   const invalidHex = Object.values(hexDrafts).some(value => !/^#[0-9a-fA-F]{6}$/.test(value ?? ""));
   const exists = controller.themes.some(theme => theme.id === draft.id);
+  const templates = getThemeTemplates(controller.themes, exists ? draft.id : undefined);
   function change(next: CustomTheme) {
     setDraft(next); setError(""); setMessage(""); setShareLink("");
     if (customThemeSchema.safeParse(next).success) controller.preview(next);
@@ -69,6 +71,21 @@ export default function CustomThemeStudio({ controller, baseLayout, haunted }: {
         }}><option value="">New / imported theme</option>{controller.themes.map(theme => <option key={theme.id} value={theme.id}>{theme.name}</option>)}</select></label>
         <button type="button" onClick={() => load(newCustomTheme(draft.baseLayout))}>New theme</button>
         <button type="button" onClick={() => load({ ...draft, id: newCustomTheme(draft.baseLayout).id, name: `${draft.name.slice(0, 53)} copy` })}>Duplicate</button>
+      </div>
+      <div className="studio-template-picker">
+        <label>Start from Template<select aria-label="Start from Template" aria-describedby={`${titleId}-template-help`} value="" onChange={event => {
+          const template = templates.find(template => template.key === event.target.value);
+          if (!template) return;
+          load(applyThemeTemplate(draft, template)); setJson("");
+          setMessage(`${template.name} copied into this draft. Save to keep it.`);
+        }}>
+          <option value="" disabled>Choose a theme to copy…</option>
+          {themeTemplateGroups.map(group => {
+            const sources = templates.filter(template => template.group === group.key);
+            return sources.length > 0 && <optgroup key={group.key} label={group.name}>{sources.map(template => <option key={template.key} value={template.key}>{template.name}</option>)}</optgroup>;
+          })}
+        </select></label>
+        <p className="studio-help" id={`${titleId}-template-help`}>Replace this draft’s colors, effects and labels. Its name stays the same. Saved source themes stay unchanged.</p>
       </div>
       <div className="studio-fields">
         <label>Theme name<input value={draft.name} onChange={event => change({ ...draft, name: event.target.value })} maxLength={60} placeholder="Midnight orchard" /></label>

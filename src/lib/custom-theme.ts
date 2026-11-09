@@ -61,13 +61,17 @@ export function readCustomThemes(storage: Pick<Storage, "getItem">): CustomTheme
   } catch { return []; }
 }
 
-export function newCustomTheme(baseLayout: LayoutMode, haunted = false): CustomTheme {
+export function customThemeDefaults(baseLayout: LayoutMode, haunted = false): Omit<CustomTheme, "id" | "name"> {
   return {
-    id: `custom-${crypto.randomUUID()}`, name: "My custom theme", baseLayout,
+    baseLayout,
     colors: baseLayout === "fantasy" ? { background: "#183333", surface: "#efdfb5", text: "#30251d", muted: "#68523e", accent: "#365d3b", border: "#ad945d" }
       : haunted ? { background: "#09060f", surface: "#160e21", text: "#f4edf7", muted: "#c0afca", accent: "#b4ff72", border: "#725078" }
         : { background: "#080a0e", surface: "#0b101b", text: "#e8edf7", muted: "#94a5b9", accent: "#00f0ff", border: "#32616a" },
     effects: { scanlines: false, particles: baseLayout === "fantasy", parchment: baseLayout === "fantasy", haunted: baseLayout === "cyberpunk" && haunted },
     borderRadius: baseLayout === "fantasy" ? 8 : 3, terminology: {},
   };
+}
+
+export function newCustomTheme(baseLayout: LayoutMode, haunted = false): CustomTheme {
+  return { id: `custom-${crypto.randomUUID()}`, name: "My custom theme", ...customThemeDefaults(baseLayout, haunted) };
 }

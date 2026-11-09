@@ -45,6 +45,7 @@ The startup script restores safe CSS values before hydration. Full Zod validatio
 
 - Open **Custom Theme Studio** from the shared theme controls on the workspace, sign-in and recovery pages.
 - Choose a saved theme, create a new one, or duplicate the current draft with a fresh ID.
+- **Start from Template** copies the complete style into the draft: base layout, all six colors, effects, radius and terminology. Its name and ID stay the same. For an independent clone, choose **New theme** or **Duplicate** first; applying a template while editing an existing theme updates that target only when saved. The current edit target is excluded from saved template sources.
 - Native color inputs and paired hex fields preview changes immediately. Incomplete hex input stays in the editor and cannot be saved or applied as CSS.
 - Change the base layout, effects, radius and optional headings. Preview changes stay in memory until saved.
 - **Copy theme JSON** fills the JSON editor and writes to the clipboard. If clipboard access is unavailable, the populated field remains available for manual copying.
@@ -52,6 +53,12 @@ The startup script restores safe CSS values before hydration. Full Zod validatio
 - **Validate & preview JSON** reports field-specific errors and applies only a valid draft. Saving an imported ID updates that ID; duplicating creates a separate theme.
 - **Save & apply theme** writes the palette and selection to localStorage. **Delete custom theme** removes the saved theme. Neither action changes built-in theme definitions.
 - Closing, clicking the backdrop or pressing Escape cancels the unsaved preview. Focus returns to the opener. The modal traps focus, restores body scrolling and supports 390px viewports.
+
+### Template sources
+
+`src/lib/theme-templates.ts` combines the existing built-ins (Cyberpunk, Fantasy, Haunted Net / Blackwall Glitch) and the controller's validated localStorage themes. The built-in templates reuse `customThemeDefaults` so New theme and the template catalog share their palette definitions. Existing built-in appearances and the global theme selector remain unchanged.
+
+The selector copies values only on an explicit selection and returns to its prompt, allowing users to pick the same source again to reset later edits. Nested values are cloned through the strict schema; sources remain unchanged. Catalog/storage updates can refresh the menu without resetting form edits. Picking a template clears incomplete hex inputs and old export feedback, then uses the existing live-preview path. Closing still restores the previous selected/shared theme.
 
 ## Shareable theme links
 
@@ -79,6 +86,7 @@ The full test suite and focused ESLint are also run. Production browser QA is re
 ```sh
 node scripts/check-theme-studio.cjs --playwright-module /path/to/playwright
 node scripts/check-theme-share.cjs --playwright-module /path/to/playwright
+node scripts/check-theme-templates.cjs --playwright-module /path/to/playwright
 ```
 
 An optional `--library-path` supplies Chromium libraries on minimal Linux installations. The check starts the production build on port 3015 and uses disposable accounts, cleaned up afterward. It exercises Cyberpunk, Haunted Net / Blackwall Glitch and Fantasy at 1440px and 390px: live colors/effects, invalid hex/JSON, cancel restoration, clipboard export, save/edit/delete, cross-tab updates, startup with app chunks blocked, custom workspace terminology and storage quota errors. Artifacts are saved in `/tmp/backlog-theme-studio-browser/`.
@@ -86,3 +94,7 @@ An optional `--library-path` supplies Chromium libraries on minimal Linux instal
 The sharing check uses port 3016 without account/database mutations. It exercises both viewport sizes across all three built-in appearances, direct/history URL detection, preview and revert to built-in/custom themes, Unicode clipboard/manual sharing, shared-draft cancellation, colliding IDs, quota recovery, save/reload and invalid/ambiguous links. Reports and screenshots are saved in `/tmp/backlog-theme-share-browser/`.
 
 Completed for shareable links: `npx tsc --noEmit`, `npm run build`, focused ESLint and all 77 test files pass. The 13 new codec/state cases also pass when run directly. Both production browser scripts pass across Cyberpunk, Haunted Net / Blackwall Glitch and Fantasy at 1440px and 390px with no runtime errors or horizontal overflow.
+
+`tests/theme-templates.test.cjs` checks the source catalog, built-in default consistency, nested clone isolation and target/source identity preservation. The template browser check uses port 3017 with device-local themes and no account/database mutations. It exercises all sources, immediate form/DOM previews, copying into new/existing drafts, same-template resets, cross-tab catalog changes during editing, save/cancel and mobile overflow. Reports/screenshots are written to `/tmp/backlog-theme-templates-browser/`.
+
+Completed for template selection: `npx tsc --noEmit`, `npm run build`, focused ESLint, all 78 test files, and the production template browser checks at 1440px/390px in both layouts pass. The browser report contains no runtime errors or horizontal overflow.
