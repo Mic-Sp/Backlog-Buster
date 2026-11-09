@@ -140,7 +140,7 @@ async function main() {
       const verifyOther = (BigInt(steamId) > 76561197960265730n ? BigInt(steamId) - 1n : BigInt(steamId) + 1n).toString();
       assert.equal(await prisma.player.count({ where: { steamVerifiedId: verifyOther } }), 0);
       await page.goto(base); panel = await security(page); auth = await start(page, 'link'); await complete(page, auth, verifyOther);
-      await page.getByRole('status').filter({ hasText: 'Steam ownership verified.' }).waitFor(); await image(page, `${theme}-link-complete`);
+      await page.getByRole('region', { name: 'Steam library sync' }).waitFor(); await image(page, `${theme}-link-complete`);
       preserved = await prisma.player.findUniqueOrThrow({ where: { id: legacy.id } });
       for (const field of ['email', 'passwordHash', 'googleId', 'steamId', 'handle']) assert.equal(preserved[field], legacy[field]);
       assert.equal(preserved.steamVerifiedId, verifyOther); assert.equal(await prisma.game.count({ where: { userId: legacy.id } }), 1);

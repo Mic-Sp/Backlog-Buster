@@ -29,6 +29,7 @@ function matches(row, where) {
     if (key === 'OR') return value.some(part => matches(row, part));
     if (key === 'AND') return value.every(part => matches(row, part));
     if (value && typeof value === 'object' && !(value instanceof Date)) {
+      if ('none' in value) return !(row[key] ?? []).some(entry => matches(entry, value.none));
       if ('not' in value) return (row[key] ?? null) !== value.not;
       if ('gt' in value) return row[key] > value.gt;
       if ('lte' in value) return row[key] <= value.lte;
@@ -46,17 +47,20 @@ function fixture(initial = []) {
     deleteMany: async ({ where }) => { let count = 0; for (const [key, row] of store) if (matches(row, where)) { store.delete(key); count++; } return { count }; },
   });
   const tx = {
-    $executeRaw: async strings => assert.match(strings.join(''), /backlogbuster-account-registration/),
+    $executeRaw: async strings => assert.match(strings.join(''), /pg_advisory_xact_lock/),
+    $queryRaw: async strings => { assert.match(strings.join(''), /FOR UPDATE/); return []; },
     player: {
       findUnique: async ({ where }) => rows.find(row => matches(row, where)) ?? null,
       findFirst: async ({ where }) => rows.find(row => matches(row, where)) ?? null,
       update: async ({ where, data }) => { const row = rows.find(row => matches(row, where)); assert(row); Object.assign(row, data); return row; },
+      updateMany: async ({ where, data }) => { const selected = rows.filter(row => matches(row, where)); selected.forEach(row => Object.assign(row, data)); return { count: selected.length }; },
       create: async ({ data }) => { assert(!rows.some(row => row.steamVerifiedId === data.steamVerifiedId)); const row = { id: `new-${rows.length}`, googleId: null, isAdmin: false, ...data }; rows.push(row); return row; },
     },
     playerSession: { findUnique: async ({ where }) => sessions.find(row => {
       const { player: policy, ...rest } = where;
       return matches(row, rest) && (!policy || matches(rows.find(player => player.id === row.userId), policy));
-    }) ?? null },
+    }) ?? null, deleteMany: async ({ where }) => { sessions = sessions.filter(row => !matches(row, where)); } },
+    steamAuthSync: { deleteMany: async () => {} },
   };
   const prisma = { ...tx, steamOpenIDAttempt: table(attempts, 'stateHash'), steamOpenIDNonce: table(nonces, 'nonceHash'),
     $transaction: work => { const run = sequence.then(async () => { const before = structuredClone({ rows, sessions });
@@ -113,6 +117,38 @@ test('conflicts cannot transfer a verified identity or replace an existing Steam
     await assert.rejects(f.prisma.$transaction(tx => f.api.resolveSteamPlayer(tx, steamId, persona, context({ mode: 'link', userId: 'member', sessionHash: tokenHash }))), reason('conflict'));
     assert.deepEqual(f.rows, initial);
   }
+});
+
+const shell = changes => player({ id: 'shell', email: null, passwordHash: null, googleId: null, isAdmin: false, isOwner: false,
+  steamVerifiedId: steamId, steamId, games: [], operatorName: 'Steam Persona', tagline: 'A retained profile', ...changes });
+
+test('linking reclaims an empty Steam-only shell, revokes its sessions and retains its profile privately', async () => {
+  const original = player(), f = fixture([original, shell()]); f.sessionHash = tokenHash;
+  f.sessions.push({ userId: 'shell', tokenHash: 'b'.repeat(64), expiresAt: new Date(Date.now() + 60000) });
+  assert.equal(await f.prisma.$transaction(tx => f.api.resolveSteamPlayer(tx, steamId, persona, context({ mode: 'link', userId: 'member', sessionHash: tokenHash }))), 'member');
+  assert.equal(f.rows[0].steamVerifiedId, steamId); assert.equal(f.rows[0].passwordHash, original.passwordHash); assert.deepEqual(f.rows[0].games, original.games);
+  const retired = f.rows.find(row => row.id === 'shell');
+  assert.equal(retired.steamVerifiedId, null); assert.equal(retired.profileVisibility, 'private'); assert.equal(retired.tagline, 'A retained profile');
+  assert.equal(f.sessions.filter(row => row.userId === 'shell').length, 0);
+});
+
+test('reclamation protects every credential, role, nonempty library, social relationship, list and preference', async () => {
+  for (const changes of [{ email: 'owner@example.test' }, { passwordHash: 'local-hash' }, { googleId: 'google-owner' }, { isAdmin: true }, { isOwner: true },
+    { games: ['game'] }, { userAchievements: [{}] }, { customLists: [{}] }, { friendshipsLow: [{}] }, { friendshipsHigh: [{}] },
+    { activityEvents: [{}] }, { recommendationDismissals: [{}] }, { authTokens: [{}] }, { steamId: otherSteam }, { id: 'default-player' }]) {
+    const initial = [player(), shell(changes)], f = fixture(initial); f.sessionHash = tokenHash;
+    await assert.rejects(f.prisma.$transaction(tx => f.api.resolveSteamPlayer(tx, steamId, persona, context({ mode: 'link', userId: 'member', sessionHash: tokenHash }))), reason('conflict'));
+    assert.deepEqual(f.rows, initial);
+  }
+});
+
+test('session creation failure rolls back shell reclamation and Steam linking together', async () => {
+  const initial = [player(), shell()], f = fixture(initial); f.sessionHash = tokenHash;
+  await assert.rejects(f.prisma.$transaction(async tx => {
+    await f.api.resolveSteamPlayer(tx, steamId, persona, context({ mode: 'link', userId: 'member', sessionHash: tokenHash }));
+    throw Error('session insert failed');
+  }));
+  assert.deepEqual(f.rows, initial);
 });
 
 test('simultaneous signups resolve one identity; session-write failures roll back a link', async () => {
@@ -228,6 +264,7 @@ test('canonical entry redirect precedes cookie creation; callback diagnostics id
   for (const failure of ['consume', 'verify', 'profile', 'account', 'session', 'revalidate', 'cleanup']) {
     const work = key => { if (key === failure) throw Error('COOKIE_STATE_SIGNATURE_API_KEY_DATABASE_SECRET'); };
     const load = loader({ 'next/server': responses, 'next/cache': { revalidatePath: () => work('revalidate') }, '@/lib/steam-openid-diagnostics': diagnostics,
+      '@/lib/steam-auth-sync': { queueSteamAuthSync: async () => {} },
       '@/lib/steam-openid': { beginSteamOpenID: async () => assert.fail('must canonicalize first'), clearSteamContext: async () => work('cleanup'),
         consumeSteamContext: async () => { work('consume'); return context(); }, verifySteamAssertion: async () => { work('verify'); return steamId; },
         fetchSteamPersona: async () => { work('profile'); return persona; }, resolveSteamPlayer: async () => { work('account'); return 'member'; } },

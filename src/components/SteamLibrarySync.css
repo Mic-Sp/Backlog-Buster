@@ -1,0 +1,17 @@
+.steam-library-sync { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 20px; padding: 18px 20px; border: 1px solid #67c1f5; background: #0d1d2b; color: #d6efff; font-family: "Courier New", monospace; }
+.steam-library-sync > div { min-width: 0; flex: 1 1 240px; }
+.steam-library-sync .steam-sync-eyebrow { margin: 0 0 8px; color: #90d5ff; font-size: 10px; letter-spacing: .08em; }
+.steam-library-sync h2 { margin: 0 0 8px; font-size: 18px; }
+.steam-library-sync p { margin: 0; font-size: 12px; line-height: 1.7; overflow-wrap: anywhere; }
+.steam-library-sync[data-state="failed"] { border-color: #e2bc62; }
+.steam-sync-spinner { flex: 0 0 24px; width: 24px; height: 24px; border: 2px solid #426278; border-top-color: #94f7ff; border-radius: 50%; animation: steam-sync-turn 1s linear infinite; }
+.steam-sync-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.steam-sync-actions button { min-height: 42px; padding: 8px 12px; border: 1px solid #67c1f5; background: #172d42; color: #d6efff; cursor: pointer; font: inherit; font-size: 12px; }
+.steam-sync-actions button:disabled { opacity: .6; cursor: wait; }
+.steam-sync-actions button:focus-visible { outline: 2px solid #fcee0a; outline-offset: 3px; }
+:root[data-layout-mode="fantasy"] .steam-library-sync { border-color: #ad945d; background: #e6d6ae; color: #314c38; font-family: Georgia, serif; }
+:root[data-layout-mode="fantasy"] .steam-library-sync .steam-sync-eyebrow { color: #655234; }
+:root[data-layout-mode="fantasy"] .steam-sync-actions button { background: #314c38; border-color: #849c57; color: #fff6d6; }
+:root[data-layout-mode="fantasy"] .steam-sync-spinner { border-color: #b5a276; border-top-color: #365d3b; }
+@keyframes steam-sync-turn { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .steam-sync-spinner { animation: none; } }

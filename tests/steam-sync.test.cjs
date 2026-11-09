@@ -26,6 +26,7 @@ const request = (extra = {}) => ({ identifier: steamId, ...extra });
 
 function fixture(initial = [], snapshot = [], options = {}) {
   let games = structuredClone(initial), player = { id: "owner", steamId: options.linkedSteamId ?? null,
+    steamVerifiedId: options.verifiedSteamId ?? null, steamLibrarySourceId: options.sourceSteamId ?? null,
     steamAutoSyncAttemptedAt: options.attemptedAt ?? null, steamLastSyncedAt: null, featuredTrophyIds: options.featuredTrophyIds ?? [] }, token = "owner-token", revoked = false;
   let inTransaction = false, sequence = Promise.resolve(), providerCalls = 0, nextId = 10000;
   const rawgCalls = [], igdbCalls = [], cacheCalls = [], locks = [], updateBatches = [], createBatches = [], guardCalls = [], telemetryBatches = [], achievementCalls = [];
@@ -37,6 +38,8 @@ function fixture(initial = [], snapshot = [], options = {}) {
     if (games.some(game => game.userId === "owner" && game.steamAppId === appId && game.id !== exceptId)) throw Error("Duplicate Steam AppID");
   };
   const tx = {
+    $queryRaw: async strings => { assert(inTransaction); assert.match(strings.join(''), /FOR UPDATE/); return []; },
+    steamAuthSync: { findFirst: async ({ where }) => { assert.equal(where.userId, 'owner'); assert.equal(where.status, 'running'); assert(where.leaseUntil.gt instanceof Date); return options.expiredLease ? null : { userId: 'owner' }; } },
     $executeRaw: async (strings, ...values) => {
       assert(inTransaction);
       const sql = strings.join("?");
@@ -84,8 +87,9 @@ function fixture(initial = [], snapshot = [], options = {}) {
       assert(inTransaction); assert.equal(where.tokenHash, "owner-token"); assert.equal(where.userId, "owner");
       assert(where.expiresAt.gt instanceof Date); assert(where.player.OR[0].email.not === null);
       const automatic = where.player.steamAutoSyncAttemptedAt;
-      const staleLink = automatic && (where.player.steamId !== player.steamId || automatic.getTime() !== player.steamAutoSyncAttemptedAt?.getTime());
-      return revoked || staleLink ? null : { tokenHash: "owner-token" };
+      const staleLink = automatic && ((where.player.steamId !== undefined && where.player.steamId !== player.steamId) || automatic.getTime() !== player.steamAutoSyncAttemptedAt?.getTime());
+      const staleIdentity = where.player.steamVerifiedId !== undefined && where.player.steamVerifiedId !== player.steamVerifiedId;
+      return revoked || staleLink || staleIdentity ? null : { tokenHash: "owner-token" };
     } },
     game: { updateMany: async ({ where, data }) => {
       assert(inTransaction); for (const row of games.filter(row => row.userId === where.userId && row.steamAppId)) Object.assign(row, data);
@@ -99,9 +103,9 @@ function fixture(initial = [], snapshot = [], options = {}) {
       }
       return { count: data.length };
     } },
-    player: { findUnique: async ({ where }) => { assert.equal(where.id, "owner"); return { steamId: player.steamId, featuredTrophyIds: player.featuredTrophyIds }; }, update: async ({ where, data, select }) => {
+    player: { findUnique: async ({ where }) => { assert.equal(where.id, "owner"); return { steamId: player.steamId, steamLibrarySourceId: player.steamLibrarySourceId, featuredTrophyIds: player.featuredTrophyIds }; }, update: async ({ where, data, select }) => {
       assert(inTransaction); assert.deepEqual(where, { id: "owner" }); assert.deepEqual(select, { id: true });
-      assert.deepEqual(Object.keys(data), ["steamId", "steamLastSyncedAt"]); assert(data.steamLastSyncedAt instanceof Date);
+      assert.deepEqual(Object.keys(data), [...(options.verifiedSteamId ? [] : ["steamId"]), "steamLibrarySourceId", "steamLastSyncedAt"]); assert(data.steamLastSyncedAt instanceof Date);
       Object.assign(player, data); return { id: "owner" };
     } },
   };
@@ -136,7 +140,7 @@ function fixture(initial = [], snapshot = [], options = {}) {
     "@/lib/achievements": { syncAchievementsForPlayer: async (_tx, id, emit) => { assert.equal(id, "owner"); assert.equal(emit, false); } },
     "@/lib/prisma": { prisma }, "@/lib/auth-session": { readSessionHash: async () => token },
     "@/lib/api-resilience": { ...loader()("src/lib/api-resilience.ts"), guardedRequest: async (id, feature, input, work) => {
-      assert.equal(id, "owner"); assert(["steam-sync", "steam-auto-sync"].includes(feature)); guardCalls.push({ feature, input: JSON.parse(input) }); return work();
+      assert.equal(id, "owner"); assert(["steam-sync", "steam-auto-sync", "steam-auth-sync"].includes(feature)); guardCalls.push({ feature, input: JSON.parse(input) }); return work();
     } },
     "@/lib/steam": { parseSteamIdentifier, fetchSteamAchievements: async (id, appId) => {
       assert(!inTransaction); assert.equal(id, steamId); achievementCalls.push(appId);
@@ -175,6 +179,26 @@ test("650-game sync batches writes/cache reads and caps RAWG at three lookups; r
   assert.equal(f.games[0].coverUrl, incoming(1).coverUrl);
   assert.deepEqual((await f.vault.syncSteamLibraryGames(request())).summary, { steamId, addedCount: 0, updatedCount: 0, skippedCount: 650 });
   assert.equal(f.rawgCalls.length, 3); assert.equal(f.cacheCalls.length, 2); assert.equal(f.games.length, 650); assert.equal(f.locks.length, 2);
+});
+
+test("verified auth imports include zero-hour games, keep the manual profile and preserve authored progress", async () => {
+  const old = saved(1, { steamAppId: '440', title: 'Authored title', hoursPlayed: 8, rating: 4, notes: 'My checkpoint', status: 'Playing' });
+  const f = fixture([old], [incoming(440), incoming(570, 'Unplayed game', 0)], { linkedSteamId: '76561198000000001', verifiedSteamId: steamId });
+  const identity = { userId: 'owner', tokenHash: 'owner-token', verifiedSteamId: steamId, authSync: { requestId: 'auth-request', leaseId: 'lease' } };
+  const first = await f.vault.syncSteamLibraryForSession(request({ includeUnplayed: true, updateHoursPlayed: true }), identity);
+  assert.equal(first.summary.addedCount, 1); assert.equal(f.player.steamId, '76561198000000001'); assert.equal(f.player.steamLibrarySourceId, steamId);
+  for (const field of ['title', 'hoursPlayed', 'rating', 'notes', 'status']) assert.equal(f.games[0][field], old[field]);
+  assert.equal(f.games[1].hoursPlayed, 0); assert.equal(f.games[1].status, 'Backlog');
+  assert.equal((await f.vault.syncSteamLibraryForSession(request({ includeUnplayed: true, updateHoursPlayed: true }), identity)).summary.addedCount, 0);
+});
+
+test("revoked verified identities and expired/replaced auth leases cannot commit imported rows", async () => {
+  for (const options of [{ expiredLease: true, verifiedSteamId: steamId }, { verifiedSteamId: '76561198000000001' }]) {
+    const f = fixture([], [incoming(440)], options);
+    await assert.rejects(f.vault.syncSteamLibraryForSession(request(), { userId: 'owner', tokenHash: 'owner-token', verifiedSteamId: steamId,
+      authSync: { requestId: 'old-auth-request', leaseId: 'old-lease' } }));
+    assert.equal(f.games.length, 0); assert.equal(f.player.steamLastSyncedAt, null);
+  }
 });
 
 test("AppID wins over renamed titles; normalized legacy PC copies link once without touching consoles or foreign players", async () => {

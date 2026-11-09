@@ -26,6 +26,8 @@ import { ThemePlayerSync } from "@/components/ThemeProvider";
 import { readSessionHash } from "@/lib/auth-session";
 import { autoSyncSteamLibrary } from "@/lib/steam-auto-sync";
 import { buildAnnualReview } from "@/lib/year-in-review";
+import { getSteamAuthSyncView } from "@/lib/steam-auth-sync";
+import SteamLibrarySync from "@/components/SteamLibrarySync";
 
 export const maxDuration = 60;
 
@@ -153,7 +155,7 @@ async function SavedGames({ userId, isAdmin, socialEnabled }: { userId: string; 
       orderBy: { createdAt: "desc" },
     }),
     getPageAchievements(userId),
-    prisma.player.findUnique({ where: { id: userId }, select: { steamId: true } }),
+    prisma.player.findUnique({ where: { id: userId }, select: { steamId: true, steamVerifiedId: true, steamLibrarySourceId: true } }),
     socialEnabled ? readCustomLists(userId) : [],
   ]);
   const libraryKeys = new Set(games.map(game => getCommunityGameKey(game.title, game.releaseYear)));
@@ -219,8 +221,13 @@ async function SavedGames({ userId, isAdmin, socialEnabled }: { userId: string; 
   }));
 
   return (
-    <GameLibrary games={serializedGames} customLists={customLists} achievements={achievements} isAdmin={isAdmin} socialEnabled={socialEnabled} steamId={steamProfile?.steamId} />
+    <GameLibrary games={serializedGames} customLists={customLists} achievements={achievements} isAdmin={isAdmin} socialEnabled={socialEnabled} steamId={steamProfile?.steamLibrarySourceId ?? steamProfile?.steamVerifiedId ?? steamProfile?.steamId} />
   );
+}
+
+async function SteamSyncNotice({ userId }: { userId: string }) {
+  const sync = await getSteamAuthSyncView(userId);
+  return sync ? <SteamLibrarySync initial={sync} key={sync.requestId} /> : null;
 }
 
 async function PlayerWorkspace() {
@@ -236,6 +243,7 @@ async function PlayerWorkspace() {
   return (
     <>
     <ThemePlayerSync player={player.isLocal ? null : { id: player.id, preferredLayoutMode: player.preferredLayoutMode }} />
+    {!player.isLocal && <div className="page-shell"><Suspense fallback={null}><SteamSyncNotice userId={player.id} /></Suspense></div>}
     <WorkspaceShell key={`${player.id}-${player.isLocal}`}>
       <Suspense
         fallback={

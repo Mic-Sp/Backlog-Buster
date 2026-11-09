@@ -36,6 +36,8 @@ function fixture(overrides = {}) {
       assert.match(sql, /UPDATE "Player"/); assert.match(sql, /EXISTS[\s\S]*"PlayerSession"/);
       assert.match(sql, /"expiresAt" > CURRENT_TIMESTAMP/);
       assert.match(sql, /OR player\."steamVerifiedId" IS NOT NULL/);
+      assert.match(sql, /NOT EXISTS \(SELECT 1 FROM "SteamAuthSync"/);
+      assert.match(sql, /COALESCE\(player\."steamVerifiedId", player\."steamId"\)/);
       assert.match(sql, /"steamLastSyncedAt" <= CURRENT_TIMESTAMP - INTERVAL '24 hours'/);
       assert.match(sql, /"steamAutoSyncAttemptedAt" <= CURRENT_TIMESTAMP - INTERVAL '24 hours'/);
       assert.deepEqual(values, ["owner", "session-token-hash"]);
@@ -44,7 +46,7 @@ function fixture(overrides = {}) {
         [player.steamLastSyncedAt, player.steamAutoSyncAttemptedAt].some(value => value && value.getTime() > now - DAY)) return [];
       // No await between eligibility and claim: model the atomic UPDATE, not read/write races.
       player.steamAutoSyncAttemptedAt = new Date(now);
-      return [{ steamId: player.steamId, attemptedAt: player.steamAutoSyncAttemptedAt }];
+      return [{ steamId: player.steamVerifiedId ?? player.steamId, attemptedAt: player.steamAutoSyncAttemptedAt, verified: Boolean(player.steamVerifiedId) }];
     } } },
     "@/lib/library-vault": { syncSteamLibraryForSession: async (payload, session, claim) => {
       syncs.push({ payload, session, claim });
@@ -63,6 +65,13 @@ function fixture(overrides = {}) {
 test("Steam-only verified accounts can auto-sync without email, password or Google", async t => {
   configured(t); const f = fixture({ email: null, passwordHash: null, googleId: null, steamVerifiedId: steamId });
   assert.equal(await f.run(), true); assert.equal(f.syncs.length, 1);
+});
+
+test("daily sync prefers verified identity over a different manual profile", async t => {
+  configured(t); const f = fixture({ steamVerifiedId: "76561198000000001" });
+  assert.equal(await f.run(), true);
+  assert.equal(f.syncs[0].payload.identifier, "76561198000000001");
+  assert.equal(f.syncs[0].session.verifiedSteamId, "76561198000000001");
 });
 
 test("linked players sync once per rolling 24 hours, including the exact boundary", async t => {

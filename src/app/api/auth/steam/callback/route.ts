@@ -4,6 +4,7 @@ import { createPlayerSession } from "@/lib/auth-session";
 import { clearSteamContext, consumeSteamContext, fetchSteamPersona, resolveSteamPlayer, verifySteamAssertion } from "@/lib/steam-openid";
 import { logSteamAuthFailure, steamAuthStep } from "@/lib/steam-openid-diagnostics";
 import { googleOAuthOrigin as publicAuthOrigin } from "@/lib/google-oauth-origin";
+import { queueSteamAuthSync } from "@/lib/steam-auth-sync";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -19,10 +20,13 @@ export async function GET(request: Request) {
     stage = "profile_lookup";
     const persona = await fetchSteamPersona(steamId);
     stage = "create_session";
-    await createPlayerSession(tx => steamAuthStep("account_resolution", () => resolveSteamPlayer(tx, steamId, persona, context)));
+    await createPlayerSession(tx => steamAuthStep("account_resolution", async () => {
+      const userId = await resolveSteamPlayer(tx, steamId, persona, context);
+      await steamAuthStep("queue_library_sync", () => queueSteamAuthSync(tx, userId, steamId, context.mode));
+      return userId;
+    }));
     stage = "revalidate";
     revalidatePath("/", "layout");
-    if (context.mode === "link") destination = "/steam-auth?status=linked";
   } catch (error) {
     destination = `/steam-auth?status=${logSteamAuthFailure(error, "callback", stage)}`;
   }

@@ -55,6 +55,8 @@ model Player {
   steamVerifiedId   String?           @unique
   steamVerifiedAt   DateTime?
   steamLastSyncedAt  DateTime?
+  // Actual source of cached Steam telemetry; the editable sync target stays separate.
+  steamLibrarySourceId String?
   // Claim attempts too, so private/unreachable profiles do not retry every visit.
   steamAutoSyncAttemptedAt DateTime?
   operatorName      String            @default("ANONYMOUS NETRUNNER")
@@ -76,6 +78,25 @@ model Player {
   activityEvents    ActivityEvent[]
   recommendationDismissals RecommendationDismissal[]
   customLists       CustomList[]
+  steamAuthSync     SteamAuthSync?
+}
+
+// One durable auth-triggered import per player. Leases recover interrupted workers.
+model SteamAuthSync {
+  userId String @id
+  player Player @relation(fields: [userId], references: [id], onDelete: Cascade)
+  requestId String
+  steamId String
+  mode String
+  status String @default("pending")
+  attempts Int @default(0)
+  leaseId String?
+  leaseUntil DateTime?
+  errorCode String?
+  addedCount Int @default(0)
+  updatedCount Int @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // Discovery preferences are independent of library ownership. Adding a dismissed

@@ -20,7 +20,7 @@ import { syncAchievementsForPlayer } from "@/lib/achievements";
 import { libraryMetadataKey, loadLibraryMetadata } from "@/lib/library-metadata";
 import { fetchSteamAchievementBatch, selectSteamAchievementTargets } from "@/lib/steam-achievement-sync";
 
-async function requireVaultSession() {
+export async function requireVaultSession() {
   const tokenHash = await readSessionHash();
   if (!tokenHash) throw new InputError("Sign in to import or export your operator archive.");
   const session = await prisma.playerSession.findUnique({
@@ -149,8 +149,8 @@ export type SteamSyncPayload = {
   updateHoursPlayed?: boolean;
 };
 export type SteamSyncSummary = { steamId: string; addedCount: number; updatedCount: number; skippedCount: number };
-export type SteamSyncSession = { userId: string; tokenHash: string };
-export type SteamAutoSyncClaim = { steamId: string; attemptedAt: Date };
+export type SteamSyncSession = { userId: string; tokenHash: string; verifiedSteamId?: string; authSync?: { requestId: string; leaseId: string } };
+export type SteamAutoSyncClaim = { steamId: string; attemptedAt: Date; verified?: boolean };
 const STEAM_WRITE_BATCH_SIZE = 500;
 const steamExistingSelect = { id: true, title: true, platform: true, steamAppId: true, hoursPlayed: true, ownershipType: true,
   status: true, pinnedOrder: true, steamAchievementsTotal: true, steamAchievementsSyncedAt: true } as const;
@@ -186,20 +186,22 @@ export async function syncSteamLibraryForSession(payload: SteamSyncPayload, sess
     throw new InputError("Provide a Steam profile and valid sync options.");
   }
   const identifier = parseSteamIdentifier(payload.identifier);
+  if (session.verifiedSteamId && (identifier.kind !== "steamId" || identifier.value !== session.verifiedSteamId)) throw new InputError("Choose your verified Steam account.");
   const includeUnplayed = payload.includeUnplayed ?? true;
   const updateHoursPlayed = payload.updateHoursPlayed ?? false;
   // Automatic work never consumes the manual vault's short request cooldown.
-  return guardedRequest(userId, automatic ? "steam-auto-sync" : "steam-sync", JSON.stringify([identifier, includeUnplayed, updateHoursPlayed]), async () => {
+  return guardedRequest(userId, automatic ? "steam-auto-sync" : session.authSync ? "steam-auth-sync" : "steam-sync", JSON.stringify([identifier, includeUnplayed, updateHoursPlayed, session.authSync?.requestId]), async () => {
     const snapshotAt = new Date();
     const [library, initial, profile] = await Promise.all([
       fetchSteamLibrary(payload.identifier),
       prisma.game.findMany({ where: { userId }, select: steamExistingSelect }),
-      prisma.player.findUnique({ where: { id: userId }, select: { steamId: true, featuredTrophyIds: true } }),
+      prisma.player.findUnique({ where: { id: userId }, select: { steamId: true, steamLibrarySourceId: true, featuredTrophyIds: true } }),
     ]);
     const incoming = library.games.filter(game => (includeUnplayed || game.playtimeMinutes > 0) &&
       game.title.length <= 120 && normalizeGameTitle(game.title));
     const newGames = steamMatches(initial, incoming).filter(match => !match.existing).map(match => match.game);
-    const relinking = Boolean(profile?.steamId && profile.steamId !== library.steamId);
+    const previousSource = profile?.steamLibrarySourceId ?? profile?.steamId;
+    const relinking = Boolean(previousSource && previousSource !== library.steamId);
     const favorites = new Set(Array.isArray(profile?.featuredTrophyIds) ? profile.featuredTrophyIds : []);
     const targets = selectSteamAchievementTargets(steamMatches(initial, incoming).map(({ game, existing }) => ({
       steamAppId: game.steamAppId, recentMinutes: game.recentMinutes, status: existing?.status, pinnedOrder: existing?.pinnedOrder,
@@ -209,17 +211,27 @@ export async function syncSteamLibraryForSession(payload: SteamSyncPayload, sess
     const [metadata, achievements] = await Promise.all([loadLibraryMetadata(newGames), fetchSteamAchievementBatch(library.steamId, targets)]);
     const summary = await prisma.$transaction(async tx => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`backlogbuster-deck:${userId}`}, 0))`;
+      if (session.authSync) {
+        // Serialize against a newer callback/reclamation before checking the lease.
+        await tx.$queryRaw`SELECT "id" FROM "Player" WHERE "id" = ${userId} FOR UPDATE`;
+        await tx.$queryRaw`SELECT "userId" FROM "SteamAuthSync" WHERE "userId" = ${userId} FOR UPDATE`;
+      }
       const active = await tx.playerSession.findUnique({
         where: { tokenHash, userId, expiresAt: { gt: new Date() }, player: { ...registeredPlayerWhere,
           // A manual relink/logout during the fetch must invalidate this background job.
-          ...(automatic ? { steamId: automatic.steamId, steamAutoSyncAttemptedAt: automatic.attemptedAt } : {}),
+          ...(session.verifiedSteamId ? { steamVerifiedId: session.verifiedSteamId } : {}),
+          ...(automatic ? { ...(!session.verifiedSteamId ? { steamId: automatic.steamId, steamVerifiedId: null } : {}), steamAutoSyncAttemptedAt: automatic.attemptedAt } : {}),
         } },
         select: { tokenHash: true },
       });
       if (!active) throw new InputError("Your session expired. Sign in again before syncing Steam.");
-      const currentProfile = await tx.player.findUnique({ where: { id: userId }, select: { steamId: true } });
+      if (session.authSync && !await tx.steamAuthSync.findFirst({ where: {
+        userId, requestId: session.authSync.requestId, leaseId: session.authSync.leaseId, status: "running", leaseUntil: { gt: new Date() },
+      }, select: { userId: true } })) throw new InputError("A newer Steam sync replaced this request.");
+      const currentProfile = await tx.player.findUnique({ where: { id: userId }, select: { steamId: true, steamLibrarySourceId: true } });
       if (currentProfile?.steamId !== profile?.steamId && currentProfile?.steamId !== library.steamId) throw new InputError("Your Steam link changed during sync. Try again.");
-      if (currentProfile?.steamId && currentProfile.steamId !== library.steamId) await tx.game.updateMany({ where: { userId, steamAppId: { not: null } }, data: {
+      const currentSource = currentProfile?.steamLibrarySourceId ?? currentProfile?.steamId;
+      if (currentSource && currentSource !== library.steamId) await tx.game.updateMany({ where: { userId, steamAppId: { not: null } }, data: {
         steamRecentMinutes: null, steamLastSyncedAt: null, steamAchievementsUnlocked: null, steamAchievementsTotal: null,
         steamAchievementsCheckedAt: null, steamAchievementsSyncedAt: null,
       } });
@@ -280,11 +292,11 @@ export async function syncSteamLibraryForSession(payload: SteamSyncPayload, sess
           WHERE telemetry."userId" = ${userId} AND telemetry."steamAppId" = change."steamAppId"
         `;
       }
-      await tx.player.update({ where: { id: userId }, data: { steamId: library.steamId, steamLastSyncedAt: new Date() }, select: { id: true } });
+      await tx.player.update({ where: { id: userId }, data: { ...(!session.verifiedSteamId ? { steamId: library.steamId } : {}), steamLibrarySourceId: library.steamId, steamLastSyncedAt: new Date() }, select: { id: true } });
       // Manual and automatic Steam work stay quiet, including newly earned unlocks.
       await syncAchievementsForPlayer(tx, userId, false);
       return { steamId: library.steamId, addedCount, updatedCount, skippedCount: library.games.length - addedCount - updatedCount };
     }, { timeout: 15000 });
     return { userId, summary };
-  });
+  }, session.authSync ? 0 : undefined);
 }

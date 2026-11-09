@@ -14,18 +14,23 @@ export async function autoSyncSteamLibrary(userId: string, tokenHash: string): P
       SET "steamAutoSyncAttemptedAt" = CURRENT_TIMESTAMP
       WHERE player."id" = ${userId}
         AND ((player."email" IS NOT NULL AND (player."passwordHash" IS NOT NULL OR player."googleId" IS NOT NULL)) OR player."steamVerifiedId" IS NOT NULL)
-        AND player."steamId" IS NOT NULL AND player."steamId" <> ''
+        AND COALESCE(player."steamVerifiedId", player."steamId") IS NOT NULL
+        AND COALESCE(player."steamVerifiedId", player."steamId") <> ''
+        AND NOT EXISTS (SELECT 1 FROM "SteamAuthSync" AS auth_sync WHERE auth_sync."userId" = player."id"
+          AND auth_sync."updatedAt" > CURRENT_TIMESTAMP - INTERVAL '24 hours')
         AND (player."steamLastSyncedAt" IS NULL OR player."steamLastSyncedAt" <= CURRENT_TIMESTAMP - INTERVAL '24 hours')
         AND (player."steamAutoSyncAttemptedAt" IS NULL OR player."steamAutoSyncAttemptedAt" <= CURRENT_TIMESTAMP - INTERVAL '24 hours')
         AND EXISTS (
           SELECT 1 FROM "PlayerSession" AS session
           WHERE session."tokenHash" = ${tokenHash} AND session."userId" = player."id" AND session."expiresAt" > CURRENT_TIMESTAMP
         )
-      RETURNING player."steamId", player."steamAutoSyncAttemptedAt" AS "attemptedAt"
+      RETURNING COALESCE(player."steamVerifiedId", player."steamId") AS "steamId", player."steamAutoSyncAttemptedAt" AS "attemptedAt",
+        (player."steamVerifiedId" IS NOT NULL) AS "verified"
     `;
     const claim = claims[0];
     if (!claim) return false;
-    await syncSteamLibraryForSession({ identifier: claim.steamId, includeUnplayed: false, updateHoursPlayed: true }, { userId, tokenHash }, claim);
+    await syncSteamLibraryForSession({ identifier: claim.steamId, includeUnplayed: false, updateHoursPlayed: true },
+      { userId, tokenHash, ...(claim.verified ? { verifiedSteamId: claim.steamId } : {}) }, claim);
     revalidatePath("/");
     return true;
   } catch {

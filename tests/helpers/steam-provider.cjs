@@ -6,6 +6,21 @@ if (fixturePath) {
   const originalFetch = global.fetch;
   global.fetch = async (input, options) => {
     const url = String(input instanceof Request ? input.url : input);
+    const target = new URL(url);
+    if (target.origin === 'https://api.steampowered.com' && process.env.BB_STEAM_QA_LIBRARIES === '1') {
+      const fixtures = JSON.parse(fs.readFileSync(fixturePath, 'utf8'));
+      if (target.pathname.includes('GetPlayerSummaries')) return Response.json({ response: { players: [] } });
+      if (target.pathname.includes('GetOwnedGames')) {
+        const steamId = JSON.parse(target.searchParams.get('input_json')).steamid;
+        const library = fixtures.__libraries?.[steamId];
+        if (!library) return Response.json({ response: {} });
+        if (library.delayMs) await new Promise(resolve => setTimeout(resolve, library.delayMs));
+        if (library.private) return Response.json({ response: {} });
+        return Response.json({ response: { game_count: library.games.length, games: library.games } });
+      }
+      if (target.pathname.includes('GetPlayerAchievements')) return Response.json({ playerstats: { success: true, steamID: target.searchParams.get('steamid'), achievements: [{ apiname: 'FIRST', achieved: 1 }, { apiname: 'SECOND', achieved: 0 }] } });
+      throw Error('Unexpected Steam fixture endpoint');
+    }
     if (url !== 'https://steamcommunity.com/openid/login') return originalFetch(input, options);
     const body = new URLSearchParams(await new Request(input, options).text());
     const fixtures = JSON.parse(fs.readFileSync(fixturePath, 'utf8'));

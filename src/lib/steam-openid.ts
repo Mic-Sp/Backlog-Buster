@@ -11,6 +11,7 @@ import { googleOAuthOrigin as publicAuthOrigin } from "@/lib/google-oauth-origin
 import { escapeLike } from "@/lib/handle-validation";
 import { parseSteamIdentifier } from "@/lib/steam";
 import { SteamOpenIDError, steamAuthStep } from "@/lib/steam-openid-diagnostics";
+import { reclaimEmptySteamShell } from "@/lib/steam-shell";
 
 export const steamCookieName = process.env.NODE_ENV === "production" ? "__Host-bb_steam_openid_v1" : "bb_steam_openid_v1";
 export const steamEndpoint = "https://steamcommunity.com/openid/login";
@@ -167,8 +168,8 @@ export async function resolveSteamPlayer(tx: Prisma.TransactionClient, steamId: 
     if (!active) throw new SteamOpenIDError("session", "link_session_expired");
     const current = await tx.player.findUnique({ where: { id: context.userId! }, select: { id: true, steamVerifiedId: true, steamId: true } });
     if (!current) throw new SteamOpenIDError("session", "link_player_missing");
-    if (linked && linked.id !== current.id) throw new SteamOpenIDError("conflict", "steam_identity_already_linked");
     if (current.steamVerifiedId && current.steamVerifiedId !== steamId) throw new SteamOpenIDError("conflict", "player_has_other_steam_identity");
+    if (linked && linked.id !== current.id) await reclaimEmptySteamShell(tx, linked.id, steamId);
     await tx.player.update({ where: { id: current.id }, data: { steamVerifiedId: steamId, steamVerifiedAt: new Date(),
       ...(!current.steamId ? { steamId } : {}) } });
     return current.id;

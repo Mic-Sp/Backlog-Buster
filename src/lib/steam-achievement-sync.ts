@@ -56,10 +56,10 @@ export async function refreshSteamGameAchievements(gameId: number) {
     const [game, session] = await Promise.all([
       prisma.game.findUnique({ where: { id: gameId, userId }, select: { steamAppId: true, steamAchievementsTotal: true, steamAchievementsSyncedAt: true } }),
       prisma.playerSession.findUnique({ where: { tokenHash, userId, expiresAt: { gt: requestedAt },
-        player: { ...registeredPlayerWhere } }, select: { player: { select: { steamId: true } } } }),
+        player: { ...registeredPlayerWhere } }, select: { player: { select: { steamId: true, steamVerifiedId: true, steamLibrarySourceId: true } } } }),
     ]);
     if (!session) throw new InputError("Your session expired. Sign in before refreshing Steam progress.");
-    const steamId = session.player.steamId;
+    const steamId = session.player.steamLibrarySourceId ?? session.player.steamVerifiedId ?? session.player.steamId;
     if (!game || !validSteamAppId(game.steamAppId) || !steamId) throw new InputError("Link a Steam profile in the Data Vault and sync this game first.");
     const syncedAt = game.steamAchievementsSyncedAt?.getTime();
     if (game.steamAchievementsTotal !== null && syncedAt !== undefined && syncedAt <= requestedAt.getTime() && syncedAt > requestedAt.getTime() - 60000) {
@@ -76,7 +76,8 @@ export async function refreshSteamGameAchievements(gameId: number) {
     // Recheck the session/link and prevent an older request overwriting a newer success.
     const saved = await prisma.game.updateMany({ where: { id: gameId, userId, steamAppId: appId,
       OR: [{ steamAchievementsTotal: null }, { steamAchievementsSyncedAt: null }, { steamAchievementsSyncedAt: { lte: requestedAt } }, { steamAchievementsSyncedAt: { gt: new Date(requestedAt.getTime() + 300000) } }],
-      player: { steamId, ...registeredPlayerWhere, sessions: { some: { tokenHash, expiresAt: { gt: new Date() } } } },
+      player: { ...(session.player.steamLibrarySourceId ? { steamLibrarySourceId: steamId } : session.player.steamVerifiedId ? { steamVerifiedId: steamId } : { steamId }),
+        ...registeredPlayerWhere, sessions: { some: { tokenHash, expiresAt: { gt: new Date() } } } },
     }, data: { steamAchievementsUnlocked: counts.unlocked, steamAchievementsTotal: counts.total,
       steamAchievementsCheckedAt: requestedAt, steamAchievementsSyncedAt: requestedAt } });
     if (!saved.count) throw new InputError("Your session or Steam link changed, or newer progress was saved. Reload before trying again.");
