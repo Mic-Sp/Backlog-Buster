@@ -1,6 +1,7 @@
 "use client";
 
 import SteamProgress from "@/components/SteamProgress";
+import LayoutText from "@/components/LayoutText";
 
 import { OwnershipBadge, OwnershipField, OwnershipFilterControl } from "@/components/Ownership";
 import { PlayJournalBadges, PlayJournalEditor } from "@/components/PlayJournal";
@@ -231,7 +232,7 @@ export default function CyberpunkLibraryView({ controller }: { controller: GameL
       <div className="collection-heading">
         <div>
           <p className="eyebrow">02 / YOUR LIBRARY</p>
-          <h2 id="collection-title">System Playqueue</h2>
+          <h2 id="collection-title"><LayoutText cyberpunk="System Playqueue" fantasy="Your Quest Journal" term="libraryTitle" /></h2>
         </div>
         <div className="collection-heading-actions">
           <p className="game-count" role="status">
@@ -251,7 +252,7 @@ export default function CyberpunkLibraryView({ controller }: { controller: GameL
       <SagaChains chains={chains} selectedKey={selectedSaga?.key ?? ""} onSelect={selectSaga} {...sagaOrderControls} />
 
       {(activeView === "All" || activeView === "Backlog") && <UpNextDeckView controller={deck} />}
-      <WorkspaceSection sectionKey="inventory" className="library-inventory-panel" headingLevel={3} label="library inventory" title="Library inventory" revealKey={controller.libraryRevealKey}
+      <WorkspaceSection sectionKey="inventory" className="library-inventory-panel" headingLevel={3} label="library inventory" title={<LayoutText cyberpunk="Library inventory" fantasy="The Adventurer’s Inventory" term="inventoryTitle" />} revealKey={controller.libraryRevealKey}
         summary={<><span className="workspace-section-count">{visibleGames.length} / {games.length} games</span><span className="workspace-section-filter">{activeView}{controller.selectedCustomList && ` · ${controller.selectedCustomList.title}`}</span></>}>
       <WorkspaceSection sectionKey="library-filters" className="library-filter-panel" headingLevel={4} label="library filters" title="Library filters"
         summary={<span className="workspace-section-count">{activeView} · {visibleGames.length} matches</span>}>

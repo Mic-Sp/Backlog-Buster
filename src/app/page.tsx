@@ -74,7 +74,7 @@ async function PlayerSummary({ player }: { player: CurrentPlayer }) {
     .map((game) => ({ id: game.id, title: game.title, platform: game.platform, coverUrl: game.coverUrl ? resizeRawgImageUrl(game.coverUrl) : null, earnedXp: game.earnedXp, steamAchievementsUnlocked: game.steamAchievementsUnlocked, steamAchievementsTotal: game.steamAchievementsTotal, playthroughCount: game.playthroughCount, review: game.review, reviewSpoiler: game.reviewSpoiler }));
 
   return (
-    <WorkspaceSection sectionKey="player-stats" className="player-stats-shell" headingLevel={2} label="player stats" title={<LayoutText cyberpunk="Operator stats" fantasy="The Hero’s Record" />}
+    <WorkspaceSection sectionKey="player-stats" className="player-stats-shell" headingLevel={2} label="player stats" title={<LayoutText cyberpunk="Operator stats" fantasy="The Hero’s Record" term="statsTitle" />}
       summary={<span className="workspace-section-count">LV {progress.level} · {games.length} games</span>}>
     <section className="player-summary" aria-label="Player stats">
       <FantasyCorners />

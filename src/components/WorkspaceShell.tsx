@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, type ReactNode } from "react";
 import { FantasyCorners, HeroCrest } from "@/components/FantasyAccents";
 import { useUIEffects } from "@/components/ThemeProvider";
+import LayoutText from "@/components/LayoutText";
 
 export type SubscreenPane = "quest" | "items" | "chronicle" | "all";
 const pages: { key: SubscreenPane; label: string }[] = [
@@ -16,7 +17,7 @@ export function useSubscreen() { return useContext(SubscreenContext); }
 
 /** Server-rendered workspace slots stay at stable React positions in either layout. */
 export default function WorkspaceShell({ children }: { children: ReactNode }) {
-  const { layoutMode, playSfx } = useUIEffects();
+  const { layoutMode, playSfx, customTheme } = useUIEffects();
   const [pane, setPane] = useState<SubscreenPane>("all");
   function showPane(next: SubscreenPane) {
     if (next !== pane && layoutMode === "fantasy") playSfx("page");
@@ -28,9 +29,10 @@ export default function WorkspaceShell({ children }: { children: ReactNode }) {
   return <SubscreenContext.Provider value={{ pane, showPane }}>
     <main className="page-shell workspace-shell" data-fantasy-pane={pane}>
       <FantasyCorners />
+      {layoutMode === "cyberpunk" && customTheme?.terminology.workspaceTitle?.trim() && <h1 className="custom-workspace-heading">{customTheme.terminology.workspaceTitle}</h1>}
       <header className="fantasy-workspace-banner">
         <div className="fantasy-crest" aria-hidden="true"><HeroCrest /></div>
-        <div><p className="fantasy-kicker">A MOMENT BETWEEN ADVENTURES</p><h1>The Questkeeper’s Subscreen</h1><p>Your stories. Your pace. Your next adventure.</p></div>
+        <div><p className="fantasy-kicker">A MOMENT BETWEEN ADVENTURES</p><h1><LayoutText cyberpunk="Backlog Buster" fantasy="The Questkeeper’s Subscreen" term="workspaceTitle" /></h1><p>Your stories. Your pace. Your next adventure.</p></div>
         <span className="fantasy-pause-seal">PAUSE<br /><small>QUEST JOURNAL</small></span>
         <nav className="fantasy-page-navigation" aria-label="Pause subscreen pages">
           <button type="button" data-ui-sound="custom" aria-label="Previous subscreen page" onClick={() => turnPage(-1)}><kbd>L</kbd> ◀</button>

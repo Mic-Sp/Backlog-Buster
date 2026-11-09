@@ -1,0 +1,55 @@
+/* Paint overrides exist only while a custom palette is active. Built-in rules
+   remain the owners of layout, semantics, media queries and interaction states. */
+:root[data-custom-theme] body { position: relative; isolation: isolate; min-height: 100vh; color: var(--custom-text); background: var(--custom-background) !important; }
+:root[data-custom-theme] body::before { content: none !important; }
+:root[data-custom-theme][data-custom-parchment="true"] body::before {
+  content: "" !important; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background: url("/fantasy-background.png") center / cover no-repeat; opacity: .22;
+}
+:root[data-custom-theme][data-custom-scanlines="true"] body::after {
+  content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 40;
+  background: repeating-linear-gradient(transparent 0 3px, #00000018 3px 4px); opacity: .65;
+}
+.custom-workspace-heading { margin: 0 0 18px; }
+:root[data-custom-theme] :is(.workspace-shell, .player-summary, .add-section, .library-card, .spotlight-card, .trophy-card, .deck-card, .deck-empty-slot,
+  .saga-chain-card, .telemetry-drawer, .telemetry-stat, .telemetry-distribution, .telemetry-breakdown, .library-inventory-panel,
+  .auth-panel, [role="dialog"], .public-dossier-frame, .quest-modal, .advisor-modal, .achievement-toast, .advisor-card,
+  .game-row:not(.game-row-head), .fantasy-panel, .fantasy-inspection-panel, .fantasy-inventory, .fantasy-equipment-grid > li, .custom-lists-panel, .custom-list-items li,
+  .security-account-summary > div, .security-google, .security-steam, .security-verification, .metadata-community-stats, .steam-library-sync,
+  .player-stats-shell > .workspace-section-header, .workspace-section-count, .fantasy-page-navigation, .fantasy-workspace-banner):not([data-theme-studio]) {
+  color: var(--custom-text) !important; background: var(--custom-surface) !important; border-color: var(--custom-border) !important;
+  border-radius: var(--custom-radius) !important; outline-color: var(--custom-border) !important;
+  box-shadow: 0 0 18px color-mix(in srgb, var(--custom-border) 12%, transparent) !important;
+}
+:root[data-custom-theme] :is(h1, h2, h3, h4, label, legend, dd, strong, .workspace-section-toggle, .account-operator, .fantasy-status-tabs button, .section-heading-title, .cyberpunk-label, .fantasy-label,
+  .game-title, .game-row-title, .summary-level-value, .summary-total-xp, .summary-label + strong):not([data-theme-studio] *) {
+  color: var(--custom-text) !important; text-shadow: none !important;
+}
+:root[data-custom-theme] :is(p, small, dt, .summary-label, .eyebrow, .fantasy-kicker, .auth-hint, .auth-intro, .security-hint,
+  .steam-connection-hint, .fantasy-hint, .workspace-section-eyebrow, .game-row-head):not([data-theme-studio] *) { color: var(--custom-muted) !important; }
+:root[data-custom-theme] :is(button, select, textarea, input:not([type="checkbox"]):not([type="radio"]), .google-oauth-button, .steam-auth-button):not([data-theme-studio] *) {
+  color: var(--custom-text) !important; background: var(--custom-surface) !important; border-color: var(--custom-border) !important;
+  border-radius: var(--custom-radius) !important; text-shadow: none !important;
+}
+:root[data-custom-theme] :is(a, .workspace-section-caret, .summary-level-value strong, .security-google-status, .steam-verification-status, .account-operator span):not([data-theme-studio] *) { color: var(--custom-accent) !important; }
+:root[data-custom-theme] .custom-lists-panel { --shelf-accent: var(--custom-accent); --shelf-muted: var(--custom-muted); }
+:root[data-custom-theme] .summary-count-items p {
+  background: var(--custom-surface) !important; border-color: var(--custom-border) !important; border-radius: var(--custom-radius);
+}
+:root[data-custom-theme] .summary-count-items span { color: var(--custom-muted) !important; }
+:root[data-custom-theme] .summary-progress-track { background: var(--custom-background) !important; border-color: var(--custom-border) !important; }
+:root[data-custom-theme] .summary-progress-track span { background: var(--custom-accent) !important; }
+:root[data-custom-theme] :is(button:hover:not(:disabled), button[aria-pressed="true"], .auth-submit, .security-save-button):not([data-theme-studio] *) {
+  border-color: var(--custom-accent) !important; background: color-mix(in srgb, var(--custom-accent) 14%, var(--custom-surface)) !important;
+  color: var(--custom-accent) !important;
+}
+:root[data-custom-theme] :is(button, input, a, select, textarea, summary):focus-visible:not([data-theme-studio] *) { outline-color: var(--custom-accent) !important; }
+:root[data-custom-theme] :is(input[type="checkbox"], input[type="range"]):not([data-theme-studio] *) { accent-color: var(--custom-accent); }
+:root[data-custom-theme] :is(input, textarea):not([data-theme-studio] *)::placeholder { color: var(--custom-muted) !important; opacity: .8; }
+:root[data-custom-theme] :is(.summary-progress-fill, .telemetry-hours-fill, .telemetry-completion-fill) { background: var(--custom-accent) !important; }
+:root[data-custom-theme][data-custom-haunted="true"] .halloween-decorations { display: block; }
+:root[data-custom-theme][data-custom-haunted="true"] .haunt-bat { animation: haunt-swoop 16s ease-in-out infinite alternate, haunt-bob 2.8s ease-in-out infinite; }
+:root[data-custom-theme][data-custom-haunted="true"] .haunt-ghost { animation: haunt-drift 18s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  :root[data-custom-theme] :is(.haunt-bat, .haunt-ghost, .haunt-wing) { animation: none !important; }
+}

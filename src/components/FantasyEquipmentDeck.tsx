@@ -1,6 +1,7 @@
 "use client";
 
 import WorkspaceSection from "@/components/WorkspaceSection";
+import LayoutText from "@/components/LayoutText";
 import { CButtonBadge } from "@/components/FantasyAccents";
 import DeckPinButton from "@/components/DeckPinButton";
 import SafeForm from "@/components/SafeForm";
@@ -10,7 +11,7 @@ import { isUnreleasedYear } from "@/lib/game-release";
 
 export default function FantasyEquipmentDeck({ deck }: { deck: UpNextDeckController }) {
   const { sectionRef } = deck;
-  return <WorkspaceSection sectionKey="deck" className="fantasy-equipment" sectionRef={sectionRef} headingId="fantasy-equipment-title" label="C-Buttons" title="Prepping For The Next Quest"
+  return <WorkspaceSection sectionKey="deck" className="fantasy-equipment" sectionRef={sectionRef} headingId="fantasy-equipment-title" label="C-Buttons" title={<LayoutText cyberpunk="On Deck // Up Next" fantasy="Prepping For The Next Quest" term="deckTitle" />}
     eyebrow="READY FOR THE JOURNEY" summary={<span className="workspace-section-count">{deck.pinned.length} / {DECK_CAPACITY} equipped</span>}>
     <p className="fantasy-hint">Equip a released Backlog quest. Drag to a C-Button, or use its pin.</p>
     <ol className="fantasy-equipment-grid">

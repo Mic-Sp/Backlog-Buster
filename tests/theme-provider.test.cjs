@@ -61,7 +61,10 @@ function tab(bus, name, player = null) {
       });
     },
   };
+  const custom = { activeTheme: null, activeRef: { current: null }, ready: false, studioOpen: false, select() {} };
   const mocks = {
+    "@/lib/custom-theme-runtime": { applyCustomTheme() {} },
+    "@/components/useCustomThemes": { default: () => custom }, "@/components/CustomThemeStudio": { default: () => null },
     react, "@/lib/appearance": appearance, "@/lib/ui-audio": { createUIAudio: () => audio },
     "@/components/HalloweenDecorations": {}, "@/components/FloatingFairies": {},
     "@/lib/action-result": { unwrapActionResult: value => value, actionErrorMessage: () => "Save failed" },

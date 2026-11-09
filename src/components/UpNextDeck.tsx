@@ -1,4 +1,5 @@
 "use client";
+import LayoutText from "@/components/LayoutText";
 
 import { unwrapActionResult } from "@/lib/action-result";
 
@@ -148,7 +149,7 @@ export function UpNextDeckView({ controller }: { controller: UpNextDeckControlle
     dropIntoSlot,
   } = controller;
   return (
-    <WorkspaceSection sectionKey="deck" className="up-next-deck" sectionRef={sectionRef} headingId="deck-title" label="on deck" title="On Deck // Up Next"
+    <WorkspaceSection sectionKey="deck" className="up-next-deck" sectionRef={sectionRef} headingId="deck-title" label="on deck" title={<LayoutText cyberpunk="On Deck // Up Next" fantasy="Prepping For The Next Quest" term="deckTitle" />}
       summary={<span className="workspace-section-count">{pinned.length} / {DECK_CAPACITY} slots</span>}>
       <ol className="deck-grid">
         {Array.from({ length: DECK_CAPACITY }, (_, index) => {

@@ -9,11 +9,16 @@ import { savePreferredLayoutMode } from "@/app/profile-actions";
 import { actionErrorMessage, unwrapActionResult } from "@/lib/action-result";
 
 import { applyAppearance, readAppearance, type LayoutMode, type CyberpunkTheme } from "@/lib/appearance";
+import { applyCustomTheme } from "@/lib/custom-theme-runtime";
+import useCustomThemes, { type CustomThemesController } from "@/components/useCustomThemes";
+import CustomThemeStudio from "@/components/CustomThemeStudio";
+import type { CustomTheme } from "@/lib/custom-theme";
 
 const storageKey = "backlogbuster:theme";
 const soundStorageKey = "backlogbuster:ui-muted";
 const legacySoundStorageKey = "backlogbuster:halloween-muted";
-type ThemeEffects = { layoutMode: LayoutMode; cyberpunkTheme: CyberpunkTheme; toggleLayout: () => void; layoutSaveError: string; halloween: boolean; muted: boolean; toggle: () => void; toggleMuted: () => void; playSfx: (sound: UISound) => void };
+type ThemeEffects = { layoutMode: LayoutMode; cyberpunkTheme: CyberpunkTheme; toggleLayout: () => void; layoutSaveError: string; halloween: boolean; muted: boolean; toggle: () => void; toggleMuted: () => void; playSfx: (sound: UISound) => void;
+  customTheme?: CustomTheme | null; customThemes?: CustomThemesController; selectBuiltIn?: (layout: LayoutMode, variant?: CyberpunkTheme) => void };
 const ThemeContext = createContext<ThemeEffects>({ layoutMode: "cyberpunk", cyberpunkTheme: "default", toggleLayout: () => {}, layoutSaveError: "", halloween: false, muted: false, toggle: () => {}, toggleMuted: () => {}, playSfx: () => {} });
 
 export function useUIEffects() { return useContext(ThemeContext); }
@@ -48,6 +53,9 @@ export default function ThemeProvider({ children, player: initialPlayer = null }
   const [muted, setMuted] = useState(false);
   const mutedRef = useRef(false);
   const [audio] = useState(createUIAudio);
+  const customThemes = useCustomThemes();
+  const { activeTheme: customTheme, activeRef: customRef, ready: customReady } = customThemes;
+  const effectiveLayout = customTheme?.baseLayout ?? layoutMode;
 
   useEffect(() => {
     playerIdRef.current = playerId;
@@ -64,7 +72,7 @@ export default function ThemeProvider({ children, player: initialPlayer = null }
       try {
         soundMuted = (localStorage.getItem(soundStorageKey) ?? localStorage.getItem(legacySoundStorageKey)) === "true";
       } catch { /* Keep the in-memory preference if storage is blocked. */ }
-      applyAppearance(document.documentElement.dataset, appearance);
+      applyAppearance(document.documentElement.dataset, customRef.current ? { layoutMode: customRef.current.baseLayout, cyberpunkTheme: "default" } : appearance);
       setLayoutMode(appearance.layoutMode);
       layoutModeRef.current = appearance.layoutMode;
       // Receiving another tab's preference must never publish a competing value.
@@ -75,7 +83,7 @@ export default function ThemeProvider({ children, player: initialPlayer = null }
       setHalloween(enabled);
       setMuted(soundMuted);
       mutedRef.current = soundMuted;
-      audio.setTheme(appearance.layoutMode === "fantasy" ? "fantasy" : enabled ? "halloween" : "cyberpunk");
+      audio.setTheme((customRef.current?.baseLayout ?? appearance.layoutMode) === "fantasy" ? "fantasy" : !customRef.current && enabled ? "halloween" : "cyberpunk");
       audio.setEnabled(!soundMuted);
     }
     // The startup script already restores the palette before paint. Synchronize
@@ -83,7 +91,14 @@ export default function ThemeProvider({ children, player: initialPlayer = null }
     const frame = requestAnimationFrame(() => { setLayoutSaveError(""); restore(); });
     window.addEventListener("storage", restore);
     return () => { cancelAnimationFrame(frame); window.removeEventListener("storage", restore); audio.setEnabled(false); };
-  }, [audio, playerId, preferredLayoutMode]);
+  }, [audio, playerId, preferredLayoutMode, customRef]);
+
+  useEffect(() => {
+    if (!customReady) return;
+    applyAppearance(document.documentElement.dataset, { layoutMode: customTheme?.baseLayout ?? layoutMode, cyberpunkTheme: customTheme ? "default" : halloween ? "halloween" : "default" });
+    applyCustomTheme(document.documentElement, customTheme);
+    audio.setTheme((customTheme?.baseLayout ?? layoutMode) === "fantasy" ? "fantasy" : !customTheme && halloween ? "halloween" : "cyberpunk");
+  }, [customReady, customTheme, layoutMode, halloween, audio]);
 
   useEffect(() => {
     const onGameAdded = () => audio.play("confirm");
@@ -102,21 +117,23 @@ export default function ThemeProvider({ children, player: initialPlayer = null }
   }, [audio]);
 
   function toggle() {
-    const enabled = !halloween;
-    setHalloween(enabled);
-    applyAppearance(document.documentElement.dataset, { layoutMode, cyberpunkTheme: enabled ? "halloween" : "default" });
-    audio.setTheme(layoutMode === "fantasy" ? "fantasy" : enabled ? "halloween" : "cyberpunk");
+    const enabled = customRef.current ? true : !halloween;
+    selectBuiltIn("cyberpunk", enabled ? "halloween" : "default");
     audio.setEnabled(!muted);
     audio.play("welcome");
-    try { localStorage.setItem(storageKey, enabled ? "halloween" : "cyberpunk"); } catch { /* Theme switching still works without persistence. */ }
   }
 
   function toggleLayout() {
-    const next = layoutModeRef.current === "cyberpunk" ? "fantasy" : "cyberpunk";
+    const next = (customRef.current?.baseLayout ?? layoutModeRef.current) === "cyberpunk" ? "fantasy" : "cyberpunk";
+    customThemes.select(null);
+    changeLayout(next);
+  }
+
+  function changeLayout(next: LayoutMode, variant: CyberpunkTheme = halloween ? "halloween" : "default") {
     layoutModeRef.current = next;
     setLayoutMode(next);
-    applyAppearance(document.documentElement.dataset, { layoutMode: next, cyberpunkTheme: halloween ? "halloween" : "default" });
-    audio.setTheme(next === "fantasy" ? "fantasy" : halloween ? "halloween" : "cyberpunk");
+    applyAppearance(document.documentElement.dataset, { layoutMode: next, cyberpunkTheme: variant });
+    audio.setTheme(next === "fantasy" ? "fantasy" : variant === "halloween" ? "halloween" : "cyberpunk");
     audio.setEnabled(!muted);
     audio.play("page");
     try { localStorage.setItem("backlogbuster:layout-mode", next); } catch { /* In-memory switching still works. */ }
@@ -136,6 +153,14 @@ export default function ThemeProvider({ children, player: initialPlayer = null }
     }
   }
 
+  function selectBuiltIn(next: LayoutMode, variant: CyberpunkTheme = halloween ? "halloween" : "default") {
+    customThemes.select(null);
+    setHalloween(variant === "halloween");
+    try { localStorage.setItem(storageKey, variant === "halloween" ? "halloween" : "cyberpunk"); } catch { /* Keep in-memory selection. */ }
+    if (layoutModeRef.current !== next) changeLayout(next, variant);
+    else applyAppearance(document.documentElement.dataset, { layoutMode: next, cyberpunkTheme: variant });
+  }
+
   function toggleMuted() {
     const next = !muted;
     mutedRef.current = next;
@@ -145,19 +170,34 @@ export default function ThemeProvider({ children, player: initialPlayer = null }
     if (!next) audio.play("confirm");
   }
 
-  return <ThemePlayerContext.Provider value={setWorkspacePlayer}><ThemeContext.Provider value={{ layoutMode, cyberpunkTheme: halloween ? "halloween" : "default", toggleLayout, layoutSaveError, halloween, muted, toggle, toggleMuted, playSfx: audio.play }}>
+  return <ThemePlayerContext.Provider value={setWorkspacePlayer}><ThemeContext.Provider value={{ layoutMode: effectiveLayout, cyberpunkTheme: customTheme ? "default" : halloween ? "halloween" : "default", toggleLayout, layoutSaveError, halloween: !customTheme && halloween, muted, toggle, toggleMuted, playSfx: audio.play,
+    customTheme, customThemes, selectBuiltIn }}>
     {children}
-    {layoutMode === "cyberpunk" && halloween && <HalloweenDecorations />}
-    {layoutMode === "fantasy" && <FloatingFairies />}
+    {(customTheme ? customTheme.effects.haunted : layoutMode === "cyberpunk" && halloween) && <HalloweenDecorations />}
+    {(customTheme ? customTheme.effects.particles : layoutMode === "fantasy") && <FloatingFairies />}
+    {customThemes.studioOpen && <CustomThemeStudio controller={customThemes} baseLayout={layoutMode} haunted={halloween} />}
   </ThemeContext.Provider></ThemePlayerContext.Provider>;
 }
 
 export function ThemeToggle() {
-  const { layoutMode, toggleLayout, layoutSaveError, halloween, muted, toggle, toggleMuted } = useContext(ThemeContext);
+  const { layoutMode, toggleLayout, layoutSaveError, halloween, muted, toggle, toggleMuted, customTheme, customThemes, selectBuiltIn } = useContext(ThemeContext);
   const layoutActionLabel = layoutMode === "fantasy" ? "Switch to Cyberpunk Deck" : "Switch to Fantasy Subscreen";
   return <span className="theme-controls" data-active={halloween}><button className="layout-mode-toggle" data-ui-sound="custom" type="button" onClick={toggleLayout} title={layoutActionLabel}>{layoutActionLabel}</button>{layoutMode === "cyberpunk" && <button className="theme-toggle" data-ui-sound="custom" type="button" aria-label="Halloween theme" aria-pressed={halloween} onClick={toggle} title={halloween ? "Return to Cyberpunk theme" : "Enter Haunted Net / Blackwall Glitch theme"}>
     <span aria-hidden="true">{halloween ? "◈" : "◇"}</span> HAUNTED NET: {halloween ? "ON" : "OFF"}
   </button>}<button className="ui-sfx-toggle" data-ui-sound="custom" type="button" onClick={toggleMuted} aria-label={muted ? "Unmute UI sound effects" : "Mute UI sound effects"} aria-pressed={!muted} title={muted ? "Unmute UI sound effects" : "Mute UI sound effects"}>
     <span aria-hidden="true">{muted ? "♪̸" : "♫"}</span>
-  </button>{layoutSaveError && <span className="theme-save-error" role="alert">{layoutSaveError}</span>}</span>;
+  </button>{customThemes && <>
+    <select className="theme-selector" aria-label="UI theme" value={customTheme?.id ?? (layoutMode === "fantasy" ? "fantasy" : halloween ? "halloween" : "cyberpunk")} onChange={event => {
+      const value = event.target.value;
+      if (value.startsWith("custom-")) customThemes.select(value);
+      else if (value === "fantasy") selectBuiltIn?.("fantasy");
+      else selectBuiltIn?.("cyberpunk", value === "halloween" ? "halloween" : "default");
+    }}>
+      <optgroup label="Built-in themes"><option value="cyberpunk">Cyberpunk</option><option value="halloween">Haunted Net / Blackwall Glitch</option><option value="fantasy">Fantasy</option></optgroup>
+      {customThemes.themes.length > 0 && <optgroup label="Custom themes">{customThemes.themes.map(theme => <option key={theme.id} value={theme.id}>{theme.name}</option>)}</optgroup>}
+      {customTheme && !customThemes.themes.some(theme => theme.id === customTheme.id) && <option value={customTheme.id}>{customTheme.name} (preview)</option>}
+    </select>
+    <button className="theme-studio-trigger" type="button" aria-haspopup="dialog" onClick={customThemes.openStudio}>Custom Theme Studio</button>
+    {customThemes.storageError && <span className="theme-save-error" role="alert">{customThemes.storageError}</span>}
+  </>}{layoutSaveError && <span className="theme-save-error" role="alert">{layoutSaveError}</span>}</span>;
 }

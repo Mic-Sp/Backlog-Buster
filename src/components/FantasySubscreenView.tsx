@@ -1,6 +1,7 @@
 "use client";
 
 import SteamProgress from "@/components/SteamProgress";
+import LayoutText from "@/components/LayoutText";
 
 import { ReplayBadge, ReplayCountEditor, ReplayLogForm } from "@/components/ReplayTracking";
 import { achievementPersona } from "@/lib/achievement-persona";
@@ -73,7 +74,7 @@ export default function FantasySubscreenView({ controller: c }: { controller: Ga
 
   return <>
     <header className="fantasy-library-heading">
-      <div><p className="fantasy-kicker">THE ROYAL ADVENTURER’S ARCHIVE</p><h2 id="collection-title">Your Quest Journal</h2><p>{c.games.length} stories gathered · {c.viewCounts.Completed} adventures completed</p></div>
+      <div><p className="fantasy-kicker">THE ROYAL ADVENTURER’S ARCHIVE</p><h2 id="collection-title"><LayoutText cyberpunk="System Playqueue" fantasy="Your Quest Journal" term="libraryTitle" /></h2><p>{c.games.length} stories gathered · {c.viewCounts.Completed} adventures completed</p></div>
       <div className="fantasy-tool-bar" aria-label="Royal archive tools">
         <button type="button" className="fantasy-fairy-button" ref={advisorTriggerRef} aria-haspopup="dialog" aria-expanded={advisor.isOpen} onClick={advisor.openAdvisor} disabled={advisor.isFetching || advisor.isScouting}><NaviFairy /> NAVI // SEEK GUIDANCE</button>
         <button type="button" ref={rouletteTriggerRef} aria-haspopup="dialog" aria-expanded={roulette.isOpen} onClick={roulette.open}><span aria-hidden="true">▣</span> ROLL RANDOM QUEST</button>
@@ -94,7 +95,7 @@ export default function FantasySubscreenView({ controller: c }: { controller: Ga
       <FantasyEquipmentDeck deck={c.deck} />
     </WorkspaceSection>
 
-    <WorkspaceSection sectionKey="inventory" className="fantasy-item-pane fantasy-panel" pane="items" headingId="fantasy-inventory-title" label="quest inventory" title="The Adventurer’s Inventory" eyebrow="ITEM SUBSCREEN" decorations={<FantasyCorners />} revealKey={c.libraryRevealKey}
+    <WorkspaceSection sectionKey="inventory" className="fantasy-item-pane fantasy-panel" pane="items" headingId="fantasy-inventory-title" label="quest inventory" title={<LayoutText cyberpunk="Inventory" fantasy="The Adventurer’s Inventory" term="inventoryTitle" />} eyebrow="ITEM SUBSCREEN" decorations={<FantasyCorners />} revealKey={c.libraryRevealKey}
       summary={<><span className="workspace-section-count">{c.visibleGames.length} / {c.games.length} quests</span>{c.selectedCustomList && <span className="workspace-section-filter">Active: {c.selectedCustomList.title}</span>}</>}>
       <CustomLists controller={c} />
       <WorkspaceSection sectionKey="library-filters" className="fantasy-filter-panel" headingLevel={4} label="library filters" title="Quest filters"

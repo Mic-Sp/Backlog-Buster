@@ -1,0 +1,56 @@
+.theme-controls { width: auto; max-width: 100%; display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.theme-controls .theme-selector { width: auto; max-width: min(230px, 100%); min-width: 0; min-height: 36px; margin: 0; padding: 8px; border: 1px solid #32616a; border-radius: 2px; background: #0d202a; color: #94f7ff; font: 11px/1.4 "Courier New", monospace; }
+.theme-controls .theme-studio-trigger { min-height: 36px; padding: 8px 12px; border: 1px solid #32616a; border-radius: 2px; background: #0d202a; color: #94f7ff; font: 700 10px/1.4 "Courier New", monospace; cursor: pointer; }
+.theme-controls button.theme-toggle { flex: 0 1 auto; }
+.theme-controls .theme-save-error { flex-basis: 100%; }
+:root[data-layout-mode="fantasy"] .theme-controls .theme-selector { border-color: #aa9256; color: #f4e6b9; background: #314c38; font-family: Georgia, serif; }
+.theme-studio-backdrop { position: fixed; inset: 0; z-index: 12000; display: flex; align-items: center; justify-content: center; padding: 20px; background: #050811c9; backdrop-filter: blur(5px); }
+/* Fixed editor colors keep controls readable even while an experimental palette
+   has low contrast. Custom overrides explicitly exclude this dialog. */
+[data-theme-studio].theme-studio { width: min(850px, 100%); max-height: calc(100dvh - 40px); overflow-y: auto; overscroll-behavior: contain; padding: 26px; border: 1px solid #59687d; border-radius: 16px; color: #e9eef8; background: #111925; box-shadow: 0 24px 100px #0009; font: 14px/1.5 Arial, sans-serif; color-scheme: dark; }
+[data-theme-studio].theme-studio .studio-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 22px; }
+[data-theme-studio].theme-studio .studio-header p { color: #adbeef; font-size: 10px; letter-spacing: .15em; margin: 0 0 8px; }
+[data-theme-studio].theme-studio h2 { color: #f2f5ff; font: 600 clamp(22px, 4vw, 30px)/1.2 Arial, sans-serif; letter-spacing: -.03em; margin: 0 0 8px; text-shadow: none; text-transform: none; }
+[data-theme-studio].theme-studio .studio-header span, [data-theme-studio].theme-studio .studio-help { color: #a7b4c7; font: 13px/1.6 Arial, sans-serif; }
+[data-theme-studio].theme-studio h3 { margin: 0 0 12px; color: #d9e2fa; font: 600 14px/1.4 Arial, sans-serif; text-shadow: none; letter-spacing: .02em; }
+[data-theme-studio].theme-studio section { border-top: 1px solid #303e52; padding-top: 20px; margin-top: 22px; }
+[data-theme-studio].theme-studio label { display: block; color: #c6d3e7; font: 13px/1.5 Arial, sans-serif; }
+[data-theme-studio].theme-studio :is(input:not([type="checkbox"]):not([type="range"]), select, textarea) { display: block; width: 100%; max-width: 100%; min-width: 0; margin: 6px 0 0; padding: 10px 12px; min-height: 42px; border: 1px solid #485974; border-radius: 6px; background: #0b111c; color: #eef3ff; font: 14px/1.5 Arial, sans-serif; box-shadow: none; }
+[data-theme-studio].theme-studio textarea { font: 12px/1.6 "Courier New", monospace; resize: vertical; }
+[data-theme-studio].theme-studio input::placeholder, [data-theme-studio].theme-studio textarea::placeholder { color: #889bb6; }
+[data-theme-studio].theme-studio input[aria-invalid="true"] { border-color: #ff8fac; }
+[data-theme-studio].theme-studio button { display: inline-flex; align-items: center; justify-content: center; min-height: 42px; padding: 10px 14px; border: 1px solid #51627d; border-radius: 6px; color: #dce6fa; background: #1d2b40; font: 600 12px/1.4 Arial, sans-serif; letter-spacing: 0; box-shadow: none; text-shadow: none; cursor: pointer; }
+[data-theme-studio].theme-studio button:hover:not(:disabled) { color: #fff; background: #304260; border-color: #a6b7e0; }
+[data-theme-studio].theme-studio button:disabled { opacity: .5; cursor: not-allowed; }
+[data-theme-studio].theme-studio :is(button, input, textarea, select):focus-visible { outline: 2px solid #b9c7ff; outline-offset: 3px; }
+.studio-toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+.studio-toolbar label { flex: 1 1 250px; }
+.studio-fields, .studio-color-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 18px; margin-top: 16px; }
+.studio-color > div { display: flex; gap: 8px; }
+.studio-palette-preview { padding: 16px; border: 1px solid; margin-top: 16px; }
+.studio-palette-preview > div { padding: 16px; border: 1px solid; }
+.studio-palette-preview :is(small, strong) { display: block; }
+.studio-palette-preview strong { font-size: 20px; margin-top: 5px; overflow-wrap: anywhere; }
+.studio-palette-preview small { font-size: 9px; letter-spacing: .12em; }
+.studio-palette-preview p { font-size: 12px; }
+.studio-palette-preview span { display: inline-block; padding: 6px 8px; border: 1px solid; font-size: 11px; }
+[data-theme-studio].theme-studio .studio-color input[type="color"] { flex: 0 0 48px; width: 48px; padding: 3px; cursor: pointer; }
+.studio-color input[type="text"] { font-family: "Courier New", monospace; }
+.studio-effects { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+[data-theme-studio].theme-studio .studio-effects label { display: flex; align-items: center; gap: 10px; }
+.studio-effects input { width: 17px; height: 17px; flex: 0 0 17px; accent-color: #acbfff; }
+[data-theme-studio].theme-studio .studio-radius { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin-top: 20px; }
+.studio-radius input { flex: 1 1 200px; accent-color: #acbfff; }
+.studio-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+[data-theme-studio].theme-studio .studio-footer { margin-top: 24px; padding-top: 16px; border-top: 1px solid #303e52; }
+.studio-footer > span { font-size: 11px; color: #9baccc; }
+[data-theme-studio].theme-studio button.studio-save { color: #0d1422; background: #c7d2ff; border-color: #c7d2ff; }
+[data-theme-studio].theme-studio button.studio-delete { color: #ffb6c8; border-color: #a15f73; }
+[data-theme-studio].theme-studio .studio-error { color: #ffb0c8; font: 13px/1.6 Arial, sans-serif; overflow-wrap: anywhere; }
+[data-theme-studio].theme-studio .studio-message { color: #9de5c2; font: 13px/1.6 Arial, sans-serif; }
+@media (max-width: 600px) {
+  .theme-studio-backdrop { padding: 10px; }
+  [data-theme-studio].theme-studio { max-height: calc(100dvh - 20px); padding: 18px; }
+  .studio-fields, .studio-color-grid, .studio-effects { grid-template-columns: 1fr; }
+  .theme-controls .theme-selector { max-width: 100%; }
+}

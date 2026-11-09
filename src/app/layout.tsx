@@ -3,7 +3,9 @@ import { VT323 } from "next/font/google";
 import "./globals.css";
 import "./halloween.css";
 import "./fantasy.css";
+import "./custom-theme.css";
 import { appearanceStartupScript } from "@/lib/appearance";
+import { customThemeStartupScript } from "@/lib/custom-theme-runtime";
 import ThemeProvider from "@/components/ThemeProvider";
 
 const terminalFont = VT323({
@@ -48,6 +50,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="en" className={terminalFont.variable} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: appearanceStartupScript }} />
+        <script dangerouslySetInnerHTML={{ __html: customThemeStartupScript }} />
       </head>
       <body><ThemeProvider>{children}</ThemeProvider></body>
     </html>
