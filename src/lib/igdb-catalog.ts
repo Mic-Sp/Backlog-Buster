@@ -24,6 +24,7 @@ export function parseIgdbCatalogGame(value: unknown): ProviderCatalogGame | null
   const imageId = record(value.cover) ? value.cover.image_id : null;
   return {
     title, releaseYear: date >= 1800 && date <= 2100 ? date : null,
+    releaseDate: date >= 1800 && date <= 2100 ? new Date((value.first_release_date as number) * 1000).toISOString().slice(0, 10) : null,
     platforms: names(value.platforms), genre: genres[0] ?? null, genres: normalizeFeatureList(genres),
     coverUrl: typeof imageId === "string" && /^[a-zA-Z0-9_-]{1,128}$/.test(imageId)
       ? `https://images.igdb.com/igdb/image/upload/t_cover_big/${imageId}.jpg` : null,

@@ -1,0 +1,44 @@
+.scout-subnav { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 20px; }
+.advisor-modal .scout-subnav button { min-height: 44px; border-radius: 24px; white-space: normal; }
+.advisor-modal .scout-subnav button[aria-selected="true"] { color: #06090f; background: #00f0ff; border-color: #00f0ff; }
+.discovery-feed-header { margin-bottom: 16px; }
+.discovery-freshness { color: #a4b5ca; font-size: 11px; line-height: 1.7; }
+.discovery-card { display: flex; flex-direction: column; }
+.discovery-card .advisor-card-body { display: flex; flex-direction: column; flex: 1; }
+.discovery-card .advisor-card-actions { margin-top: auto; padding-top: 16px; }
+.discovery-card .advisor-card-actions > button.advisor-acquire-button { grid-column: 1 / -1; min-height: 44px; }
+.discovery-card .advisor-card-actions > a { grid-column: 1 / -1; }
+.discovery-card-signal { color: #05ffa1; font: 10px "Courier New", monospace; letter-spacing: .08em; margin: 0 0 8px; }
+.discovery-release-date { color: #a4b5ca; font-size: 12px; line-height: 1.6; }
+.discovery-action-status { margin-bottom: 16px; overflow-wrap: anywhere; }
+.discovery-action-status:empty { display: none; }
+:root[data-layout-mode="fantasy"] .advisor-modal .scout-subnav button[aria-selected="true"] { color: #fff0ba; background: #345b43; border-color: #a89144; box-shadow: inset 0 0 0 1px #ebd190; }
+
+.discovery-interest-controls { display: flex; align-items: end; flex-wrap: wrap; gap: 12px 20px; margin: 0 0 20px; padding: 14px; border: 1px solid #32616a; border-radius: 8px; background: #08171c; }
+.discovery-interest-controls > div { flex: 1 1 250px; min-width: 0; }
+.discovery-interest-heading { margin: 0 0 6px; font-size: 12px; font-weight: 700; color: #00f0ff; }
+.discovery-interest-hint { margin: 0; color: #a4b5ca; font-size: 11px; line-height: 1.6; }
+.discovery-interest-controls label { display: flex; flex-direction: column; gap: 6px; min-width: 0; max-width: 100%; font-size: 12px; color: #a4b5ca; }
+.discovery-interest-controls select { min-height: 44px; width: 100%; max-width: 100%; padding: 8px; color: #e8edf7; background: #111827; border: 1px solid #32616a; border-radius: 4px; }
+.discovery-interest-controls .discovery-interest-toggle { flex-direction: row; align-items: center; min-height: 44px; gap: 8px; cursor: pointer; }
+.discovery-interest-toggle input { width: 18px; height: 18px; accent-color: #00f0ff; flex-shrink: 0; }
+.discovery-affinity-badges { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
+.discovery-affinity-badges:empty { display: none; }
+.discovery-affinity-badge { display: inline-block; max-width: 100%; border: 1px solid #05ffa1; border-radius: 6px; padding: 6px 8px; color: #9bffdc; background: #103329; font-size: 12px; font-weight: 700; line-height: 1.5; overflow-wrap: anywhere; }
+.discovery-affinity-badge[data-affinity="saga"] { color: #fcee98; border-color: #8f8526; background: #2a2714; }
+.discovery-match-percent { margin: 0 0 10px; color: #a4b5ca; font-size: 12px; }
+.radar-unseen-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; min-height: 22px; margin-left: 8px; padding: 2px 6px; border: 1px solid #00c4cf; border-radius: 20px; background: #10333b; color: #9bfbef; font: 700 11px/1.5 sans-serif; vertical-align: middle; }
+.scout-subnav button[aria-selected="true"] .radar-unseen-badge { background: #12343a; color: #d8fffa; }
+:root[data-layout-mode="fantasy"] .discovery-interest-controls { color: #30251d; background: #e2d2a9; border-color: #ad945d; }
+:root[data-layout-mode="fantasy"] .discovery-interest-toggle input { accent-color: #365d3b; }
+:root[data-layout-mode="fantasy"] .discovery-affinity-badge { color: #234c35; background: #e0eccb; border-color: #53724c; }
+:root[data-layout-mode="fantasy"] .discovery-affinity-badge[data-affinity="saga"] { color: #68491f; background: #f2dfab; border-color: #987644; }
+:root[data-layout-mode="fantasy"] .radar-unseen-badge { color: #fff2c0; background: #365d3b; border-color: #c1ac6d; }
+:root[data-custom-theme] :is(.discovery-interest-controls, .discovery-affinity-badge, .radar-unseen-badge) {
+  color: var(--custom-accent) !important; background: color-mix(in srgb, var(--custom-accent) 12%, var(--custom-surface)) !important;
+  border-color: var(--custom-accent) !important; border-radius: var(--custom-radius);
+}
+@media (max-width: 600px) {
+  .discovery-interest-controls { align-items: stretch; }
+  .discovery-interest-controls > label { flex: 1 1 100%; }
+}

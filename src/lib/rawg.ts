@@ -106,6 +106,8 @@ export function parseRawgCatalogGame(value: unknown): ProviderCatalogGame | null
   const normalizedTitle = normalizeFeature(title);
   return {
     title, releaseYear: year >= 1800 && year <= 2100 ? year : null,
+    releaseDate: release && year >= 1800 && year <= 2100 && !Number.isNaN(Date.parse(value.released as string)) &&
+      new Date(value.released as string).toISOString().slice(0, 10) === value.released ? value.released as string : null,
     platforms: [...new Set(platforms)], genre: genreNames[0]?.slice(0, 80) ?? null,
     estimatedHours: typeof value.playtime === "number" && Number.isFinite(value.playtime) && value.playtime > 0
       ? Math.min(10000, Math.max(1, Math.round(value.playtime))) : null,

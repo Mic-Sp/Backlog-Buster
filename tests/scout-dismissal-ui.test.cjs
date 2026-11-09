@@ -22,6 +22,9 @@ function fixture({ persist = async () => ({ titleKey: "cafe adventure 2" }), sca
     "@/lib/action-result": results,
     "@/lib/game-title": { normalizeGameTitle }, "@/lib/trailers": {},
     "@/components/ScoutDebugger": {}, "@/components/DeckPinButton": {}, "@/components/AgentBriefing": {},
+    "@/components/DiscoveryFeed": {},
+    "@/components/RadarNotification": {},
+    "@/lib/discovery-events": { announceDiscoveryChange() {} },
     "@/app/actions": {
       dismissScoutRecommendation: title => { calls.push(title); return persist(title); },
       // Deliberately return excluded/stale cards to exercise client defense.
@@ -90,4 +93,18 @@ test("failed/guest saves remain hidden through rescans and modal reopens with ho
     assert(f.exclusions[1].some(title => normalizeGameTitle(title) === "cafe adventure 2"));
     assert(f.exclusions[1].length <= 30);
   }
+});
+
+test("reopening a discovery feed does not launch a paid Scout scan; selecting Search loads it on demand", async () => {
+  const f = fixture();
+  f.render().selectScoutTab("radar");
+  f.render().openAdvisor(); await f.flush();
+  assert.equal(f.exclusions.length, 0);
+  f.render().selectScoutTab("popular"); await f.flush();
+  assert.equal(f.exclusions.length, 0);
+  f.render().selectScoutTab("search"); await f.flush();
+  assert.equal(f.exclusions.length, 1);
+  f.render().selectScoutTab("radar");
+  f.render().close(); f.render().openAdvisor(); await f.flush();
+  assert.equal(f.exclusions.length, 1);
 });

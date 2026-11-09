@@ -12,7 +12,9 @@ const raw = value => pack(Buffer.from(JSON.stringify(value)));
 
 test('share links round-trip UTF-8 names, terminology, all tokens and effects using URL-safe characters', () => {
   const theme = { ...themes.newCustomTheme('fantasy'), name: '月の庭 🌙 – Étoile',
-    terminology: { libraryTitle: '冒険 & dragons 🐉', authTitle: '<Welcome> / Bienvenue' } };
+    terminology: { libraryTitle: '冒険 & dragons 🐉', authTitle: '<Welcome> / Bienvenue', scoutTitle: 'Discovery Almanac',
+      scoutSearchTitle: 'Search the realm', releaseRadarTitle: 'Fresh Horizons', popularFeedTitle: 'Around the Realm',
+      alongInterestsTitle: 'Close to Your Heart', highTasteMatchTitle: 'Kindred Spirit', sagaFollowTitle: 'A Saga Continues' } };
   const encoded = share.encodeThemeShare(theme);
   assert.match(encoded, /^v1\.[A-Za-z0-9_-]+\.[a-f0-9]{8}$/);
   assert.equal(encoded, raw(theme));

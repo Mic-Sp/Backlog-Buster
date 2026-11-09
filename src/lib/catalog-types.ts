@@ -10,6 +10,7 @@ export type CatalogSuggestion = {
 
 /** Server catalog ingestion only. Project to CatalogSuggestion before returning autocomplete results. */
 export type ProviderCatalogGame = CatalogSuggestion & {
+  releaseDate?: string | null;
   metadataSource?: "rawg" | "igdb";
   igdbId?: number;
   rawgId: number | null;

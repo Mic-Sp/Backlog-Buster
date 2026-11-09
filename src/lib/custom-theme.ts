@@ -11,6 +11,9 @@ export const themeColorFields = {
 export const themeTermFields = {
   workspaceTitle: "Workspace heading", libraryTitle: "Library heading", statsTitle: "Player stats heading",
   inventoryTitle: "Inventory heading", deckTitle: "On Deck heading", authTitle: "Sign-in heading",
+  scoutTitle: "External Scout heading", scoutSearchTitle: "Scout / Search tab", releaseRadarTitle: "New & Upcoming tab",
+  popularFeedTitle: "Popular / Trending tab",
+  alongInterestsTitle: "Along Your Interests heading", highTasteMatchTitle: "High Taste Match badge", sagaFollowTitle: "Saga Follow badge",
 } as const;
 export type ThemeColorKey = keyof typeof themeColorFields;
 export type ThemeTermKey = keyof typeof themeTermFields;
@@ -34,7 +37,9 @@ export const customThemeSchema = z.object({
   effects: z.object({ scanlines: z.boolean().default(false), particles: z.boolean().default(false),
     parchment: z.boolean().default(false), haunted: z.boolean().default(false) }).strict().default({ scanlines: false, particles: false, parchment: false, haunted: false }),
   borderRadius: z.number().int().min(0).max(32).default(3),
-  terminology: z.object({ workspaceTitle: term, libraryTitle: term, statsTitle: term, inventoryTitle: term, deckTitle: term, authTitle: term }).strict().default({}),
+  terminology: z.object({ workspaceTitle: term, libraryTitle: term, statsTitle: term, inventoryTitle: term, deckTitle: term, authTitle: term,
+    scoutTitle: term, scoutSearchTitle: term, releaseRadarTitle: term, popularFeedTitle: term,
+    alongInterestsTitle: term, highTasteMatchTitle: term, sagaFollowTitle: term }).strict().default({}),
 }).strict() satisfies z.ZodType<CustomTheme>;
 
 export function parseCustomThemeJSON(json: string): CustomTheme {

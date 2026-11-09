@@ -17,6 +17,10 @@ import { buildTrailerUrl } from "@/lib/trailers";
 import DeckPinButton from "@/components/DeckPinButton";
 import AgentBriefing from "@/components/AgentBriefing";
 import { useUIEffects } from "@/components/ThemeProvider";
+import DiscoveryFeed from "@/components/DiscoveryFeed";
+import type { DiscoveryKind } from "@/lib/discovery-feed-types";
+import RadarNotification from "@/components/RadarNotification";
+import { announceDiscoveryChange } from "@/lib/discovery-events";
 
 export function useTacticalAdvisorController({ games, isAdmin = false }: { isAdmin?: boolean; games: Pick<LibraryGame, "id" | "title" | "status" | "pinnedOrder" | "hoursPlayed" | "lengthHours">[] }) {
   const copy = useLayoutCopy();
@@ -30,6 +34,10 @@ export function useTacticalAdvisorController({ games, isAdmin = false }: { isAdm
   const [isFetching, startFetching] = useTransition();
   const [isStarting, startStarting] = useTransition();
   const [scoutUnlocked, setScoutUnlocked] = useState(false);
+  const [scoutTab, setScoutTab] = useState<"search" | DiscoveryKind>("search");
+  const [unseenRadarCount, setUnseenRadarCount] = useState(0);
+  const [discoveryRevision, setDiscoveryRevision] = useState(0);
+  const notificationRequest = useRef(0);
   const [scoutOverride, setScoutOverride] = useState(false);
   const [externalPicks, setExternalPicks] = useState<ExternalRecommendation[] | null>(null);
   const [scoutDebug, setScoutDebug] = useState<ScoutDebug | null>(null);
@@ -55,6 +63,32 @@ export function useTacticalAdvisorController({ games, isAdmin = false }: { isAdm
   const backlogCount = useMemo(() => games.filter((game) => game.status === "Backlog").length, [games]);
   const pinnedCount = games.filter((game) => game.status === "Backlog" && game.pinnedOrder != null).length;
   const ownedTitles = useMemo(() => new Set(games.map((game) => normalizeGameTitle(game.title))), [games]);
+
+  function updateUnseenRadarCount(count: number) {
+    notificationRequest.current++;
+    setUnseenRadarCount(Math.max(0, count));
+  }
+  useEffect(() => {
+    let active = true;
+    async function refreshNotifications() {
+      const request = ++notificationRequest.current;
+      try {
+        const response = await fetch("/api/discovery/notifications", { cache: "no-store" });
+        if (!response.ok) return;
+        const value: unknown = await response.json();
+        if (active && request === notificationRequest.current && value && typeof value === "object" && "unseenCount" in value &&
+          typeof value.unseenCount === "number" && Number.isSafeInteger(value.unseenCount) && value.unseenCount >= 0) setUnseenRadarCount(value.unseenCount);
+      } catch { /* An optional indicator must not block the advisor. */ }
+    }
+    function changed() { setDiscoveryRevision(current => current + 1); void refreshNotifications(); }
+    function storage(event: StorageEvent) { if (event.key === "backlogbuster:discovery-revision") changed(); }
+    void refreshNotifications();
+    window.addEventListener("backlogbuster:discovery-changed", changed);
+    window.addEventListener("focus", changed);
+    window.addEventListener("storage", storage);
+    return () => { active = false; window.removeEventListener("backlogbuster:discovery-changed", changed);
+      window.removeEventListener("focus", changed); window.removeEventListener("storage", storage); };
+  }, [games]);
 
   function loadExternalPicks(override = false) {
     if (scoutFlight.current) return;
@@ -106,7 +140,12 @@ export function useTacticalAdvisorController({ games, isAdmin = false }: { isAdm
     setScoutUnlocked(backlogCount <= 5);
     scoutRequestId.current++;
     loadPicks();
-    if (backlogCount <= 5) loadExternalPicks();
+    if (backlogCount <= 5 && scoutTab === "search") loadExternalPicks();
+  }
+
+  function selectScoutTab(tab: "search" | DiscoveryKind) {
+    setScoutTab(tab);
+    if (tab === "search" && isOpen && !externalPicks && backlogCount <= 5) loadExternalPicks();
   }
 
   function addContract(pick: ExternalRecommendation) {
@@ -151,11 +190,22 @@ export function useTacticalAdvisorController({ games, isAdmin = false }: { isAdm
     startDismissing(async () => {
       try {
         unwrapActionResult(await dismissScoutRecommendation(pick.title));
+        announceDiscoveryChange();
         if (request === dismissalRequestId.current) setDismissalNotice(`${pick.title} won’t appear in future Scout recommendations. Rescan to find more.`);
       } catch {
         if (request === dismissalRequestId.current) setDismissalNotice(`${pick.title} is hidden for this session only. Sign in and try again later to save your preference.`);
       }
     });
+  }
+
+  function recordDiscoveryAction(title: string, choice: "add" | "dismiss") {
+    const key = normalizeGameTitle(title);
+    if (choice === "add") setAddedTitles(current => new Set([...current, key]));
+    else {
+      dismissedTitles.current.set(key, title);
+      setDismissalNotice(`${title} won’t appear in future Scout recommendations.`);
+    }
+    setExternalPicks(current => current?.filter(game => normalizeGameTitle(game.title) !== key) ?? null);
   }
 
   function loadPicks() {
@@ -282,6 +332,13 @@ export function useTacticalAdvisorController({ games, isAdmin = false }: { isAdm
   }
 
   return {
+    unseenRadarCount,
+    updateUnseenRadarCount,
+    discoveryRevision,
+    scoutTab,
+    selectScoutTab,
+    recordDiscoveryAction,
+    dismissedTitleKeys: new Set(dismissedTitles.current.keys()),
     isAdmin,
     scoutDebug,
     isOpen,
@@ -322,6 +379,12 @@ export default function TacticalAdvisor(props: Parameters<typeof useTacticalAdvi
 
 export function TacticalAdvisorView({ controller, part = "all" }: { controller: TacticalAdvisorController; part?: "all" | "trigger" | "overlay" }) {
   const copy = useLayoutCopy();
+  const { scoutTab, selectScoutTab } = controller;
+  const tabs = [
+    { id: "search" as const, label: copy("Scout / Search", "Scout / Search", "scoutSearchTitle") },
+    { id: "radar" as const, label: copy("New & Upcoming Radar", "New Chronicles", "releaseRadarTitle") },
+    { id: "popular" as const, label: copy("Popular / Trending", "Tales of Renown", "popularFeedTitle") },
+  ];
   const {
     isAdmin,
     scoutDebug,
@@ -356,6 +419,7 @@ export function TacticalAdvisorView({ controller, part = "all" }: { controller: 
     <>
       {part !== "overlay" && (<button className="advisor-trigger-button" type="button" ref={triggerRef} aria-haspopup="dialog" aria-expanded={isOpen} onClick={openAdvisor} disabled={isFetching || isScouting}>
         {copy("🧠 CORTEX // ADVISE NEXT GIG", "✧ NAVI // SEEK GUIDANCE")}
+        <RadarNotification count={controller.unseenRadarCount} />
       </button>)}
       {part !== "trigger" && isOpen && createPortal(
         <div className="advisor-modal-backdrop" onClick={(event) => { if (event.target === event.currentTarget) close(); }}>
@@ -378,7 +442,23 @@ export function TacticalAdvisorView({ controller, part = "all" }: { controller: 
             )}
             {!isFetching && <button className="advisor-refresh" type="button" disabled={isStarting || isAdding} onClick={loadPicks}>{error ? copy("RETRY SCAN", "SEEK GUIDANCE AGAIN") : copy("REFRESH SCAN", "CONSULT THE FAIRY AGAIN")}</button>}
             <section className="advisor-external-section" aria-labelledby="external-scout-title">
-              <h3 id="external-scout-title">{copy("02 // EXTERNAL SCOUT (NEW CONTRACTS)", "BEYOND THE MAP · NEW QUESTS")}</h3>
+              <h3 id="external-scout-title">{copy("02 // EXTERNAL SCOUT (NEW CONTRACTS)", "BEYOND THE MAP · NEW QUESTS", "scoutTitle")}</h3>
+              <div className="scout-subnav" role="tablist" aria-label="External Scout discovery">
+                {tabs.map((tab, index) => <button key={tab.id} id={`scout-tab-${tab.id}`} type="button" role="tab"
+                  aria-selected={scoutTab === tab.id} aria-controls={`scout-panel-${tab.id}`} tabIndex={scoutTab === tab.id ? 0 : -1}
+                  onClick={() => selectScoutTab(tab.id)} onKeyDown={event => {
+                    const next = event.key === "ArrowRight" ? (index + 1) % tabs.length : event.key === "ArrowLeft" ? (index + tabs.length - 1) % tabs.length
+                      : event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : null;
+                    if (next === null) return;
+                    event.preventDefault(); selectScoutTab(tabs[next].id); document.getElementById(`scout-tab-${tabs[next].id}`)?.focus();
+                  }}>{tab.label}{tab.id === "radar" && <RadarNotification count={controller.unseenRadarCount} />}</button>)}
+              </div>
+              {scoutTab !== "search" && <div role="tabpanel" id={`scout-panel-${scoutTab}`} aria-labelledby={`scout-tab-${scoutTab}`} tabIndex={0}>
+                <DiscoveryFeed key={scoutTab} kind={scoutTab} hiddenTitles={new Set([...ownedTitles, ...addedTitles, ...controller.dismissedTitleKeys])}
+                  onUnseenChange={controller.updateUnseenRadarCount} revision={controller.discoveryRevision}
+                  onAdded={title => controller.recordDiscoveryAction(title, "add")} onDismissed={title => controller.recordDiscoveryAction(title, "dismiss")} />
+              </div>}
+              <div role="tabpanel" id="scout-panel-search" aria-labelledby="scout-tab-search" tabIndex={0} hidden={scoutTab !== "search"}>
               <p className="advisor-intro">Discover new games shaped by your favorites, current games, and pinned picks.</p>
               {!scoutUnlocked ? (
                 <div className="advisor-scout-locked">
@@ -430,6 +510,7 @@ export function TacticalAdvisorView({ controller, part = "all" }: { controller: 
                 </>
               )}
               {isAdmin && <ScoutDebugger debug={scoutDebug} busy={isScouting} />}
+              </div>
             </section>
           </div>
         </div>, document.body,

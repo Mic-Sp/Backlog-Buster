@@ -29,6 +29,7 @@ import { useSubscreen } from "@/components/WorkspaceShell";
 import { useUIEffects } from "@/components/ThemeProvider";
 import { gameRecordKey } from "@/lib/game-record";
 import { buildTrailerUrl } from "@/lib/trailers";
+import RadarNotification from "@/components/RadarNotification";
 
 const views = ["Backlog", "Playing", "Completed", "Flatlined", "All"] as const;
 const sorts = [
@@ -76,7 +77,7 @@ export default function FantasySubscreenView({ controller: c }: { controller: Ga
     <header className="fantasy-library-heading">
       <div><p className="fantasy-kicker">THE ROYAL ADVENTURER’S ARCHIVE</p><h2 id="collection-title"><LayoutText cyberpunk="System Playqueue" fantasy="Your Quest Journal" term="libraryTitle" /></h2><p>{c.games.length} stories gathered · {c.viewCounts.Completed} adventures completed</p></div>
       <div className="fantasy-tool-bar" aria-label="Royal archive tools">
-        <button type="button" className="fantasy-fairy-button" ref={advisorTriggerRef} aria-haspopup="dialog" aria-expanded={advisor.isOpen} onClick={advisor.openAdvisor} disabled={advisor.isFetching || advisor.isScouting}><NaviFairy /> NAVI // SEEK GUIDANCE</button>
+        <button type="button" className="fantasy-fairy-button" ref={advisorTriggerRef} aria-haspopup="dialog" aria-expanded={advisor.isOpen} onClick={advisor.openAdvisor} disabled={advisor.isFetching || advisor.isScouting}><NaviFairy /> NAVI // SEEK GUIDANCE<RadarNotification count={advisor.unseenRadarCount} /></button>
         <button type="button" ref={rouletteTriggerRef} aria-haspopup="dialog" aria-expanded={roulette.isOpen} onClick={roulette.open}><span aria-hidden="true">▣</span> ROLL RANDOM QUEST</button>
         <button type="button" ref={vaultTriggerRef} aria-haspopup="dialog" aria-expanded={vault.isOpen} onClick={vault.open}><span aria-hidden="true">♜</span> ROYAL ARCHIVE</button>
         <SocialHubTrigger controller={c.social} />

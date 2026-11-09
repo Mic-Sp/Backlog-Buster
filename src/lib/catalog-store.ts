@@ -36,6 +36,7 @@ export async function upsertCatalogGame(game: ProviderCatalogGame): Promise<void
     const embedding = buildCatalogVector(merged);
     // Explicit projection ensures callers can never spread user IDs, notes, or ratings.
     const data = { ...catalogSuggestion(merged), rawgId: game.rawgId, rawgSlug: game.rawgSlug,
+      ...(game.releaseDate ? { releaseDate: new Date(game.releaseDate) } : {}),
       genres: merged.genres, tags: merged.tags, seriesHints: merged.seriesHints, multiplayer: merged.multiplayer,
       coop: merged.coop, onlineCoop: merged.onlineCoop, localCoop: merged.localCoop,
       metadataSource: source, metadataUpdatedAt: now,

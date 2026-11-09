@@ -4,6 +4,7 @@ import "./globals.css";
 import "./halloween.css";
 import "./fantasy.css";
 import "./custom-theme.css";
+import "./discovery.css";
 import { appearanceStartupScript } from "@/lib/appearance";
 import { customThemeStartupScript } from "@/lib/custom-theme-runtime";
 import ThemeProvider from "@/components/ThemeProvider";

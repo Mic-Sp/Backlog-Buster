@@ -50,7 +50,7 @@ function record(value: unknown): value is Record<string, unknown> {
 function year(value: unknown): number | null {
   return typeof value === "number" && Number.isInteger(value) && value >= 1800 && value <= 2100 ? value : null;
 }
-function readCanon(value: unknown): Canon | null {
+export function readCanon(value: unknown): Canon | null {
   if (!record(value) || typeof value.source !== "string" || !value.source.trim() || value.source.length > 200 ||
     !Array.isArray(value.games) || !value.games.length || value.games.length > 10000) return null;
   const games: CanonicalGame[] = [], titles = new Set<string>(), ranks = new Set<number>();

@@ -288,7 +288,7 @@ test("IGDB normalizes canonical metadata and safely quotes name searches", async
   const api = load("src/lib/igdb-catalog.ts"), signal = new AbortController().signal;
   const results = await api.searchIgdbGames('Portal "; fields *;', signal);
   assert.equal(results.length, 2);
-  assert.deepEqual(results[0], { title: "Portal 2", releaseYear: 2011, genre: "Puzzle", genres: ["adventure", "puzzle"],
+  assert.deepEqual(results[0], { title: "Portal 2", releaseYear: 2011, releaseDate: "2011-04-19", genre: "Puzzle", genres: ["adventure", "puzzle"],
     platforms: ["PC"], estimatedHours: null, coverUrl: "https://images.igdb.com/igdb/image/upload/t_cover_big/co_123.jpg",
     metadataSource: "igdb", igdbId: 73, rawgId: null, rawgSlug: null, tags: [], seriesHints: [],
     multiplayer: null, coop: null, onlineCoop: null, localCoop: null });
