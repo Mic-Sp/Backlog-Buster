@@ -1,7 +1,7 @@
 "use client";
 
 import "./HeaderControls.css";
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { createContext, Suspense, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { createUIAudio, type UISound } from "@/lib/ui-audio";
 import HalloweenDecorations from "@/components/HalloweenDecorations";
 import FloatingFairies from "@/components/FloatingFairies";
@@ -12,6 +12,7 @@ import { applyAppearance, readAppearance, type LayoutMode, type CyberpunkTheme }
 import { applyCustomTheme } from "@/lib/custom-theme-runtime";
 import useCustomThemes, { type CustomThemesController } from "@/components/useCustomThemes";
 import CustomThemeStudio from "@/components/CustomThemeStudio";
+import SharedThemePreview from "@/components/SharedThemePreview";
 import type { CustomTheme } from "@/lib/custom-theme";
 
 const storageKey = "backlogbuster:theme";
@@ -175,6 +176,7 @@ export default function ThemeProvider({ children, player: initialPlayer = null }
     {children}
     {(customTheme ? customTheme.effects.haunted : layoutMode === "cyberpunk" && halloween) && <HalloweenDecorations />}
     {(customTheme ? customTheme.effects.particles : layoutMode === "fantasy") && <FloatingFairies />}
+    <Suspense fallback={null}><SharedThemePreview controller={customThemes} /></Suspense>
     {customThemes.studioOpen && <CustomThemeStudio controller={customThemes} baseLayout={layoutMode} haunted={halloween} />}
   </ThemeContext.Provider></ThemePlayerContext.Provider>;
 }
@@ -182,20 +184,22 @@ export default function ThemeProvider({ children, player: initialPlayer = null }
 export function ThemeToggle() {
   const { layoutMode, toggleLayout, layoutSaveError, halloween, muted, toggle, toggleMuted, customTheme, customThemes, selectBuiltIn } = useContext(ThemeContext);
   const layoutActionLabel = layoutMode === "fantasy" ? "Switch to Cyberpunk Deck" : "Switch to Fantasy Subscreen";
+  const sharedPreview = Boolean(customTheme && customTheme === customThemes?.sharedTheme);
   return <span className="theme-controls" data-active={halloween}><button className="layout-mode-toggle" data-ui-sound="custom" type="button" onClick={toggleLayout} title={layoutActionLabel}>{layoutActionLabel}</button>{layoutMode === "cyberpunk" && <button className="theme-toggle" data-ui-sound="custom" type="button" aria-label="Halloween theme" aria-pressed={halloween} onClick={toggle} title={halloween ? "Return to Cyberpunk theme" : "Enter Haunted Net / Blackwall Glitch theme"}>
     <span aria-hidden="true">{halloween ? "◈" : "◇"}</span> HAUNTED NET: {halloween ? "ON" : "OFF"}
   </button>}<button className="ui-sfx-toggle" data-ui-sound="custom" type="button" onClick={toggleMuted} aria-label={muted ? "Unmute UI sound effects" : "Mute UI sound effects"} aria-pressed={!muted} title={muted ? "Unmute UI sound effects" : "Mute UI sound effects"}>
     <span aria-hidden="true">{muted ? "♪̸" : "♫"}</span>
   </button>{customThemes && <>
-    <select className="theme-selector" aria-label="UI theme" value={customTheme?.id ?? (layoutMode === "fantasy" ? "fantasy" : halloween ? "halloween" : "cyberpunk")} onChange={event => {
+    <select className="theme-selector" aria-label="UI theme" value={sharedPreview ? "shared-theme-preview" : customTheme?.id ?? (layoutMode === "fantasy" ? "fantasy" : halloween ? "halloween" : "cyberpunk")} onChange={event => {
       const value = event.target.value;
+      if (value === "shared-theme-preview") return;
       if (value.startsWith("custom-")) customThemes.select(value);
       else if (value === "fantasy") selectBuiltIn?.("fantasy");
       else selectBuiltIn?.("cyberpunk", value === "halloween" ? "halloween" : "default");
     }}>
       <optgroup label="Built-in themes"><option value="cyberpunk">Cyberpunk</option><option value="halloween">Haunted Net / Blackwall Glitch</option><option value="fantasy">Fantasy</option></optgroup>
       {customThemes.themes.length > 0 && <optgroup label="Custom themes">{customThemes.themes.map(theme => <option key={theme.id} value={theme.id}>{theme.name}</option>)}</optgroup>}
-      {customTheme && !customThemes.themes.some(theme => theme.id === customTheme.id) && <option value={customTheme.id}>{customTheme.name} (preview)</option>}
+      {customTheme && (sharedPreview || !customThemes.themes.some(theme => theme.id === customTheme.id)) && <option value={sharedPreview ? "shared-theme-preview" : customTheme.id}>{customTheme.name} (preview)</option>}
     </select>
     <button className="theme-studio-trigger" type="button" aria-haspopup="dialog" onClick={customThemes.openStudio}>Custom Theme Studio</button>
     {customThemes.storageError && <span className="theme-save-error" role="alert">{customThemes.storageError}</span>}

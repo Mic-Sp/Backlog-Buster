@@ -1,0 +1,11 @@
+.shared-theme-banner { position: fixed; z-index: 8000; right: 20px; bottom: 20px; width: min(520px, calc(100vw - 32px)); padding: 18px; border: 1px solid #7a8aa8; border-radius: 12px; background: #111925f7; color: #eef3ff; box-shadow: 0 12px 48px #0006; font: 14px/1.5 Arial, sans-serif; }
+.shared-theme-banner[data-theme-studio] p { margin: 0; color: #e9efff; font: inherit; overflow-wrap: anywhere; }
+.shared-theme-banner[data-theme-studio] strong { color: #d2dcff; }
+.shared-theme-banner[data-theme-studio] small { display: block; margin-top: 4px; color: #adbbcf; font: 12px/1.5 Arial, sans-serif; }
+.shared-theme-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.shared-theme-banner[data-theme-studio] button { min-height: 42px; padding: 9px 13px; border: 1px solid #52637c; border-radius: 6px; background: #1d2b40; color: #e2eafe; font: 600 12px/1.4 Arial, sans-serif; box-shadow: none; text-shadow: none; letter-spacing: 0; cursor: pointer; }
+.shared-theme-banner[data-theme-studio] button.shared-theme-save { color: #111925; background: #c7d2ff; border-color: #c7d2ff; }
+.shared-theme-banner[data-theme-studio] button:hover { border-color: #e1e7ff; }
+.shared-theme-banner[data-theme-studio] button:focus-visible { outline: 2px solid #e1e7ff; outline-offset: 3px; }
+.shared-theme-banner[data-theme-studio] .shared-theme-error { margin-top: 10px; color: #ffb6cc; font-size: 12px; }
+@media (max-width: 600px) { .shared-theme-banner { right: 16px; bottom: 12px; padding: 15px; } }

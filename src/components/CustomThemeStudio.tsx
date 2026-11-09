@@ -5,14 +5,20 @@ import { createPortal } from "react-dom";
 import type { LayoutMode } from "@/lib/appearance";
 import { customThemeSchema, newCustomTheme, parseCustomThemeJSON, themeColorFields, themeTermFields, type CustomTheme, type ThemeColorKey, type ThemeTermKey } from "@/lib/custom-theme";
 import type { CustomThemesController } from "@/components/useCustomThemes";
+import { createThemeShareUrl } from "@/lib/theme-share";
 import "./CustomThemeStudio.css";
 
 export default function CustomThemeStudio({ controller, baseLayout, haunted }: { controller: CustomThemesController; baseLayout: LayoutMode; haunted: boolean }) {
-  const [draft, setDraft] = useState<CustomTheme>(() => structuredClone(controller.activeTheme ?? newCustomTheme(baseLayout, haunted)));
+  const [draft, setDraft] = useState<CustomTheme>(() => {
+    const theme = structuredClone(controller.activeTheme ?? newCustomTheme(baseLayout, haunted));
+    if (controller.sharedTheme?.id === theme.id) theme.id = newCustomTheme(theme.baseLayout).id;
+    return theme;
+  });
   const [hexDrafts, setHexDrafts] = useState<Partial<Record<ThemeColorKey, string>>>({});
   const [json, setJson] = useState("");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [shareLink, setShareLink] = useState("");
   const ref = useRef<HTMLDivElement>(null);
   const titleId = useId();
   const controllerRef = useRef(controller);
@@ -39,7 +45,7 @@ export default function CustomThemeStudio({ controller, baseLayout, haunted }: {
   const invalidHex = Object.values(hexDrafts).some(value => !/^#[0-9a-fA-F]{6}$/.test(value ?? ""));
   const exists = controller.themes.some(theme => theme.id === draft.id);
   function change(next: CustomTheme) {
-    setDraft(next); setError(""); setMessage("");
+    setDraft(next); setError(""); setMessage(""); setShareLink("");
     if (customThemeSchema.safeParse(next).success) controller.preview(next);
   }
   function load(next: CustomTheme) { setHexDrafts({}); change(structuredClone(next)); }
@@ -89,19 +95,28 @@ export default function CustomThemeStudio({ controller, baseLayout, haunted }: {
       <section aria-labelledby={`${titleId}-terms`}><h3 id={`${titleId}-terms`}>03 / Make it your own</h3><p className="studio-help">Optional display labels. Blank fields keep the base layout’s existing terminology. Game data and statuses stay the same.</p>
         <div className="studio-fields">{(Object.entries(themeTermFields) as [ThemeTermKey, string][]).map(([key, label]) => <label key={key}>{label}<input value={draft.terminology[key] ?? ""} maxLength={80} placeholder="Use the default label" onChange={event => change({ ...draft, terminology: { ...draft.terminology, [key]: event.target.value } })} /></label>)}</div>
       </section>
-      <section aria-labelledby={`${titleId}-json`}><h3 id={`${titleId}-json`}>04 / Share a palette</h3><p className="studio-help">Copy your theme’s JSON, or paste someone else’s and validate it. Imported themes stay as a preview until you save.</p>
+      <section aria-labelledby={`${titleId}-json`}><h3 id={`${titleId}-json`}>04 / Share a palette</h3><p className="studio-help">Copy a share link or theme JSON. Paste someone else’s JSON to validate it. Shared themes stay as a preview until you save.</p>
         <label>Theme JSON<textarea aria-label="Theme JSON" value={json} onChange={event => { setJson(event.target.value); setMessage(""); }} rows={6} maxLength={12000} spellCheck={false} placeholder='{ "id": "custom-…", "name": "…", "colors": { … } }' /></label>
         <div className="studio-actions">
+          <button type="button" onClick={() => {
+            if (!exportJSON()) return;
+            try {
+              const link = createThemeShareUrl(draft, window.location.href); setShareLink(link); setError("");
+              if (!navigator.clipboard) { setMessage("Share link ready below. Select it to copy."); return; }
+              void navigator.clipboard.writeText(link).then(() => setMessage("Share link copied to clipboard.")).catch(() => setMessage("Clipboard unavailable. Select the share link below to copy it."));
+            } catch (cause) { setError(cause instanceof Error ? cause.message : "This theme could not be shared."); }
+          }}>Copy Share Link</button>
           <button type="button" onClick={() => { const content = exportJSON(); if (!content) return;
             void navigator.clipboard?.writeText(content).then(() => setMessage("Theme JSON copied to clipboard.")).catch(() => setMessage("Clipboard unavailable. Your JSON is in the field above; select it to copy."));
             if (!navigator.clipboard) setMessage("Your JSON is in the field above; select it to copy.");
           }}>Copy theme JSON</button>
           <button type="button" onClick={() => { try { load(parseCustomThemeJSON(json)); setMessage("Theme JSON validated. Preview applied; save to keep it."); } catch (cause) { setError(cause instanceof Error ? cause.message : "Invalid theme JSON."); } }}>Validate & preview JSON</button>
         </div>
+        {shareLink && <label>Share link<textarea aria-label="Share link" value={shareLink} readOnly rows={2} onFocus={event => event.currentTarget.select()} /></label>}
       </section>
       <p className="studio-error" role="alert">{error || (invalidHex ? "Use # followed by six hex digits for every color." : "")}</p>
       {message && <p className="studio-message" role="status">{message}</p>}
-      <footer className="studio-footer"><span>Saved in this browser · Share with JSON</span><div className="studio-actions">
+      <footer className="studio-footer"><span>Saved in this browser · Share by link or JSON</span><div className="studio-actions">
         {exists && <button className="studio-delete" type="button" onClick={() => { try { controller.remove(draft.id); setDraft(newCustomTheme(baseLayout)); setHexDrafts({}); setMessage("Custom theme deleted. The built-in themes are still available."); setError(""); } catch (cause) { setError(cause instanceof Error ? cause.message : "Theme could not be deleted."); } }}>Delete custom theme</button>}
         <button type="button" onClick={controller.closeStudio}>Cancel preview</button>
         <button className="studio-save" type="button" disabled={invalidHex || !draft.name.trim()} onClick={() => { try { controller.save(draft); } catch (cause) { setError(cause instanceof Error ? cause.message : "Theme could not be saved."); } }}>Save & apply theme</button>
