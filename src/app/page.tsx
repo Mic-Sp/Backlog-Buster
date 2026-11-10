@@ -8,6 +8,7 @@ import { after, connection } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { resizeRawgImageUrl } from "@/lib/rawg";
 import GameForm from "./GameForm";
+import BiohazardStatusDeck from "@/components/BiohazardStatusDeck";
 import MemberCount from "@/components/MemberCount";
 import WorkspaceSection from "@/components/WorkspaceSection";
 import WorkspaceShell from "@/components/WorkspaceShell";
@@ -73,7 +74,23 @@ async function PlayerSummary({ player }: { player: CurrentPlayer }) {
     .sort((left, right) => right.earnedXp - left.earnedXp || left.title.localeCompare(right.title) || left.id - right.id)
     .map((game) => ({ id: game.id, title: game.title, platform: game.platform, coverUrl: game.coverUrl ? resizeRawgImageUrl(game.coverUrl) : null, earnedXp: game.earnedXp, steamAchievementsUnlocked: game.steamAchievementsUnlocked, steamAchievementsTotal: game.steamAchievementsTotal, playthroughCount: game.playthroughCount, review: game.review, reviewSpoiler: game.reviewSpoiler }));
 
+  const careerTools = <>
+      <AccountControls player={{ ...player, operatorName: profile.operatorName, handle: profile.handle }} key={`${player.id}-${player.isLocal}`} />
+      <div className="hud-career-tools">
+        <HudMilestones achievements={achievements} />
+        <NetrunnerDossier socialEnabled={!player.isLocal} data={{
+          profile,
+          level: progress.level, totalXp,
+          counts: { Backlog: backlogCount, Playing: playingCount, Completed: completedCount, Flatlined: flatlinedCount },
+          activeHours: telemetry.activeHours, completionRate: telemetry.completionRate, avgRating: telemetry.avgRating,
+          achievements, trophies, annualReview: buildAnnualReview(games, profile.featuredTrophyIds),
+          showcaseGames: games.map(game => ({ id: game.id, title: game.title, platform: game.platform, earnedXp: game.earnedXp, steamAchievementsUnlocked: game.steamAchievementsUnlocked, steamAchievementsTotal: game.steamAchievementsTotal, playthroughCount: game.playthroughCount, review: game.review, reviewSpoiler: game.reviewSpoiler, coverUrl: game.coverUrl ? resizeRawgImageUrl(game.coverUrl) : null })),
+        }} />
+      </div>
+  </>;
+
   return (
+    <BiohazardStatusDeck name={profile.operatorName} avatarUrl={profile.avatarUrl} rank={progress.level} xp={totalXp} activeGames={playingCount} completed={completedCount} total={games.length} legacy={
     <WorkspaceSection sectionKey="player-stats" className="player-stats-shell" headingLevel={2} label="player stats" title={<LayoutText cyberpunk="Operator stats" fantasy="The Hero’s Record" term="statsTitle" />}
       summary={<span className="workspace-section-count">LV {progress.level} · {games.length} games</span>}>
     <section className="player-summary" aria-label="Player stats">
@@ -129,20 +146,10 @@ async function PlayerSummary({ player }: { player: CurrentPlayer }) {
           <p data-status="Flatlined"><strong>{flatlinedCount}</strong><span>Flatlined</span></p>
         </div>
       </div>
-      <AccountControls player={{ ...player, operatorName: profile.operatorName, handle: profile.handle }} key={`${player.id}-${player.isLocal}`} />
-      <div className="hud-career-tools">
-        <HudMilestones achievements={achievements} />
-        <NetrunnerDossier socialEnabled={!player.isLocal} data={{
-          profile,
-          level: progress.level, totalXp,
-          counts: { Backlog: backlogCount, Playing: playingCount, Completed: completedCount, Flatlined: flatlinedCount },
-          activeHours: telemetry.activeHours, completionRate: telemetry.completionRate, avgRating: telemetry.avgRating,
-          achievements, trophies, annualReview: buildAnnualReview(games, profile.featuredTrophyIds),
-          showcaseGames: games.map(game => ({ id: game.id, title: game.title, platform: game.platform, earnedXp: game.earnedXp, steamAchievementsUnlocked: game.steamAchievementsUnlocked, steamAchievementsTotal: game.steamAchievementsTotal, playthroughCount: game.playthroughCount, review: game.review, reviewSpoiler: game.reviewSpoiler, coverUrl: game.coverUrl ? resizeRawgImageUrl(game.coverUrl) : null })),
-        }} />
-      </div>
+      {careerTools}
     </section>
     </WorkspaceSection>
+    }>{careerTools}<AchievementToast playerId={player.id} achievements={achievements} level={progress.level} totalXp={totalXp} /></BiohazardStatusDeck>
   );
 }
 
@@ -260,9 +267,9 @@ async function PlayerWorkspace() {
         <details className="add-disclosure">
           <summary className="section-heading">
             <span className="section-heading-copy">
-              <span className="eyebrow">01 / NEW ENTRY</span>
+              <span className="eyebrow cyberpunk-label">01 / NEW ENTRY</span><span className="biohazard-label bio-kicker">INK RIBBON / ARCHIVE RECORD</span>
               <span className="section-heading-title" id="add-title">
-                <span className="cyberpunk-label">Initialize Game Entry</span><span className="fantasy-label">Inscribe New Quest</span>
+                <span className="cyberpunk-label">Initialize Game Entry</span><span className="fantasy-label">Inscribe New Quest</span><span className="biohazard-label">Typewriter · Record a new game</span>
               </span>
             </span>
             <span className="section-index" aria-hidden="true">+</span>

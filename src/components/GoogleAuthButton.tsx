@@ -1,11 +1,11 @@
 "use client";
 
-import { useLayoutCopy } from "@/components/LayoutText";
+import { useUIEffects } from "@/components/ThemeProvider";
 import "./GoogleAuth.css";
 
 export default function GoogleAuthButton({ mode = "signin", disabled = false }: { mode?: "signin" | "link"; disabled?: boolean }) {
-  const copy = useLayoutCopy();
-  const href = `/api/auth/google?mode=${mode}&theme=${copy("cyberpunk", "fantasy")}`;
+  const { layoutMode } = useUIEffects();
+  const href = `/api/auth/google?mode=${mode}&theme=${layoutMode}`;
   return <a className="google-oauth-button" href={disabled ? undefined : href} aria-disabled={disabled || undefined} tabIndex={disabled ? -1 : undefined}>
     <svg className="google-oauth-mark" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
       <path fill="#4285f4" d="M21.8 12.2c0-.7-.1-1.4-.2-2.1H12v4h5.5a4.7 4.7 0 0 1-2 3.1v2.6h3.4c2-1.8 2.9-4.4 2.9-7.6Z" />

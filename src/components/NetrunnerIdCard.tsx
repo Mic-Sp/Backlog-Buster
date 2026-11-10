@@ -6,6 +6,7 @@ import { dossierReviewQuote } from "@/lib/micro-review";
 
 import { useId, type Ref } from "react";
 import type { LayoutMode } from "@/lib/appearance";
+import BiohazardIdCard from "@/components/BiohazardIdCard";
 import FantasyCodexCard from "@/components/FantasyCodexCard";
 import { dossierAccents, dossierTitleLines, getStreetCred, resolveDossierShowcase, type DossierCardData, type DossierIdentity } from "@/lib/dossier";
 import OperatorEmblem from "@/components/OperatorEmblem";
@@ -22,7 +23,7 @@ export type DossierCardProps = {
 };
 
 export default function NetrunnerIdCard({ layoutMode = "cyberpunk", ...props }: DossierCardProps & { layoutMode?: LayoutMode }) {
-  return layoutMode === "fantasy" ? <FantasyCodexCard {...props} /> : <CyberpunkIdCard {...props} />;
+  return layoutMode === "biohazard" ? <BiohazardIdCard {...props} /> : layoutMode === "fantasy" ? <FantasyCodexCard {...props} /> : <CyberpunkIdCard {...props} />;
 }
 
 function CyberpunkIdCard({ data, identity, timestamp, artwork, cardRef, artworkLoading = false }: DossierCardProps) {

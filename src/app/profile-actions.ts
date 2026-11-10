@@ -12,7 +12,7 @@ import { escapeLike } from "@/lib/handle-validation";
 export async function savePreferredLayoutMode(mode: unknown) {
   return safeAction(async () => {
     const id = await getAuthenticatedPlayerId();
-    if (!isLayoutMode(mode)) throw new InputError("Choose Cyberpunk Deck or Fantasy Subscreen.");
+    if (!isLayoutMode(mode)) throw new InputError("Choose Cyberpunk Deck, Fantasy Subscreen, or Safe Room.");
     await prisma.player.update({ where: { id }, data: { preferredLayoutMode: mode }, select: { id: true } });
     // The provider already updated the UI. Future server renders read the saved
     // value; refreshing here could overwrite a newer optimistic toggle.

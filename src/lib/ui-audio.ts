@@ -1,5 +1,5 @@
-export type UISound = "welcome" | "click" | "confirm" | "pop" | "roll" | "scan" | "page";
-export type SoundTheme = "cyberpunk" | "halloween" | "fantasy";
+export type UISound = "welcome" | "click" | "confirm" | "pop" | "roll" | "scan" | "page" | "cursor" | "latch" | "pulse" | "typewriter";
+export type SoundTheme = "cyberpunk" | "halloween" | "fantasy" | "biohazard";
 
 /** Browser-only at playback time; safe to construct during SSR or in tests. */
 export function createUIAudio() {
@@ -56,7 +56,24 @@ export function createUIAudio() {
             oscillator.start(at + offset);
             oscillator.stop(at + offset + duration + 0.02);
           }
-          if (theme === "fantasy") {
+          if (theme === "biohazard") {
+            if (sound === "typewriter") {
+              note(1600, 0, 0.025, "square", 100);
+              note(180, 0.025, 0.045, "triangle", 70);
+            } else if (sound === "pulse") {
+              note(880, 0, 0.075, "sine");
+            } else if (sound === "latch" || sound === "page" || sound === "welcome") {
+              note(78, 0, 0.2, "sawtooth", 32);
+              note(330, 0.04, 0.1, "triangle", 65);
+              note(95, 0.15, 0.17, "square", 38);
+            } else if (sound === "cursor" || sound === "click") {
+              note(360, 0, 0.065, "sine", 120);
+              note(720, 0.012, 0.035, "triangle", 240);
+            } else {
+              note(220, 0, 0.14, "triangle", 110);
+              note(440, 0.11, 0.16, "sine", 220);
+            }
+          } else if (theme === "fantasy") {
             // Original short motifs: airy ocarina tones, crystalline cursor, and item fanfare.
             if (sound === "click") {
               note(2093, 0, 0.045, "triangle", 1568);

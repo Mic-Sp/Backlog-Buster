@@ -146,7 +146,7 @@ export default function AdminPlayerDirectory({ currentPlayerId, currentPlayerIsO
     try {
       const result = unwrapActionResult(await adminSetPlayerLayoutMode(id, mode));
       setDirectory(current => current ? { ...current, players: current.players.map(player => player.id === id ? { ...player, preferredLayoutMode: result.preferredLayoutMode } : player) } : null);
-      setFeedback({ id, error: false, text: `DEFAULT VIEW SAVED // ${mode === "fantasy" ? "Fantasy Subscreen" : "Cyberpunk Deck"}` });
+      setFeedback({ id, error: false, text: `DEFAULT VIEW SAVED // ${mode === "biohazard" ? "Safe Room" : mode === "fantasy" ? "Fantasy Subscreen" : "Cyberpunk Deck"}` });
     } catch (cause) { setFeedback({ id, error: true, text: actionErrorMessage(cause, "Layout preference update failed. Please try again.") }); }
     finally { mutationRef.current = false; setPending(null); onBusyChange(false); }
   }
@@ -174,7 +174,7 @@ export default function AdminPlayerDirectory({ currentPlayerId, currentPlayerIsO
               <div><dt>Games</dt><dd>{player.gameCount.toLocaleString("en-US")}</dd></div>
               <div><dt>XP / Level</dt><dd>{player.totalXp.toLocaleString("en-US")} XP // LV {player.level}</dd></div>
               <div><dt>Active Sessions</dt><dd>{typeof player.activeSessionCount === "number" ? player.activeSessionCount.toLocaleString("en-US") : "—"}</dd></div>
-              <div><dt>Preferred Layout</dt><dd>{player.preferredLayoutMode === "fantasy" ? "Fantasy Subscreen" : "Cyberpunk Deck"}</dd></div>
+              <div><dt>Preferred Layout</dt><dd>{player.preferredLayoutMode === "biohazard" ? "Safe Room" : player.preferredLayoutMode === "fantasy" ? "Fantasy Subscreen" : "Cyberpunk Deck"}</dd></div>
               <div><dt>Created</dt><dd><time dateTime={player.createdAt}>{dateLabel(player.createdAt)}</time></dd></div>
               <div><dt>Last Recorded Activity</dt><dd><time dateTime={player.lastRecordedActivityAt}>{dateLabel(player.lastRecordedActivityAt)}</time></dd></div>
             </dl>
@@ -182,7 +182,7 @@ export default function AdminPlayerDirectory({ currentPlayerId, currentPlayerIsO
               <label htmlFor={`${rowId}-layout`}>Default view</label>{" "}
               <select id={`${rowId}-layout`} value={player.preferredLayoutMode ?? "cyberpunk"} disabled={locked || !manageable} onChange={event => void changeLayout(player.id, event.target.value as LayoutMode)}>
                 <option value="cyberpunk">Cyberpunk Deck</option>
-                <option value="fantasy">Fantasy Subscreen</option>
+                <option value="fantasy">Fantasy Subscreen</option><option value="biohazard">Safe Room</option>
               </select>
               {pending?.id === player.id && pending.kind === "layout" && <span role="status"> SAVING DEFAULT VIEW…</span>}
             </div>

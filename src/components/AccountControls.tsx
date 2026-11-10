@@ -14,7 +14,7 @@ import type { CurrentPlayer } from "@/lib/player";
 import "./AccountControls.css";
 import "./AccountRecovery.css";
 import useCooldown from "@/components/useCooldown";
-import { ThemeToggle } from "@/components/ThemeProvider";
+import { ThemeToggle, useUIEffects } from "@/components/ThemeProvider";
 import { HANDLE_HELP, HANDLE_INPUT_PATTERN, HANDLE_MAX_LENGTH } from "@/lib/handle-validation";
 
 function LogoutButton() {
@@ -24,6 +24,7 @@ function LogoutButton() {
 
 function AuthPanel({ localArchive = false, onClose }: { localArchive?: boolean; onClose?: () => void }) {
   const copy = useLayoutCopy();
+  const { layoutMode } = useUIEffects();
   const [mode, setMode] = useState<"login" | "register">(localArchive ? "register" : "login");
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [clientError, setClientError] = useState("");
@@ -93,7 +94,7 @@ function AuthPanel({ localArchive = false, onClose }: { localArchive?: boolean; 
         }
       }
     }}>
-      <input type="hidden" name="layoutMode" value={copy("cyberpunk", "fantasy")} />
+      <input type="hidden" name="layoutMode" value={layoutMode} />
       <fieldset disabled={pending}>
         <legend className="auth-sr-only">{mode === "register" ? "Register account" : "Log in"}</legend>
         <label>Email<input ref={emailRef} type="email" name="email" autoComplete="username" maxLength={254} required spellCheck={false} autoCapitalize="none" aria-describedby={error ? errorId : undefined} /></label>

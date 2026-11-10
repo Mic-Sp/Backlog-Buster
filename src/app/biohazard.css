@@ -1,0 +1,225 @@
+/* Safe Room is a third structural persona. Its rack, examination panel and mode
+   pages are owned by BiohazardSubscreenView, never by the Cyberpunk renderer. */
+.biohazard-label { display: none; }
+:root[data-layout-mode="biohazard"] {
+  color-scheme: dark;
+  --bio-bg: var(--custom-background, #10120f); --bio-surface: var(--custom-surface, #252923);
+  --bio-text: var(--custom-text, #e3dfce); --bio-muted: var(--custom-muted, #afb3a2);
+  --bio-accent: var(--custom-accent, #9eb78d); --bio-line: var(--custom-border, #65695b);
+  --canvas: var(--bio-bg); --paper: var(--bio-surface); --ink: var(--bio-text); --muted: var(--bio-muted); --line: var(--bio-line);
+}
+:root[data-layout-mode="biohazard"] body { background: radial-gradient(ellipse at 50% 0, #36392e44, transparent 65%), repeating-linear-gradient(0deg, #ffffff02 0 1px, transparent 1px 4px), var(--bio-bg); color: var(--bio-text); font: 14px/1.5 "Courier New", monospace; }
+:root[data-layout-mode="biohazard"] body::before, :root[data-layout-mode="biohazard"] body::after { display: none; }
+:root[data-layout-mode="biohazard"] * { scrollbar-color: #76796a #171a16; }
+:root[data-layout-mode="biohazard"] :is(button, input, select, textarea, summary, a) { -webkit-tap-highlight-color: #a5b39244; }
+:root[data-layout-mode="biohazard"] :is(button, .button, summary, a[class*="button"]) { color: var(--bio-text); border-color: var(--bio-line); border-radius: 1px; background: linear-gradient(#373b32, #20241e); box-shadow: inset 1px 1px #ffffff16, inset -1px -1px #0009; text-shadow: none; clip-path: none; font: 12px/1.4 "Courier New", monospace; letter-spacing: .025em; min-height: 40px; padding: 9px 12px; cursor: pointer; }
+:root[data-layout-mode="biohazard"] button:hover:not(:disabled) { color: #fff7dc; border-color: #c8c8ac; background: #444a3a; }
+:root[data-layout-mode="biohazard"] button:disabled { opacity: .45; cursor: default; }
+:root[data-layout-mode="biohazard"] :is(button, a, input, select, textarea, summary):focus-visible { outline: 2px solid #d4d5ae; outline-offset: 3px; }
+:root[data-layout-mode="biohazard"] :where(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea) { min-width: 0; max-width: 100%; width: 100%; min-height: 42px; border: 2px solid; border-color: #10120f #565c4b #565c4b #10120f; border-radius: 0; padding: 9px 10px; background: #131610; color: var(--bio-text); box-shadow: inset 0 2px 6px #0009; font: 13px/1.5 "Courier New", monospace; }
+:root[data-layout-mode="biohazard"] :is(h1,h2,h3,h4) { color: inherit; letter-spacing: .02em; text-shadow: 0 2px 2px #0008; }
+:root[data-layout-mode="biohazard"] :is(p, span, strong, small, label) { overflow-wrap: anywhere; }
+:root[data-layout-mode="biohazard"] a { color: #c7d3ad; }
+:root[data-layout-mode="biohazard"] .page-shell { width: min(1320px, calc(100% - 64px)); margin: 28px auto; padding: 0; }
+:root[data-layout-mode="biohazard"] .workspace-shell { display: flex; flex-direction: column; gap: 20px; }
+:root[data-layout-mode="biohazard"] :is(.fantasy-workspace-banner, .fantasy-label, .fantasy-decoration, .cyberpunk-label, .fantasy-status-heading) { display: none; }
+:root[data-layout-mode="biohazard"] .biohazard-label { display: inline; }
+:root[data-layout-mode="biohazard"] .collection { margin: 0; padding: 0; border: 0; background: none; min-width: 0; }
+:root[data-layout-mode="biohazard"] [hidden] { display: none !important; }
+:root[data-layout-mode="biohazard"] .add-section { display: none; order: 1; margin: 0; padding: 24px; border: 5px ridge #626453; background: var(--bio-surface); box-shadow: inset 0 0 24px #0006, 0 8px 30px #0005; }
+:root[data-layout-mode="biohazard"] [data-safe-room-mode="save"] .add-section { display: block; }
+:root[data-layout-mode="biohazard"] .bio-status-deck { order: 0; }
+:root[data-layout-mode="biohazard"] .collection { order: 2; }
+:root[data-layout-mode="biohazard"] :is(.member-count, .page-footer) { order: 3; color: var(--bio-muted); border-color: var(--bio-line); background: none; }
+:root[data-layout-mode="biohazard"] .section-heading { display: flex; justify-content: space-between; align-items: center; padding: 12px; border: 0; }
+:root[data-layout-mode="biohazard"] .section-heading-title { font: 22px Georgia, serif; color: var(--bio-text); }
+:root[data-layout-mode="biohazard"] .game-form { margin-top: 22px; padding: 0; background: transparent; border: 0; }
+:root[data-layout-mode="biohazard"] .game-form .field > span, :root[data-layout-mode="biohazard"] .game-form label { color: var(--bio-muted); }
+:root[data-layout-mode="biohazard"] .bio-kicker { font: 10px/1.5 "Courier New", monospace; letter-spacing: .14em; color: var(--bio-muted); margin: 0; }
+.bio-status-deck { padding: 7px; border: 6px ridge #686a5c; background: linear-gradient(120deg, #3e4238, #20231e 45%, #373a32); box-shadow: 0 14px 40px #0007, inset 0 0 0 1px #111; }
+.bio-deck-title { display: flex; justify-content: space-between; gap: 16px; padding: 3px 12px 9px; color: #babca9; font-size: 10px; letter-spacing: .16em; }
+.bio-medical-row { display: grid; grid-template-columns: 1.2fr 1fr 150px; gap: 16px; padding: 12px; background: #141712; border: 2px inset #555b4b; }
+.bio-operative-card { display: flex; align-items: center; gap: 16px; min-width: 0; }
+.bio-operative-card > :first-child { width: 88px; height: 104px; object-fit: cover; flex: 0 0 88px; border: 3px ridge #6f7461; background: #30372b; filter: sepia(.4) saturate(.55); }
+.bio-operative-card small { font-size: 9px; letter-spacing: .1em; color: #b7b9a4; }
+.bio-operative-card h1 { margin: 2px 0 8px; font: 34px/1.1 Georgia, serif; }
+.bio-operative-card strong { font-size: 14px; }
+.bio-operative-card p { margin: 6px 0 0; font-size: 10px; color: #b4b7a3; }
+:root[data-layout-mode="biohazard"] button.bio-ecg { --condition: #8ee77a; position: relative; display: flex; flex-direction: column; align-items: stretch; padding: 10px 16px; min-height: 148px; text-align: left; overflow: hidden; border: 7px ridge #444b3b; background: repeating-linear-gradient(0deg, #8ee77a0a 0 1px, transparent 1px 4px), repeating-linear-gradient(90deg, #8ee77a09 0 1px, transparent 1px 20px), #030a04; box-shadow: inset 0 0 22px #000, 0 0 0 2px #080a06; color: var(--condition); }
+:root[data-layout-mode="biohazard"] .bio-ecg[data-condition="CAUTION"] { --condition: #e5bb58; }
+:root[data-layout-mode="biohazard"] .bio-ecg[data-condition="DANGER"] { --condition: #ea6556; }
+.bio-ecg > span { display: flex; justify-content: space-between; font: 10px "Courier New", monospace; }
+.bio-ecg small { font-size: 9px; }
+.bio-ecg svg { width: 100%; height: 65px; overflow: visible; }
+.bio-ecg path { fill: none; stroke: var(--condition); stroke-width: 2; filter: drop-shadow(0 0 3px var(--condition)); stroke-dasharray: 450; animation: bio-heartbeat 2.8s linear infinite; }
+.bio-ecg strong { font: italic 26px Georgia, serif; letter-spacing: .08em; }
+@keyframes bio-heartbeat { from { stroke-dashoffset: 450; opacity: .55; } 65%, to { stroke-dashoffset: 0; opacity: 1; } }
+.bio-research-seal { display: grid; justify-items: center; align-content: center; gap: 8px; text-align: center; color: #afb39e; font-size: 9px; letter-spacing: .13em; }
+.bio-emblem { width: 76px; height: 76px; clip-path: polygon(29% 0,71% 0,100% 29%,100% 71%,71% 100%,29% 100%,0 71%,0 29%); filter: drop-shadow(0 3px 2px #000); }
+.bio-personnel-tools { padding: 12px; }
+:root[data-layout-mode="biohazard"] .bio-personnel-tools :is(.account-controls, .theme-controls, .hud-career-tools) { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: 8px; margin: 0; padding: 0; min-width: 0; }
+:root[data-layout-mode="biohazard"] .bio-personnel-tools .account-controls { margin-bottom: 10px; }
+:root[data-layout-mode="biohazard"] .theme-selector { width: auto; max-width: 230px; }
+:root[data-layout-mode="biohazard"] .hud-career-tools .hud-milestones { flex: 1 1 280px; }
+:root[data-layout-mode="biohazard"] .bio-mode-tabs { display: grid; grid-template-columns: .8fr 1.25fr 1fr 1.25fr 1.1fr; gap: 4px; border-top: 2px groove #70735f; padding-top: 7px; }
+:root[data-layout-mode="biohazard"] .bio-mode-tabs button { font-size: 11px; min-height: 50px; padding: 9px 5px; }
+:root[data-layout-mode="biohazard"] :is(.bio-mode-tabs, .bio-storage-tabs) button[aria-pressed="true"] { color: #1b2016; background: linear-gradient(#d0d1b1, #969c7a); border-color: #e0dfc3 #525a41 #525a41 #e0dfc3; text-shadow: 0 1px #ffffff50; }
+.bio-subscreen { display: grid; gap: 20px; }
+.bio-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.bio-toolbar > div { display: flex; flex-wrap: wrap; gap: 7px; }
+.bio-loadout, .bio-item-box, .bio-files, .bio-recon, .bio-typewriter { min-width: 0; border: 5px ridge #5c6151; background: var(--bio-surface); box-shadow: inset 0 0 30px #0005, 0 8px 22px #0005; }
+.bio-panel-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 18px; border-bottom: 2px groove #747762; background: linear-gradient(90deg, #464b3c, #282d24); }
+.bio-panel-heading h2 { margin: 0; font: 23px Georgia, serif; }
+.bio-panel-heading > span { font-size: 10px; letter-spacing: .1em; color: #b9bca7; }
+.bio-loadout-slots { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; padding: 16px; }
+.bio-weapon-slot { min-width: 0; border: 3px inset #6a705d; background: #10150f; padding: 8px; position: relative; box-shadow: inset 0 0 12px #000; }
+.bio-slot-index { font-size: 9px; color: #b1b49e; letter-spacing: .16em; }
+:root[data-layout-mode="biohazard"] .bio-equipped-title { display: flex; position: relative; align-items: center; gap: 14px; width: 100%; border: 0; box-shadow: none; background: transparent; text-align: left; padding: 6px 0 18px; min-height: 90px; }
+.bio-equipped-title img { width: 70px; height: 68px; object-fit: cover; filter: saturate(.65); }
+.bio-equipped-title strong { max-width: 70%; padding-right: 18px; font: 17px Georgia, serif; }
+.bio-slot-actions { display: flex; justify-content: space-between; gap: 6px; }
+:root[data-layout-mode="biohazard"] .bio-slot-actions button { min-height: 32px; padding: 5px 9px; font-size: 10px; }
+.bio-empty-slot { min-height: 138px; display: flex; align-items: center; justify-content: center; gap: 18px; color: #929a86; }
+.bio-empty-slot > span { font: 40px Georgia, serif; color: #545e48; }
+.bio-empty-slot small { font-size: 10px; max-width: 185px; }
+.bio-storage-tabs { display: flex; gap: 5px; flex-wrap: wrap; padding: 16px 18px 0; }
+.bio-storage-tabs button { flex: 1 1 100px; }
+.bio-storage-tabs span { margin-left: 8px; opacity: .7; }
+.bio-filters { display: grid; grid-template-columns: 1.6fr repeat(4, 1fr); gap: 10px; padding: 16px 18px; }
+.bio-filters label { display: grid; gap: 5px; color: var(--bio-muted); font-size: 10px; }
+.bio-box-split { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(300px, 1fr); gap: 20px; padding: 0 18px 18px; align-items: start; }
+.bio-storage-rack { border: 6px ridge #737660; padding: 7px; background: #151a12; box-shadow: inset 0 0 25px #000; min-width: 0; }
+.bio-inventory-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; list-style: none; padding: 0; margin: 0; }
+.bio-inventory-grid > li { min-width: 0; position: relative; background: radial-gradient(ellipse at 50% 35%, #3e4b32, #12170f 70%); border: 3px inset #5c6550; }
+.bio-inventory-grid > li[data-selected="true"] { outline: 2px solid #c7ce9e; outline-offset: -2px; z-index: 1; background: radial-gradient(ellipse at center, #616746, #1a2115); }
+:root[data-layout-mode="biohazard"] .bio-inventory-slot { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; min-height: 195px; position: relative; padding: 18px 8px 9px; border: 0; color: #dedfc7; background: transparent; box-shadow: inset 0 0 14px #0008; text-align: center; }
+:root[data-layout-mode="biohazard"] .bio-inventory-slot:hover { background: #78845925; }
+.bio-inventory-slot img { width: 100%; height: 95px; object-fit: contain; margin-bottom: 22px; filter: saturate(.65) drop-shadow(3px 6px 3px #000); }
+.bio-slot-number { position: absolute; left: 6px; top: 4px; font-size: 9px; color: #8b977c; }
+.bio-ammo-count { position: absolute; right: 7px; top: 94px; font: italic bold 28px/1 Georgia, serif; color: #dedbb7; text-shadow: 2px 2px #000; }
+.bio-ammo-count small { font: 10px "Courier New", monospace; }
+.bio-equipped-title .bio-ammo-count { top: auto; bottom: 8px; }
+.bio-slot-caption { display: grid; gap: 4px; width: 100%; }
+.bio-slot-caption strong { font: 12px/1.3 Georgia, serif; }
+.bio-slot-caption small { font-size: 8px; color: #b7bea2; letter-spacing: .06em; }
+.bio-achievement-count { font: 10px Georgia, serif; color: #c1c4a2; margin-top: 5px; }
+.bio-item-placeholder { display: grid; place-items: center; height: 100px; font: 50px Georgia, serif; color: #aeb995; text-shadow: 3px 5px #000; }
+.bio-unused-slot { min-height: 195px; display: grid; place-items: center; }
+.bio-unused-slot span { color: #5e6851; font-size: 9px; letter-spacing: .18em; }
+.bio-inventory-help { text-align: center; margin: 14px 0 4px; font-size: 9px; letter-spacing: .08em; color: #9fa88c; }
+.bio-examination { border: 4px ridge #717460; padding: 20px; background: #181d14; box-shadow: inset 0 0 20px #0005; min-width: 0; }
+.bio-examine-art { display: flex; justify-content: center; align-items: center; gap: 20px; margin: 18px 0; padding: 20px 10px; border: 2px inset #464e3b; background: radial-gradient(ellipse, #4a5638, #0d120b); }
+.bio-examine-art img { width: 130px; height: 130px; object-fit: contain; filter: saturate(.7) drop-shadow(4px 6px 4px #000); }
+.bio-examine-art > span:not(.bio-item-placeholder) { max-width: 80px; font-size: 10px; color: #bec7aa; }
+.bio-examination h3 { font: 24px/1.2 Georgia, serif; margin: 16px 0 8px; }
+.bio-examination p { font-size: 12px; line-height: 1.7; color: var(--bio-muted); }
+.bio-examine-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 12px 0; border-block: 1px solid #525c43; }
+.bio-examine-facts dt { color: #9ba58a; font-size: 8px; }.bio-examine-facts dd { margin: 5px 0 0; font: 17px Georgia, serif; }
+.bio-context-actions, .bio-quick-actions, .bio-record-actions, .bio-order-controls, .bio-session-log { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 14px; }
+.bio-context-actions > .bio-quick-actions { margin: 0; }
+.bio-order-controls span { color: #b6bfa3; font-size: 9px; }.bio-order-controls button { padding: 6px 10px; }
+.bio-active-operations { padding: 0 16px 16px; display: flex; gap: 10px; flex-wrap: wrap; }.bio-active-operations h3 { flex-basis: 100%; }
+.bio-filter-notice, .bio-empty-message { padding: 10px 18px; }
+.bio-folder-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 26px; padding: 38px 22px 22px; }
+.bio-manila-folder, .bio-incident-binder { position: relative; padding: 24px; border: 1px solid #b2a278; background: repeating-linear-gradient(0deg,#00000003 0 1px,transparent 1px 3px), #b7ab83; color: #292c21; box-shadow: 2px 4px 0 #6d694e, 5px 8px 0 #10130f; }
+.bio-incident-binder { border-left: 14px solid #464d37; background-color: #c7bea2; }
+.bio-folder-tab { position: absolute; top: -23px; left: -1px; padding: 5px 12px; border: 1px solid #b2a278; border-bottom: 0; border-radius: 4px 10px 0 0; background: #b7ab83; font-size: 9px; letter-spacing: .06em; color: #303224; }
+:root[data-layout-mode="biohazard"] .bio-manila-folder .custom-lists-panel { --shelf-muted: #414432; --shelf-accent: #3c472c; border: 0; background: transparent; color: #292c21; padding: 0; margin: 0; box-shadow: none; }
+:root[data-layout-mode="biohazard"] .bio-manila-folder .custom-lists-panel p { color: #34382b; }
+.bio-incident-timeline { list-style: none; padding: 0; }.bio-incident-timeline li { display: grid; gap: 8px; padding: 14px 0; border-bottom: 1px solid #777a5f; }
+.bio-incident-timeline small { color: #393f2e; }
+:root[data-layout-mode="biohazard"] .bio-file-heading { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 14px 0; border-bottom: 1px solid var(--bio-line); }
+:root[data-layout-mode="biohazard"] .bio-file-heading :is(h2,h3,h4) { flex: 1 1 180px; margin: 0; font: 21px Georgia, serif; }
+:root[data-layout-mode="biohazard"] .bio-file-section { border-color: var(--bio-line); background: var(--bio-surface); box-shadow: none; color: var(--bio-text); }
+:root[data-layout-mode="biohazard"] :is(.telemetry-drawer, .telemetry-subsection, .telemetry-distribution, .telemetry-breakdown) { margin: 16px; padding: 12px; }
+:root[data-layout-mode="biohazard"] :is(.telemetry-stat, .telemetry-group, .workspace-section-count, .workspace-section-filter, .community-stat-chip, .ownership-badge, .replay-badge, .journal-date-badge) { color: var(--bio-text); border-color: var(--bio-line); background: #30382a; border-radius: 0; box-shadow: none; }
+:root[data-layout-mode="biohazard"] :is(.telemetry-hours-fill, .telemetry-completion-fill, .steam-progress-fill) { background: #9caa7a; }
+.bio-recon-body { display: grid; grid-template-columns: 260px 1fr; gap: 40px; align-items: center; padding: 40px; }.bio-recon h3 { font: 28px Georgia, serif; }.bio-recon-body p { color: var(--bio-muted); max-width: 600px; }
+.bio-radar-scope { position: relative; aspect-ratio: 1; border-radius: 50%; border: 8px ridge #636953; background: repeating-radial-gradient(circle,#9ab67933 0 1px,transparent 1px 38px), linear-gradient(90deg, transparent 49.7%, #718659 50%, transparent 50.3%), linear-gradient(transparent 49.7%,#718659 50%,transparent 50.3%),#0c150b; box-shadow: inset 0 0 30px #000; overflow: hidden; }
+.bio-radar-scope span { position: absolute; inset: 0; background: conic-gradient(transparent 300deg,#a9c98055); animation: bio-radar 7s linear infinite; }.bio-radar-scope b { position: absolute; top: 23%; left: 66%; color: #c1dd89; }.bio-radar-scope i { position: absolute; left: 24%; top: 62%; width: 5px; height: 5px; border-radius: 50%; background: #c1dd89; }
+@keyframes bio-radar { to { transform: rotate(360deg); } }
+.bio-typewriter-intro { display: flex; gap: 24px; align-items: center; padding: 24px; border-bottom: 1px solid #5b624e; }.bio-typewriter-intro h3 { font: italic 25px Georgia, serif; margin: 0; }.bio-typewriter-intro p { font-size: 12px; color: var(--bio-muted); }.bio-ribbon { color: #aeb49a; font: 48px Georgia, serif; white-space: nowrap; }
+.bio-record-sheet { padding: 26px; }.bio-record-sheet h3 { font: 24px Georgia, serif; }.bio-record-editor { display: grid; gap: 20px; }.bio-editor-fields { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 16px; }.bio-record-editor label { display: grid; gap: 6px; font-size: 12px; }.bio-record-actions a { padding: 10px 0; }.bio-session-log { margin-bottom: 20px; }
+/* Shared overlays keep their behavior and receive a complete steel/file surface. */
+:root[data-layout-mode="biohazard"] :is(.advisor-modal, .quest-modal, .vault-modal, .metadata-modal, .auth-panel, .security-modal, .dossier-modal, .admin-modal, [data-theme-studio].theme-studio, .account-security-panel) { border: 5px ridge #727661; border-radius: 1px; color: var(--bio-text); background: var(--bio-surface); box-shadow: 0 20px 80px #000b, inset 0 0 25px #0004; font-family: "Courier New", monospace; }
+:root[data-layout-mode="biohazard"] :is(.advisor-modal, .quest-modal, .vault-modal, .metadata-modal, .auth-panel, .dossier-modal, [data-theme-studio].theme-studio) :is(h2,h3,h4,p,label,.eyebrow) { color: inherit; }
+:root[data-layout-mode="biohazard"] :is(.advisor-card, .quest-result, .vault-section, .auth-tabs, .advisor-external-section, .discovery-feed-header, .discovery-card, .discovery-interest-section, .dossier-identity-details, .agent-briefing-card, .metadata-modal-header) { background: #1b2118; color: var(--bio-text); border-color: var(--bio-line); border-radius: 0; box-shadow: none; }
+:root[data-layout-mode="biohazard"] :is(.advisor-header, .dossier-modal-header, .auth-heading, .vault-heading, .quest-heading, .scout-subnav, .metadata-modal-header) { border-color: var(--bio-line); background: #30382a; }
+:root[data-layout-mode="biohazard"] :is(.scout-subnav button[aria-selected="true"], .discovery-interest-label, .advisor-tag, .advisor-label, .advisor-card h3, .advisor-scout-card h4, .star-rating-input, .trophy-rating-trigger) { color: #d0d5ae; border-color: #9da886; box-shadow: none; }
+:root[data-layout-mode="biohazard"] [data-social-theme] { --social-bg: #20271c; --social-card: #2b3425; --social-soft: #3b4631; --social-line: #69765a; --social-ink: #e3dfce; --social-muted: #b3bca2; --social-accent: #c3ce9f; }
+:root[data-layout-mode="biohazard"] dialog.social-dialog[data-social-theme] { border: 5px ridge #727661; border-radius: 1px; font-family: "Courier New", monospace; }
+:root[data-layout-mode="biohazard"] .dossier-card-preview { filter: saturate(.45); }
+:root[data-layout-mode="biohazard"] .hud-milestone-icon { color: #c7cea8; border-color: #798367; background: #27321e; box-shadow: none; }
+:root[data-layout-mode="biohazard"] :is(.hud-milestone-tooltip,.achievement-toast,.level-up-toast) { color: #e3dfce; border-color: #798367; background: #27321e; box-shadow: 0 6px 25px #0007; }
+@media (max-width: 1000px) {
+  :root[data-layout-mode="biohazard"] .page-shell { width: calc(100% - 32px); margin: 16px auto; }
+  .bio-medical-row { grid-template-columns: 1fr 1fr; }.bio-research-seal { display: none; }
+  .bio-box-split { grid-template-columns: minmax(0,1fr) minmax(260px,.85fr); gap: 12px; padding: 0 12px 12px; }.bio-inventory-grid { grid-template-columns: repeat(3,minmax(0,1fr)); }
+  .bio-filters { grid-template-columns: repeat(3,minmax(0,1fr)); }.bio-toolbar { align-items: start; flex-direction: column; }.bio-folder-layout { grid-template-columns: 1fr; gap: 48px; }
+}
+@media (max-width: 620px) {
+  :root[data-layout-mode="biohazard"] .page-shell { width: calc(100% - 20px); margin: 10px auto; }
+  :root[data-layout-mode="biohazard"] .workspace-shell { gap: 12px; }
+  .bio-status-deck { border-width: 4px; padding: 5px; }.bio-deck-title { padding: 5px; font-size: 8px; gap: 8px; }.bio-deck-title > span:last-child { text-align: right; }
+  .bio-medical-row { grid-template-columns: 1fr; gap: 12px; padding: 10px; }.bio-operative-card > :first-child { width: 64px; height: 78px; flex-basis: 64px; }.bio-operative-card h1 { font-size: 29px; }
+  :root[data-layout-mode="biohazard"] button.bio-ecg { min-height: 120px; border-width: 5px; padding: 8px 12px; }.bio-ecg svg { height: 45px; }.bio-ecg strong { font-size: 23px; }
+  .bio-personnel-tools { padding: 12px 4px; }:root[data-layout-mode="biohazard"] .bio-personnel-tools :is(button,select) { font-size: 10px; }
+  :root[data-layout-mode="biohazard"] .bio-mode-tabs { grid-template-columns: repeat(2,minmax(0,1fr)); }:root[data-layout-mode="biohazard"] .bio-mode-tabs button:last-child { grid-column: 1/-1; }.bio-mode-tabs button { min-width: 0; }
+  .bio-toolbar { gap: 10px; }.bio-toolbar > div { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }.bio-toolbar > div > :last-child { grid-column: 1/-1; }
+  .bio-loadout,.bio-item-box,.bio-files,.bio-recon,.bio-typewriter { border-width: 3px; }.bio-panel-heading { padding: 12px; }.bio-panel-heading h2 { font-size: 21px; }.bio-panel-heading > span { max-width: 115px; font-size: 8px; text-align: right; }
+  .bio-loadout-slots { gap: 6px; padding: 8px; }.bio-weapon-slot { padding: 5px; border-width: 2px; }.bio-slot-index { font-size: 7px; }.bio-empty-slot { min-height: 80px; }.bio-empty-slot > span { display: none; }.bio-empty-slot small { font-size: 8px; }.bio-equipped-title { flex-wrap: wrap; }.bio-equipped-title img { width: 100%; height: 65px; }.bio-equipped-title strong { max-width: 100%; font-size: 12px; padding: 0; }.bio-equipped-title .bio-ammo-count { font-size: 21px; bottom: 25px; }.bio-slot-actions { flex-wrap: wrap; gap: 3px; }:root[data-layout-mode="biohazard"] .bio-slot-actions button { padding: 5px; font-size: 9px; }.bio-slot-actions .deck-pin-button { order: -1; width: 100%; }
+  .bio-storage-tabs { gap: 4px; padding: 10px 8px 0; }:root[data-layout-mode="biohazard"] .bio-storage-tabs button { flex-basis: 85px; font-size: 10px; padding: 8px 5px; }
+  .bio-filters { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 9px; padding: 12px 8px; }.bio-filters label:first-child { grid-column: 1/-1; }
+  .bio-box-split { grid-template-columns: 1fr; padding: 0 8px 8px; gap: 14px; }.bio-storage-rack { border-width: 4px; padding: 4px; }.bio-inventory-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 4px; }.bio-inventory-grid > li { border-width: 2px; }:root[data-layout-mode="biohazard"] .bio-inventory-slot { min-height: 178px; }.bio-inventory-slot img { height: 86px; }.bio-ammo-count { top: 83px; font-size: 26px; }.bio-unused-slot { min-height: 160px; }.bio-examination { padding: 16px; border-width: 3px; }
+  .bio-folder-layout { padding: 36px 12px 18px; }.bio-manila-folder,.bio-incident-binder { padding: 16px; }.bio-incident-binder { border-left-width: 8px; }.bio-folder-tab { font-size: 8px; max-width: 100%; }.bio-editor-fields { grid-template-columns: 1fr 1fr; gap: 12px; }.bio-record-sheet { padding: 16px; }.bio-typewriter-intro { padding: 16px; gap: 14px; }.bio-ribbon { font-size: 26px; }.bio-typewriter-intro h3 { font-size: 22px; }
+  .bio-recon-body { grid-template-columns: 1fr; padding: 20px; gap: 16px; }.bio-radar-scope { width: 180px; margin: auto; }
+  :root[data-layout-mode="biohazard"] .add-section { padding: 12px; border-width: 3px; }:root[data-layout-mode="biohazard"] .game-form { display: flex; flex-direction: column; gap: 14px; }:root[data-layout-mode="biohazard"] .game-form > * { width: 100%; }
+  :root[data-layout-mode="biohazard"] .telemetry-stats-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }:root[data-layout-mode="biohazard"] .telemetry-breakdown-grid { grid-template-columns: 1fr; }
+  :root[data-layout-mode="biohazard"] :is(.advisor-modal,.quest-modal,.vault-modal,.metadata-modal,.auth-panel,.dossier-modal,.security-modal) { padding: 16px; max-width: calc(100vw - 24px); }
+}
+@media (prefers-reduced-motion: reduce) { .bio-ecg path, .bio-radar-scope span { animation: none; } }
+:root[data-layout-mode="biohazard"] :is(.account-operator, .account-operator span, .account-operator small, .community-readout-label, .community-rating-average, .member-count strong) { color: var(--bio-accent); }
+:root[data-layout-mode="biohazard"] .hud-achievements-bar { flex: 1 1 350px; border: 0; padding-top: 0; }
+:root[data-layout-mode="biohazard"] .hud-achievements-pills > button.hud-achievement-pill { border-color: #737d61; color: #bdc6a5; background: #242f1b; box-shadow: none; min-height: 32px; }
+:root[data-layout-mode="biohazard"] :is(.hud-achievement-icon, .achievement-toast-eyebrow, .achievement-toast-crest, .achievement-toast-reward) { color: #c7cea8; border-color: #798367; background: #27321e; box-shadow: none; }
+:root[data-layout-mode="biohazard"] .achievement-toast-timer span { background: #b7c38e; }
+:root[data-layout-mode="biohazard"] .bio-personnel-tools .theme-controls { width: auto; flex-basis: auto; }
+:root[data-layout-mode="biohazard"] .bio-personnel-tools .account-operator { font-size: 12px; margin-right: auto; }
+:root[data-layout-mode="biohazard"] .bio-personnel-tools .account-operator small { font-size: 11px; }
+:root[data-layout-mode="biohazard"] :is(.dossier-avatar-preset[aria-pressed="true"], .dossier-avatar-preset[data-active="true"], .dossier-showcase-picker, .dossier-showcase-slot) { border-color: var(--bio-line); background: #2b3523; color: var(--bio-text); box-shadow: none; }
+@media (max-width: 620px) {
+  .bio-medical-row { position: relative; }
+  .bio-operative-card { padding-right: 34px; gap: 10px; }
+  .bio-research-seal { display: flex; position: absolute; right: 10px; top: 14px; }
+  .bio-research-seal .bio-emblem { width: 32px; height: 32px; }
+  .bio-research-seal > span { display: none; }
+}
+:root[data-layout-mode="biohazard"] .theme-controls .theme-selector { border-color: var(--bio-line); background: #171d13; color: var(--bio-text); }
+:root[data-layout-mode="biohazard"] .security-modal :is(h2, h3, p, label, dt, dd) { color: var(--bio-text); }
+:root[data-layout-mode="biohazard"] .security-modal :is(.security-account-summary > div, .security-google, .security-steam, .security-verification, .security-danger-zone) { border-color: var(--bio-line); background: #1b2316; color: var(--bio-text); }
+:root[data-layout-mode="biohazard"] .security-modal :is(button.security-save-button, button.security-reset-reveal, button.security-reset-confirm, button.security-eye-toggle) { border-color: var(--bio-line); background: #35412a; color: var(--bio-text); }
+@media (min-width: 1001px) {
+  :root[data-layout-mode="biohazard"] .bio-personnel-tools .account-operator { display: none; }
+  .bio-empty-slot { min-height: 88px; }
+  :root[data-layout-mode="biohazard"] .bio-equipped-title { min-height: 65px; padding-bottom: 6px; }
+  .bio-equipped-title img { width: 54px; height: 54px; }
+  .bio-personnel-tools { padding: 8px 12px; }
+}
+:root[data-layout-mode="biohazard"] .telemetry-drawer :is(dd, .telemetry-group-stats, .telemetry-distribution-label > span:first-child, .telemetry-rating-pill) { color: #c6d3a6; text-shadow: none; }
+:root[data-layout-mode="biohazard"] .telemetry-drawer :is(p, dt, .telemetry-stat > span, .telemetry-bar-labels, .telemetry-completion-badge) { color: #afb99e; }
+:root[data-layout-mode="biohazard"] .telemetry-drawer .telemetry-rating-pill { background: #343e2b; border-color: #737f5d; border-radius: 1px; }
+:root[data-layout-mode="biohazard"] .telemetry-drawer .telemetry-bar-track { background: #10170c; }
+:root[data-layout-mode="biohazard"] .telemetry-drawer .telemetry-completion-fill { background: #d3c99b; }
+:root[data-layout-mode="biohazard"] .bio-manila-folder :is(input,select,textarea) { border-color: #343c29; background: #232b1a; color: #e3dfce; }
+@media (max-width: 620px) {
+  :root[data-layout-mode="biohazard"] .bio-personnel-tools .hud-career-tools { align-items: stretch; }
+  :root[data-layout-mode="biohazard"] .bio-personnel-tools .hud-achievements-bar { flex: 0 1 auto; width: 100%; display: grid; gap: 8px; }
+  :root[data-layout-mode="biohazard"] .bio-equipped-title { display: grid; grid-template-columns: 1fr; text-align: center; padding: 8px 0 25px; }
+  .bio-equipped-title .bio-ammo-count { bottom: 0; right: 2px; }
+}
+@media (max-width: 620px) {
+  :root[data-layout-mode="biohazard"] .bio-personnel-tools .account-operator { display: none; }
+  :root[data-layout-mode="biohazard"] .bio-mode-tabs button { min-height: 44px; }
+  .bio-equipped-title .bio-ammo-count { position: static; justify-self: end; font-size: 22px; }
+  :root[data-layout-mode="biohazard"] .bio-equipped-title { padding-bottom: 5px; }
+}

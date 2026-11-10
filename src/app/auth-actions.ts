@@ -1,4 +1,5 @@
 "use server";
+import { normalizeLayoutMode } from "@/lib/appearance";
 
 import { revalidatePath } from "next/cache";
 import { actionErrorMessage, InputError, RateLimitError } from "@/lib/action-result";
@@ -25,7 +26,7 @@ export async function authenticate(mode: "login" | "register", _previous: AuthSt
     if (mode === "register") {
       const passwordHash = await hashPassword(input.password);
       verifiedHash = passwordHash;
-      try { playerId = (await registerPlayer({ ...input, preferredLayoutMode: formData.get("layoutMode") === "fantasy" ? "fantasy" : "cyberpunk" }, passwordHash)).id; }
+      try { playerId = (await registerPlayer({ ...input, preferredLayoutMode: normalizeLayoutMode(formData.get("layoutMode")) }, passwordHash)).id; }
       catch (error) {
         if (error instanceof Error && /^(That email|That handle)/.test(error.message)) return { mode, error: error.message };
         if (error && typeof error === "object" && "code" in error && error.code === "P2002") return { mode, error: "That email or handle is already registered." };

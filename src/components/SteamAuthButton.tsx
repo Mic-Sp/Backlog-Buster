@@ -1,11 +1,11 @@
 "use client";
 
-import { useLayoutCopy } from "@/components/LayoutText";
+import { useUIEffects } from "@/components/ThemeProvider";
 import "./SteamAuth.css";
 
 export default function SteamAuthButton({ mode = "signin", disabled = false }: { mode?: "signin" | "link"; disabled?: boolean }) {
-  const copy = useLayoutCopy();
-  return <a className="steam-auth-button" href={disabled ? undefined : `/api/auth/steam?mode=${mode}&theme=${copy("cyberpunk", "fantasy")}`}
+  const { layoutMode } = useUIEffects();
+  return <a className="steam-auth-button" href={disabled ? undefined : `/api/auth/steam?mode=${mode}&theme=${layoutMode}`}
     aria-disabled={disabled || undefined} tabIndex={disabled ? -1 : undefined}>
     <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
       <circle cx="16.5" cy="7.5" r="5" /><circle cx="16.5" cy="7.5" r="2.6" /><circle cx="7" cy="17" r="3.5" />

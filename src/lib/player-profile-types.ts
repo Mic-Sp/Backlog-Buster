@@ -8,7 +8,7 @@ export type PlayerProfile = {
   profileVisibility: ProfileVisibility;
   tagline: string;
   neonAccent: "CYAN" | "GOLD" | "MAGENTA";
-  preferredLayoutMode: "cyberpunk" | "fantasy";
+  preferredLayoutMode: "cyberpunk" | "fantasy" | "biohazard";
   avatarUrl: string | null;
   // Ordered profile favorites, independent of Game.pinnedOrder. Null = automatic trophy.
   featuredTrophyIds: (number | null)[];

@@ -19,7 +19,7 @@ const googleKeys = createRemoteJWKSet(new URL("https://www.googleapis.com/oauth2
 export type GoogleContext = {
   state: string; verifier: string; nonce: string; mode: "signin" | "link";
   sessionHash: string | null; userId: string | null; redirectUri: string;
-  layoutMode: "cyberpunk" | "fantasy"; expiresAt: number;
+  layoutMode: "cyberpunk" | "fantasy" | "biohazard"; expiresAt: number;
 };
 export type GoogleProfile = { googleId: string; email: string; name: string };
 
@@ -56,14 +56,14 @@ export function readGoogleContext(value: string | undefined, state: string | nul
   if (typeof parsed.expiresAt !== "number" || parsed.expiresAt <= Date.now() || parsed.expiresAt > Date.now() + lifetimeMs) return fail("state_expired");
   if (
       !/^[A-Za-z0-9_-]{43}$/.test(parsed.verifier) || !/^[A-Za-z0-9_-]{43}$/.test(parsed.nonce) ||
-      !["signin", "link"].includes(parsed.mode) || !["cyberpunk", "fantasy"].includes(parsed.layoutMode) ||
+      !["signin", "link"].includes(parsed.mode) || !["cyberpunk", "fantasy", "biohazard"].includes(parsed.layoutMode) ||
       !(parsed.sessionHash === null || /^[a-f0-9]{64}$/.test(parsed.sessionHash)) ||
       !(parsed.userId === null || typeof parsed.userId === "string") || typeof parsed.redirectUri !== "string" ||
       (parsed.mode === "link" && (!parsed.userId || !parsed.sessionHash)) || (parsed.mode === "signin" && parsed.userId !== null)) return fail("invalid_state_payload");
   return parsed as GoogleContext;
 }
 
-export async function beginGoogleOAuth(requestUrl: string, mode: "signin" | "link", layoutMode: "cyberpunk" | "fantasy", requestHeaders?: Headers) {
+export async function beginGoogleOAuth(requestUrl: string, mode: "signin" | "link", layoutMode: "cyberpunk" | "fantasy" | "biohazard", requestHeaders?: Headers) {
   const configuration = googleConfiguration(requestUrl, requestHeaders);
   const sessionHash = await googleOAuthStep("session_lookup", readSessionHash);
   const session = sessionHash ? await googleOAuthStep("session_lookup", () => prisma.playerSession.findUnique({ where: {

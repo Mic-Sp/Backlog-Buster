@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useLayoutCopy } from "@/components/LayoutText";
 import type { Achievement } from "@/lib/achievements";
 
 const storageKey = "bb_toasted_achievements";
@@ -107,6 +108,7 @@ export default function AchievementToast({ achievements, level, totalXp, playerI
   totalXp: number;
   playerId?: string;
 }) {
+  const copy = useLayoutCopy();
   const achievementStorageKey = playerId === "default-player" ? storageKey : `${storageKey}:${playerId}`;
   const knownLevelStorageKey = playerId === "default-player" ? levelStorageKey : `${levelStorageKey}:${playerId}`;
   const [mounted, setMounted] = useState(false);
@@ -249,14 +251,14 @@ export default function AchievementToast({ achievements, level, totalXp, playerI
     <div className="achievement-toast-region" role="status" aria-live="polite" aria-atomic="true">
       {activeToast && (
         <article className="achievement-toast" data-variant={activeToast.variant} key={activeToast.key}>
-          <div className="achievement-toast-eyebrow">{activeToast.eyebrow}</div>
+          <div className="achievement-toast-eyebrow">{copy(activeToast.eyebrow, activeToast.eyebrow)}</div>
           <button className="achievement-toast-dismiss achievement-toast-sound" type="button" aria-label={soundMuted ? "Unmute HUD sounds" : "Mute HUD sounds"} aria-pressed={soundMuted} onClick={toggleSound}>{soundMuted ? "🔇" : "🔊"}</button>
           <button className="achievement-toast-dismiss" type="button" aria-label={`Dismiss ${activeToast.title} ${activeToast.variant === "achievement" ? "achievement" : "notification"}`} onClick={() => dismissToast(activeToast)}>✕</button>
           <div className="achievement-toast-body">
             <div className="achievement-toast-crest" aria-hidden="true">{activeToast.icon}</div>
             <div>
               <h2>{activeToast.title}</h2>
-              <p>{activeToast.description}</p>
+              <p>{copy(activeToast.description, activeToast.description)}</p>
               <span className="achievement-toast-reward">{activeToast.reward}</span>
             </div>
           </div>

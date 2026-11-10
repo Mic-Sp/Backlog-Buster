@@ -34,7 +34,7 @@ export function restoreCustomThemeBeforePaint(root: HTMLElement, storage: Pick<S
     if (!Array.isArray(rows)) return;
     const theme = rows.slice(0, 50).find(value => value && value.id === selected);
     if (!theme || !theme.colors || !["background", "surface", "text", "muted", "accent", "border"].every(key => typeof theme.colors[key] === "string" && /^#[0-9a-fA-F]{6}$/.test(theme.colors[key]))) return;
-    if (theme.baseLayout !== undefined && !["cyberpunk", "fantasy"].includes(theme.baseLayout)) return;
+    if (theme.baseLayout !== undefined && !["cyberpunk", "fantasy", "biohazard"].includes(theme.baseLayout)) return;
     if (theme.borderRadius !== undefined && (!Number.isInteger(theme.borderRadius) || theme.borderRadius < 0 || theme.borderRadius > 32)) return;
     const effects = theme.effects ?? {};
     if (!effects || typeof effects !== "object" || !["scanlines", "particles", "parchment", "haunted"].every(key => effects[key] === undefined || typeof effects[key] === "boolean")) return;

@@ -30,7 +30,7 @@ export function readCredentials(form: FormData, register = false): Registration 
 }
 
 // Kept separate from cookies so the in-place claim can be tested in a rollback-only transaction.
-export async function registerPlayer(input: Omit<Registration, "password"> & { preferredLayoutMode?: "cyberpunk" | "fantasy" }, passwordHash: string) {
+export async function registerPlayer(input: Omit<Registration, "password"> & { preferredLayoutMode?: "cyberpunk" | "fantasy" | "biohazard" }, passwordHash: string) {
   return prisma.$transaction(async (tx) => {
     // Serialize first claims and normalized email/handle checks across server instances.
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended('backlogbuster-account-registration', 0))`;

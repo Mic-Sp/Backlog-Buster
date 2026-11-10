@@ -64,7 +64,7 @@ export async function captureDossierPng(card: SVGSVGElement): Promise<Blob> {
 
 export function downloadDossier(blob: Blob, callsign: string, layoutMode: LayoutMode = "cyberpunk") {
   const name = callsign.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "operator";
-  downloadSnapshot(blob, `${layoutMode === "fantasy" ? "adventurers-codex" : "netrunner-id"}-${name}-${new Date().toISOString().slice(0, 10)}.png`);
+  downloadSnapshot(blob, `${layoutMode === "biohazard" ? "personnel-file" : layoutMode === "fantasy" ? "adventurers-codex" : "netrunner-id"}-${name}-${new Date().toISOString().slice(0, 10)}.png`);
 }
 
 export function downloadSnapshot(blob: Blob, filename: string) {

@@ -89,12 +89,12 @@ export default function CustomThemeStudio({ controller, baseLayout, haunted }: {
       </div>
       <div className="studio-fields">
         <label>Theme name<input value={draft.name} onChange={event => change({ ...draft, name: event.target.value })} maxLength={60} placeholder="Midnight orchard" /></label>
-        <label>Base layout<select aria-label="Base layout" value={draft.baseLayout} onChange={event => change({ ...draft, baseLayout: event.target.value as LayoutMode })}><option value="cyberpunk">Cyberpunk</option><option value="fantasy">Fantasy</option></select></label>
+        <label>Base layout<select aria-label="Base layout" value={draft.baseLayout} onChange={event => change({ ...draft, baseLayout: event.target.value as LayoutMode })}><option value="cyberpunk">Cyberpunk</option><option value="fantasy">Fantasy</option><option value="biohazard">Safe Room / Biohazard</option></select></label>
       </div>
       <section aria-labelledby={`${titleId}-colors`}><h3 id={`${titleId}-colors`}>01 / Color palette</h3><p className="studio-help">Pick a color or enter a six-digit hex value. Invalid hex values stay in the editor until corrected.</p>
         <div className="studio-palette-preview" aria-label="Live palette preview" style={{ background: draft.colors.background, color: draft.colors.text, borderColor: draft.colors.border, borderRadius: draft.borderRadius }}>
           <div style={{ background: draft.colors.surface, borderColor: draft.colors.border, borderRadius: draft.borderRadius }}>
-            <small style={{ color: draft.colors.muted }}>YOUR NEXT ADVENTURE</small><strong style={{ color: draft.colors.text }}>{draft.terminology.libraryTitle?.trim() || (draft.baseLayout === "fantasy" ? "Your Quest Journal" : "System Playqueue")}</strong>
+            <small style={{ color: draft.colors.muted }}>YOUR NEXT ADVENTURE</small><strong style={{ color: draft.colors.text }}>{draft.terminology.libraryTitle?.trim() || (draft.baseLayout === "biohazard" ? "Item Box" : draft.baseLayout === "fantasy" ? "Your Quest Journal" : "System Playqueue")}</strong>
             <p style={{ color: draft.colors.muted }}>A palette for the stories still waiting to be played.</p><span style={{ color: draft.colors.accent, borderColor: draft.colors.accent }}>3 games · Ready when you are →</span>
           </div>
         </div>

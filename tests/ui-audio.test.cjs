@@ -7,7 +7,7 @@ function load() {
   return instance.exports;
 }
 
-test("all three audio palettes are gated, bounded, stop on mute/theme changes, and tolerate unavailable APIs", async () => {
+test("all audio palettes are gated, bounded, stop on mute/theme changes, and tolerate unavailable APIs", async () => {
   const previous = { window: global.window, setTimeout: global.setTimeout, clearTimeout: global.clearTimeout };
   const contexts = [], timers = new Map(); let timerId = 0;
   const param = (onSet = () => {}) => ({ setValueAtTime(value) { onSet(value); }, exponentialRampToValueAtTime() {} });
@@ -54,6 +54,11 @@ test("all three audio palettes are gated, bounded, stop on mute/theme changes, a
       assert.equal(timers.size, 1);
       assert.ok(contexts.slice(0, -1).every(context => context.closed));
       if (sound === "page") assert.deepEqual(contexts.at(-1).frequencies, [587.33, 880, 1174.66, 1567.98]);
+    }
+    audio.setTheme("biohazard");
+    for (const [sound, count] of [["cursor", 2], ["latch", 3], ["pulse", 1], ["typewriter", 2]]) {
+      audio.play(sound); assert.equal(contexts.at(-1).notes, count); assert.equal(timers.size, 1);
+      assert.ok(contexts.slice(0, -1).every(context => context.closed));
     }
     audio.setEnabled(false);
     const countBeforeMutedPlay = contexts.length;

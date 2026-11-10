@@ -1,9 +1,10 @@
 "use client";
 
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { FantasyCorners, HeroCrest } from "@/components/FantasyAccents";
 import { useUIEffects } from "@/components/ThemeProvider";
 import LayoutText from "@/components/LayoutText";
+import type { SafeRoomMode } from "@/lib/biohazard";
 
 export type SubscreenPane = "quest" | "items" | "chronicle" | "all";
 const pages: { key: SubscreenPane; label: string }[] = [
@@ -14,20 +15,37 @@ const pages: { key: SubscreenPane; label: string }[] = [
 ];
 const SubscreenContext = createContext<{ pane: SubscreenPane; showPane: (pane: SubscreenPane) => void }>({ pane: "all", showPane: () => {} });
 export function useSubscreen() { return useContext(SubscreenContext); }
+const SafeRoomContext = createContext<{ mode: SafeRoomMode; showMode: (mode: SafeRoomMode) => void }>({ mode: "box", showMode: () => {} });
+export function useSafeRoom() { return useContext(SafeRoomContext); }
 
 /** Server-rendered workspace slots stay at stable React positions in either layout. */
 export default function WorkspaceShell({ children }: { children: ReactNode }) {
   const { layoutMode, playSfx, customTheme } = useUIEffects();
   const [pane, setPane] = useState<SubscreenPane>("all");
+  const [mode, setMode] = useState<SafeRoomMode>("box");
+  const shellRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (layoutMode === "biohazard" && mode === "save") {
+      const station = shellRef.current?.querySelector<HTMLDetailsElement>(".add-disclosure");
+      if (station) station.open = true;
+    }
+  }, [layoutMode, mode]);
+  function showMode(next: SafeRoomMode) {
+    if (next !== mode) playSfx("latch");
+    setMode(next);
+  }
   function showPane(next: SubscreenPane) {
+    if (layoutMode === "biohazard") showMode(next === "chronicle" ? "files" : next === "quest" ? "equipped" : "box");
     if (next !== pane && layoutMode === "fantasy") playSfx("page");
     setPane(next);
   }
   function turnPage(direction: number) {
     showPane(pages[(pages.findIndex(page => page.key === pane) + direction + pages.length) % pages.length].key);
   }
-  return <SubscreenContext.Provider value={{ pane, showPane }}>
-    <main className="page-shell workspace-shell" data-fantasy-pane={pane}>
+  return <SubscreenContext.Provider value={{ pane, showPane }}><SafeRoomContext.Provider value={{ mode, showMode }}>
+    <main ref={shellRef} className="page-shell workspace-shell" data-fantasy-pane={pane} data-safe-room-mode={mode} onKeyDownCapture={event => {
+      if (layoutMode === "biohazard" && event.key.length === 1 && !event.ctrlKey && !event.metaKey && event.target instanceof Element && event.target.matches("input, textarea")) playSfx("typewriter");
+    }}>
       <FantasyCorners />
       {layoutMode === "cyberpunk" && customTheme?.terminology.workspaceTitle?.trim() && <h1 className="custom-workspace-heading">{customTheme.terminology.workspaceTitle}</h1>}
       <header className="fantasy-workspace-banner">
@@ -50,5 +68,5 @@ export default function WorkspaceShell({ children }: { children: ReactNode }) {
       </header>
       {children}
     </main>
-  </SubscreenContext.Provider>;
+  </SafeRoomContext.Provider></SubscreenContext.Provider>;
 }

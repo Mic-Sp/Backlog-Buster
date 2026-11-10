@@ -140,7 +140,7 @@ export async function adminSetPlayerLayoutMode(targetPlayerId: string, mode: unk
   return safeAction(async () => {
     const admin = await requireAdmin();
     const id = readTargetPlayerId(targetPlayerId);
-    if (!isLayoutMode(mode)) throw new InputError("Choose Cyberpunk Deck or Fantasy Subscreen.");
+    if (!isLayoutMode(mode)) throw new InputError("Choose Cyberpunk Deck, Fantasy Subscreen, or Safe Room.");
     try {
       await prisma.$transaction(async tx => {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended('backlogbuster-account-registration', 0))`;

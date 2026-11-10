@@ -1,11 +1,13 @@
 "use client";
 
+import { useLayoutCopy } from "@/components/LayoutText";
 import WorkspaceSection from "@/components/WorkspaceSection";
 import { useMemo, useState } from "react";
 import type { LibraryGame } from "@/components/GameLibrary";
 import { calculateLibraryTelemetry, sortTelemetryGroups, type TelemetryGroup, type TelemetrySort } from "@/lib/library-telemetry";
 
 export default function LibraryTelemetry({ games }: { games: LibraryGame[] }) {
+  const copy = useLayoutCopy();
   const [sortBy, setSortBy] = useState<TelemetrySort>("hours");
   const telemetry = useMemo(() => calculateLibraryTelemetry(games), [games]);
   const breakdowns = useMemo(() => [
@@ -41,14 +43,14 @@ export default function LibraryTelemetry({ games }: { games: LibraryGame[] }) {
   }
 
   return (
-    <WorkspaceSection sectionKey="telemetry" className="telemetry-drawer" label="telemetry" title="Netrunner Telemetry & Critic Matrix" defaultOpen={false}
+    <WorkspaceSection sectionKey="telemetry" className="telemetry-drawer" label="telemetry" title={copy("Netrunner Telemetry & Critic Matrix", "Library records & ratings")} defaultOpen={false}
       summary={<span className="workspace-section-count">{telemetry.totalGames} games</span>}>
       <div className="telemetry-content">
         <p className="telemetry-intro">ANALYTICS &amp; CRITIC BREAKDOWN // Entire library · {telemetry.totalGames.toLocaleString("en-US")} games</p>
         <WorkspaceSection sectionKey="telemetry-stats" className="telemetry-subsection" label="library stats" title="Library stats" headingLevel={4}
           summary={<span className="workspace-section-count">{telemetry.completedCount} cleared</span>}>
         <dl className="telemetry-stats-grid">
-          <div className="telemetry-stat"><dt>Completion Rate</dt><dd>{telemetry.completionRate.toFixed(1)}%</dd><span>{telemetry.completedCount} / {telemetry.totalGames} gigs cleared</span></div>
+          <div className="telemetry-stat"><dt>Completion Rate</dt><dd>{telemetry.completionRate.toFixed(1)}%</dd><span>{telemetry.completedCount} / {telemetry.totalGames} {copy("gigs cleared", "games cleared")}</span></div>
           <div className="telemetry-stat"><dt>Active Hours Logged</dt><dd>{telemetry.activeHours.toLocaleString("en-US")}h</dd><span>Completed + playing + flatlined sessions</span></div>
           <div className="telemetry-stat"><dt>Remaining Backlog</dt><dd>{telemetry.backlogHours.toLocaleString("en-US")}h</dd><span>Estimated hours to clear</span></div>
           <div className="telemetry-stat telemetry-critic-stat"><dt>Average Star Rating</dt><dd>{telemetry.avgRating !== null ? `${telemetry.avgRating.toFixed(1)} ★` : "UNRATED"}</dd><span>{telemetry.ratedCount} rated games</span></div>
@@ -78,7 +80,7 @@ export default function LibraryTelemetry({ games }: { games: LibraryGame[] }) {
               <button key={value} type="button" aria-pressed={sortBy === value} onClick={() => setSortBy(value)}>{label}</button>
             ))}
           </div>
-        <p className="telemetry-legend">Cyan: share of {shareUsesHours ? "active hours" : "games"} across the library. Gold: completion within each group.</p>
+        <p className="telemetry-legend">{copy("Cyan: share of", "First bar: share of")} {shareUsesHours ? "active hours" : "games"} {copy("across the library. Gold: completion within each group.", "across the library. Second bar: completion within each group.")}</p>
         <div className="telemetry-matrix">
           {breakdowns.map(({ title, groups }) => (
             <WorkspaceSection sectionKey={title === "BY GENRE" ? "genre-breakdown" : "platform-breakdown"} className="telemetry-breakdown" key={title} label={title === "BY GENRE" ? "genre breakdown" : "platform breakdown"} title={title} headingLevel={4}

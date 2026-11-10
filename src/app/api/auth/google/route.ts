@@ -1,3 +1,4 @@
+import { normalizeLayoutMode } from "@/lib/appearance";
 import { NextResponse } from "next/server";
 import { beginGoogleOAuth } from "@/lib/google-oauth";
 import { logGoogleOAuthFailure } from "@/lib/google-oauth-diagnostics";
@@ -17,7 +18,7 @@ export async function GET(request: Request) {
     }
     stage = "begin_authorization";
     const mode = url.searchParams.get("mode") === "link" ? "link" : "signin";
-    const layoutMode = url.searchParams.get("theme") === "fantasy" ? "fantasy" : "cyberpunk";
+    const layoutMode = normalizeLayoutMode(url.searchParams.get("theme"));
     return NextResponse.redirect(await beginGoogleOAuth(request.url, mode, layoutMode, request.headers), { headers });
   } catch (error) {
     const reason = logGoogleOAuthFailure(error, { route: "authorize", stage, requestUrl: request.url, canonicalOrigin });

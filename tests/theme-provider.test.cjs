@@ -137,3 +137,15 @@ test("anonymous dossiers follow device storage without writing it or saving an a
   assert.equal(f.root.layoutMode, "cyberpunk"); assert.deepEqual(f.saves, []);
   assert(bus.writes.every(write => write.source !== "anonymous"));
 });
+
+
+test("layout cycling reaches Safe Room, saves it once, and selects its audio without losing account precedence", async () => {
+  const bus = browser(), f = tab(bus, "viewer", { id: "viewer", preferredLayoutMode: "fantasy" });
+  f.toggle(); await Promise.resolve();
+  assert.equal(f.root.layoutMode, "biohazard"); assert.equal(f.root.theme, "biohazard");
+  assert.deepEqual(f.saves, ["biohazard"]); assert(f.audioThemes.includes("biohazard"));
+  bus.write("foreign", layoutKey, "cyberpunk"); bus.drain();
+  assert.equal(f.root.layoutMode, "biohazard");
+  f.toggle(); await Promise.resolve(); await Promise.resolve();
+  assert.equal(f.root.layoutMode, "cyberpunk");
+});

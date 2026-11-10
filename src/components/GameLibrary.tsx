@@ -14,6 +14,7 @@ import type { SagaChronologyDebug } from "@/lib/saga-debug";
 import { buildSagaChains, compareSagaGames, type SagaOrderMode } from "@/lib/sagas";
 import { compareChronologyTitles } from "@/lib/chronology-titles";
 import { useEffect, useMemo, useOptimistic, useRef, useState, useTransition, type DragEvent, type ReactNode } from "react";
+import BiohazardSubscreenView from "@/components/BiohazardSubscreenView";
 import FantasySubscreenView from "@/components/FantasySubscreenView";
 import { useSubscreen } from "@/components/WorkspaceShell";
 import useGameDrafts from "@/components/useGameDrafts";
@@ -831,7 +832,7 @@ export default function GameLibrary(props: Parameters<typeof useGameLibraryContr
   } = controller;
   return <DeckPinsContext.Provider value={controller.deck.pins}>
     <section className="collection" aria-labelledby="collection-title" ref={collectionRef} data-library-layout={layoutMode} onInputCapture={controller.captureGameDraft} onChangeCapture={controller.captureGameDraft}>
-    {layoutMode === "fantasy" ? <FantasySubscreenView controller={controller} /> : <CyberpunkLibraryView controller={controller} />}
+    {layoutMode === "biohazard" ? <BiohazardSubscreenView controller={controller} /> : layoutMode === "fantasy" ? <FantasySubscreenView controller={controller} /> : <CyberpunkLibraryView controller={controller} />}
     <TacticalAdvisorView controller={advisor} part="overlay" />
     <LibraryDataVaultView controller={vault} part="overlay" />
     <SocialHubOverlay controller={controller.social} />

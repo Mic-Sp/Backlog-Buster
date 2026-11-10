@@ -20,7 +20,7 @@ const identifierSelect = "http://specs.openid.net/auth/2.0/identifier_select";
 const lifetimeMs = 10 * 60 * 1000;
 export type SteamContext = {
   state: string; mode: "signin" | "link"; sessionHash: string | null; userId: string | null;
-  returnTo: string; layoutMode: "cyberpunk" | "fantasy"; expiresAt: number;
+  returnTo: string; layoutMode: "cyberpunk" | "fantasy" | "biohazard"; expiresAt: number;
 };
 export type SteamPersona = { name: string; avatarUrl: string | null };
 export function steamStateHash(state: string) { return createHash("sha256").update(`steam-state-v1:${state}`).digest("hex"); }
@@ -39,7 +39,7 @@ export function readSteamContext(value: string | undefined, state: string | null
   if (extra !== undefined || signature?.length !== expected.length || !timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) return fail();
   let parsed;
   try { parsed = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")); } catch { return fail(); }
-  if (!parsed || parsed.state !== state || !["signin", "link"].includes(parsed.mode) || !["cyberpunk", "fantasy"].includes(parsed.layoutMode) ||
+  if (!parsed || parsed.state !== state || !["signin", "link"].includes(parsed.mode) || !["cyberpunk", "fantasy", "biohazard"].includes(parsed.layoutMode) ||
     typeof parsed.expiresAt !== "number" || parsed.expiresAt <= Date.now() || parsed.expiresAt > Date.now() + lifetimeMs ||
     !(parsed.sessionHash === null || (typeof parsed.sessionHash === "string" && /^[a-f0-9]{64}$/.test(parsed.sessionHash))) ||
     !(parsed.userId === null || (typeof parsed.userId === "string" && parsed.userId.length > 0)) ||

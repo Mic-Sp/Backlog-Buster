@@ -84,7 +84,7 @@ export default function ThemeProvider({ children, player: initialPlayer = null }
       setHalloween(enabled);
       setMuted(soundMuted);
       mutedRef.current = soundMuted;
-      audio.setTheme((customRef.current?.baseLayout ?? appearance.layoutMode) === "fantasy" ? "fantasy" : !customRef.current && enabled ? "halloween" : "cyberpunk");
+      audio.setTheme((customRef.current?.baseLayout ?? appearance.layoutMode) === "biohazard" ? "biohazard" : (customRef.current?.baseLayout ?? appearance.layoutMode) === "fantasy" ? "fantasy" : !customRef.current && enabled ? "halloween" : "cyberpunk");
       audio.setEnabled(!soundMuted);
     }
     // The startup script already restores the palette before paint. Synchronize
@@ -98,7 +98,7 @@ export default function ThemeProvider({ children, player: initialPlayer = null }
     if (!customReady) return;
     applyAppearance(document.documentElement.dataset, { layoutMode: customTheme?.baseLayout ?? layoutMode, cyberpunkTheme: customTheme ? "default" : halloween ? "halloween" : "default" });
     applyCustomTheme(document.documentElement, customTheme);
-    audio.setTheme((customTheme?.baseLayout ?? layoutMode) === "fantasy" ? "fantasy" : !customTheme && halloween ? "halloween" : "cyberpunk");
+    audio.setTheme((customTheme?.baseLayout ?? layoutMode) === "biohazard" ? "biohazard" : (customTheme?.baseLayout ?? layoutMode) === "fantasy" ? "fantasy" : !customTheme && halloween ? "halloween" : "cyberpunk");
   }, [customReady, customTheme, layoutMode, halloween, audio]);
 
   useEffect(() => {
@@ -125,7 +125,7 @@ export default function ThemeProvider({ children, player: initialPlayer = null }
   }
 
   function toggleLayout() {
-    const next = (customRef.current?.baseLayout ?? layoutModeRef.current) === "cyberpunk" ? "fantasy" : "cyberpunk";
+    const next = (customRef.current?.baseLayout ?? layoutModeRef.current) === "cyberpunk" ? "fantasy" : (customRef.current?.baseLayout ?? layoutModeRef.current) === "fantasy" ? "biohazard" : "cyberpunk";
     customThemes.select(null);
     changeLayout(next);
   }
@@ -134,7 +134,7 @@ export default function ThemeProvider({ children, player: initialPlayer = null }
     layoutModeRef.current = next;
     setLayoutMode(next);
     applyAppearance(document.documentElement.dataset, { layoutMode: next, cyberpunkTheme: variant });
-    audio.setTheme(next === "fantasy" ? "fantasy" : variant === "halloween" ? "halloween" : "cyberpunk");
+    audio.setTheme(next === "biohazard" ? "biohazard" : next === "fantasy" ? "fantasy" : variant === "halloween" ? "halloween" : "cyberpunk");
     audio.setEnabled(!muted);
     audio.play("page");
     try { localStorage.setItem("backlogbuster:layout-mode", next); } catch { /* In-memory switching still works. */ }
@@ -183,21 +183,22 @@ export default function ThemeProvider({ children, player: initialPlayer = null }
 
 export function ThemeToggle() {
   const { layoutMode, toggleLayout, layoutSaveError, halloween, muted, toggle, toggleMuted, customTheme, customThemes, selectBuiltIn } = useContext(ThemeContext);
-  const layoutActionLabel = layoutMode === "fantasy" ? "Switch to Cyberpunk Deck" : "Switch to Fantasy Subscreen";
+  const layoutActionLabel = layoutMode === "fantasy" ? "Switch to Safe Room" : layoutMode === "biohazard" ? "Switch layout" : "Switch to Fantasy Subscreen";
   const sharedPreview = Boolean(customTheme && customTheme === customThemes?.sharedTheme);
   return <span className="theme-controls" data-active={halloween}><button className="layout-mode-toggle" data-ui-sound="custom" type="button" onClick={toggleLayout} title={layoutActionLabel}>{layoutActionLabel}</button>{layoutMode === "cyberpunk" && <button className="theme-toggle" data-ui-sound="custom" type="button" aria-label="Halloween theme" aria-pressed={halloween} onClick={toggle} title={halloween ? "Return to Cyberpunk theme" : "Enter Haunted Net / Blackwall Glitch theme"}>
     <span aria-hidden="true">{halloween ? "◈" : "◇"}</span> HAUNTED NET: {halloween ? "ON" : "OFF"}
   </button>}<button className="ui-sfx-toggle" data-ui-sound="custom" type="button" onClick={toggleMuted} aria-label={muted ? "Unmute UI sound effects" : "Mute UI sound effects"} aria-pressed={!muted} title={muted ? "Unmute UI sound effects" : "Mute UI sound effects"}>
     <span aria-hidden="true">{muted ? "♪̸" : "♫"}</span>
   </button>{customThemes && <>
-    <select className="theme-selector" aria-label="UI theme" value={sharedPreview ? "shared-theme-preview" : customTheme?.id ?? (layoutMode === "fantasy" ? "fantasy" : halloween ? "halloween" : "cyberpunk")} onChange={event => {
+    <select className="theme-selector" aria-label="UI theme" value={sharedPreview ? "shared-theme-preview" : customTheme?.id ?? (layoutMode === "biohazard" ? "biohazard" : layoutMode === "fantasy" ? "fantasy" : halloween ? "halloween" : "cyberpunk")} onChange={event => {
       const value = event.target.value;
       if (value === "shared-theme-preview") return;
       if (value.startsWith("custom-")) customThemes.select(value);
+      else if (value === "biohazard") selectBuiltIn?.("biohazard");
       else if (value === "fantasy") selectBuiltIn?.("fantasy");
       else selectBuiltIn?.("cyberpunk", value === "halloween" ? "halloween" : "default");
     }}>
-      <optgroup label="Built-in themes"><option value="cyberpunk">Cyberpunk</option><option value="halloween">Haunted Net / Blackwall Glitch</option><option value="fantasy">Fantasy</option></optgroup>
+      <optgroup label="Built-in themes"><option value="cyberpunk">Cyberpunk</option><option value="halloween">Haunted Net / Blackwall Glitch</option><option value="fantasy">Fantasy</option><option value="biohazard">Safe Room / Biohazard</option></optgroup>
       {customThemes.themes.length > 0 && <optgroup label="Custom themes">{customThemes.themes.map(theme => <option key={theme.id} value={theme.id}>{theme.name}</option>)}</optgroup>}
       {customTheme && (sharedPreview || !customThemes.themes.some(theme => theme.id === customTheme.id)) && <option value={sharedPreview ? "shared-theme-preview" : customTheme.id}>{customTheme.name} (preview)</option>}
     </select>

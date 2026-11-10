@@ -1,3 +1,4 @@
+import { normalizeLayoutMode } from "@/lib/appearance";
 import { NextResponse } from "next/server";
 import { beginSteamOpenID } from "@/lib/steam-openid";
 import { logSteamAuthFailure } from "@/lib/steam-openid-diagnostics";
@@ -15,7 +16,7 @@ export async function GET(request: Request) {
     }
     stage = "begin_authorization";
     return NextResponse.redirect(await beginSteamOpenID(request.url, url.searchParams.get("mode") === "link" ? "link" : "signin",
-      url.searchParams.get("theme") === "fantasy" ? "fantasy" : "cyberpunk", request.headers), { headers });
+      normalizeLayoutMode(url.searchParams.get("theme")), request.headers), { headers });
   } catch (error) {
     const status = logSteamAuthFailure(error, "authorize", stage);
     return NextResponse.redirect(new URL(`/steam-auth?status=${status}`, origin ?? url.origin), { headers });

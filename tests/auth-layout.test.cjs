@@ -6,11 +6,12 @@ const { renderToStaticMarkup } = require('react-dom/server');
 
 function fixture(layout, mode = 'login', count = 4) {
   let stateIndex = 0;
-  const copy = (cyberpunk, fantasy) => layout === 'fantasy' ? fantasy : cyberpunk;
+  const bioCopy = require('./helpers/social-fixture.cjs').loader()('src/lib/biohazard-copy.ts').biohazardCopy;
+  const copy = (cyberpunk, fantasy) => layout === 'biohazard' ? bioCopy(cyberpunk) : layout === 'fantasy' ? fantasy : cyberpunk;
   const mocks = {
     react: { ...React, useState: initial => [stateIndex++ === 0 ? mode : initial, () => {}], useActionState: () => [{}, async () => {}, false] },
     '@/components/LayoutText': { useLayoutCopy: () => copy, default: props => copy(props.cyberpunk, props.fantasy) },
-    '@/components/ThemeProvider': { ThemeToggle: () => null },
+    '@/components/ThemeProvider': { ThemeToggle: () => null, useUIEffects: () => ({layoutMode:layout}) },
     '@/components/SteamAuthButton': { default: () => React.createElement('button', { type: 'button' }, 'Continue with Steam') },
     '@/components/GoogleAuthButton': { default: () => React.createElement('button', { type: 'button' }, 'Continue with Google') },
     '@/lib/auth-policy': { registeredPlayerWhere: { OR: [{ email: { not: null }, OR: [{ passwordHash: { not: null } }, { googleId: { not: null } }] }, { steamVerifiedId: { not: null } }] } },
@@ -80,4 +81,12 @@ test('member badge keeps counts, singular/plural and failure states correct in b
     const suspense = f.load('src/components/MemberCount.tsx').default();
     assert(f.render(await suspense.props.children.type()).includes(layout === 'fantasy' ? 'ADVENTURER ROLL TEMPORARILY UNAVAILABLE' : 'MEMBER COUNT TEMPORARILY OFFLINE'));
   }
+});
+
+
+test('Safe Room registration retains its layout and presents personnel access', () => {
+  const f=fixture('biohazard','register');
+  const html=f.render(React.createElement(f.load('src/components/AccountControls.tsx').AccountGate));
+  assert.match(html,/Personnel access/);assert.match(html,/name="layoutMode" value="biohazard"/);
+  assert.doesNotMatch(html,/Netrunner|NETRUNNER|ICE GATEWAY|night-city-runner/);
 });
