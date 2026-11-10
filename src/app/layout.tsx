@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { VT323 } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import "./halloween.css";
 import "./fantasy.css";
@@ -54,7 +55,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <script dangerouslySetInnerHTML={{ __html: appearanceStartupScript }} />
         <script dangerouslySetInnerHTML={{ __html: customThemeStartupScript }} />
       </head>
-      <body><ThemeProvider>{children}</ThemeProvider></body>
+      <body>
+        <ThemeProvider>{children}</ThemeProvider>
+        <Analytics />
+      </body>
     </html>
   );
 }
