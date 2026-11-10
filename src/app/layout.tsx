@@ -10,6 +10,7 @@ import "./biohazard.css";
 import { appearanceStartupScript } from "@/lib/appearance";
 import { customThemeStartupScript } from "@/lib/custom-theme-runtime";
 import ThemeProvider from "@/components/ThemeProvider";
+import FeedbackWidget from "@/components/FeedbackWidget";
 
 const terminalFont = VT323({
   weight: "400",
@@ -56,7 +57,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <script dangerouslySetInnerHTML={{ __html: customThemeStartupScript }} />
       </head>
       <body>
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>{children}<FeedbackWidget /></ThemeProvider>
         <Analytics />
       </body>
     </html>
