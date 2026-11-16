@@ -56,17 +56,47 @@ test('HTTP, network and malformed-success failures restore the previous tier and
   }
 });
 
-function components() {
+function components(react = React) {
   const filename = path.resolve(__dirname, '../src/components/games/HypeMeter.tsx'), instance = new Module(filename, module);
   instance.paths = Module._nodeModulePaths(path.dirname(filename));
   const original = instance.require.bind(instance);
   const hook = loader()('src/components/games/useHypeMeters.ts');
-  instance.require = name => name.endsWith('.css') ? {} : name === './useHypeMeters' ? hook : original(name);
+  instance.require = name => name === 'react' ? react : name.endsWith('.css') ? {} : name === './useHypeMeters' ? hook : original(name);
   instance._compile(ts.transpileModule(fs.readFileSync(filename, 'utf8'), { compilerOptions: {
     target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX,
   } }).outputText, filename);
   return { ...instance.exports, ...hook };
 }
+
+test('create meters cycle locally in controlled and uncontrolled modes without using fetch or the shared saved-game controller', t => {
+  let requests = 0, persistedCalls = 0;
+  t.mock.method(globalThis, 'fetch', async () => { requests++; throw Error('Create meters must not PATCH'); });
+  for (const controlled of [true, false]) {
+    let local, value = 2;
+    const changes = [];
+    const react = { ...React, useContext: () => ({ levels: {}, changes: {}, cycleHype: () => { persistedCalls++; } }), useId: () => 'local-hype',
+      useState(initial) { local ??= initial; return [local, next => { local = next; }]; } };
+    const { default: HypeMeter } = components(react);
+    function render() {
+      let node = HypeMeter({ title: 'new game', ...(controlled ? { value, onChange: next => { changes.push(next); value = next; } } : {}) });
+      while (typeof node.type === 'function') node = node.type(node.props);
+      return node;
+    }
+    assert.equal(render().props['data-hype-level'], 2);
+    for (const next of [3, 1, 2]) {
+      const button = render().props.children[0];
+      assert.equal(button.props.type, 'button'); assert.equal(button.props.disabled, false);
+      button.props.onClick({ stopPropagation() {} });
+      assert.equal(render().props['data-hype-level'], next);
+      assert.equal(render().props['data-hype-game-id'], undefined);
+    }
+    if (controlled) {
+      assert.deepEqual(changes, [3, 1, 2]);
+      value = 1; assert.equal(render().props['data-hype-level'], 1, 'parent updates remain authoritative');
+    }
+  }
+  assert.equal(requests, 0); assert.equal(persistedCalls, 0);
+});
 
 test('meters render three segments, accessible tier/next-step labels, shared modal state and visible save errors', () => {
   const { default: HypeMeter, HypeMetersContext, HypedOnlyFilter } = components();

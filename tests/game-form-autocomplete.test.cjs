@@ -224,7 +224,7 @@ test("Enter submits freeform text even while suggestions are visible until an op
   } finally { f.cleanup(); }
 });
 
-function formFixture({ fail = false } = {}) {
+function formFixture({ fail = false, createAction } = {}) {
   const original = { HTMLInputElement: global.HTMLInputElement, window: global.window, CustomEvent: global.CustomEvent };
   class Input { constructor(name) { this.name = name; this.value = ""; } }
   global.HTMLInputElement = Input;
@@ -238,7 +238,7 @@ function formFixture({ fail = false } = {}) {
     "@/components/SafeForm": { default: SafeForm },
     "@/components/TitleAutocomplete": { default: TitleAutocomplete },
     "./actions": {
-      createGame: async data => { calls.push(data); return fail ? { error: "Fixture failure" } : { success: true, gameId: 42 }; },
+      createGame: async data => { calls.push(data); return createAction ? createAction(data) : fail ? { error: "Fixture failure" } : { success: true, gameId: 42 }; },
     },
   }).default;
   const fields = Object.fromEntries(["title", "platform", "genre", "lengthHours", "coverUrl", "releaseYear"].map(name => [name, new Input(name)]));
@@ -255,6 +255,39 @@ function formFixture({ fail = false } = {}) {
     cleanup() { Object.assign(global, original); },
   };
 }
+
+test('the shared create form submits and persists every hype tier, then resets to Interested', async () => {
+  const { fixture, form } = require('./helpers/activity-fixture.cjs');
+  for (const hypeLevel of [1, 2, 3]) {
+    const backend = fixture({ games: [] });
+    const f = formFixture({ createAction: backend.actions.createGame });
+    try {
+      const meter = () => get(f.tree, node => node.props?.title === 'new game' && typeof node.props?.onChange === 'function');
+      const hidden = () => get(f.tree, node => node.type === 'input' && node.props.name === 'hypeLevel');
+      assert.equal(meter().props.value, 2); assert.equal(hidden().props.value, 2);
+      meter().props.onChange(hypeLevel);
+      assert.equal(meter().props.gameId, undefined); assert.equal(hidden().props.type, 'hidden');
+      const data = form({ title: `Tier ${hypeLevel}`, platform: 'PC', lengthHours: 10, difficulty: 1 });
+      data.set(hidden().props.name, String(hidden().props.value));
+      const result = await f.tree.props.action(data);
+      assert.equal(result.success, true); assert.equal(f.calls[0].get('hypeLevel'), String(hypeLevel));
+      assert.equal(backend.games[0].hypeLevel, hypeLevel);
+      assert.equal(meter().props.value, 2); assert.equal(hidden().props.value, 2);
+    } finally { f.cleanup(); }
+  }
+});
+
+test('failed creation preserves the chosen hype tier for retry', async () => {
+  const f = formFixture({ fail: true });
+  try {
+    const meter = () => get(f.tree, node => node.props?.title === 'new game' && typeof node.props?.onChange === 'function');
+    meter().props.onChange(3);
+    const data = new FormData(); data.set('title', 'Retry game'); data.set('hypeLevel', '3');
+    await assert.rejects(f.tree.props.action(data), /Fixture failure/);
+    assert.equal(meter().props.value, 3);
+    assert.equal(get(f.tree, node => node.props?.name === 'hypeLevel').props.value, 3);
+  } finally { f.cleanup(); }
+});
 
 test("GameForm selection fills all metadata while preserving manually edited fields, including cleared ones", () => {
   const f = formFixture();

@@ -22,7 +22,7 @@ test('hype creation defaults to Interested and validation accepts only integers 
 });
 
 test('actions persist hype, default new games and preserve choices on unrelated edits', async () => {
-  for (const fields of [{}, { hypeLevel: 1 }, { hypeLevel: 3 }]) {
+  for (const fields of [{}, { hypeLevel: 1 }, { hypeLevel: 2 }, { hypeLevel: 3 }]) {
     const f = fixture({ games: [] });
     const result = await f.actions.createGame(form({ title: 'Hype test', platform: 'PC', lengthHours: 10, difficulty: 1, ...fields }));
     assert(!result.error, result.error);

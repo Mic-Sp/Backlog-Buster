@@ -6,6 +6,8 @@ import SafeForm from "@/components/SafeForm";
 import TitleAutocomplete from "@/components/TitleAutocomplete";
 import type { CatalogSuggestion } from "@/lib/catalog-types";
 import { OwnershipField } from "@/components/Ownership";
+import HypeMeter from "@/components/games/HypeMeter";
+import type { HypeLevel } from "@/lib/hype";
 
 import { useId, useRef, useState } from "react";
 import { resolveRawgPlaytime } from "@/lib/game-playtime";
@@ -21,6 +23,7 @@ export default function GameForm() {
   const [formVersion, setFormVersion] = useState(0);
   const [platformOptions, setPlatformOptions] = useState(defaultPlatforms);
   const [lookupMessage, setLookupMessage] = useState("");
+  const [hypeLevel, setHypeLevel] = useState<HypeLevel>(2);
 
   async function addGame(data: FormData) {
     const result = unwrapActionResult(await createGame(data));
@@ -28,6 +31,7 @@ export default function GameForm() {
     setLookupMessage("");
     customizedFields.current.clear();
     autofilledFields.current.clear();
+    setHypeLevel(2);
     setFormVersion((version) => version + 1);
     return result;
   }
@@ -115,6 +119,12 @@ export default function GameForm() {
           <option value="3">3 · Tough</option>
         </select>
       </label>
+
+      <div className="field field-hype">
+        <span>Hype</span>
+        <HypeMeter title="new game" value={hypeLevel} onChange={setHypeLevel} />
+        <input type="hidden" name="hypeLevel" value={hypeLevel} />
+      </div>
 
       <label className="field field-cover">
         <span>Cover image URL <small>(optional)</small></span>
