@@ -22,7 +22,7 @@ export type VectorCatalogCoverage = { total: number; embedded: number; current: 
 export type VectorRetrievalDiagnostics = {
   queryLatencyMs: number; candidateCount: number; filteredCount: number;
   coverage: VectorCatalogCoverage | null;
-  anchors: { title: string; rating: number | null; hallOfFame: boolean; weight: number }[];
+  anchors: { title: string; rating: number | null; hallOfFame: boolean; weight: number; hypeLevel: number; hypedUnplayed: boolean }[];
   hallOfFameWeightMultiplier: number;
 };
 export type VectorRecommendationOptions = {
@@ -108,12 +108,13 @@ export function rerankVectorCandidates(candidates: readonly CosineCandidate[], t
     const seriesAnchor = taste.anchors.find(anchor => anchor.series.some(name => matchingSeries.some(signal => signal.name === name)));
     const genreAnchor = taste.anchors.find(anchor => anchor.genres.some(name => matchingGenres.some(signal => signal.name === name)));
     const anchorTitle = (anchor: PlayerTasteProfile["anchors"][number]) =>
-      `${anchor.hallOfFame ? "your Hall of Fame favorite " : ""}${anchor.title.slice(0, 80)}`;
+      `${anchor.hallOfFame ? "your Hall of Fame favorite " : anchor.hypedUnplayed ? "your hyped unplayed game " : ""}${anchor.title.slice(0, 80)}`;
     let reason = taste.source === "cold-start" ? "A broad discovery pick while your taste profile develops."
       : seriesAnchor ? `Series affinity with ${anchorTitle(seriesAnchor)}.`
       : genreAnchor ? `Genre continuity from ${anchorTitle(genreAnchor)}.`
       : taste.source === "hall-of-fame" ? "Similar features to your Hall of Fame favorites and taste anchors."
       : taste.source === "completed-favorites" ? "Similar features to your highly rated completions."
+      : taste.source === "hyped-backlog" ? "Similar features to the unplayed games you’re hyped for."
       : "Similar features to your active or pinned games.";
     if (playtimeFit >= .75) reason += ` Fits your roughly ${Math.round(taste.preferredHours!)}h preference.`;
     return { ...candidate, cosineSimilarity, scores, score: scores.cosine + scores.series + scores.genre + scores.playtime + scores.negative, reason };
@@ -156,7 +157,7 @@ export async function recommendCatalogGames(games: readonly TasteLibraryGame[], 
       coverage = rows[0] ?? null;
     } catch { /* Optional admin metrics must not discard successful retrieval results. */ }
     diagnostics = { queryLatencyMs, candidateCount: candidates.length, filteredCount: candidates.length - eligible.length,
-      coverage, anchors: taste.anchors.map(({ title, rating, hallOfFame, weight }) => ({ title, rating, hallOfFame, weight })),
+      coverage, anchors: taste.anchors.map(({ title, rating, hallOfFame, weight, hypeLevel, hypedUnplayed }) => ({ title, rating, hallOfFame, weight, hypeLevel, hypedUnplayed })),
       hallOfFameWeightMultiplier: HALL_OF_FAME_WEIGHT_MULTIPLIER };
   }
   return { tasteSource: taste.source, anchorCount: taste.anchors.length, negativeAnchorCount: taste.negativeAnchors.length, vectorVersion: taste.vectorVersion,

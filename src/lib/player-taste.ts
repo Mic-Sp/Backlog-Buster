@@ -3,8 +3,9 @@ import { gameLineage } from "@/lib/franchise";
 import { isPositiveTasteRating } from "@/lib/taste-signals";
 import { normalizeGameTitle } from "@/lib/game-title";
 import { completedRuns, REPLAY_TASTE_MULTIPLIER } from "@/lib/playthroughs";
+import { hypeSimilarityMultiplier, isHypedUnplayed, normalizeHypeLevel, weightHypeSimilarity } from "@/lib/hype";
 
-export const PLAYER_TASTE_VERSION = "player-taste-v5";
+export const PLAYER_TASTE_VERSION = "player-taste-v6";
 export const MAX_TASTE_ANCHORS = 8;
 export const NEGATIVE_TASTE_WEIGHT = .25;
 export const HALL_OF_FAME_WEIGHT_MULTIPLIER = 1.35;
@@ -12,6 +13,7 @@ export type TasteLibraryGame = {
   id: number; title: string; releaseYear: number | null; status: string; rating: number | null;
   pinnedOrder: number | null; platform: string; franchise: string | null; earnedXp: number;
   playthroughCount?: number;
+  hypeLevel?: number; hoursPlayed?: number;
 };
 export type CatalogTitle = { key: string; title: string; releaseYear: number | null };
 export type StoredTasteGame = CatalogTitle & {
@@ -21,10 +23,11 @@ export type StoredTasteGame = CatalogTitle & {
 export type TasteAnchor = {
   key: string; title: string; rating: number | null; weight: number; platform: string; hallOfFame: boolean;
   genres: string[]; series: string[]; estimatedHours: number | null;
+  hypeLevel: number; hypedUnplayed: boolean;
 };
 type PositiveTasteProfile = {
   values: number[]; vectorVersion: string; version: string;
-  source: "hall-of-fame" | "completed-favorites" | "active-pinned" | "cold-start";
+  source: "hall-of-fame" | "completed-favorites" | "hyped-backlog" | "active-pinned" | "cold-start";
   anchors: TasteAnchor[]; genres: { name: string; weight: number }[];
   series: { name: string; weight: number }[]; preferredHours: number | null;
 };
@@ -51,6 +54,7 @@ function hallOfFameIds(featuredTrophyIds: unknown): Set<number> {
 export function potentialTasteGames(games: readonly TasteLibraryGame[], featuredTrophyIds: unknown = []): TasteLibraryGame[] {
   const featured = hallOfFameIds(featuredTrophyIds);
   return games.filter(game => featured.has(game.id) || (game.status === "Completed" && isPositiveTasteRating(game.rating)) ||
+    isHypedUnplayed(game) ||
     (isActiveOrPinned(game) && (game.rating === null || isPositiveTasteRating(game.rating))));
 }
 
@@ -112,15 +116,20 @@ function buildPositiveTasteProfile(games: readonly TasteLibraryGame[], catalog: 
     return row && values ? { game, row, values } : null;
   }).filter(entry => entry !== null);
   const completed = ranked.filter(({ game }) => game.status === "Completed" && isPositiveTasteRating(game.rating));
-  // Reserve priority within the existing cap for explicit favorites, including
-  // uncompleted games, before deduplicating platform copies by catalog key.
-  const ordered = ranked.filter(({ game }) => featured.has(game.id) || !completed.length ||
-    (game.status === "Completed" && isPositiveTasteRating(game.rating))).sort((a, b) =>
-    Number(featured.has(b.game.id)) - Number(featured.has(a.game.id)) ||
-    (completed.length ? (b.game.rating ?? 0) - (a.game.rating ?? 0) || b.game.earnedXp - a.game.earnedXp
-      : Number(b.game.status === "Playing") - Number(a.game.status === "Playing") ||
-        (a.game.pinnedOrder ?? Infinity) - (b.game.pinnedOrder ?? Infinity)) ||
-    a.row.key.localeCompare(b.row.key) || a.game.id - b.game.id);
+  const byRating = (a: typeof ranked[number], b: typeof ranked[number]) =>
+    (b.game.rating ?? 0) - (a.game.rating ?? 0) || b.game.earnedXp - a.game.earnedXp || a.row.key.localeCompare(b.row.key) || a.game.id - b.game.id;
+  const favorites = [...completed].sort(byRating);
+  const hyped = ranked.filter(({ game }) => isHypedUnplayed(game)).sort(byRating);
+  // Hall of Fame keeps its reserved priority. Interleave the two primary pools
+  // so a full history cannot crowd anticipation out of the eight-anchor cap.
+  const primary = [] as typeof ranked;
+  for (let index = 0; index < Math.max(favorites.length, hyped.length); index++) {
+    if (favorites[index]) primary.push(favorites[index]);
+    if (hyped[index]) primary.push(hyped[index]);
+  }
+  const fallback = [...ranked].sort((a, b) => Number(b.game.status === "Playing") - Number(a.game.status === "Playing") ||
+    (a.game.pinnedOrder ?? Infinity) - (b.game.pinnedOrder ?? Infinity) || a.row.key.localeCompare(b.row.key) || a.game.id - b.game.id);
+  const ordered = [...ranked.filter(({ game }) => featured.has(game.id)).sort(byRating), ...(primary.length ? primary : fallback)];
   const seen = new Set<string>();
   const selected = ordered.filter(({ row }) => {
     if (seen.has(row.key)) return false;
@@ -128,18 +137,19 @@ function buildPositiveTasteProfile(games: readonly TasteLibraryGame[], catalog: 
   }).slice(0, MAX_TASTE_ANCHORS);
   if (!selected.length) return coldStartProfile();
   const source = selected.some(({ game }) => featured.has(game.id)) ? "hall-of-fame"
-    : completed.length ? "completed-favorites" : "active-pinned";
+    : completed.length ? "completed-favorites" : hyped.length ? "hyped-backlog" : "active-pinned";
   const sum = Array<number>(CATALOG_VECTOR_DIMENSIONS).fill(0);
   const anchors: TasteAnchor[] = selected.map(({ game, row, values }) => {
     const hallOfFame = featured.has(game.id);
     // Hall of Fame pins always have a positive base; low ratings cannot invert
     // explicit favorite intent. Other anchors keep their existing base weights.
-    const baseWeight = hallOfFame || completed.length > 0
+    const baseWeight = hallOfFame || completed.length > 0 || isHypedUnplayed(game)
       ? (game.rating === 5 ? 2 : 1) : (game.status === "Playing" ? 1 : .75);
     const weight = baseWeight * (hallOfFame ? HALL_OF_FAME_WEIGHT_MULTIPLIER : 1) *
-      (completedRuns(game) >= 2 ? REPLAY_TASTE_MULTIPLIER : 1);
+      (completedRuns(game) >= 2 ? REPLAY_TASTE_MULTIPLIER : 1) * hypeSimilarityMultiplier(game.hypeLevel);
     values.forEach((value, index) => { sum[index] += value * weight; });
     return { key: row.key, title: game.title, rating: game.rating, weight, platform: game.platform, hallOfFame,
+      hypeLevel: normalizeHypeLevel(game.hypeLevel), hypedUnplayed: isHypedUnplayed(game),
       genres: normalizeFeatureList([...row.genres, ...(row.genre ? [row.genre] : [])]),
       series: normalizeFeatureList([...catalogSeries(row), gameLineage(game)]),
       estimatedHours: row.estimatedHours !== null && Number.isFinite(row.estimatedHours) && row.estimatedHours > 0 ? row.estimatedHours : null };
@@ -216,7 +226,7 @@ export function buildPlayerTasteProfile(
     negativeGenres: aggregate("genres"), negativeSeries: aggregate("series") };
 }
 
-export type OwnedTasteScore = { similarity: number; reason: string };
+export type OwnedTasteScore = { similarity: number; cosineSimilarity?: number; hypeMultiplier?: number; reason: string };
 
 /** Local counterpart of catalog discovery: score owned vectors against exactly
  * the same weighted/negative-steered profile, without excluding owned titles.
@@ -229,16 +239,18 @@ export function scoreOwnedTasteGames(games: readonly TasteLibraryGame[], catalog
   const scores = new Map<number, OwnedTasteScore>();
   if (!taste.anchors.length && !taste.negativeAnchors.length) return scores;
   const source = taste.source === "hall-of-fame" ? "Hall of Fame favorites" : taste.source === "completed-favorites"
-    ? "highly rated completions" : taste.source === "active-pinned" ? "active and pinned games" : "developing taste profile";
+    ? "highly rated completions and hype anchors" : taste.source === "hyped-backlog" ? "hyped unplayed games"
+      : taste.source === "active-pinned" ? "active and pinned games" : "developing taste profile";
   for (const game of games) {
     if (game.status !== "Backlog") continue;
     const match = matchTasteCatalogGame(game, matchingCatalog);
     const row = match ? catalog.find(row => row.key === match.key && row.featureVectorVersion === CATALOG_VECTOR_VERSION) : null;
     const values = row ? parseTasteVector(row.vectorText) : null;
     if (!values) continue;
-    const similarity = Math.max(-1, Math.min(1, values.reduce((sum, value, index) => sum + value * taste.values[index], 0)));
-    scores.set(game.id, { similarity,
-      reason: `Taste fit: compared with your ${source}${taste.negativeAnchors.length ? ", adjusted for low ratings and dismissed recommendations" : ""}.` });
+    const cosineSimilarity = Math.max(-1, Math.min(1, values.reduce((sum, value, index) => sum + value * taste.values[index], 0)));
+    const similarity = weightHypeSimilarity(cosineSimilarity, game.hypeLevel);
+    scores.set(game.id, { similarity, cosineSimilarity, hypeMultiplier: hypeSimilarityMultiplier(game.hypeLevel),
+      reason: `Taste fit: compared with your ${source}, weighted by your hype${taste.negativeAnchors.length ? ", adjusted for low ratings and dismissed recommendations" : ""}.` });
   }
   return scores;
 }

@@ -53,6 +53,18 @@ async function verifyVectorRecommendations(prisma) {
   const pinned = await recommendCatalogGames([{ ...favorite, status: "Backlog", rating: null, pinnedOrder: 1 }], [], { currentYear });
   assert.equal(cold.tasteSource, "cold-start"); assert.equal(cold.anchorCount, 0);
   assert.equal(active.tasteSource, "active-pinned"); assert.equal(pinned.tasteSource, "active-pinned");
+  const anticipated = { ...favorite, id: 2, title: eligible[1].title, releaseYear: eligible[1].releaseYear,
+    status: "Backlog", rating: null, hypeLevel: 3, hoursPlayed: 0, playthroughCount: 0 };
+  const anticipation = await recommendCatalogGames([anticipated], [], { currentYear, collectDiagnostics: true });
+  assert.equal(anticipation.tasteSource, "hyped-backlog"); assert.equal(anticipation.anchorCount, 1);
+  assert.equal(anticipation.diagnostics.anchors[0].hypeLevel, 3);
+  assert.equal(anticipation.diagnostics.anchors[0].weight, 1.25);
+  assert.equal(anticipation.diagnostics.anchors[0].hypedUnplayed, true);
+  assert(anticipation.recommendations.every(pick => normalizeGameTitle(pick.title) !== normalizeGameTitle(anticipated.title)));
+  const mixed = await recommendCatalogGames([favorite, anticipated], [], { currentYear, collectDiagnostics: true });
+  assert.equal(mixed.anchorCount, 2);
+  assert(mixed.diagnostics.anchors.some(anchor => anchor.hypedUnplayed));
+  assert(mixed.recommendations.every(pick => Number.isFinite(pick.cosineSimilarity) && pick.cosineSimilarity >= -1 && pick.cosineSimilarity <= 1));
   const diagnosed = await recommendCatalogGames([favorite], [], { currentYear, collectDiagnostics: true });
   assert(diagnosed.diagnostics.queryLatencyMs >= 0);
   assert(diagnosed.diagnostics.coverage.total >= rows.length);
@@ -71,6 +83,7 @@ async function verifyVectorRecommendations(prisma) {
   for (const pick of scoutPicks) assert.deepEqual(Object.keys(pick).sort(), cardFields);
   return { embeddedCatalogRows: rows.length, releasedRowsChecked: raw.length, cosineDistancesVerified: raw.length,
     recommendationsChecked: ranked.recommendations.length, coldStartChecked: true, activeFallbackChecked: true, pinnedFallbackChecked: true,
+    hypedUnplayedAnchorChecked: true, mixedHypeAndCompletionAnchorsChecked: true,
     adminCoverageChecked: true, liveScoutVectorPicks: scoutPicks.length, providerCallsAttempted: debug.liveCallAttempted };
 }
 

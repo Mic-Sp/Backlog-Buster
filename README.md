@@ -95,15 +95,33 @@ successful vector picks; insufficient verified coverage can still yield fewer th
 Taste uses up to eight matched catalog anchors. Explicit Hall of Fame favorites from
 `Player.featuredTrophyIds` get priority within that cap regardless of status or rating.
 Their base weight is 2 for five stars and 1 otherwise, multiplied by **1.35** uniformly
-across all three slots. Other anchors use completed games rated 4–5 first
-(5 stars carry twice the weight of 4), otherwise active/queue-pinned games with no low
-rating, otherwise fixed broad defaults. Hall of Fame weights shape the positive centroid,
+across all three slots. Other primary anchors interleave completed games rated 4–5
+(5 stars carry twice the weight of 4) with **Hyped, unplayed Backlog games**, reserving
+space for both within the eight-anchor cap. Unplayed means no logged hours or completed
+runs; low ratings do not become positive anticipation. Otherwise active/queue-pinned
+games with no low rating supply anchors, followed by fixed broad defaults.
+Every positive anchor also receives its Hype Meter multiplier: **1.25×** for Hyped,
+**1×** for Interested, **0.8×** for Backburner. The weighted centroid is normalized
+before pgvector cosine retrieval; genre/series signals and duration use the same weights.
+Owned-game cosine scoring applies those multipliers with a [-1, 1] clamp and sign-aware
+handling of negative fits, preserving the raw cosine measurement separately. External
+catalog entries have no player hype field: their ranking reflects the weighted personal
+anchors. Gemini and curated fallbacks also use hyped unplayed seeds alongside favorites.
+Hall of Fame weights shape the positive centroid,
 genre/series affinity and preferred duration; those favorites also take precedence over
 negative feedback and can supply recommendation reason attribution.
 Missing/stale vectors and ambiguous title/year
 matches are skipped; duplicate platform copies count once. Unrated completions alone
 do not establish a positive taste profile unless explicitly pinned in the Hall of Fame.
 No player profile vectors are persisted.
+
+Quest Roller defaults to **Hype Weighted** selection: each Hyped game has three tickets
+and each Interested game one. Backburner games are excluded until **Icebox Mode**
+includes them at one ticket each, or no eligible Interested/Hyped games remain after
+the release, status, time, genre and platform filters. That automatic fallback draws
+from matching Backburner games and is announced in the dialog. Weighted rolls allow
+consecutive repeats to preserve the 3:1 probabilities; switching weighting off restores
+equal weights and avoids immediate repeats when possible.
 
 Multiple clears add a fixed **1.15×** positive-anchor weight bonus, compounded with
 the Hall of Fame multiplier. Low-rated games still follow the normal negative-feedback

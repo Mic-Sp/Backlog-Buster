@@ -14,6 +14,7 @@ export type AdvisorGame = {
   earnedXp: number; createdAt: Date; pinnedOrder: number | null;
   franchise: string | null; chronologicalOrder: number | null;
   completedAt?: Date | null; startedAt?: Date | null; playthroughCount?: number;
+  hypeLevel?: number; hoursPlayed?: number;
 };
 export type BacklogRecommendation = {
   game: Pick<AdvisorGame, "id" | "title" | "platform" | "genre" | "lengthHours" | "difficulty" | "coverUrl" | "releaseYear">;

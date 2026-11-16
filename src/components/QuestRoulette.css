@@ -1,0 +1,7 @@
+.quest-hype-options { margin: 16px 0; padding: 12px; border: 1px solid currentColor; border-radius: 4px; }
+.quest-hype-options legend { padding: 0 6px; font-size: 12px; }
+.quest-hype-options label { display: flex; align-items: center; gap: 8px; min-height: 36px; font-size: 13px; cursor: pointer; }
+.quest-hype-options input[type="checkbox"] { width: 18px; height: 18px; margin: 0; accent-color: var(--accent-primary, var(--custom-accent, #00b8c4)); }
+.quest-hype-options p { margin: 2px 0 10px 26px; font-size: 12px; line-height: 1.5; }
+.quest-hype-options:disabled { opacity: .6; }
+.quest-hype-options input:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }

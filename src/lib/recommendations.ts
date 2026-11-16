@@ -14,6 +14,8 @@ import { getAIScoutCandidates } from "@/lib/scout-ai";
 import { getDismissedRecommendationTitles } from "@/lib/recommendation-dismissals";
 import { loadTasteCatalog } from "@/lib/taste-catalog";
 import { scoreOwnedTasteGames, type OwnedTasteScore } from "@/lib/player-taste";
+import { rankScoutSeeds } from "@/lib/scout-seeds";
+import { isHypedUnplayed } from "@/lib/hype";
 
 import { selectBacklogRecommendations, type AdvisorGame, type BacklogRecommendations } from "@/lib/backlog-advisor";
 export type { BacklogRecommendation, BacklogRecommendations } from "@/lib/backlog-advisor";
@@ -27,6 +29,7 @@ export async function getVectorRecommendations(userId?: string, excludedTitles: 
     prisma.game.findMany({ where: { userId }, select: {
       id: true, title: true, releaseYear: true, status: true, rating: true, pinnedOrder: true,
       platform: true, franchise: true, earnedXp: true, playthroughCount: true,
+      hypeLevel: true, hoursPlayed: true,
     } }),
     prisma.player.findUnique({ where: { id: userId }, select: { featuredTrophyIds: true } }),
   ]);
@@ -56,6 +59,7 @@ export async function getBacklogRecommendations(userId?: string, excludedGameIds
       difficulty: true, coverUrl: true, releaseYear: true, status: true, rating: true,
       earnedXp: true, createdAt: true, completedAt: true, startedAt: true, playthroughCount: true,
       pinnedOrder: true, franchise: true, chronologicalOrder: true,
+      hypeLevel: true, hoursPlayed: true,
     },
   });
   let tasteScores = new Map<number, OwnedTasteScore>();
@@ -77,7 +81,7 @@ export async function getBacklogRecommendations(userId?: string, excludedGameIds
   return result;
 }
 
-type ScoutLibraryGame = Pick<AdvisorGame, "title" | "platform" | "genre" | "status" | "rating" | "earnedXp">;
+type ScoutLibraryGame = Pick<AdvisorGame, "title" | "platform" | "genre" | "status" | "rating" | "earnedXp" | "hypeLevel" | "hoursPlayed" | "playthroughCount">;
 type ScoutCandidate = { title: string; reason: string; preferredPlatform: string; anchor?: ScoutAnchor };
 
 // Pure deterministic fallback selection; RAWG enrichment remains in the caller.
@@ -86,12 +90,7 @@ function selectStaticScoutCandidates(
   extraExcludedTitles: readonly string[] = [],
 ): ScoutCandidate[] {
   const excluded = new Set([...games.map((game) => game.title), ...extraExcludedTitles].map(normalizeGameTitle));
-  const completed = games.filter((game) => game.status === "Completed");
-  const favorites = completed.filter((game) => game.rating !== null && game.rating >= 4)
-    .sort((left, right) => (right.rating ?? 0) - (left.rating ?? 0) || right.earnedXp - left.earnedXp || left.title.localeCompare(right.title));
-  // Low ratings aren't positive taste signals; unrated completions use earned XP instead.
-  const seeds = favorites.length ? favorites : completed.filter((game) => game.rating === null)
-    .sort((left, right) => right.earnedXp - left.earnedXp || left.title.localeCompare(right.title));
+  const seeds = rankScoutSeeds(games);
   if (!seeds.length) return [];
 
   const pools = seeds.map((seed) => {
@@ -104,7 +103,7 @@ function selectStaticScoutCandidates(
     const seen = new Set<string>();
     const candidates = [
       ...franchiseTitles.map((candidate) => ({ title: candidate, basis: "A curated franchise/affinity follow-up." })),
-      ...genreTitles.map((candidate) => ({ title: candidate, basis: `A curated neighbor to your ${seed.genre?.trim()} play history.` })),
+      ...genreTitles.map((candidate) => ({ title: candidate, basis: `A curated neighbor to your ${seed.genre?.trim()} ${isHypedUnplayed(seed) ? "interests" : "play history"}.` })),
       ...generalDiscovery.map((candidate) => ({ title: candidate, basis: "A broader curated discovery pick beyond your established favorites." })),
     ].filter((candidate) => {
       const key = normalizeGameTitle(candidate.title);
@@ -127,7 +126,8 @@ function selectStaticScoutCandidates(
       const key = normalizeGameTitle(candidate.title);
       if (selectedTitles.has(key)) continue;
       selectedTitles.add(key);
-      const inspiration = seed.rating !== null ? `Recommended because you rated ${seed.title} ${seed.rating}★.`
+      const inspiration = isHypedUnplayed(seed) ? `Recommended because you’re hyped to play ${seed.title}.`
+        : seed.rating !== null ? `Recommended because you rated ${seed.title} ${seed.rating}★.`
         : `Recommended from your completed ${seed.title} (${seed.earnedXp.toLocaleString("en-US")} earned XP; unrated).`;
       selected.push({ title: candidate.title, reason: `${inspiration} ${candidate.basis}`, preferredPlatform: seed.platform, anchor: { title: seed.title, rating: seed.rating } });
       if (selected.length === candidateLimit) break;
@@ -149,7 +149,7 @@ export async function getExternalRecommendations(
   extraExcludedTitles = [...new Set([...extraExcludedTitles, ...dismissed])];
   const games = await prisma.game.findMany({
     where: { userId },
-    select: { title: true, platform: true, genre: true, status: true, rating: true, earnedXp: true },
+    select: { title: true, platform: true, genre: true, status: true, rating: true, earnedXp: true, hypeLevel: true, hoursPlayed: true, playthroughCount: true },
   });
   const currentYear = new Date().getFullYear();
   const recommendations: ExternalRecommendation[] = [];

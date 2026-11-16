@@ -15,7 +15,7 @@ import type { StoredTasteGame } from "@/lib/player-taste";
 export async function personalizeDiscoveryFeed(userId: string, kind: DiscoveryKind, feed: DiscoverySnapshot): Promise<PersonalizedDiscoveryFeed> {
   const [games, player, dismissed, seen, radar] = await Promise.all([
     prisma.game.findMany({ where: { userId }, select: { id: true, title: true, releaseYear: true, status: true, rating: true,
-      pinnedOrder: true, platform: true, franchise: true, earnedXp: true, playthroughCount: true, hoursPlayed: true } }),
+      pinnedOrder: true, platform: true, franchise: true, earnedXp: true, playthroughCount: true, hoursPlayed: true, hypeLevel: true } }),
     prisma.player.findUnique({ where: { id: userId }, select: { featuredTrophyIds: true } }),
     getDismissedRecommendationTitles(userId),
     prisma.radarSeen.findMany({ where: { userId }, select: { catalogKey: true } }).catch(() => []),

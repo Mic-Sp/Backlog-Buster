@@ -20,6 +20,20 @@ const { buildScoutInput, SCOUT_INPUT_ESTIMATED_TOKEN_LIMIT } = load("src/lib/sco
 const { normalizeGameTitle } = load("src/lib/game-title.ts");
 const game = (title, overrides = {}) => ({ title, genre: "RPG", platform: "PC", status: "Completed", rating: 5, earnedXp: 100, ...overrides });
 
+test('Gemini seeds reserve primary space for hyped unplayed games alongside a full completion history', () => {
+  const hyped = game('Next Adventure', { status: 'Backlog', rating: null, hypeLevel: 3, hoursPlayed: 0, playthroughCount: 0 });
+  const favorites = Array.from({ length: 12 }, (_, index) => game(`Favorite ${index}`));
+  const result = buildScoutInput([...favorites, hyped]);
+  const anticipated = result.payload.seeds.find(seed => seed.title === hyped.title);
+  assert(anticipated); assert.equal(anticipated.hypeLevel, 3); assert.equal(anticipated.intent, 'hyped-unplayed');
+  assert(result.payload.seeds.some(seed => seed.title.startsWith('Favorite')));
+  assert(result.estimatedTokens <= SCOUT_INPUT_ESTIMATED_TOKEN_LIMIT);
+  assert.equal(buildScoutInput([hyped]).payload.seeds[0].title, hyped.title);
+  for (const fields of [{ hypeLevel: 1 }, { hypeLevel: 2 }, { hoursPlayed: 1 }, { playthroughCount: 1 }, { rating: 2 }]) {
+    assert.equal(buildScoutInput([{ ...hyped, ...fields }]).payload.seeds.length, 0);
+  }
+});
+
 test("seeds preserve favorite ranking and only fall back to unrated completions", () => {
   const games = [game("Four", { rating: 4, earnedXp: 999 }), game("Zed"), game("Alpha"),
     game("First", { earnedXp: 200 }), game("Unrated", { rating: null, earnedXp: 9999 }),

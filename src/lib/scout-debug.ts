@@ -5,11 +5,11 @@ export type ScoutVectorDebug = {
   latencyMs: number | null;
   queryLatencyMs: number | null;
   vectorVersion: string | null;
-  tasteSource: "hall-of-fame" | "completed-favorites" | "active-pinned" | "cold-start" | null;
+  tasteSource: "hall-of-fame" | "completed-favorites" | "hyped-backlog" | "active-pinned" | "cold-start" | null;
   anchorCount: number;
   hallOfFameAnchorCount: number;
   hallOfFameWeightMultiplier: number | null;
-  anchors: (ScoutAnchor & { hallOfFame: boolean; weight: number })[];
+  anchors: (ScoutAnchor & { hallOfFame: boolean; weight: number; hypeLevel?: number; hypedUnplayed?: boolean })[];
   negativeAnchorCount: number;
   candidateCount: number;
   filteredCount: number;

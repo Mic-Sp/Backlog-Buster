@@ -36,6 +36,15 @@ function fixture({ ai = async () => [], lookup = async () => metadata, games = [
   return { ...load("src/lib/recommendations.ts"), lookups, aiCalls, vectorCalls };
 }
 
+test('hyped unplayed games reach AI and curated fallbacks without being called completed or previously rated', async () => {
+  const anticipated = { ...seed, title: 'Next Adventure', status: 'Backlog', rating: null, earnedXp: 0, hypeLevel: 3, hoursPlayed: 0, playthroughCount: 0 };
+  const context = fixture({ games: [anticipated] });
+  const picks = await context.getExternalRecommendations('player');
+  assert.equal(picks.length, 3); assert.equal(context.aiCalls[0][0][0].hypeLevel, 3);
+  assert(picks.every(pick => /hyped to play Next Adventure/.test(pick.reason)));
+  assert(picks.every(pick => !/completed|rated Next Adventure/.test(pick.reason)));
+});
+
 test("empty vector results use Gemini fallback, retain its reasons, and preserve metadata/playtime mapping", async () => {
   const input = ["AI A", "AI B", "AI C"].map(candidate);
   const context = fixture({ ai: async () => input });

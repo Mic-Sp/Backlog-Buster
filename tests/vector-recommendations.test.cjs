@@ -29,6 +29,34 @@ const stored = { key: "owned", title: favorite.title, releaseYear: 2020, genre: 
   seriesHints: ["Favorite Saga"], estimatedHours: 20, featureVectorVersion: CATALOG_VECTOR_VERSION,
   vectorText: JSON.stringify(buildCatalogVector({ genre: "RPG", estimatedHours: 20, releaseYear: 2020 }).values) };
 
+test('hyped unplayed anchors change the normalized pgvector query and promote matching unowned candidates', async () => {
+  const basis = index => Array.from({ length: 128 }, (_, i) => Number(i === index));
+  const played = { ...favorite, title: 'Proven Favorite', rating: 4, franchise: null, hypeLevel: 2 };
+  const hyped = { ...played, id: 2, title: 'Anticipated Quest', status: 'Backlog', rating: null, hypeLevel: 3, hoursPlayed: 0, playthroughCount: 0 };
+  const rows = [played, hyped].map((game, index) => ({ ...stored, key: String(game.id), title: game.title,
+    genres: [], genre: null, seriesHints: [], vectorText: JSON.stringify(basis(index)) }));
+  const queries = [], loadedKeys = [];
+  const api = loader({ '@/lib/prisma': { prisma: {
+    gameCatalog: { findMany: async () => rows },
+    $queryRaw: async (strings, ...values) => {
+      if (strings.join('').includes('AS "vectorText"')) {
+        const keys = JSON.parse(values[0]); loadedKeys.push(keys); return rows.filter(row => keys.includes(row.key));
+      }
+      const query = JSON.parse(values[0]); queries.push(query);
+      assert(Math.abs(Math.hypot(...query) - 1) < 1e-12);
+      assert.deepEqual(JSON.parse(values[4]), ['1', '2'], 'owned hyped anchors stay excluded before LIMIT');
+      return [candidate('Favorite Peer', 1 - query[0], { genre: null, genres: [], estimatedHours: null }),
+        candidate('Anticipation Peer', 1 - query[1], { genre: null, genres: [], estimatedHours: null })];
+    },
+  } } })('src/lib/vector-recommendations.ts');
+  const before = await api.recommendCatalogGames([played, { ...hyped, hypeLevel: 2 }]);
+  const after = await api.recommendCatalogGames([played, hyped]);
+  assert.equal(before.recommendations[0].title, 'Favorite Peer'); assert.equal(after.recommendations[0].title, 'Anticipation Peer');
+  assert.equal(after.anchorCount, 2); assert.deepEqual(loadedKeys, [['1'], ['1', '2']]);
+  assert(queries[1][1] > queries[1][0]);
+  assert(after.recommendations.every(pick => Number.isFinite(pick.score) && pick.cosineSimilarity >= -1 && pick.cosineSimilarity <= 1));
+});
+
 test("local advisor reads owned vectors and player preferences without provider calls or discovery exclusions", async () => {
   const anchor = { ...favorite, title: "Taste Anchor", createdAt: new Date('2020-01-01Z'), chronologicalOrder: null, franchise: null, lengthHours: 40, difficulty: 3, coverUrl: null };
   const games = [anchor, { ...anchor, id: 2, title: "Similar Choice", status: "Backlog", rating: null },
@@ -313,6 +341,7 @@ test("server entry resolves player identity and reads only that player's taste/o
   assert.deepEqual(calls[0].where, { userId: "current-player" });
   assert(!calls[0].select.notes); assert(!calls[0].select.passwordHash);
   assert.equal(calls[0].select.playthroughCount, true);
+  assert.equal(calls[0].select.hypeLevel, true); assert.equal(calls[0].select.hoursPlayed, true);
   assert.deepEqual(await api.getVectorRecommendations("trusted-server-player"), { excluded: ["trusted-server-player dismissed"] });
   assert.deepEqual(calls[1].where, { userId: "trusted-server-player" });
   assert.deepEqual(profileCalls, ["current-player", "trusted-server-player"].map(id => ({ where: { id }, select: { featuredTrophyIds: true } })));
@@ -345,7 +374,7 @@ test("Hall of Fame pins load unrated/uncompleted vectors, elevate similar candid
     assert(after.recommendations[0].scores.genre > before.recommendations.find(p => p.title === "Z Favorite Saga II").scores.genre);
     assert.equal(after.hallOfFameAnchorCount, 1); assert.equal(after.anchorCount, 2); assert.equal(after.negativeAnchorCount, 0);
     assert.equal(after.diagnostics.hallOfFameWeightMultiplier, 1.35);
-    assert.deepEqual(after.diagnostics.anchors[0], { title: favorite.title, rating: fields.rating, hallOfFame: true, weight: 1.35 });
+    assert.deepEqual(after.diagnostics.anchors[0], { title: favorite.title, rating: fields.rating, hallOfFame: true, weight: 1.35, hypeLevel: 2, hypedUnplayed: false });
     assert.match(after.recommendations[0].reason, /Series affinity with your Hall of Fame favorite Favorite Saga I/);
     const anchorQuery = queries.filter(q => q.sql.includes('AS "vectorText"')).at(-1);
     assert.deepEqual(new Set(JSON.parse(anchorQuery.values[0])), new Set([stored.key, "rival"]));

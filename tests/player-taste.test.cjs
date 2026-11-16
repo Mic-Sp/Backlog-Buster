@@ -10,6 +10,60 @@ const row = (id, fields = {}) => ({ key: `key-${id}`, title: `Game ${id}`, relea
   seriesHints: [], estimatedHours: 20, featureVectorVersion: CATALOG_VECTOR_VERSION, vectorText: JSON.stringify(vector(id)), ...fields });
 const norm = values => Math.sqrt(values.reduce((sum, value) => sum + value * value, 0));
 
+test('hyped unplayed vectors are primary anchors beside completions, with normalized 1.25/1/0.8 weights', () => {
+  const games = [game(1), game(2, { rating: null, status: 'Backlog', hypeLevel: 3 }), game(3, { rating: 4, hypeLevel: 1 })];
+  const rows = [row(1), row(2, { genres: ['Puzzle'] }), row(3)];
+  const before = structuredClone(games), profile = taste.buildPlayerTasteProfile(games, rows);
+  assert.equal(profile.source, 'completed-favorites'); assert.equal(profile.anchors.length, 3);
+  assert.equal(profile.anchors.find(a => a.key === 'key-1').weight, 2);
+  assert.equal(profile.anchors.find(a => a.key === 'key-2').weight, 1.25);
+  assert.equal(profile.anchors.find(a => a.key === 'key-3').weight, .8);
+  assert(profile.values[2] > 0); assert(Math.abs(norm(profile.values) - 1) < 1e-12);
+  assert(profile.genres.some(signal => signal.name === 'puzzle'));
+  assert.deepEqual(games, before);
+  assert.equal(taste.buildPlayerTasteProfile([games[1]], [rows[1]]).source, 'hyped-backlog');
+  assert.deepEqual(taste.buildPlayerTasteProfile([games[1]], [rows[1]]).values, vector(2));
+});
+
+test('the anchor cap reserves both hyped anticipation and completed favorites after Hall of Fame priorities', () => {
+  const favorites = Array.from({ length: 12 }, (_, index) => game(index + 1));
+  const excited = Array.from({ length: 12 }, (_, index) => game(index + 20, { status: 'Backlog', rating: null, hypeLevel: 3 }));
+  const games = [...favorites, ...excited], rows = games.map(game => row(game.id));
+  const profile = taste.buildPlayerTasteProfile(games, rows, [], rows, [1, 2, 3]);
+  assert.equal(profile.anchors.length, 8); assert.equal(profile.anchors.filter(a => a.hallOfFame).length, 3);
+  assert(profile.anchors.some(a => a.hypedUnplayed)); assert(profile.anchors.some(a => !a.hypedUnplayed && !a.hallOfFame));
+  const reverse = taste.buildPlayerTasteProfile([...games].reverse(), [...rows].reverse(), [], [...rows].reverse(), [1, 2, 3]);
+  assert.deepEqual(profile, reverse);
+});
+
+test('hyped intent never promotes played/replayed or low-rated backlog into primary anchors', () => {
+  const hyped = game(1, { status: 'Backlog', rating: null, hypeLevel: 3 });
+  for (const fields of [{ hypeLevel: 1 }, { hypeLevel: 2 }, { hoursPlayed: 1 }, { playthroughCount: 1 }, { rating: 1 }, { rating: 2 }, { status: 'Flatlined' }]) {
+    const candidate = { ...hyped, ...fields };
+    assert.equal(taste.potentialTasteGames([candidate]).length, 0);
+  }
+  const profile = taste.buildPlayerTasteProfile([hyped], [row(1, { featureVectorVersion: 'stale' })]);
+  assert.equal(profile.source, 'cold-start'); assert.equal(profile.anchors.length, 0);
+});
+
+test('owned cosine scores apply bounded hype multipliers without changing raw cosine measurements', () => {
+  const games = [game(1), ...[1, 2, 3].map((hypeLevel, index) => game(index + 2, { status: 'Backlog', rating: null, hypeLevel, hoursPlayed: 1 }))];
+  const peer = [.6, .8, ...Array(126).fill(0)];
+  const rows = [row(1, { vectorText: JSON.stringify([1, ...Array(127).fill(0)]) }), ...games.slice(1).map(g => row(g.id, { vectorText: JSON.stringify(peer) }))];
+  const scores = taste.scoreOwnedTasteGames(games, rows);
+  for (const [id, expected] of [[2, .48], [3, .6], [4, .75]]) {
+    assert(Math.abs(scores.get(id).similarity - expected) < 1e-12);
+    assert(Math.abs(scores.get(id).cosineSimilarity - .6) < 1e-12);
+  }
+  const { weightHypeSimilarity } = loadCatalogModule('src/lib/hype.ts');
+  for (const value of [-2, -1, -.5, 0, .5, 1, 2, NaN, Infinity]) for (const level of [1, 2, 3]) {
+    assert(Number.isFinite(weightHypeSimilarity(value, level)));
+    assert(weightHypeSimilarity(value, level) >= -1 && weightHypeSimilarity(value, level) <= 1);
+  }
+  assert(weightHypeSimilarity(-.5, 3) > weightHypeSimilarity(-.5, 2));
+  assert(weightHypeSimilarity(-.5, 1) < weightHypeSimilarity(-.5, 2));
+});
+
 test("completed favorites aggregate normalized stored vectors with 5-star weight twice 4-star weight", () => {
   const result = taste.buildPlayerTasteProfile([game(1), game(2, { rating: 4 }), game(3, { rating: 1, earnedXp: 999999 }),
     game(4, { rating: 3 }), game(5, { rating: null })], [row(1, { estimatedHours: 40, vectorText: JSON.stringify(vector(1, 10)) }), row(2, { estimatedHours: 10 }), row(3), row(4), row(5)]);

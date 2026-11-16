@@ -11,6 +11,8 @@ import { buildTrailerUrl } from "@/lib/trailers";
 import { isUnreleasedYear } from "@/lib/game-release";
 import DeckPinButton from "@/components/DeckPinButton";
 import { useUIEffects } from "@/components/ThemeProvider";
+import { pickQuest, questRollPool } from "@/lib/quest-roller";
+import "./QuestRoulette.css";
 
 type QuestGame = {
   id: number;
@@ -22,6 +24,8 @@ type QuestGame = {
   coverUrl: string | null;
   releaseYear?: number | null;
   pinnedOrder: number | null;
+  hypeLevel?: number;
+  status?: string;
 };
 
 export function useQuestRouletteController({ games }: { games: QuestGame[] }) {
@@ -32,6 +36,8 @@ export function useQuestRouletteController({ games }: { games: QuestGame[] }) {
   const [time, setTime] = useState("all");
   const [genre, setGenre] = useState("");
   const [platform, setPlatform] = useState("");
+  const [hypeWeighted, setHypeWeighted] = useState(true);
+  const [iceboxMode, setIceboxMode] = useState(false);
   const [winnerId, setWinnerId] = useState<number | null>(null);
   const [cyclingTitle, setCyclingTitle] = useState<string | null>(null);
   const [message, setMessage] = useState("");
@@ -49,14 +55,7 @@ export function useQuestRouletteController({ games }: { games: QuestGame[] }) {
   const releasedGames = games.filter((game) => !isUnreleasedYear(game.releaseYear, currentYear));
   const genres = [...new Set(releasedGames.flatMap((game) => game.genre?.trim() ? [game.genre.trim()] : []))].sort();
   const platforms = [...new Set(releasedGames.map((game) => game.platform.trim()).filter(Boolean))].sort();
-  const matches = releasedGames.filter((game) => (
-    (time === "all" ||
-      (time === "quick" && game.lengthHours <= 15) ||
-      (time === "standard" && game.lengthHours >= 16 && game.lengthHours <= 40) ||
-      (time === "epic" && game.lengthHours >= 40)) &&
-    (!genre || game.genre?.trim() === genre) &&
-    (!platform || game.platform.trim() === platform)
-  ));
+  const { candidates: matches, automaticFallback } = questRollPool(games, { time, genre, platform, iceboxMode, currentYear });
   const winner = matches.find((game) => game.id === winnerId);
   const isRolling = cyclingTitle !== null;
   const busy = isRolling || isAccepting;
@@ -116,7 +115,7 @@ export function useQuestRouletteController({ games }: { games: QuestGame[] }) {
     if (intervalRef.current !== null || isAccepting || matches.length === 0) return;
     playSfx("roll");
     resetResult();
-    const candidates = matches.length > 1
+    const candidates = !hypeWeighted && matches.length > 1
       ? matches.filter((game) => game.id !== lastWinnerId.current)
       : matches;
     let index = 0;
@@ -126,7 +125,7 @@ export function useQuestRouletteController({ games }: { games: QuestGame[] }) {
       setCyclingTitle(matches[index].title);
     }, 75);
     timeoutRef.current = setTimeout(() => {
-      const selected = candidates[Math.floor(Math.random() * candidates.length)];
+      const selected = pickQuest(candidates, { hypeWeighted })!;
       if (intervalRef.current !== null) clearInterval(intervalRef.current);
       intervalRef.current = null;
       timeoutRef.current = null;
@@ -168,6 +167,11 @@ export function useQuestRouletteController({ games }: { games: QuestGame[] }) {
     setGenre,
     platform,
     setPlatform,
+    hypeWeighted,
+    setHypeWeighted,
+    iceboxMode,
+    setIceboxMode,
+    automaticFallback,
     cyclingTitle,
     message,
     isAccepting,
@@ -209,6 +213,11 @@ export function QuestRouletteView({ controller, part = "all" }: { controller: Qu
     setGenre,
     platform,
     setPlatform,
+    hypeWeighted,
+    setHypeWeighted,
+    iceboxMode,
+    setIceboxMode,
+    automaticFallback,
     cyclingTitle,
     message,
     isAccepting,
@@ -289,6 +298,15 @@ export function QuestRouletteView({ controller, part = "all" }: { controller: Qu
                 </select>
               </label>
             </fieldset>
+
+            <fieldset className="quest-hype-options" disabled={busy}>
+              <legend>Selection preferences</legend>
+              <label><input type="checkbox" checked={hypeWeighted} onChange={event => { setHypeWeighted(event.target.checked); resetResult(); }} /> Hype Weighted</label>
+              <p>{hypeWeighted ? "Hyped games get 3× the chance of Interested games. Repeat draws are possible." : "All eligible games have equal weight. Consecutive repeats are avoided when possible."}</p>
+              <label><input type="checkbox" checked={iceboxMode} onChange={event => { setIceboxMode(event.target.checked); resetResult(); }} /> Icebox Mode</label>
+              <p>Include Backburner games alongside your other matches.</p>
+            </fieldset>
+            {automaticFallback && <p className="quest-message" role="status">Only Backburner games match these filters. They’re included automatically so you can still roll.</p>}
 
             <p className="quest-match-count">
               {games.length === 0
