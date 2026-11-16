@@ -49,6 +49,11 @@ npx prisma generate
 ```
 
 The additive SQL scripts can be rerun; they preserve existing library/catalog rows.
+For an existing database, apply the Hype Meter independently with
+`npx prisma db execute --file prisma/game-hype.sql`, then `npx prisma generate`.
+Existing games default to Interested (2). Authenticated clients can send
+`PATCH /api/games/{id}` with JSON `{ "hypeLevel": 1 }` (1 = Backburner,
+2 = Interested, 3 = Hyped / Must Play); only the session owner's game is updated.
 The playthrough backfill sets legacy Completed games to one clear, leaves journal dates
 and activity untouched, and enforces counts from 0–99 (Completed requires at least 1).
 Restart a running development server after regenerating the Prisma client.

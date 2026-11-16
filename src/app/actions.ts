@@ -5,6 +5,7 @@ import type { LibraryImportPayload } from "@/lib/library-import";
 import { guardedRequest } from "@/lib/api-resilience";
 import { safeAction, InputError } from "@/lib/action-result";
 import { validateGameForm } from "@/lib/form-validation";
+import { gameHypeSchema, readHypeField } from "@/lib/game-mutation-schema";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { syncAndGetAchievements, syncAchievementsForPlayer } from "@/lib/achievements";
@@ -382,6 +383,7 @@ export async function createGame(formData: FormData) {
         franchise: optionalText(formData, "franchise") || null,
         ...readMicroReviewFields(formData),
         ...readOwnershipField(formData),
+        ...gameHypeSchema.parse(readHypeField(formData)),
         ...journal,
       },
     });
@@ -706,6 +708,7 @@ export async function updateGame(formData: FormData) {
         ...(statusValue === "Flatlined" ? { wasFlatlined: true } : {}),
         ...metadata,
         ...progress,
+        ...readHypeField(formData),
       });
     });
 

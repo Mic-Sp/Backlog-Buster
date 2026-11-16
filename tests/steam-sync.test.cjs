@@ -366,6 +366,20 @@ test("logout or a relink while automatic work is pending stops all background wr
   }
 });
 
+test('Steam imports default hype to Interested and preserve existing choices on verified and repeated syncs', async () => {
+  const initial = [saved(1, { steamAppId: '1', hypeLevel: 1 }), saved(2, { title: 'Legacy copy', hypeLevel: 3 })];
+  const f = fixture(initial, [incoming(1), incoming(2, 'Legacy copy'), incoming(3, 'Unplayed', 0)], { verifiedSteamId: steamId });
+  await f.vault.syncSteamLibraryForSession(request({ includeUnplayed: true, updateHoursPlayed: true }),
+    { userId: 'owner', tokenHash: 'owner-token', verifiedSteamId: steamId });
+  assert.equal(f.games.find(game => game.steamAppId === '3').hypeLevel, 2);
+  assert.equal(f.games.find(game => game.steamAppId === '3').status, 'Backlog');
+  assert.deepEqual(f.games.slice(0, 2).map(game => game.hypeLevel), [1, 3]);
+  f.games.find(game => game.steamAppId === '3').hypeLevel = 3;
+  await f.vault.syncSteamLibraryForSession(request({ includeUnplayed: true, updateHoursPlayed: true }),
+    { userId: 'owner', tokenHash: 'owner-token', verifiedSteamId: steamId });
+  assert.deepEqual(f.games.map(game => game.hypeLevel), [1, 3, 3]);
+});
+
 test('Steam defaults new/unspecified games to Digital and preserves every explicit medium on repeat and playtime syncs', async () => {
   const types = ['Digital', 'Physical', 'Subscription', 'Borrowed'];
   const initial = [saved(1, { steamAppId: '1', ownershipType: null }), saved(2, { title: 'Legacy copy', ownershipType: null }),

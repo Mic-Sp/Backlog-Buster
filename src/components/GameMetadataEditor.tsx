@@ -1,4 +1,5 @@
 "use client";
+import HypeMeter from "@/components/games/HypeMeter";
 
 import { ReplayCountEditor } from "@/components/ReplayTracking";
 import { PlayJournalEditor } from "@/components/PlayJournal";
@@ -117,6 +118,7 @@ export default function GameMetadataEditor({ controller }: { controller: GameLib
               <CommunityRatingDistribution game={editingMetaGame} />
             </div>
             <MetadataFields game={editingMetaGame} formRef={metadataModalRef} />
+            <HypeMeter gameId={editingMetaGame.id} hypeLevel={editingMetaGame.hypeLevel} title={editingMetaGame.title} />
             <ReplayCountEditor game={editingMetaGame} />
             <PlayJournalEditor title={editingMetaGame.title} startedAt={editingMetaGame.startedAt} completedAt={editingMetaGame.completedAt} originalStartedAt={editingMetaGame.startedAt?.slice(0, 10)} originalCompletedAt={editingMetaGame.completedAt?.slice(0, 10)} />
             <MicroReviewEditor title={editingMetaGame.title} review={editingMetaGame.review} reviewSpoiler={editingMetaGame.reviewSpoiler} />

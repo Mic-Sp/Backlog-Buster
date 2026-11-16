@@ -203,6 +203,7 @@ async function SavedGames({ userId, isAdmin, socialEnabled }: { userId: string; 
     steamAchievementsCheckedAt: game.steamAchievementsCheckedAt?.toISOString() ?? null,
     steamAchievementsSyncedAt: game.steamAchievementsSyncedAt?.toISOString() ?? null,
     status: game.status,
+    hypeLevel: game.hypeLevel,
     playthroughCount: game.playthroughCount,
     wasFlatlined: game.wasFlatlined,
     pinnedOrder: game.pinnedOrder,

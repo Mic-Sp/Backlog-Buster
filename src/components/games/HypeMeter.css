@@ -1,0 +1,20 @@
+:root :is(.hype-meter, .hype-filter) { --hype-accent: var(--accent-primary, var(--custom-accent, #00f0ff)); --hype-surface: var(--custom-surface, #0c1822); --hype-text: var(--custom-text, #d4e9ef); }
+:root[data-layout-mode="fantasy"] :is(.hype-meter, .hype-filter) { --hype-accent: var(--accent-primary, var(--custom-accent, #345c48)); --hype-surface: var(--custom-surface, #f6eac9); --hype-text: var(--custom-text, #3e3524); }
+:root[data-layout-mode="biohazard"] :is(.hype-meter, .hype-filter) { --hype-accent: var(--accent-primary, var(--bio-accent, #9eb78d)); --hype-surface: var(--bio-surface, #252923); --hype-text: var(--bio-text, #dedfca); }
+:root[data-theme="halloween"] :is(.hype-meter, .hype-filter) { --hype-accent: var(--accent-primary, var(--custom-accent, #ffb55a)); }
+.hype-meter { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; max-width: 100%; vertical-align: middle; }
+:root .hype-meter .hype-meter-button, :root button.hype-filter { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 36px; width: fit-content; max-width: 100%; margin: 3px 0; padding: 6px 9px; border: 1px solid color-mix(in srgb, var(--hype-accent) 38%, transparent); border-radius: 4px; background: var(--hype-surface); color: var(--hype-text); box-shadow: none; text-shadow: none; font-family: inherit; font-size: 11px; line-height: 1.4; letter-spacing: .02em; cursor: pointer; }
+:root .hype-meter .hype-meter-button:hover:not(:disabled), :root button.hype-filter:hover { border-color: var(--hype-accent); background: color-mix(in srgb, var(--hype-accent) 12%, var(--hype-surface)); }
+:root .hype-meter .hype-meter-button:focus-visible, :root button.hype-filter:focus-visible { outline: 2px solid var(--hype-accent); outline-offset: 3px; }
+:root .hype-meter .hype-meter-button:disabled { cursor: wait; opacity: .8; }
+.hype-bars { display: inline-flex; gap: 3px; color: var(--hype-accent); }
+.hype-bars > span { display: block; width: 5px; height: 15px; overflow: hidden; font-size: 0; background: currentColor; opacity: .15; border-radius: 1px; }
+.hype-bars > span[data-lit="true"] { opacity: 1; }
+.hype-meter[data-hype-level="1"] .hype-bars > span[data-lit="true"] { opacity: .45; }
+.hype-meter[data-hype-level="3"] .hype-bars > span[data-lit="true"] { box-shadow: 0 0 7px var(--hype-accent); }
+.hype-meter-error { flex-basis: 100%; max-width: 240px; color: var(--hype-text); font-size: 11px; line-height: 1.5; }
+:root[data-layout-mode] button.hype-filter[aria-pressed] { border-radius: 999px; white-space: nowrap; align-self: center; }
+:root button.hype-filter[aria-pressed="true"] { border-color: var(--hype-accent); color: var(--hype-accent); background: color-mix(in srgb, var(--hype-accent) 15%, var(--hype-surface)); box-shadow: inset 0 0 0 1px var(--hype-accent); }
+.fantasy-inventory-grid > li > .hype-meter, .bio-inventory-grid > li > .hype-meter { position: relative; z-index: 2; justify-content: center; width: 100%; padding: 0 4px; }
+:root .hype-meter[data-compact="true"] .hype-meter-button { min-width: 44px; min-height: 32px; padding: 5px 8px; }
+@media (pointer: coarse) { :root .hype-meter .hype-meter-button, :root button.hype-filter { min-height: 44px; } }

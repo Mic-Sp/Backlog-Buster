@@ -1,6 +1,7 @@
 "use client";
 
 import SteamProgress from "@/components/SteamProgress";
+import HypeMeter, { HypedOnlyFilter } from "@/components/games/HypeMeter";
 import LayoutText from "@/components/LayoutText";
 
 import { OwnershipBadge, OwnershipField, OwnershipFilterControl } from "@/components/Ownership";
@@ -270,6 +271,7 @@ export default function CyberpunkLibraryView({ controller }: { controller: GameL
         ))}
       </div>
 
+      <HypedOnlyFilter active={controller.hypedOnly} onChange={controller.setHypedOnly} />
       <div className="library-toolbar">
         <label className="library-search">
           <span>Search library</span>
@@ -431,6 +433,7 @@ export default function CyberpunkLibraryView({ controller }: { controller: GameL
                   </div>
                   {game.status === "Playing" && <AgentBriefing game={game} />}
                   <OwnershipBadge value={game.ownershipType} />
+                  <HypeMeter gameId={game.id} hypeLevel={game.hypeLevel} title={game.title} />
                   <SteamProgress game={game} />
                   <ReplayBadge count={game.playthroughCount} />
                   <PlayJournalBadges startedAt={game.startedAt} completedAt={game.completedAt} />
@@ -468,6 +471,7 @@ export default function CyberpunkLibraryView({ controller }: { controller: GameL
                   )}
                   <p className="trophy-reward">+{game.earnedXp.toLocaleString()} XP</p>
                   <OwnershipBadge value={game.ownershipType} />
+                  <HypeMeter gameId={game.id} hypeLevel={game.hypeLevel} title={game.title} />
                   <SteamProgress game={game} />
                   <ReplayBadge count={game.playthroughCount} />
                   <PlayJournalBadges startedAt={game.startedAt} completedAt={game.completedAt} />
@@ -559,6 +563,7 @@ export default function CyberpunkLibraryView({ controller }: { controller: GameL
                       <span className="game-title-heading"><strong title={game.title}>{game.title}</strong>{renderTimelinePill(game)}</span>
                       <CommunityStatsReadout game={game} />
                       <OwnershipBadge value={game.ownershipType} />
+                      <HypeMeter gameId={game.id} hypeLevel={game.hypeLevel} title={game.title} />
                       <SteamProgress game={game} />
                       <ReplayBadge count={game.playthroughCount} />
                       <PlayJournalBadges startedAt={game.startedAt} completedAt={game.completedAt} />

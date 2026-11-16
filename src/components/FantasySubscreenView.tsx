@@ -1,4 +1,5 @@
 "use client";
+import HypeMeter, { HypedOnlyFilter } from "@/components/games/HypeMeter";
 
 import SteamProgress from "@/components/SteamProgress";
 import LayoutText from "@/components/LayoutText";
@@ -103,6 +104,7 @@ export default function FantasySubscreenView({ controller: c }: { controller: Ga
         summary={<span className="workspace-section-count">{c.activeView} · {c.visibleGames.length} matches</span>}>
       <div className="fantasy-status-tabs" role="group" aria-label="Library view">{views.map(view => <button key={view} type="button" data-ui-sound="custom" aria-pressed={c.activeView === view} onClick={() => c.changeView(view)}>{view === "Flatlined" ? "Abandoned" : view} <span>{c.viewCounts[view]}</span></button>)}</div>
       <div className="fantasy-scroll-filters">
+        <HypedOnlyFilter active={c.hypedOnly} onChange={c.setHypedOnly} />
         <label>Search quests<input type="search" value={c.searchQuery} placeholder="Find a title, realm, or genre…" onChange={event => c.setSearchQuery(event.target.value)} /></label>
         <label>Realm<select value={c.platformFilter} onChange={event => c.setPlatformFilter(event.target.value)}><option value="">All platforms</option>{c.platforms.map(platform => <option key={platform}>{platform}</option>)}</select></label>
         <label>Discipline<select value={c.genreFilter} onChange={event => c.setGenreFilter(event.target.value)}><option value="">All genres</option>{c.genres.map(genre => <option key={genre}>{genre}</option>)}</select></label>
@@ -121,7 +123,7 @@ export default function FantasySubscreenView({ controller: c }: { controller: Ga
           data-library-game-id={game.id} data-reorder-row-id={game.id} data-status={game.status} data-selected={locked?.id === game.id} data-preview={!locked && selected?.id === game.id} data-equipped={game.pinnedOrder !== null} data-active={game.status === "Playing"}
           data-dragging={c.dragSourceId === game.id || undefined} data-drop-target={c.dropTargetId === game.id || c.backlogReturnTarget === game.id || undefined}
           draggable={(c.isReorderableRow(game.id) || c.canDragToDeck(game)) && !c.rowReorderBusy}
-          onPointerDownCapture={event => c.rememberDragOrigin({ gameId: game.id, source: "table" }, event.target instanceof Element && Boolean(event.target.closest(".fantasy-inventory-quick-pin")))} onDragStart={event => c.startLibraryDrag(event, { gameId: game.id, source: "table" })} onDragEnd={c.endRowDrag}
+          onPointerDownCapture={event => c.rememberDragOrigin({ gameId: game.id, source: "table" }, event.target instanceof Element && Boolean(event.target.closest(".fantasy-inventory-quick-pin, .hype-meter")))} onDragStart={event => c.startLibraryDrag(event, { gameId: game.id, source: "table" })} onDragEnd={c.endRowDrag}
           onDragOver={event => dragOver(event, game)} onDragLeave={event => c.leaveLibraryGame(event, game.id)} onDrop={event => c.dropRowGame(event, game.id)}>
           <button type="button" className="fantasy-inventory-slot" data-ui-sound="custom" aria-pressed={locked?.id === game.id} aria-describedby={inspectionHelpId} aria-label={`Inspect ${game.title}${game.pinnedOrder !== null ? `, equipped C-Button ${game.pinnedOrder}` : ""}${game.status === "Playing" ? ", active quest" : ""}`} onClick={() => toggleGameLock(game)} onMouseEnter={() => previewGame(game)} onMouseMove={() => previewGame(game)} onFocus={() => previewGame(game)}>
             {game.coverUrl ?
@@ -131,6 +133,7 @@ export default function FantasySubscreenView({ controller: c }: { controller: Ga
             <QuestRating rating={game.rating} />
             <OwnershipBadge value={game.ownershipType} /><ReplayBadge count={game.playthroughCount} fantasy />
           </button>
+          <HypeMeter gameId={game.id} hypeLevel={game.hypeLevel} title={game.title} compact />
           <SteamProgress game={game} compact />
           {c.canDragToDeck(game) && <span className="fantasy-inventory-quick-pin" onClick={event => event.stopPropagation()} onFocus={() => previewGame(game)}>
             <DeckPinButton gameId={game.id} pinnedOrder={game.pinnedOrder} pinnedCount={c.pinnedCount} releaseYear={game.releaseYear} disabled={c.rowReorderBusy} />
@@ -184,6 +187,7 @@ function FantasyQuestDialogue({ controller: c, game, onSelectSaga }: { controlle
   const draft = c.getGameDraft(game);
   const saga = c.byGameId.get(game.id);
   return <section className="fantasy-dialogue" aria-label={`Quest details for ${game.title}`}>
+    <HypeMeter gameId={game.id} hypeLevel={game.hypeLevel} title={game.title} />
     <OwnershipBadge value={game.ownershipType} /><ReplayBadge count={game.playthroughCount} fantasy />
     <SteamProgress game={game} />
     <PlayJournalBadges startedAt={game.startedAt} completedAt={game.completedAt} />

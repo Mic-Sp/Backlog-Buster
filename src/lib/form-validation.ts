@@ -3,6 +3,7 @@ import { readMicroReviewFields } from "@/lib/micro-review";
 import { readPlayJournalFields } from "@/lib/play-journal";
 import { readOwnershipField } from "@/lib/ownership-type";
 import { readPlaythroughFields } from "@/lib/playthroughs";
+import { readHypeField } from "@/lib/game-mutation-schema";
 
 // Share the same normalization and bounds in browser forms and Server Actions.
 export function validateGameForm(data: FormData, deleting = false) {
@@ -17,6 +18,7 @@ export function validateGameForm(data: FormData, deleting = false) {
   readPlayJournalFields(data);
   readOwnershipField(data);
   readPlaythroughFields(data);
+  readHypeField(data);
   if (data.has("title") && !text("title")) throw new InputError("Please input a valid title.");
   for (const [name, limit] of [["title", 120], ["platform", 80], ["genre", 80], ["franchise", 120], ["coverUrl", 2048], ["notes", 1000]] as const) {
     if (text(name).length > limit) throw new InputError(`${name} must be at most ${limit} characters.`);

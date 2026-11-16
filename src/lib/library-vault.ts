@@ -250,7 +250,7 @@ export async function syncSteamLibraryForSession(payload: SteamSyncPayload, sess
         const info = metadata.get(libraryMetadataKey(game));
         // Steam playtime has no reliable first-play/finish date. Do not infer either.
         additions.push({ userId, steamAppId: game.steamAppId, title: game.title, platform: "PC", ownershipType: "Digital", status: "Backlog", startedAt: null, completedAt: null,
-          hoursPlayed, earnedXp: 0, difficulty: 2, lengthHours: resolveRawgPlaytime(info?.estimatedHours, info?.genre) ?? 10,
+          hypeLevel: 2, hoursPlayed, earnedXp: 0, difficulty: 2, lengthHours: resolveRawgPlaytime(info?.estimatedHours, info?.genre) ?? 10,
           genre: info?.genre ?? null, releaseYear: info?.releaseYear ?? null, coverUrl: info?.coverUrl || game.coverUrl });
       }
       let addedCount = 0, updatedCount = 0;

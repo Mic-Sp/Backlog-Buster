@@ -32,6 +32,7 @@ import { SocialHubOverlay, useSocialHubController } from "@/components/SocialHub
 import { compareCompletionDates } from "@/lib/play-journal";
 import { matchesOwnership, type OwnershipFilter, type OwnershipType } from "@/lib/ownership-type";
 import type { SteamProgressFields } from "@/lib/steam-progress";
+import { HypeMetersContext, useHypeMeters } from "@/components/games/useHypeMeters";
 
 export type LibraryGame = SteamProgressFields & {
   id: number;
@@ -39,6 +40,7 @@ export type LibraryGame = SteamProgressFields & {
   platform: string;
   ownershipType: OwnershipType | null;
   status: string;
+  hypeLevel: number;
   playthroughCount: number;
   wasFlatlined: boolean;
   pinnedOrder: number | null;
@@ -94,6 +96,8 @@ function comparePinnedGames(left: LibraryGame, right: LibraryGame) {
 
 
 function useGameLibraryController({ games: serverGames, customLists = [], achievements = [], isAdmin = false, socialEnabled = true, steamId, children }: { games: LibraryGame[]; customLists?: CustomListData[]; achievements?: Achievement[]; isAdmin?: boolean; socialEnabled?: boolean; steamId?: string | null; children?: ReactNode }) {
+  const hype = useHypeMeters(serverGames);
+  const hypeGames = useMemo(() => serverGames.map(game => ({ ...game, hypeLevel: hype.levels[game.id] ?? game.hypeLevel ?? 2 })), [serverGames, hype.levels]);
   const { playSfx, layoutMode } = useUIEffects();
   const { showPane } = useSubscreen();
   const [selectedGameId, setSelectedGameId] = useState<number | null>(null);
@@ -123,7 +127,7 @@ function useGameLibraryController({ games: serverGames, customLists = [], achiev
   const sagaProviderCooldown = useCooldown();
   const sagaScanRef = useRef(false);
   const [sagaDebug, setSagaDebug] = useState<{ key: string; data: SagaChronologyDebug } | null>(null);
-  const [games, returnToBacklogOptimistically] = useOptimistic<LibraryGame[], { gameId: number; orderedIds: number[] | null }>(serverGames, (current, move) => {
+  const [games, returnToBacklogOptimistically] = useOptimistic<LibraryGame[], { gameId: number; orderedIds: number[] | null }>(hypeGames, (current, move) => {
     const ranks = new Map(move.orderedIds?.map((id, index) => [id, index + 1]));
     return current.map((game) => game.id === move.gameId || ranks.has(game.id) ? {
       ...game,
@@ -141,6 +145,7 @@ function useGameLibraryController({ games: serverGames, customLists = [], achiev
   const [platformFilter, setPlatformFilter] = useState("");
   const [genreFilter, setGenreFilter] = useState("");
   const [ownershipFilter, setOwnershipFilter] = useState<OwnershipFilter>("");
+  const [hypedOnly, setHypedOnly] = useState(false);
   const [sagaFilter, setSagaFilter] = useState("");
   const sagaFilterRef = useRef("");
   const [sortBy, setSortBy] = useState("default");
@@ -271,6 +276,7 @@ function useGameLibraryController({ games: serverGames, customLists = [], achiev
       (!platformFilter || game.platform.trim() === platformFilter) &&
       (!genreFilter || game.genre?.trim() === genreFilter) &&
       matchesOwnership(game, ownershipFilter) &&
+      (!hypedOnly || game.hypeLevel === 3) &&
       (!selectedSaga || byGameId.get(game.id)?.key === selectedSaga.key) &&
       (!query || [game.title, game.genre, game.platform].some((value) => value?.toLowerCase().includes(query)))
     ));
@@ -346,11 +352,11 @@ function useGameLibraryController({ games: serverGames, customLists = [], achiev
           return 0;
       }
     });
-  }, [games, activeView, searchQuery, platformFilter, genreFilter, ownershipFilter, selectedSaga, byGameId, sortBy, timelinePositions, inBacklogPriorityView, backlogPositions, selectedCustomList, customListPositions]);
+  }, [games, activeView, searchQuery, platformFilter, genreFilter, ownershipFilter, hypedOnly, selectedSaga, byGameId, sortBy, timelinePositions, inBacklogPriorityView, backlogPositions, selectedCustomList, customListPositions]);
   const visibleTimelinePositions = useMemo(() => new Map(visibleGames.map((game, index) => [game.id, index])), [visibleGames]);
   const visibleBacklogIds = useMemo(() => visibleGames.filter((game) => game.pinnedOrder == null).map((game) => game.id), [visibleGames]);
   const visibleBacklogPositions = useMemo(() => new Map(visibleBacklogIds.map((id, index) => [id, index])), [visibleBacklogIds]);
-  const hasLibraryFilters = searchQuery !== "" || platformFilter !== "" || genreFilter !== "" || ownershipFilter !== "" || Boolean(selectedSaga) || Boolean(selectedCustomList) || sortBy !== "default";
+  const hasLibraryFilters = searchQuery !== "" || platformFilter !== "" || genreFilter !== "" || ownershipFilter !== "" || hypedOnly || Boolean(selectedSaga) || Boolean(selectedCustomList) || sortBy !== "default";
   const hasActiveFilters = activeView !== "Backlog" || hasLibraryFilters;
   const showFilteredCount = activeView !== "All" || hasLibraryFilters;
 
@@ -361,6 +367,7 @@ function useGameLibraryController({ games: serverGames, customLists = [], achiev
     setPlatformFilter("");
     setGenreFilter("");
     setOwnershipFilter("");
+    setHypedOnly(false);
     setSagaFilter("");
     sagaFilterRef.current = "";
     setSagaNotice(null);
@@ -377,6 +384,7 @@ function useGameLibraryController({ games: serverGames, customLists = [], achiev
       setPlatformFilter("");
       setGenreFilter("");
       setOwnershipFilter("");
+      setHypedOnly(false);
       setSagaFilter("");
       sagaFilterRef.current = "";
       setSagaNotice(null);
@@ -432,6 +440,7 @@ function useGameLibraryController({ games: serverGames, customLists = [], achiev
     setPlatformFilter("");
     setGenreFilter("");
     setOwnershipFilter("");
+    setHypedOnly(false);
     setSortBy("year-asc");
   }
 
@@ -714,6 +723,9 @@ function useGameLibraryController({ games: serverGames, customLists = [], achiev
   const deck = useUpNextDeckController({ startAction: startGameAndShowPlaying, games, draggedGame: deckDraggedGame, onDragGameChange: changeDeckDrag, onDragPointerDown: rememberDragOrigin, onGameDragStart: startLibraryDrag, disabled: rowReorderBusy });
   const debuggerController = useSagaDebuggerController({ enabled: isAdmin && Boolean(selectedSaga), sagaKey: selectedSaga?.key ?? "", scanDebug: sagaDebug?.key === selectedSaga?.key ? sagaDebug?.data ?? null : null, busy: timelineBusy, cooldownSeconds: sagaProviderCooldown.seconds, onForceRefresh: () => detectSagaOrder(true) });
   const controller = {
+    hype,
+    hypedOnly,
+    setHypedOnly,
     ...drafts,
     customLists,
     libraryRevealKey,
@@ -830,7 +842,7 @@ export default function GameLibrary(props: Parameters<typeof useGameLibraryContr
     vault,
     roulette,
   } = controller;
-  return <DeckPinsContext.Provider value={controller.deck.pins}>
+  return <HypeMetersContext.Provider value={controller.hype}><DeckPinsContext.Provider value={controller.deck.pins}>
     <section className="collection" aria-labelledby="collection-title" ref={collectionRef} data-library-layout={layoutMode} onInputCapture={controller.captureGameDraft} onChangeCapture={controller.captureGameDraft}>
     {layoutMode === "biohazard" ? <BiohazardSubscreenView controller={controller} /> : layoutMode === "fantasy" ? <FantasySubscreenView controller={controller} /> : <CyberpunkLibraryView controller={controller} />}
     <TacticalAdvisorView controller={advisor} part="overlay" />
@@ -840,5 +852,5 @@ export default function GameLibrary(props: Parameters<typeof useGameLibraryContr
     <GameMetadataEditor controller={controller} />
     {controller.gameActionError && <p className="form-action-error library-action-error" role="alert">{controller.gameActionError}</p>}
     </section>
-  </DeckPinsContext.Provider>;
+  </DeckPinsContext.Provider></HypeMetersContext.Provider>;
 }

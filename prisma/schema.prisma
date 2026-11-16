@@ -322,6 +322,8 @@ model Game {
   // Access medium, independent of platform and library status. Null = unspecified.
   ownershipType OwnershipType?
   status      String   @default("Backlog")
+  // 1 = Backburner, 2 = Interested, 3 = Hyped / Must Play.
+  hypeLevel   Int      @default(2)
   // Completed clears, independent of current status. Backfill legacy Completed rows to 1.
   playthroughCount Int @default(0)
   // Advances for status/rating/review changes, including quiet clears.
@@ -364,6 +366,7 @@ model Game {
   @@index([userId])
   @@unique([id, userId])
   @@unique([userId, steamAppId])
+  @@index([userId, status, hypeLevel])
 }
 
 // Membership belongs to the same player on both sides, enforced by composite FKs.

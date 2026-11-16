@@ -42,7 +42,7 @@ function fixture(selectedGameId = null) {
   const filename = path.resolve(__dirname, "../src/components/FantasySubscreenView.tsx"), instance = new Module(filename, module);
   instance.paths = Module._nodeModulePaths(path.dirname(filename));
   const original = instance.require.bind(instance);
-  instance.require = name => Object.hasOwn(mocks, name) ? mocks[name] : original(name);
+  instance.require = name => name === "@/components/games/HypeMeter" ? { default: () => null, HypedOnlyFilter: () => null } : Object.hasOwn(mocks, name) ? mocks[name] : original(name);
   instance._compile(ts.transpileModule(fs.readFileSync(filename, "utf8"), { compilerOptions: {
     module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX,
   } }).outputText, filename);

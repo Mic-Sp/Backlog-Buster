@@ -6,7 +6,7 @@ function load(file, mocks) {
   const filename = path.resolve(__dirname, "..", file), instance = new Module(filename, module);
   instance.paths = Module._nodeModulePaths(path.dirname(filename));
   const original = instance.require.bind(instance);
-  instance.require = name => name === "@/components/Ownership" ? { OwnershipField: () => null } : Object.hasOwn(mocks, name) ? mocks[name] : original(name);
+  instance.require = name => name === "@/components/games/HypeMeter" ? { default: () => null, HypedOnlyFilter: () => null } : name === "@/components/Ownership" ? { OwnershipField: () => null } : Object.hasOwn(mocks, name) ? mocks[name] : original(name);
   instance._compile(ts.transpileModule(fs.readFileSync(filename, "utf8"), { compilerOptions: {
     target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX,
   } }).outputText, filename);
