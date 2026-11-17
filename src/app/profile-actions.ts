@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { getAuthenticatedPlayerId } from "@/lib/player";
 import { publicProfileSelect, serializePlayerProfile, validatePlayerProfile } from "@/lib/player-profile";
 import type { PlayerProfileInput } from "@/lib/player-profile-types";
+import { isColorMode } from "@/lib/color-mode";
 import { isLayoutMode } from "@/lib/appearance";
 import { escapeLike } from "@/lib/handle-validation";
 
@@ -17,6 +18,15 @@ export async function savePreferredLayoutMode(mode: unknown) {
     // The provider already updated the UI. Future server renders read the saved
     // value; refreshing here could overwrite a newer optimistic toggle.
     return { preferredLayoutMode: mode };
+  });
+}
+
+export async function savePreferredColorMode(mode: unknown) {
+  return safeAction(async () => {
+    const id = await getAuthenticatedPlayerId();
+    if (!isColorMode(mode)) throw new InputError("Choose System, Light, or Dark.");
+    await prisma.player.update({ where: { id }, data: { preferredColorMode: mode }, select: { id: true } });
+    return { preferredColorMode: mode };
   });
 }
 

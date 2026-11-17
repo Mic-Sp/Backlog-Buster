@@ -5,9 +5,10 @@ import { createContext, Suspense, useContext, useEffect, useRef, useState, type 
 import { createUIAudio, type UISound } from "@/lib/ui-audio";
 import HalloweenDecorations from "@/components/HalloweenDecorations";
 import FloatingFairies from "@/components/FloatingFairies";
-import { savePreferredLayoutMode } from "@/app/profile-actions";
+import { savePreferredColorMode, savePreferredLayoutMode } from "@/app/profile-actions";
 import { actionErrorMessage, unwrapActionResult } from "@/lib/action-result";
 
+import { applyColorMode, colorModeStorageKey, colorSchemeQuery, normalizeColorMode, persistColorMode, type ColorMode, type ResolvedColorMode } from "@/lib/color-mode";
 import { applyAppearance, readAppearance, type LayoutMode, type CyberpunkTheme } from "@/lib/appearance";
 import { applyCustomTheme } from "@/lib/custom-theme-runtime";
 import useCustomThemes, { type CustomThemesController } from "@/components/useCustomThemes";
@@ -18,24 +19,24 @@ import type { CustomTheme } from "@/lib/custom-theme";
 const storageKey = "backlogbuster:theme";
 const soundStorageKey = "backlogbuster:ui-muted";
 const legacySoundStorageKey = "backlogbuster:halloween-muted";
-type ThemeEffects = { layoutMode: LayoutMode; cyberpunkTheme: CyberpunkTheme; toggleLayout: () => void; layoutSaveError: string; halloween: boolean; muted: boolean; toggle: () => void; toggleMuted: () => void; playSfx: (sound: UISound) => void;
+type ThemeEffects = { colorMode: ColorMode; resolvedColorMode: ResolvedColorMode; setColorMode: (mode: ColorMode) => void; colorModeSaveError: string; layoutMode: LayoutMode; cyberpunkTheme: CyberpunkTheme; toggleLayout: () => void; layoutSaveError: string; halloween: boolean; muted: boolean; toggle: () => void; toggleMuted: () => void; playSfx: (sound: UISound) => void;
   customTheme?: CustomTheme | null; customThemes?: CustomThemesController; selectBuiltIn?: (layout: LayoutMode, variant?: CyberpunkTheme) => void };
-const ThemeContext = createContext<ThemeEffects>({ layoutMode: "standard", cyberpunkTheme: "default", toggleLayout: () => {}, layoutSaveError: "", halloween: false, muted: false, toggle: () => {}, toggleMuted: () => {}, playSfx: () => {} });
+const ThemeContext = createContext<ThemeEffects>({ colorMode: "system", resolvedColorMode: "dark", setColorMode: () => {}, colorModeSaveError: "", layoutMode: "standard", cyberpunkTheme: "default", toggleLayout: () => {}, layoutSaveError: "", halloween: false, muted: false, toggle: () => {}, toggleMuted: () => {}, playSfx: () => {} });
 
 export function useUIEffects() { return useContext(ThemeContext); }
 
-type LayoutPlayer = { id: string; preferredLayoutMode: LayoutMode };
+type LayoutPlayer = { id: string; preferredLayoutMode: LayoutMode; preferredColorMode?: ColorMode };
 const ThemePlayerContext = createContext<((player: LayoutPlayer | null) => void) | null>(null);
 
 // The suspended workspace supplies request-specific data after the static shell
 // renders. Keep one provider so shared controllers and audio remain mounted.
 export function ThemePlayerSync({ player }: { player: LayoutPlayer | null }) {
   const syncPlayer = useContext(ThemePlayerContext);
-  const id = player?.id, preferredLayoutMode = player?.preferredLayoutMode;
+  const id = player?.id, preferredLayoutMode = player?.preferredLayoutMode, preferredColorMode = player?.preferredColorMode;
   useEffect(() => {
-    syncPlayer?.(id && preferredLayoutMode ? { id, preferredLayoutMode } : null);
+    syncPlayer?.(id && preferredLayoutMode ? { id, preferredLayoutMode, preferredColorMode } : null);
     return () => syncPlayer?.(null);
-  }, [syncPlayer, id, preferredLayoutMode]);
+  }, [syncPlayer, id, preferredLayoutMode, preferredColorMode]);
   return null;
 }
 
@@ -44,12 +45,18 @@ export default function ThemeProvider({ children, player: initialPlayer = null }
   const player = workspacePlayer === undefined ? initialPlayer : workspacePlayer;
   const playerId = player?.id;
   const preferredLayoutMode = player?.preferredLayoutMode;
+  const preferredColorMode = player?.preferredColorMode;
   const [layoutMode, setLayoutMode] = useState<LayoutMode>(player?.preferredLayoutMode ?? "standard");
   const layoutModeRef = useRef(layoutMode);
   const playerIdRef = useRef(player?.id);
   const saveQueueRef = useRef(Promise.resolve());
   const saveRequestRef = useRef(0);
   const [layoutSaveError, setLayoutSaveError] = useState("");
+  const [colorMode, setColorModeState] = useState<ColorMode>(player?.preferredColorMode ?? "system");
+  const colorModeRef = useRef(colorMode);
+  const [resolvedColorMode, setResolvedColorMode] = useState<ResolvedColorMode>("dark");
+  const [colorModeSaveError, setColorModeSaveError] = useState("");
+  const colorSaveRequestRef = useRef(0);
   const [halloween, setHalloween] = useState(false);
   const [muted, setMuted] = useState(false);
   const mutedRef = useRef(false);
@@ -93,6 +100,59 @@ export default function ThemeProvider({ children, player: initialPlayer = null }
     window.addEventListener("storage", restore);
     return () => { cancelAnimationFrame(frame); window.removeEventListener("storage", restore); audio.setEnabled(false); };
   }, [audio, playerId, preferredLayoutMode, customRef]);
+
+  useEffect(() => {
+    colorSaveRequestRef.current++;
+    if (preferredColorMode !== undefined) colorModeRef.current = preferredColorMode;
+    const media = typeof window.matchMedia === "function" ? window.matchMedia(colorSchemeQuery) : null;
+    function paint() {
+      setResolvedColorMode(applyColorMode(document.documentElement.dataset, colorModeRef.current, media?.matches ?? false));
+      setColorModeState(colorModeRef.current);
+    }
+    function restore(event?: StorageEvent) {
+      if (event && event.key !== colorModeStorageKey && event.key !== null) return;
+      if (!(playerId && preferredColorMode !== undefined)) {
+        try { colorModeRef.current = normalizeColorMode(localStorage.getItem(colorModeStorageKey)); }
+        catch { colorModeRef.current = normalizeColorMode(document.documentElement.dataset.colorPreference ?? colorModeRef.current); }
+      }
+      paint();
+      // Account preferences remain authoritative; storage events never echo writes.
+      if (playerId && preferredColorMode !== undefined && !event) {
+        try { persistColorMode(localStorage, colorModeRef.current); } catch { /* In-memory appearance remains available. */ }
+      }
+    }
+    function onSystemChange() { if (colorModeRef.current === "system") paint(); }
+    const frame = requestAnimationFrame(() => { setColorModeSaveError(""); restore(); });
+    window.addEventListener("storage", restore);
+    if (media?.addEventListener) media.addEventListener("change", onSystemChange);
+    else media?.addListener(onSystemChange);
+    return () => {
+      cancelAnimationFrame(frame); window.removeEventListener("storage", restore);
+      if (media?.removeEventListener) media.removeEventListener("change", onSystemChange);
+      else media?.removeListener(onSystemChange);
+    };
+  }, [playerId, preferredColorMode]);
+
+  function setColorMode(next: ColorMode) {
+    colorModeRef.current = next;
+    setColorModeState(next);
+    const prefersDark = typeof window.matchMedia === "function" && window.matchMedia(colorSchemeQuery).matches;
+    setResolvedColorMode(applyColorMode(document.documentElement.dataset, next, prefersDark));
+    try { persistColorMode(localStorage, next); } catch { /* Explicit choices still work when storage is blocked. */ }
+    setColorModeSaveError("");
+    if (player) {
+      const id = player.id, request = ++colorSaveRequestRef.current;
+      saveQueueRef.current = saveQueueRef.current.then(async () => {
+        if (playerIdRef.current !== id) return;
+        try { unwrapActionResult(await savePreferredColorMode(next)); }
+        catch (cause) {
+          if (playerIdRef.current === id && request === colorSaveRequestRef.current) {
+            setColorModeSaveError(actionErrorMessage(cause, "Color mode changed on this device, but could not be saved to your account. Try again."));
+          }
+        }
+      });
+    }
+  }
 
   useEffect(() => {
     if (!customReady) return;
@@ -177,7 +237,7 @@ export default function ThemeProvider({ children, player: initialPlayer = null }
     if (!next) audio.play("confirm");
   }
 
-  return <ThemePlayerContext.Provider value={setWorkspacePlayer}><ThemeContext.Provider value={{ layoutMode: effectiveLayout, cyberpunkTheme: customTheme ? "default" : halloween ? "halloween" : "default", toggleLayout, layoutSaveError, halloween: !customTheme && halloween, muted, toggle, toggleMuted, playSfx: audio.play,
+  return <ThemePlayerContext.Provider value={setWorkspacePlayer}><ThemeContext.Provider value={{ colorMode, resolvedColorMode, setColorMode, colorModeSaveError, layoutMode: effectiveLayout, cyberpunkTheme: customTheme ? "default" : halloween ? "halloween" : "default", toggleLayout, layoutSaveError, halloween: !customTheme && halloween, muted, toggle, toggleMuted, playSfx: audio.play,
     customTheme, customThemes, selectBuiltIn }}>
     {children}
     {(customTheme ? customTheme.effects.haunted : layoutMode === "cyberpunk" && halloween) && <HalloweenDecorations />}
@@ -212,4 +272,16 @@ export function ThemeToggle() {
     <button className="theme-studio-trigger" type="button" aria-haspopup="dialog" onClick={customThemes.openStudio}>Custom Theme Studio</button>
     {customThemes.storageError && <span className="theme-save-error" role="alert">{customThemes.storageError}</span>}
   </>}{layoutSaveError && <span className="theme-save-error" role="alert">{layoutSaveError}</span>}</span>;
+}
+
+
+export function ColorModeToggle() {
+  const { colorMode, setColorMode, colorModeSaveError, layoutMode, customTheme } = useUIEffects();
+  if (layoutMode !== "standard") return null;
+  return <span className="standard-color-mode-control">
+    <span className="standard-color-modes" role="group" aria-label="Color mode" title={customTheme ? "Custom themes use their saved palette. Select Standard to change color mode." : undefined}>
+      {(["system", "light", "dark"] as const).map(mode => <button type="button" key={mode} aria-pressed={colorMode === mode} disabled={Boolean(customTheme)} onClick={() => setColorMode(mode)}>{mode === "system" ? "System" : mode === "light" ? "Light" : "Dark"}</button>)}
+    </span>
+    {colorModeSaveError && <span className="theme-save-error" role="alert">{colorModeSaveError}</span>}
+  </span>;
 }

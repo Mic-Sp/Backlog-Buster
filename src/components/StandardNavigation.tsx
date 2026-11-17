@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useState } from "react";
-import { ThemeToggle } from "@/components/ThemeProvider";
+import { ColorModeToggle, ThemeToggle } from "@/components/ThemeProvider";
 
 export type StandardAction = "library" | "random" | "recommendations" | "transfer";
 export function requestStandardAction(action: StandardAction) {
@@ -24,6 +24,7 @@ export default function StandardNavigation() {
       <button type="button" onClick={() => requestStandardAction("random")}>Random Picker</button>
       <button type="button" onClick={() => requestStandardAction("recommendations")}>Recommendations</button>
       <button type="button" onClick={() => requestStandardAction("transfer")}>Import / Export</button>
+      <ColorModeToggle />
       <button type="button" aria-expanded={themesOpen} aria-controls={panelId} onClick={() => setThemesOpen(open => !open)}>Theme</button>
     </nav>
     <div id={panelId} className="standard-theme-panel" hidden={!themesOpen}><ThemeToggle /></div>

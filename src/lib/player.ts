@@ -4,9 +4,10 @@ import { registeredPlayerWhere } from "@/lib/auth-policy";
 import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 import { readSessionHash } from "@/lib/auth-session";
+import { normalizeColorMode, type ColorMode } from "@/lib/color-mode";
 import { normalizeLayoutMode, type LayoutMode } from "@/lib/appearance";
 
-export type CurrentPlayer = { id: string; operatorName: string; handle: string | null; isLocal: boolean; isAdmin: boolean; isOwner: boolean; preferredLayoutMode: LayoutMode };
+export type CurrentPlayer = { id: string; operatorName: string; handle: string | null; isLocal: boolean; isAdmin: boolean; isOwner: boolean; preferredLayoutMode: LayoutMode; preferredColorMode?: ColorMode };
 export class AuthenticationRequiredError extends Error {
   constructor() { super("Sign in to access your library."); this.name = "AuthenticationRequiredError"; }
 }
@@ -17,9 +18,9 @@ export const getCurrentPlayer = cache(async (): Promise<CurrentPlayer | null> =>
   if (tokenHash) {
     const session = await prisma.playerSession.findUnique({
       where: { tokenHash, expiresAt: { gt: new Date() }, player: { ...registeredPlayerWhere } },
-      select: { player: { select: { id: true, operatorName: true, handle: true, isAdmin: true, isOwner: true, preferredLayoutMode: true } } },
+      select: { player: { select: { id: true, operatorName: true, handle: true, isAdmin: true, isOwner: true, preferredLayoutMode: true, preferredColorMode: true } } },
     });
-    if (session) return { ...session.player, preferredLayoutMode: normalizeLayoutMode(session.player.preferredLayoutMode), isLocal: false };
+    if (session) return { ...session.player, preferredLayoutMode: normalizeLayoutMode(session.player.preferredLayoutMode), preferredColorMode: normalizeColorMode(session.player.preferredColorMode), isLocal: false };
   }
   // A deleted local archive must stay deleted; only explicit registration may recreate it.
   const local = await prisma.player.findUnique({ where: { id: "default-player" },

@@ -16,6 +16,12 @@ Existing account/device preferences, including legacy Cyberpunk variant-only sto
 
 `tests/standard-theme.test.cjs`, provider tests, and auth layout tests cover defaults, terminology, schema, restoration, persistence, and onboarding. `tests/standard-library-ui.test.cjs` checks grid bounds, quick-action fields, empty/upcoming states, and the complete drawer without nested forms. Desktop/mobile browser verification uses actual hydrated provider, workspace, library, navigation, and form components with server actions mocked; theme switching and navigation produce no hydration errors.
 
+## Standard color mode
+
+Standard has an independent `system` / `light` / `dark` preference, defaulting to System. The navbar exposes all three choices. The root script in `color-mode.ts` resolves `prefers-color-scheme` before paint; `ThemeProvider` follows live OS changes while System is selected and synchronizes anonymous browser tabs. Explicit overrides use `backlogbuster:color-mode`; System removes that device override. Authenticated preferences are stored in `Player.preferredColorMode` and remain authoritative, following the same account boundary as layout preferences. Apply `prisma/standard-color-mode.sql` (or the repository's schema deployment workflow) before deploying queries that select this field.
+
+`standard.css` scopes paired tokens to Standard. Light uses a cool off-white canvas, white surfaces, slate text, deep sky CTAs, and rich amber Hype indicators; darker CTA/text shades provide AA contrast. Cyberpunk, Fantasy and Safe Room retain their own palettes. Custom themes retain their authored colors and disable the Standard mode control. `tests/color-mode.test.cjs` and provider tests cover restoration, OS changes, persistence, validation, cross-tab behavior, and account precedence. `scripts/check-standard-color-mode.cjs` verifies production first paint with app chunks blocked, both OS schemes, blocked storage, account/reload restoration, contrast, mobile components, and fixed-theme isolation using disposable data.
+
 ## Data model
 
 `src/lib/custom-theme.ts` exports the `CustomTheme` interface and strict Zod `customThemeSchema`:

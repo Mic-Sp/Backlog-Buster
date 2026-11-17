@@ -23,13 +23,14 @@ function browser() {
 }
 
 function tab(bus, name, player = null) {
-  const hooks = [], effects = [], frames = new Map(), listeners = new Set(), saves = [], audioThemes = [];
+  const hooks = [], effects = [], frames = new Map(), listeners = new Set(), mediaListeners = new Set(), saves = [], colorSaves = [], audioThemes = [];
   let cursor = 0, dirty = false, tree, props = { player }, frameId = 0;
   const root = {}, audio = { setTheme: value => audioThemes.push(value), setEnabled() {}, play() {} };
+  const media = { matches: false, addEventListener: (_type, fn) => mediaListeners.add(fn), removeEventListener: (_type, fn) => mediaListeners.delete(fn) };
   const env = {
     document: { documentElement: { dataset: root }, addEventListener() {}, removeEventListener() {} },
-    window: { addEventListener: (type, fn) => { if (type === "storage") listeners.add(fn); }, removeEventListener: (type, fn) => { if (type === "storage") listeners.delete(fn); } },
-    localStorage: { getItem: key => bus.values.get(key) ?? null, setItem: (key, value) => bus.write(name, key, value) },
+    window: { matchMedia: () => media, addEventListener: (type, fn) => { if (type === "storage") listeners.add(fn); }, removeEventListener: (type, fn) => { if (type === "storage") listeners.delete(fn); } },
+    localStorage: { getItem: key => bus.values.get(key) ?? null, setItem: (key, value) => bus.write(name, key, value), removeItem: key => bus.write(name, key, null) },
     requestAnimationFrame: work => { const id = ++frameId; frames.set(id, work); return id; },
     cancelAnimationFrame: id => frames.delete(id),
   };
@@ -66,10 +67,10 @@ function tab(bus, name, player = null) {
     "@/lib/custom-theme-runtime": { applyCustomTheme() {} },
     "@/components/useCustomThemes": { default: () => custom }, "@/components/CustomThemeStudio": { default: () => null },
     "@/components/SharedThemePreview": { default: () => null },
-    react, "@/lib/appearance": appearance, "@/lib/ui-audio": { createUIAudio: () => audio },
+    react, "@/lib/color-mode": loader()("src/lib/color-mode.ts"), "@/lib/appearance": appearance, "@/lib/ui-audio": { createUIAudio: () => audio },
     "@/components/HalloweenDecorations": {}, "@/components/FloatingFairies": {},
     "@/lib/action-result": { unwrapActionResult: value => value, actionErrorMessage: () => "Save failed" },
-    "@/app/profile-actions": { savePreferredLayoutMode: async value => { saves.push(value); return { preferredLayoutMode: value }; } },
+    "@/app/profile-actions": { savePreferredColorMode: async value => { colorSaves.push(value); return { preferredColorMode: value }; }, savePreferredLayoutMode: async value => { saves.push(value); return { preferredLayoutMode: value }; } },
   };
   const filename = path.resolve(__dirname, "../src/components/ThemeProvider.tsx"), instance = new Module(filename, module);
   instance.paths = Module._nodeModulePaths(path.dirname(filename));
@@ -91,7 +92,9 @@ function tab(bus, name, player = null) {
       return tree;
     });
   }
-  const result = { name, root, saves, audioThemes, render,
+  const result = { name, root, saves, colorSaves, audioThemes, render,
+    color: mode => run(() => { tree.props.children.props.value.setColorMode(mode); render(); }),
+    os: dark => run(() => { media.matches = dark; for (const fn of mediaListeners) fn(); render(); }),
     receive: event => run(() => { for (const fn of listeners) fn(event); render(); }),
     toggle: () => run(() => { tree.props.children.props.value.toggleLayout(); render(); }),
     select: mode => run(() => { tree.props.children.props.value.selectBuiltIn(mode, "default"); render(); }),
@@ -167,4 +170,28 @@ test("new visitors start in Standard, and switching through all layouts persists
   }
   await new Promise(resolve => setImmediate(resolve));
   assert.deepEqual(f.saves, ["cyberpunk", "fantasy", "biohazard", "standard"]);
+});
+
+
+test("System tracks OS changes, explicit overrides ignore OS changes, and anonymous tabs synchronize without echo writes", () => {
+  const key = "backlogbuster:color-mode", bus = browser(), f = tab(bus, "first");
+  assert.equal(f.root.colorPreference, "system"); assert.equal(f.root.colorMode, "light");
+  f.os(true); assert.equal(f.root.colorMode, "dark");
+  f.color("light"); f.os(false); f.os(true); assert.equal(f.root.colorMode, "light"); assert.equal(bus.values.get(key), "light");
+  const second = tab(bus, "second"); assert.equal(second.root.colorMode, "light");
+  second.color("dark"); const writes = bus.writes.length; bus.drain(); assert.equal(f.root.colorMode, "dark"); assert.equal(bus.writes.length, writes);
+  f.color("system"); bus.drain(); assert.equal(bus.values.get(key), null); assert.equal(f.root.colorMode, "dark"); assert.equal(second.root.colorMode, "light");
+  f.os(false); assert.equal(f.root.colorMode, "light"); assert.deepEqual(f.colorSaves, []);
+});
+
+test("account color preference remains authoritative and explicit changes save in click order", async () => {
+  const key = "backlogbuster:color-mode", bus = browser(); bus.values.set(key, "light");
+  const f = tab(bus, "viewer", { id: "viewer", preferredLayoutMode: "standard", preferredColorMode: "dark" });
+  assert.equal(f.root.colorMode, "dark"); assert.equal(bus.values.get(key), "dark");
+  bus.write("other-account", key, "light"); const before = bus.writes.length; bus.drain();
+  assert.equal(f.root.colorMode, "dark"); assert.equal(bus.writes.length, before);
+  f.color("light"); f.color("system"); await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(f.colorSaves, ["light", "system"]); assert.equal(f.root.colorPreference, "system");
+  f.sync({ id: "viewer", preferredLayoutMode: "standard", preferredColorMode: "system" });
+  f.os(true); assert.equal(f.root.colorMode, "dark"); assert.equal(bus.values.get(key), null);
 });

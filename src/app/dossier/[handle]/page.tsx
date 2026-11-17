@@ -38,7 +38,7 @@ async function Dossier({ params }: { params: Promise<{ handle: string }> }) {
   const relationship = await getDossierSocialContext(dossier.identity.handle).catch(() => null);
   const artwork = await getPublicDossierArtwork(dossier);
   return <>
-    <ThemePlayerSync player={viewer && !viewer.isLocal ? { id: viewer.id, preferredLayoutMode: viewer.preferredLayoutMode } : null} />
+    <ThemePlayerSync player={viewer && !viewer.isLocal ? { id: viewer.id, preferredLayoutMode: viewer.preferredLayoutMode, preferredColorMode: viewer.preferredColorMode } : null} />
     <main className="public-dossier-page">
       <section className="public-dossier-frame" aria-label={`${dossier.identity.callsign} public dossier`}>
         <header className="public-dossier-heading">

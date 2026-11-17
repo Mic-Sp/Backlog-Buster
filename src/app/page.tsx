@@ -250,7 +250,7 @@ async function PlayerWorkspace() {
   }
   return (
     <>
-    <ThemePlayerSync player={player.isLocal ? null : { id: player.id, preferredLayoutMode: player.preferredLayoutMode }} />
+    <ThemePlayerSync player={player.isLocal ? null : { id: player.id, preferredLayoutMode: player.preferredLayoutMode, preferredColorMode: player.preferredColorMode }} />
     {!player.isLocal && <div className="page-shell"><Suspense fallback={null}><SteamSyncNotice userId={player.id} /></Suspense></div>}
     <WorkspaceShell key={`${player.id}-${player.isLocal}`}>
       <Suspense

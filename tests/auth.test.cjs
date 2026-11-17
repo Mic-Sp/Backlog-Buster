@@ -134,7 +134,7 @@ test("claimed archives require a valid session, and private sessions return only
         assert(where.expiresAt.gt instanceof Date);
         assert.deepEqual(where.player, { OR: [{ email: { not: null }, OR: [{ passwordHash: { not: null } }, { googleId: { not: null } }] }, { steamVerifiedId: { not: null } }] });
         if (select.userId) return session ? { userId: session.player.id } : null;
-        assert.deepEqual(select, { player: { select: { id: true, operatorName: true, handle: true, isAdmin: true, isOwner: true, preferredLayoutMode: true } } });
+        assert.deepEqual(select, { player: { select: { id: true, operatorName: true, handle: true, isAdmin: true, isOwner: true, preferredLayoutMode: true, preferredColorMode: true } } });
         return session;
       } },
     } },
@@ -151,7 +151,7 @@ test("claimed archives require a valid session, and private sessions return only
   await assert.rejects(() => player.getCurrentPlayerId(), /Sign in/);
   await assert.rejects(() => player.getAuthenticatedPlayerId(), /Sign in/);
   session = { player: { id: "private-player", operatorName: "Private", handle: "private", isAdmin: true, isOwner: true, preferredLayoutMode: "fantasy" } };
-  assert.deepEqual(await player.getCurrentPlayer(), { ...session.player, isLocal: false });
+  assert.deepEqual(await player.getCurrentPlayer(), { ...session.player, preferredColorMode: "system", isLocal: false });
   assert.equal(await player.getCurrentPlayerId(), "private-player");
   assert.equal(await player.getAuthenticatedPlayerId(), "private-player");
   session = null;

@@ -33,8 +33,8 @@ function route(viewer, targetMode = "cyberpunk") {
 
 test("public dossiers synchronize the authenticated viewer's layout, regardless of the target's preference", async () => {
   for (const mode of ["cyberpunk", "fantasy"]) {
-    const result = await route({ id: "viewer", preferredLayoutMode: mode, isLocal: false }, mode === "fantasy" ? "cyberpunk" : "fantasy")();
-    assert.deepEqual(result, { id: "viewer", preferredLayoutMode: mode });
+    const result = await route({ id: "viewer", preferredLayoutMode: mode, preferredColorMode: "dark", isLocal: false }, mode === "fantasy" ? "cyberpunk" : "fantasy")();
+    assert.deepEqual(result, { id: "viewer", preferredLayoutMode: mode, preferredColorMode: "dark" });
   }
 });
 

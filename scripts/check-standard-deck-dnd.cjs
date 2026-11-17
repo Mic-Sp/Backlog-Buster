@@ -33,7 +33,7 @@ async function main() {
     }
     const libraryPath = arg('--library-path', ''), executablePath = arg('--browser-path', undefined);
     browser = await chromium.launch({ headless: true, executablePath, args: ['--no-sandbox'], env: { ...process.env, ...(libraryPath ? { LD_LIBRARY_PATH: libraryPath } : {}) } });
-    const context = await browser.newContext({ viewport: { width: 1440, height: 1100 } }); page = await context.newPage();
+    const context = await browser.newContext({ viewport: { width: 1440, height: 1100 }, colorScheme: 'dark' }); page = await context.newPage();
     page.setDefaultTimeout(15000); page.on('pageerror', error => errors.push(error.message));
     page.on('console', message => { if (message.type() === 'error' && /hydration|did not match/i.test(message.text())) errors.push(message.text()); });
     await page.goto(`${base}/access`); await page.locator('input[name=email]').fill(player.email); await page.locator('input[name=password]').fill(password);

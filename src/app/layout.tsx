@@ -8,6 +8,7 @@ import "./custom-theme.css";
 import "./discovery.css";
 import "./biohazard.css";
 import "./standard.css";
+import { colorModeStartupScript } from "@/lib/color-mode";
 import { appearanceStartupScript } from "@/lib/appearance";
 import { customThemeStartupScript } from "@/lib/custom-theme-runtime";
 import ThemeProvider from "@/components/ThemeProvider";
@@ -52,9 +53,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" data-layout-mode="standard" data-theme="standard" className={terminalFont.variable} suppressHydrationWarning>
+    <html lang="en" data-layout-mode="standard" data-theme="standard" data-color-mode="dark" className={terminalFont.variable} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: appearanceStartupScript }} />
+        <script dangerouslySetInnerHTML={{ __html: colorModeStartupScript }} />
         <script dangerouslySetInnerHTML={{ __html: customThemeStartupScript }} />
       </head>
       <body>
