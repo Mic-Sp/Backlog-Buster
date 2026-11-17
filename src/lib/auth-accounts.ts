@@ -30,7 +30,7 @@ export function readCredentials(form: FormData, register = false): Registration 
 }
 
 // Kept separate from cookies so the in-place claim can be tested in a rollback-only transaction.
-export async function registerPlayer(input: Omit<Registration, "password"> & { preferredLayoutMode?: "cyberpunk" | "fantasy" | "biohazard" }, passwordHash: string) {
+export async function registerPlayer(input: Omit<Registration, "password"> & { preferredLayoutMode?: "standard" | "cyberpunk" | "fantasy" | "biohazard" }, passwordHash: string) {
   return prisma.$transaction(async (tx) => {
     // Serialize first claims and normalized email/handle checks across server instances.
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended('backlogbuster-account-registration', 0))`;
@@ -46,7 +46,7 @@ export async function registerPlayer(input: Omit<Registration, "password"> & { p
     }
     const data = {
       email: input.email, passwordHash, emailVerifiedAt: null,
-      ...(input.preferredLayoutMode ? { preferredLayoutMode: input.preferredLayoutMode } : {}),
+      preferredLayoutMode: input.preferredLayoutMode ?? "standard",
       handle: input.handle ?? (claimLocal ? local?.handle ?? null : null),
       operatorName: input.operatorName ?? (claimLocal ? local?.operatorName : input.handle) ?? "ANONYMOUS NETRUNNER",
     };

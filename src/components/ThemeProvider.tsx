@@ -20,7 +20,7 @@ const soundStorageKey = "backlogbuster:ui-muted";
 const legacySoundStorageKey = "backlogbuster:halloween-muted";
 type ThemeEffects = { layoutMode: LayoutMode; cyberpunkTheme: CyberpunkTheme; toggleLayout: () => void; layoutSaveError: string; halloween: boolean; muted: boolean; toggle: () => void; toggleMuted: () => void; playSfx: (sound: UISound) => void;
   customTheme?: CustomTheme | null; customThemes?: CustomThemesController; selectBuiltIn?: (layout: LayoutMode, variant?: CyberpunkTheme) => void };
-const ThemeContext = createContext<ThemeEffects>({ layoutMode: "cyberpunk", cyberpunkTheme: "default", toggleLayout: () => {}, layoutSaveError: "", halloween: false, muted: false, toggle: () => {}, toggleMuted: () => {}, playSfx: () => {} });
+const ThemeContext = createContext<ThemeEffects>({ layoutMode: "standard", cyberpunkTheme: "default", toggleLayout: () => {}, layoutSaveError: "", halloween: false, muted: false, toggle: () => {}, toggleMuted: () => {}, playSfx: () => {} });
 
 export function useUIEffects() { return useContext(ThemeContext); }
 
@@ -44,7 +44,7 @@ export default function ThemeProvider({ children, player: initialPlayer = null }
   const player = workspacePlayer === undefined ? initialPlayer : workspacePlayer;
   const playerId = player?.id;
   const preferredLayoutMode = player?.preferredLayoutMode;
-  const [layoutMode, setLayoutMode] = useState<LayoutMode>(player?.preferredLayoutMode ?? "cyberpunk");
+  const [layoutMode, setLayoutMode] = useState<LayoutMode>(player?.preferredLayoutMode ?? "standard");
   const layoutModeRef = useRef(layoutMode);
   const playerIdRef = useRef(player?.id);
   const saveQueueRef = useRef(Promise.resolve());
@@ -125,7 +125,8 @@ export default function ThemeProvider({ children, player: initialPlayer = null }
   }
 
   function toggleLayout() {
-    const next = (customRef.current?.baseLayout ?? layoutModeRef.current) === "cyberpunk" ? "fantasy" : (customRef.current?.baseLayout ?? layoutModeRef.current) === "fantasy" ? "biohazard" : "cyberpunk";
+    const modes: LayoutMode[] = ["standard", "cyberpunk", "fantasy", "biohazard"];
+    const next = modes[(modes.indexOf(customRef.current?.baseLayout ?? layoutModeRef.current) + 1) % modes.length];
     customThemes.select(null);
     changeLayout(next);
   }
@@ -159,7 +160,12 @@ export default function ThemeProvider({ children, player: initialPlayer = null }
     setHalloween(variant === "halloween");
     try { localStorage.setItem(storageKey, variant === "halloween" ? "halloween" : "cyberpunk"); } catch { /* Keep in-memory selection. */ }
     if (layoutModeRef.current !== next) changeLayout(next, variant);
-    else applyAppearance(document.documentElement.dataset, { layoutMode: next, cyberpunkTheme: variant });
+    else {
+      applyAppearance(document.documentElement.dataset, { layoutMode: next, cyberpunkTheme: variant });
+      // Selecting the initial default is still an explicit preference. Persist
+      // it so the legacy variant key cannot restore Cyberpunk on the next visit.
+      try { localStorage.setItem("backlogbuster:layout-mode", next); } catch { /* Keep in-memory selection. */ }
+    }
   }
 
   function toggleMuted() {
@@ -183,22 +189,23 @@ export default function ThemeProvider({ children, player: initialPlayer = null }
 
 export function ThemeToggle() {
   const { layoutMode, toggleLayout, layoutSaveError, halloween, muted, toggle, toggleMuted, customTheme, customThemes, selectBuiltIn } = useContext(ThemeContext);
-  const layoutActionLabel = layoutMode === "fantasy" ? "Switch to Safe Room" : layoutMode === "biohazard" ? "Switch layout" : "Switch to Fantasy Subscreen";
+  const layoutActionLabel = layoutMode === "fantasy" ? "Switch to Safe Room" : layoutMode === "biohazard" ? "Switch to Standard" : layoutMode === "standard" ? "Switch to Cyberpunk" : "Switch to Fantasy Subscreen";
   const sharedPreview = Boolean(customTheme && customTheme === customThemes?.sharedTheme);
   return <span className="theme-controls" data-active={halloween}><button className="layout-mode-toggle" data-ui-sound="custom" type="button" onClick={toggleLayout} title={layoutActionLabel}>{layoutActionLabel}</button>{layoutMode === "cyberpunk" && <button className="theme-toggle" data-ui-sound="custom" type="button" aria-label="Halloween theme" aria-pressed={halloween} onClick={toggle} title={halloween ? "Return to Cyberpunk theme" : "Enter Haunted Net / Blackwall Glitch theme"}>
     <span aria-hidden="true">{halloween ? "◈" : "◇"}</span> HAUNTED NET: {halloween ? "ON" : "OFF"}
   </button>}<button className="ui-sfx-toggle" data-ui-sound="custom" type="button" onClick={toggleMuted} aria-label={muted ? "Unmute UI sound effects" : "Mute UI sound effects"} aria-pressed={!muted} title={muted ? "Unmute UI sound effects" : "Mute UI sound effects"}>
     <span aria-hidden="true">{muted ? "♪̸" : "♫"}</span>
   </button>{customThemes && <>
-    <select className="theme-selector" aria-label="UI theme" value={sharedPreview ? "shared-theme-preview" : customTheme?.id ?? (layoutMode === "biohazard" ? "biohazard" : layoutMode === "fantasy" ? "fantasy" : halloween ? "halloween" : "cyberpunk")} onChange={event => {
+    <select className="theme-selector" aria-label="UI theme" value={sharedPreview ? "shared-theme-preview" : customTheme?.id ?? (layoutMode === "standard" ? "standard" : layoutMode === "biohazard" ? "biohazard" : layoutMode === "fantasy" ? "fantasy" : halloween ? "halloween" : "cyberpunk")} onChange={event => {
       const value = event.target.value;
       if (value === "shared-theme-preview") return;
       if (value.startsWith("custom-")) customThemes.select(value);
+      else if (value === "standard") selectBuiltIn?.("standard", "default");
       else if (value === "biohazard") selectBuiltIn?.("biohazard");
       else if (value === "fantasy") selectBuiltIn?.("fantasy");
       else selectBuiltIn?.("cyberpunk", value === "halloween" ? "halloween" : "default");
     }}>
-      <optgroup label="Built-in themes"><option value="cyberpunk">Cyberpunk</option><option value="halloween">Haunted Net / Blackwall Glitch</option><option value="fantasy">Fantasy</option><option value="biohazard">Safe Room / Biohazard</option></optgroup>
+      <optgroup label="Built-in themes"><option value="standard">Standard</option><option value="cyberpunk">Cyberpunk</option><option value="halloween">Haunted Net / Blackwall Glitch</option><option value="fantasy">Fantasy</option><option value="biohazard">Typewriter / Safe Room</option></optgroup>
       {customThemes.themes.length > 0 && <optgroup label="Custom themes">{customThemes.themes.map(theme => <option key={theme.id} value={theme.id}>{theme.name}</option>)}</optgroup>}
       {customTheme && (sharedPreview || !customThemes.themes.some(theme => theme.id === customTheme.id)) && <option value={sharedPreview ? "shared-theme-preview" : customTheme.id}>{customTheme.name} (preview)</option>}
     </select>

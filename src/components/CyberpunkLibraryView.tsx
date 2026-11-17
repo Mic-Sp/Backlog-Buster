@@ -2,7 +2,7 @@
 
 import SteamProgress from "@/components/SteamProgress";
 import HypeMeter, { HypedOnlyFilter } from "@/components/games/HypeMeter";
-import LayoutText from "@/components/LayoutText";
+import LayoutText, { useLayoutCopy } from "@/components/LayoutText";
 
 import { OwnershipBadge, OwnershipField, OwnershipFilterControl } from "@/components/Ownership";
 import { PlayJournalBadges, PlayJournalEditor } from "@/components/PlayJournal";
@@ -36,6 +36,7 @@ const views = ["Backlog", "Playing", "Completed", "Flatlined", "All"] as const;
 const difficultyLabels: Record<number, string> = { 1: "Easy", 2: "Medium", 3: "Tough" };
 
 export default function CyberpunkLibraryView({ controller }: { controller: GameLibraryController }) {
+  const copy = useLayoutCopy();
   const {
     completeGameWithSound,
     games,
@@ -180,7 +181,7 @@ export default function CyberpunkLibraryView({ controller }: { controller: GameL
           <label>
             Status
             <select name="status" defaultValue={controller.getGameDraft(game).status} aria-label={`Status for ${game.title}`} required>
-              {statuses.map((status) => <option key={status} value={status}>{status}</option>)}
+              {statuses.map((status) => <option key={status} value={status}>{copy(status)}</option>)}
             </select>
           </label>
           <label>
@@ -207,22 +208,22 @@ export default function CyberpunkLibraryView({ controller }: { controller: GameL
         <PlayJournalEditor title={game.title} startedAt={controller.getGameDraft(game).startedAt} completedAt={controller.getGameDraft(game).completedAt} originalStartedAt={game.startedAt?.slice(0, 10)} originalCompletedAt={game.completedAt?.slice(0, 10)} />
         <MicroReviewEditor title={game.title} review={controller.getGameDraft(game).review} reviewSpoiler={controller.getGameDraft(game).reviewSpoiler === "true"} />
         <label className="field-log-label">
-          PRIVATE FIELD LOG
+          {copy("PRIVATE FIELD LOG")}
           <textarea className="field-log-textarea" name="notes" rows={3} maxLength={1000} defaultValue={controller.getGameDraft(game).notes} placeholder="Log current checkpoint, build notes, or session thoughts..." />
         </label>
         <div className="library-card-actions">
           <button className="status-save" type="submit">Save</button>
           <SafeActionButton className="delete-button" formAction={controller.actions.deleteGame} formNoValidate type="submit">Delete</SafeActionButton>
           {game.status === "Playing" && (
-            <SafeActionButton className="flatline-gig-button" formAction={controller.actions.flatlineGame} type="submit">💀 FLATLINE GIG</SafeActionButton>
+            <SafeActionButton className="flatline-gig-button" formAction={controller.actions.flatlineGame} type="submit">{copy("💀 FLATLINE GIG")}</SafeActionButton>
           )}
           {game.status === "Flatlined" && (
-            <SafeActionButton className="revive-gig-button" formAction={startGameAndShowPlaying} type="submit">▶ REVIVE GIG</SafeActionButton>
+            <SafeActionButton className="revive-gig-button" formAction={startGameAndShowPlaying} type="submit">{copy("▶ REVIVE GIG")}</SafeActionButton>
           )}
           {game.status === "Playing" && (
             <a className="trailer-link-button" href={buildTrailerUrl(game.title, game.releaseYear)} target="_blank" rel="noopener noreferrer">🎬 WATCH TRAILER ↗</a>
           )}
-          <button type="button" className="edit-meta-btn" data-metadata-trigger-id={game.id} onClick={() => openMetadata(game)}>⚙ EDIT META</button>
+          <button type="button" className="edit-meta-btn" data-metadata-trigger-id={game.id} onClick={() => openMetadata(game)}>{copy("⚙ EDIT META")}</button>
         </div>
       </>
     );
@@ -254,9 +255,9 @@ export default function CyberpunkLibraryView({ controller }: { controller: GameL
 
       {(activeView === "All" || activeView === "Backlog") && <UpNextDeckView controller={deck} />}
       <WorkspaceSection sectionKey="inventory" className="library-inventory-panel" headingLevel={3} label="library inventory" title={<LayoutText cyberpunk="Library inventory" fantasy="The Adventurer’s Inventory" term="inventoryTitle" />} revealKey={controller.libraryRevealKey}
-        summary={<><span className="workspace-section-count">{visibleGames.length} / {games.length} games</span><span className="workspace-section-filter">{activeView}{controller.selectedCustomList && ` · ${controller.selectedCustomList.title}`}</span></>}>
+        summary={<><span className="workspace-section-count">{visibleGames.length} / {games.length} games</span><span className="workspace-section-filter">{copy(activeView)}{controller.selectedCustomList && ` · ${controller.selectedCustomList.title}`}</span></>}>
       <WorkspaceSection sectionKey="library-filters" className="library-filter-panel" headingLevel={4} label="library filters" title="Library filters"
-        summary={<span className="workspace-section-count">{activeView} · {visibleGames.length} matches</span>}>
+        summary={<span className="workspace-section-count">{copy(activeView)} · {visibleGames.length} matches</span>}>
       <div className="library-tabs" role="group" aria-label="Library view">
         {views.map((view) => (
           <button
@@ -266,7 +267,7 @@ export default function CyberpunkLibraryView({ controller }: { controller: GameL
             aria-pressed={activeView === view}
             onClick={() => changeView(view)}
           >
-            {view.toUpperCase()} <span>{viewCounts[view]}</span>
+            {copy(view.toUpperCase())} <span>{viewCounts[view]}</span>
           </button>
         ))}
       </div>
@@ -324,8 +325,8 @@ export default function CyberpunkLibraryView({ controller }: { controller: GameL
             <option value="platform-desc">Platform: Z–A</option>
             <option value="genre-asc">Genre: A–Z</option>
             <option value="genre-desc">Genre: Z–A</option>
-            <option value="status-asc">Status: Playing → Flatlined</option>
-            <option value="status-desc">Status: Flatlined → Playing</option>
+            <option value="status-asc">{copy("Status: Playing → Flatlined")}</option>
+            <option value="status-desc">{copy("Status: Flatlined → Playing")}</option>
             <option value="difficulty-desc">Difficulty: hardest first</option>
             <option value="difficulty-asc">Difficulty: easiest first</option>
           </select>
@@ -401,7 +402,7 @@ export default function CyberpunkLibraryView({ controller }: { controller: GameL
               >
                 {renderCardCover(game, "spotlight-cover")}
                 <div className="spotlight-card-body">
-                  <p className="spotlight-badge">{game.status === "Flatlined" ? "💀 FLATLINED // SHELVED" : "LIVE GIG // IN PROGRESS"}</p>
+                  <p className="spotlight-badge">{copy(game.status === "Flatlined" ? "💀 FLATLINED // SHELVED" : "LIVE GIG // IN PROGRESS")}</p>
                   <h3>{game.title}{renderTimelinePill(game)}</h3>
                   <p className="library-card-metadata">
                     {game.platform} · {game.genre?.trim() || "Unknown genre"} · {game.releaseYear ?? "Unknown year"}
@@ -413,7 +414,7 @@ export default function CyberpunkLibraryView({ controller }: { controller: GameL
                   <CommunityStatsReadout game={game} />
                   <div className="gig-progress-block">
                     <div className="gig-progress-header">
-                      <span>{game.status === "Flatlined" ? "ARCHIVED GIG PROGRESS" : "ACTIVE GIG PROGRESS"}</span>
+                      <span>{copy(game.status === "Flatlined" ? "ARCHIVED GIG PROGRESS" : "ACTIVE GIG PROGRESS")}</span>
                       {game.status === "Playing" && (
                         <div className="gig-session-actions">
                           <button type="button" disabled={isLogging} onClick={() => logSession(game.id, 1)} aria-label={`Log one hour for ${game.title}`}>+1H</button>
@@ -428,7 +429,7 @@ export default function CyberpunkLibraryView({ controller }: { controller: GameL
                     {sessionError?.gameId === game.id && <p role="alert">{sessionError.message}</p>}
                   </div>
                   <div className="spotlight-bounty">
-                    <span>{game.status === "Flatlined" ? "Shelved Gig // No Game XP" : "Potential XP Bounty"}</span>
+                    <span>{copy(game.status === "Flatlined" ? "Shelved Gig // No Game XP" : "Potential XP Bounty")}</span>
                     <strong>{(game.status === "Flatlined" ? 0 : game.lengthHours * game.difficulty * 10).toLocaleString()} XP</strong>
                   </div>
                   {game.status === "Playing" && <AgentBriefing game={game} />}
@@ -441,7 +442,7 @@ export default function CyberpunkLibraryView({ controller }: { controller: GameL
                   {renderCardControls(game)}
                   {game.status === "Playing" && (
                     <SafeActionButton type="submit" formAction={completeGameWithSound} className="complete-gig-button">
-                      🏆 COMPLETE GIG (+{Math.max(game.lengthHours, game.hoursPlayed) * game.difficulty * 10} XP)
+                      {copy("🏆 COMPLETE GIG")} (+{Math.max(game.lengthHours, game.hoursPlayed) * game.difficulty * 10} XP)
                     </SafeActionButton>
                   )}
                 </div>
@@ -453,19 +454,19 @@ export default function CyberpunkLibraryView({ controller }: { controller: GameL
             {visibleGames.map((game) => (
               <article className="trophy-card" data-library-game-id={game.id} key={gameRecordKey(game)}>
                 <div className="trophy-badge">
-                  <span>🏆 GIG CLEARED</span>
+                  <span>{copy("🏆 GIG CLEARED")}</span>
                   {renderSagaBadge(game, "trophy")}
                 </div>
                 {renderCardCover(game, "trophy-cover")}
                 <div className="trophy-card-body">
                   <h3>{game.title}{renderTimelinePill(game)}</h3>
-                  {game.wasFlatlined && <p className="trophy-revived-badge">⚡ REVIVED FROM FLATLINE</p>}
+                  {game.wasFlatlined && <p className="trophy-revived-badge">{copy("⚡ REVIVED FROM FLATLINE")}</p>}
                   <p className="library-card-metadata">{game.platform} · {game.genre?.trim() || "Unknown genre"} · {game.releaseYear ?? "Unknown year"}</p>
                   <p className="trophy-record">{game.hoursPlayed}h played · {game.lengthHours}h length · Tier {game.difficulty} / {difficultyLabels[game.difficulty]}</p>
                   <CommunityStatsReadout game={game} />
                   {game.notes?.trim() && (
                     <div className="trophy-field-log">
-                      <span>PRIVATE FIELD LOG</span>
+                      <span>{copy("PRIVATE FIELD LOG")}</span>
                       <p>{game.notes}</p>
                     </div>
                   )}
@@ -572,9 +573,9 @@ export default function CyberpunkLibraryView({ controller }: { controller: GameL
                       <MicroReviewEditor title={game.title} review={controller.getGameDraft(game).review} reviewSpoiler={controller.getGameDraft(game).reviewSpoiler === "true"} />
                       <span className="game-title-actions">
                         {(game.status === "Backlog" || game.status === "Flatlined") && (
-                          <SafeActionButton className="start-gig-badge" formAction={startGameAndShowPlaying} type="submit">{game.status === "Flatlined" ? "▶ REVIVE GIG" : "▶ START GIG"}</SafeActionButton>
+                          <SafeActionButton className="start-gig-badge" formAction={startGameAndShowPlaying} type="submit">{copy(game.status === "Flatlined" ? "▶ REVIVE GIG" : "▶ START GIG")}</SafeActionButton>
                         )}
-                        <button type="button" className="edit-meta-btn" data-metadata-trigger-id={game.id} onClick={() => openMetadata(game)}>⚙ EDIT META</button>
+                        <button type="button" className="edit-meta-btn" data-metadata-trigger-id={game.id} onClick={() => openMetadata(game)}>{copy("⚙ EDIT META")}</button>
                         {renderBacklogPriorityPill(game)}
                         {renderSagaBadge(game, "table")}
                       </span>
@@ -611,7 +612,7 @@ export default function CyberpunkLibraryView({ controller }: { controller: GameL
                     required
                   >
                     {statuses.map((status) => (
-                      <option key={status} value={status}>{status}</option>
+                      <option key={status} value={status}>{copy(status)}</option>
                     ))}
                   </select>
                 </label>

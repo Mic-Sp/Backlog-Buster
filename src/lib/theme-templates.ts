@@ -9,8 +9,10 @@ export const themeTemplateGroups = [
 
 // Reuse the same defaults as New theme rather than maintaining a second palette.
 const builtInTemplates: ThemeTemplate[] = [
+  { key: "builtin:standard", name: "Standard", group: "builtin", style: customThemeDefaults("standard") },
   { key: "builtin:cyberpunk", name: "Cyberpunk", group: "builtin", style: customThemeDefaults("cyberpunk") },
   { key: "builtin:fantasy", name: "Fantasy", group: "builtin", style: customThemeDefaults("fantasy") },
+  { key: "builtin:biohazard", name: "Typewriter / Safe Room", group: "builtin", style: customThemeDefaults("biohazard") },
   { key: "builtin:halloween", name: "Haunted Net / Blackwall Glitch", group: "builtin", style: customThemeDefaults("cyberpunk", true) },
 ];
 

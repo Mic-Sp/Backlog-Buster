@@ -1,5 +1,5 @@
 "use client";
-import LayoutText from "@/components/LayoutText";
+import LayoutText, { useLayoutCopy } from "@/components/LayoutText";
 
 import { unwrapActionResult } from "@/lib/action-result";
 
@@ -132,6 +132,7 @@ export default function UpNextDeck(props: Parameters<typeof useUpNextDeckControl
 }
 
 export function UpNextDeckView({ controller }: { controller: UpNextDeckController }) {
+  const copy = useLayoutCopy();
   const {
     onDragPointerDown,
     onGameDragStart,
@@ -159,7 +160,7 @@ export function UpNextDeckView({ controller }: { controller: UpNextDeckControlle
             <li
               key={slot}
               data-deck-slot={slot}
-              aria-label={`On Deck Slot ${String(slot).padStart(2, "0")}: ${game?.title ?? "Empty"}`}
+              aria-label={`${copy(`SLOT ${String(slot).padStart(2, "0")}`)}: ${game?.title ?? "Empty"}`}
               data-drop-active={acceptsDrop || undefined}
               data-drop-hover={(acceptsDrop && hoveredSlot === slot) || undefined}
               onDragOver={(event) => {
@@ -194,7 +195,7 @@ export function UpNextDeckView({ controller }: { controller: UpNextDeckControlle
                   <input type="hidden" name="lengthHours" value={game.lengthHours} />
                   <input type="hidden" name="difficulty" value={game.difficulty} />
                   <div className="deck-slot-heading">
-                    <p className="deck-slot-badge"><span className="deck-drag-grip" aria-hidden="true">⋮⋮ </span>SLOT {String(slot).padStart(2, "0")}</p>
+                    <p className="deck-slot-badge"><span className="deck-drag-grip" aria-hidden="true">⋮⋮ </span>{copy(`SLOT ${String(slot).padStart(2, "0")}`)}</p>
                     <span className="deck-slot-controls">
                       <button type="button" data-deck-direction="-1" disabled={busy || isUnreleasedYear(game.releaseYear) || slot === 1} aria-label={`Move ${game.title} to previous deck slot`} title="Swap with previous slot" onClick={() => moveSlot(game, -1)}>◀</button>
                       <button type="button" data-deck-direction="1" disabled={busy || isUnreleasedYear(game.releaseYear) || slot === DECK_CAPACITY} aria-label={`Move ${game.title} to next deck slot`} title="Swap with next slot" onClick={() => moveSlot(game, 1)}>▶</button>
@@ -212,14 +213,14 @@ export function UpNextDeckView({ controller }: { controller: UpNextDeckControlle
                     </div>
                   </div>
                   <div className="deck-card-actions">
-                    <button className="deck-start-button" type="submit" disabled={busy}>▶ START GIG</button>
+                    <button className="deck-start-button" type="submit" disabled={busy}>{copy("▶ START GIG", "▶ START GIG")}</button>
                     <DeckPinButton gameId={game.id} pinnedOrder={game.pinnedOrder} pinnedCount={pinned.length} releaseYear={game.releaseYear} unpinOnly disabled={busy} />
                   </div>
                 </SafeForm>
               ) : (
                 <div className="deck-empty-slot">
-                  <p className="deck-slot-badge">SLOT {String(slot).padStart(2, "0")}</p>
-                  <span>[ + DROP GIG INTO SLOT {String(slot).padStart(2, "0")} ]</span>
+                  <p className="deck-slot-badge">{copy(`SLOT ${String(slot).padStart(2, "0")}`)}</p>
+                  <span>{copy(`[ + DROP GIG INTO SLOT ${String(slot).padStart(2, "0")} ]`, `[ + DROP GIG INTO SLOT ${String(slot).padStart(2, "0")} ]`)}</span>
                 </div>
               )}
             </li>

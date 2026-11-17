@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { FantasyCorners, HeroCrest } from "@/components/FantasyAccents";
 import { useUIEffects } from "@/components/ThemeProvider";
+import StandardNavigation from "@/components/StandardNavigation";
 import LayoutText from "@/components/LayoutText";
 import type { SafeRoomMode } from "@/lib/biohazard";
 
@@ -46,6 +47,7 @@ export default function WorkspaceShell({ children }: { children: ReactNode }) {
     <main ref={shellRef} className="page-shell workspace-shell" data-fantasy-pane={pane} data-safe-room-mode={mode} onKeyDownCapture={event => {
       if (layoutMode === "biohazard" && event.key.length === 1 && !event.ctrlKey && !event.metaKey && event.target instanceof Element && event.target.matches("input, textarea")) playSfx("typewriter");
     }}>
+      {layoutMode === "standard" && <StandardNavigation />}
       <FantasyCorners />
       {layoutMode === "cyberpunk" && customTheme?.terminology.workspaceTitle?.trim() && <h1 className="custom-workspace-heading">{customTheme.terminology.workspaceTitle}</h1>}
       <header className="fantasy-workspace-banner">

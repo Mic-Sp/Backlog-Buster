@@ -7,8 +7,10 @@ const { renderToStaticMarkup } = require('react-dom/server');
 function fixture(layout, mode = 'login', count = 4) {
   let stateIndex = 0;
   const bioCopy = require('./helpers/social-fixture.cjs').loader()('src/lib/biohazard-copy.ts').biohazardCopy;
-  const copy = (cyberpunk, fantasy) => layout === 'biohazard' ? bioCopy(cyberpunk) : layout === 'fantasy' ? fantasy : cyberpunk;
+  const standardCopy = require('./helpers/social-fixture.cjs').loader()('src/lib/standard-copy.ts').standardCopy;
+  const copy = (cyberpunk, fantasy, term) => layout === 'standard' ? standardCopy(cyberpunk, term) : layout === 'biohazard' ? bioCopy(cyberpunk) : layout === 'fantasy' ? fantasy : cyberpunk;
   const mocks = {
+    "@/lib/standard-copy": { standardCopy },
     react: { ...React, useState: initial => [stateIndex++ === 0 ? mode : initial, () => {}], useActionState: () => [{}, async () => {}, false] },
     '@/components/LayoutText': { useLayoutCopy: () => copy, default: props => copy(props.cyberpunk, props.fantasy) },
     '@/components/ThemeProvider': { ThemeToggle: () => null, useUIEffects: () => ({layoutMode:layout}) },
@@ -89,4 +91,16 @@ test('Safe Room registration retains its layout and presents personnel access', 
   const html=f.render(React.createElement(f.load('src/components/AccountControls.tsx').AccountGate));
   assert.match(html,/Personnel access/);assert.match(html,/name="layoutMode" value="biohazard"/);
   assert.doesNotMatch(html,/Netrunner|NETRUNNER|ICE GATEWAY|night-city-runner/);
+});
+
+
+test('Standard onboarding uses literal sign-in and registration labels and submits the selected theme', () => {
+  for (const mode of ['login', 'register']) {
+    const f = fixture('standard', mode);
+    const html = f.render(React.createElement(f.load('src/components/AccountControls.tsx').AccountGate));
+    for (const text of ['Sign In to Your Library', 'Account Access', 'Sign In', 'Create Account', 'Sign in to your game library or create an account.']) assert(html.includes(text), text);
+    assert.match(html, /name="layoutMode" value="standard"/);
+    assert.doesNotMatch(html, /Netrunner|NETRUNNER|ICE GATEWAY|night-city-runner|Questkeeper/);
+    if (mode === 'register') { assert.match(html, /Display Name/); assert.match(html, /Username/); }
+  }
 });

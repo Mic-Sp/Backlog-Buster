@@ -1,0 +1,263 @@
+/* Standard owns its compact storefront layout; the other layouts keep their UI. */
+.standard-label { display: none; }
+:root[data-layout-mode="standard"] {
+  color-scheme: dark;
+  --standard-background: var(--custom-background, #0f131a);
+  --standard-surface: var(--custom-surface, #181f2c);
+  --standard-raised: color-mix(in srgb, var(--standard-surface) 88%, white);
+  --standard-text: var(--custom-text, #f1f5f9);
+  --standard-muted: var(--custom-muted, #a9b6c9);
+  --standard-accent: var(--custom-accent, #38bdf8);
+  --standard-border: var(--custom-border, #334155);
+  --standard-radius: var(--custom-radius, 8px);
+  --standard-shadow: 0 5px 18px #00000024, inset 0 1px 0 #ffffff06;
+  --accent-primary: var(--standard-accent);
+  --canvas: var(--standard-background); --paper: var(--standard-surface); --ink: var(--standard-text);
+  --muted: var(--standard-muted); --line: var(--standard-border); --green: var(--standard-accent);
+  --lime: var(--standard-accent); --blue: var(--standard-accent); --coral: var(--standard-accent);
+}
+:root[data-layout-mode="standard"] body { color: var(--standard-text); background: var(--standard-background); }
+:root[data-layout-mode="standard"] :not([data-theme-studio], [data-theme-studio] *) {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+  letter-spacing: normal; text-transform: none; text-shadow: none !important;
+}
+:root[data-layout-mode="standard"]:not([data-custom-theme]) body::before,
+:root[data-layout-mode="standard"]:not([data-custom-theme]) body::after,
+:root[data-layout-mode="standard"] #add-title::after { content: none; }
+:root[data-layout-mode="standard"] :is(.cyberpunk-label, .fantasy-label, .biohazard-label, .fantasy-decoration, .halloween-decorations, .floating-fairies, .advisor-scout-cursor) { display: none; }
+:root[data-layout-mode="standard"] .standard-label { display: inline; }
+:root[data-layout-mode="standard"] :is(h1, h2, h3, h4, strong, label, legend, summary, .section-heading-title, .workspace-section-toggle, .account-operator):not([data-theme-studio] *) { color: var(--standard-text); }
+:root[data-layout-mode="standard"] :is(p, small, dt, .summary-label, .eyebrow, .workspace-section-eyebrow, .auth-hint, .auth-intro, .field > span):not([data-theme-studio] *) { color: var(--standard-muted); }
+:root[data-layout-mode="standard"] :is(.add-section, .up-next-deck, .deck-card, .deck-empty-slot, .auth-panel, [role="dialog"], .public-dossier-frame,
+  .quest-modal, .advisor-modal, .vault-modal, .metadata-modal, .achievement-toast, .advisor-card, .telemetry-drawer, .custom-lists-panel, .saga-chains-drawer,
+  .telemetry-stat, .telemetry-distribution, .telemetry-breakdown, .metadata-community-stats, .steam-library-sync):not([data-theme-studio]) {
+  color: var(--standard-text); background: var(--standard-surface); border: 1px solid color-mix(in srgb, var(--standard-border) 65%, transparent);
+  border-radius: var(--standard-radius); box-shadow: var(--standard-shadow);
+}
+:root[data-layout-mode="standard"] :is(button, input, select, textarea, .google-oauth-button, .steam-auth-button):not([data-theme-studio] *) {
+  color: var(--standard-text); background: var(--standard-background); border: 1px solid var(--standard-border); border-radius: var(--standard-radius);
+  box-shadow: none; font-size: 13px; line-height: 1.5; transition: background .18s ease, border-color .18s ease, transform .18s ease;
+}
+:root[data-layout-mode="standard"] :is(button, summary) { cursor: pointer; }
+:root[data-layout-mode="standard"] button:disabled { cursor: not-allowed; opacity: .45; }
+:root[data-layout-mode="standard"] :is(input, select, textarea):not([data-theme-studio] *) { padding: 9px 11px; min-width: 0; }
+:root[data-layout-mode="standard"] :is(input, textarea)::placeholder { color: var(--standard-muted); opacity: .75; }
+:root[data-layout-mode="standard"] a { color: var(--standard-accent); }
+:root[data-layout-mode="standard"] :is(button:hover:not(:disabled), button[aria-pressed="true"]):not([data-theme-studio] *) {
+  border-color: color-mix(in srgb, var(--standard-accent) 65%, transparent); background: color-mix(in srgb, var(--standard-accent) 12%, var(--standard-surface)); color: var(--standard-text);
+}
+:root[data-layout-mode="standard"] :is(a, button, input, select, textarea, summary):focus-visible { outline: 2px solid var(--standard-accent); outline-offset: 3px; }
+:root[data-layout-mode="standard"] :is(.standard-primary, .standard-add-link, .add-button, .auth-submit):not([data-theme-studio] *) {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; padding: 8px 14px;
+  border: 1px solid var(--standard-accent); color: #07131b; background: var(--standard-accent); font-weight: 700; text-decoration: none;
+  box-shadow: 0 3px 12px color-mix(in srgb, var(--standard-accent) 15%, transparent);
+}
+:root[data-layout-mode="standard"] :is(.standard-primary, .standard-add-link, .add-button):hover:not(:disabled) { color: #07131b; background: color-mix(in srgb, var(--standard-accent) 82%, white); }
+:root[data-layout-mode="standard"] .page-shell { width: min(1380px, calc(100% - 48px)); padding-top: 16px; }
+:root[data-layout-mode="standard"] .standard-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; padding: 10px 0 16px; margin-bottom: 0; border-bottom: 1px solid #ffffff0c; }
+:root[data-layout-mode="standard"] .standard-brand { font-size: 19px; font-weight: 750; color: var(--standard-text); text-decoration: none; }
+.standard-navigation { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+:root[data-layout-mode="standard"] .standard-navigation :is(a, button) { display: inline-flex; align-items: center; min-height: 38px; padding: 8px 11px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--standard-muted); font-size: 13px; text-decoration: none; }
+:root[data-layout-mode="standard"] .standard-navigation :is(a, button):hover { color: var(--standard-text); background: var(--standard-surface); }
+:root[data-layout-mode="standard"] .standard-navigation .standard-add-link { color: var(--standard-accent); background: color-mix(in srgb, var(--standard-accent) 10%, transparent); }
+.standard-theme-panel { flex-basis: 100%; padding: 10px 0; }
+.standard-theme-panel[hidden] { display: none; }
+:root[data-layout-mode="standard"] .account-controls .theme-controls { display: none; }
+:root[data-layout-mode="standard"] .standard-theme-panel .theme-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+:root[data-layout-mode="standard"] .standard-theme-panel .layout-mode-toggle { display: none; }
+:root[data-layout-mode="standard"] .standard-player-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 0; }
+.standard-player-identity { display: flex; align-items: center; gap: 10px; }
+.standard-player-identity img, .standard-player-identity > svg { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; }
+.standard-player-identity > div { display: grid; gap: 3px; }
+.standard-player-identity strong { font-size: 13px; }
+.standard-player-identity span { color: var(--standard-muted); font-size: 11px; }
+:root[data-layout-mode="standard"] .standard-account-tools .hud-achievements-bar { display: none; }
+.standard-account-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+:root[data-layout-mode="standard"] .standard-account-tools :is(.account-controls, .hud-career-tools) { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin: 0; padding: 0; }
+:root[data-layout-mode="standard"] .standard-account-tools .account-operator { display: none; }
+:root[data-layout-mode="standard"] .standard-account-tools button { padding: 6px 9px; min-height: 32px; font-size: 11px; font-weight: 500; }
+:root[data-layout-mode="standard"] .add-section { margin: 14px 0; }
+:root[data-layout-mode="standard"] .add-section:has(.add-disclosure:not([open])) { display: none; }
+:root[data-layout-mode="standard"] .add-section .eyebrow { display: none; }
+:root[data-layout-mode="standard"] .section-heading-title { font-size: 22px; font-weight: 650; }
+:root[data-layout-mode="standard"] .collection { margin-top: 0; }
+:root[data-layout-mode="standard"] .up-next-deck { margin: 4px 0 18px; padding: 10px; }
+:root[data-layout-mode="standard"] .up-next-deck > .workspace-section-header { margin-bottom: 8px; }
+:root[data-layout-mode="standard"] .up-next-deck .workspace-section-title { font-size: 15px; }
+:root[data-layout-mode="standard"] .workspace-section-toggle { min-height: 28px; border: 0; background: transparent; }
+:root[data-layout-mode="standard"] .workspace-section-toggle:hover { background: transparent; }
+:root[data-layout-mode="standard"] .workspace-section-count { padding: 2px 6px; border: 0; color: var(--standard-muted); background: transparent; font-size: 11px; }
+:root[data-layout-mode="standard"] .workspace-section-caret { color: var(--standard-muted); }
+:root[data-layout-mode="standard"] .deck-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+:root[data-layout-mode="standard"] :is(.deck-card, .deck-empty-slot) { padding: 10px 12px; min-height: 76px; height: 100%; background: color-mix(in srgb, var(--standard-surface) 70%, var(--standard-background)); box-shadow: none; }
+:root[data-layout-mode="standard"] .deck-empty-slot { border-style: dashed; }
+:root[data-layout-mode="standard"] .deck-slot-badge { margin: 0 0 6px; color: var(--standard-muted); font-size: 10px; font-weight: 500; }
+:root[data-layout-mode="standard"] .deck-empty-slot > span { color: var(--standard-muted); font-size: 12px; text-align: left; margin: 0; }
+:root[data-layout-mode="standard"] .deck-game-info { grid-template-columns: 32px minmax(0, 1fr); gap: 8px; margin: 3px 0 8px; }
+:root[data-layout-mode="standard"] .deck-cover { width: 32px; height: 42px; border: 0; border-radius: 4px; }
+:root[data-layout-mode="standard"] .deck-game-info h4 { font-size: 12px; margin-bottom: 3px; }
+:root[data-layout-mode="standard"] .deck-game-info p { margin: 0; font-size: 10px; }
+:root[data-layout-mode="standard"] .deck-game-info p:last-child { display: none; }
+:root[data-layout-mode="standard"] .deck-card-actions button { min-height: 28px; padding: 3px 7px; font-size: 10px; }
+:root[data-layout-mode="standard"] .standard-library-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 18px; }
+.standard-library-heading h2 { margin: 0; font-size: clamp(23px, 2.2vw, 30px); font-weight: 750; line-height: 1.2; }
+.standard-library-heading p { margin: 6px 0 0; font-size: 12px; }
+.standard-library-tools { display: flex; align-items: center; gap: 8px; }
+:root[data-layout-mode="standard"] .standard-library-tools button { padding: 8px 14px; }
+.standard-library-controls { margin-bottom: 18px; }
+.standard-status-tabs { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 14px; }
+:root[data-layout-mode="standard"] .standard-status-tabs button { display: inline-flex; align-items: center; gap: 8px; padding: 7px 12px; border: 1px solid transparent; background: transparent; color: var(--standard-muted); }
+:root[data-layout-mode="standard"] .standard-status-tabs button[aria-pressed="true"] { background: color-mix(in srgb, var(--standard-accent) 12%, var(--standard-surface)); color: var(--standard-accent); border-color: color-mix(in srgb, var(--standard-accent) 30%, transparent); }
+.standard-status-tabs span { padding: 1px 5px; border-radius: 4px; background: #ffffff08; font-size: 10px; }
+.standard-search-toolbar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; }
+.standard-search-toolbar label { display: grid; gap: 5px; min-width: 0; font-size: 11px; }
+.standard-search-toolbar .standard-search { flex: 1 1 240px; }
+.standard-search-toolbar input { width: 100%; }
+.standard-search-toolbar label > span { color: var(--standard-muted); }
+.standard-filters { position: relative; }
+:root[data-layout-mode="standard"] .standard-filters > summary { min-height: 40px; padding: 9px 14px; color: var(--standard-muted); border: 1px solid var(--standard-border); border-radius: 8px; font-size: 13px; }
+.standard-filter-fields { position: absolute; top: calc(100% + 8px); right: 0; z-index: 5; display: grid; gap: 12px; width: 270px; padding: 16px; border: 1px solid var(--standard-border); border-radius: 10px; background: var(--standard-surface); box-shadow: 0 12px 40px #0007; }
+.standard-filter-fields label { display: grid; gap: 6px; }
+.standard-filter-summary { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 12px; color: var(--standard-muted); }
+.standard-filter-summary button { padding: 4px 8px; }
+.standard-game-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16px; padding: 0; margin: 0; list-style: none; outline: none; }
+:root[data-layout-mode="standard"] .standard-game-card { min-width: 0; overflow: hidden; border: 1px solid color-mix(in srgb, var(--standard-border) 65%, transparent); border-radius: var(--standard-radius); background: var(--standard-surface); box-shadow: var(--standard-shadow); transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
+:root[data-layout-mode="standard"] .standard-game-card:hover, :root[data-layout-mode="standard"] .standard-game-card:focus-within { transform: translateY(-3px); border-color: color-mix(in srgb, var(--standard-accent) 55%, var(--standard-border)); box-shadow: 0 8px 24px #0004, 0 0 0 1px color-mix(in srgb, var(--standard-accent) 8%, transparent); }
+:root[data-layout-mode="standard"] .standard-game-card[data-drop-target="true"] { outline: 2px solid var(--standard-accent); }
+:root[data-layout-mode="standard"] .standard-card-cover { position: relative; display: block; width: 100%; height: 88px; padding: 0; overflow: hidden; border: 0; border-bottom: 1px solid #ffffff08; border-radius: 0; background: #101722; }
+.standard-card-cover img { width: 100%; height: 100%; display: block; object-fit: cover; object-position: center 30%; transition: transform .3s ease; }
+.standard-game-card:hover .standard-card-cover img { transform: scale(1.035); }
+.standard-cover-placeholder { display: grid; place-content: center; gap: 3px; height: 100%; color: var(--standard-muted); font-size: 10px; background: linear-gradient(135deg, color-mix(in srgb, var(--standard-accent) 9%, var(--standard-surface)), var(--standard-background)); }
+.standard-cover-placeholder > span { font-size: 28px; color: color-mix(in srgb, var(--standard-accent) 50%, var(--standard-muted)); }
+:root[data-layout-mode="standard"] .standard-status-badge { position: absolute; left: 8px; top: 8px; padding: 3px 7px; border: 1px solid #ffffff18; border-radius: 5px; background: #0f131aeb; color: #d3dfec; font-size: 10px; font-weight: 600; backdrop-filter: blur(8px); }
+:root[data-layout-mode="standard"] .standard-status-badge[data-status="Playing"] { color: #7dd3fc; }
+:root[data-layout-mode="standard"] .standard-status-badge[data-status="Completed"] { color: #6ee7b7; }
+:root[data-layout-mode="standard"] .standard-status-badge[data-status="Flatlined"] { color: #c4b5fd; }
+.standard-card-content { padding: 8px 10px 10px; }
+.standard-card-content h3 { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; margin: 0; font-size: 13px; font-weight: 650; line-height: 1.5; }
+:root[data-layout-mode="standard"] .standard-card-meta { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 10px; margin: 3px 0 7px; }
+.standard-card-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 0; }
+:root[data-layout-mode="standard"] .standard-card-footer .hype-meter-button { min-width: 38px; min-height: 27px; margin: 0; padding: 4px 7px; border: 1px solid #ffffff0c; background: #ffffff04; }
+:root[data-layout-mode="standard"] .standard-card-edit { padding: 2px 0; background: transparent; border: 0; color: var(--standard-muted); font-size: 11px; }
+:root[data-layout-mode="standard"] .standard-card-edit:hover { background: transparent; color: var(--standard-accent); }
+:root[data-layout-mode="standard"] :is(.standard-quick-start, .standard-card-action) { flex: 1; min-width: 0; margin: 0; }
+:root[data-layout-mode="standard"] :is(.standard-quick-start button, .standard-card-action) { width: 100%; min-height: 30px; padding: 4px 8px; font-size: 11px; }
+:root[data-layout-mode="standard"] :is(.hype-meter, .hype-filter) { --hype-accent: var(--standard-accent); --hype-surface: var(--standard-background); --hype-text: var(--standard-text); }
+:root[data-layout-mode="standard"] .hype-meter[data-hype-level="3"] { --hype-accent: #f59e0b; }
+:root[data-layout-mode="standard"] .hype-meter[data-hype-level="3"] .hype-bars > span[data-lit="true"] { box-shadow: none; }
+:root[data-layout-mode="standard"] .game-form .field-hype > span:first-child { color: var(--standard-text); font-size: 13px; font-weight: 600; }
+.standard-pagination { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px; margin: 18px 0; font-size: 12px; color: var(--standard-muted); }
+.standard-pagination > span:first-child { margin-right: auto; }
+.standard-pagination button { padding: 6px 12px; }
+.standard-library-empty { display: grid; justify-items: center; padding: 50px 20px; text-align: center; }
+.standard-library-empty > span { font-size: 36px; color: var(--standard-accent); }
+.standard-library-empty h3 { margin-bottom: 0; }
+.standard-library-empty p { font-size: 13px; }
+.standard-library-extras { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; gap: 12px; margin: 24px 0 0; }
+:root[data-layout-mode="standard"] .standard-library-extras > .workspace-section { margin: 0; padding: 12px; }
+:root[data-layout-mode="standard"] .standard-library-extras .workspace-section-title { flex-basis: 120px; font-size: 13px; }
+:root[data-layout-mode="standard"] .standard-library-extras .workspace-section-summary { margin-left: 0; }
+:root[data-layout-mode="standard"] .standard-library-extras .workspace-section-eyebrow { display: none; }
+:root[data-layout-mode="standard"] .standard-library-extras > [data-section-open="true"] { grid-column: 1 / -1; }
+:root[data-layout-mode="standard"] .standard-library-extras > .workspace-section > .workspace-section-header { padding: 0; border: 0; }
+:root[data-layout-mode="standard"] .standard-library-extras .telemetry-content { padding: 14px 0 0; }
+:root[data-layout-mode="standard"] .standard-details-backdrop { position: fixed; inset: 0; z-index: 1200; display: flex; justify-content: flex-end; background: #03070db8; backdrop-filter: blur(6px); }
+:root[data-layout-mode="standard"] .standard-game-details { display: flex; flex-direction: column; width: min(600px, 100%); height: 100dvh; margin: 0; padding: 0; overflow: hidden; border: 0; border-left: 1px solid var(--standard-border); border-radius: 0; box-shadow: -16px 0 60px #0007; background: var(--standard-surface); }
+.standard-details-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-shrink: 0; padding: 20px 24px; border-bottom: 1px solid #ffffff0a; }
+.standard-details-header span { color: var(--standard-accent); font-size: 11px; font-weight: 600; }
+.standard-details-header h2 { margin: 4px 0; font-size: 22px; line-height: 1.3; }
+.standard-details-header p { margin: 0; font-size: 12px; }
+.standard-details-header button { min-width: 34px; min-height: 34px; }
+.standard-details-body { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 0 24px; }
+.standard-details-section { padding: 20px 0; border-bottom: 1px solid #ffffff0a; }
+.standard-details-section h3, .standard-details-section > summary { margin: 0 0 14px; font-size: 14px; font-weight: 650; }
+.standard-details-section:not([open]) > summary { margin-bottom: 0; }
+.standard-details-section p { font-size: 12px; line-height: 1.6; }
+.standard-details-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-bottom: 18px; }
+.standard-game-details label { display: grid; gap: 6px; font-size: 12px; }
+.standard-details-fields :is(label, .standard-details-hype, .standard-details-rating) > span:first-child { font-size: 12px; }
+.standard-details-hype, .standard-details-rating { min-width: 0; display: grid; align-content: start; gap: 6px; }
+:root[data-layout-mode="standard"] .standard-details-rating .star-rating-button { border: 0; background: transparent; padding: 0 2px; font-size: 21px; color: #f59e0b; }
+:root[data-layout-mode="standard"] .standard-game-details :is(.replay-count-editor, .play-journal-editor, .micro-review-editor) { margin: 14px 0; border-color: var(--standard-border); color: var(--standard-text); background: transparent; box-shadow: none; }
+:root[data-layout-mode="standard"] .standard-game-details :is(.play-journal-editor legend, .micro-review-editor summary) { color: var(--standard-text); }
+:root[data-layout-mode="standard"] .standard-game-details :is(.replay-count-editor small, .play-journal-editor small, .micro-review-editor small) { font-size: 11px; color: var(--standard-muted); }
+:root[data-layout-mode="standard"] .standard-game-details :is(.play-journal-inputs, .metadata-modal-fields) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+:root[data-layout-mode="standard"] .standard-game-details .metadata-modal-fields { padding-top: 16px; }
+:root[data-layout-mode="standard"] .standard-game-details .metadata-modal-fields input { width: 100%; }
+:root[data-layout-mode="standard"] .standard-game-details .metadata-modal-fields > div:first-child { grid-column: 1 / -1; }
+:root[data-layout-mode="standard"] .standard-private-notes { margin-top: 18px; }
+:root[data-layout-mode="standard"] .standard-game-details textarea { width: 100%; resize: vertical; }
+.standard-details-queue { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.standard-details-queue h3 { flex-basis: 100%; }
+.standard-reorder { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 12px; }
+.standard-reorder button, .standard-details-queue > button, .standard-delete-confirmation button { padding: 7px 10px; }
+:root[data-layout-mode="standard"] :is(.standard-delete-trigger, .standard-danger) { color: #fda4af; }
+.standard-delete-confirmation { width: 100%; padding: 12px; border: 1px solid #fda4af44; border-radius: 8px; }
+.standard-delete-confirmation button { margin-right: 6px; }
+.standard-details-footer { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 10px; flex-shrink: 0; padding: 14px 24px; border-top: 1px solid #ffffff0c; background: var(--standard-surface); }
+.standard-details-footer span { margin-right: auto; color: var(--standard-muted); font-size: 10px; }
+.standard-details-footer > button { padding: 8px 14px; }
+:root[data-layout-mode="standard"] .standard-game-details > .form-action-error { flex-shrink: 0; margin: 0; padding: 12px 24px; font-size: 12px; }
+:root[data-layout-mode="standard"] :is(.admin-modal h2, .auth-heading h2, .vault-modal h2, .advisor-modal h2, .quest-modal h2, .metadata-modal h2) { font-size: 24px; }
+@media (max-width: 1150px) { .standard-game-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; } }
+@media (max-width: 900px) { .standard-game-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } .standard-library-extras { grid-template-columns: 1fr; } }
+@media (max-width: 650px) {
+  :root[data-layout-mode="standard"] .page-shell { width: calc(100% - 28px); padding-top: 8px; }
+  .standard-navigation { width: 100%; gap: 2px; }
+  :root[data-layout-mode="standard"] .standard-navigation :is(a, button) { flex: 1 1 auto; justify-content: center; padding: 7px 8px; font-size: 11px; }
+  :root[data-layout-mode="standard"] .standard-header { gap: 6px; }
+  :root[data-layout-mode="standard"] .standard-player-bar { gap: 8px; padding: 10px 0; }
+  .standard-account-tools { gap: 5px; }
+  :root[data-layout-mode="standard"] .deck-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  :root[data-layout-mode="standard"] .deck-empty-slot { padding: 8px; min-height: 72px; }
+  :root[data-layout-mode="standard"] .deck-empty-slot > span { font-size: 10px; }
+  :root[data-layout-mode="standard"] .deck-card { padding: 8px; }
+  :root[data-layout-mode="standard"] .deck-game-info { grid-template-columns: 1fr; }
+  :root[data-layout-mode="standard"] .deck-card .deck-cover, :root[data-layout-mode="standard"] .deck-slot-controls { display: none; }
+  :root[data-layout-mode="standard"] .deck-card-actions button { font-size: 9px; }
+  :root[data-layout-mode="standard"] .up-next-deck { margin-bottom: 18px; padding: 10px; }
+  .standard-library-heading p { font-size: 11px; }
+  :root[data-layout-mode="standard"] .standard-library-tools button { padding: 6px 9px; font-size: 11px; }
+  .standard-game-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .standard-card-content { padding: 8px; }
+  .standard-card-content h3 { font-size: 12px; }
+  .standard-search-toolbar .standard-search { flex-basis: 100%; }
+  .standard-search-toolbar > label:not(.standard-search) { flex: 1; }
+  .standard-status-tabs { gap: 3px; }
+  :root[data-layout-mode="standard"] .standard-status-tabs button { padding: 6px 8px; font-size: 11px; gap: 5px; }
+  .standard-details-header { padding: 16px; }
+  .standard-details-body { padding: 0 16px; }
+  .standard-details-footer { padding: 12px 16px; }
+  .standard-details-footer span { width: 100%; }
+}
+@media (max-width: 359px) { .standard-game-grid { grid-template-columns: 1fr; } .standard-details-fields { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { :root[data-layout-mode="standard"] * { transition: none !important; } :root[data-layout-mode="standard"] .standard-game-card:hover { transform: none; } }
+
+/* Keep the queue a single compact row, including occupied slots. */
+:root[data-layout-mode="standard"] .deck-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; }
+:root[data-layout-mode="standard"] .deck-card .deck-slot-heading { grid-column: 1 / -1; margin: 0; }
+:root[data-layout-mode="standard"] .deck-card .deck-game-info { margin: 0; align-self: center; }
+:root[data-layout-mode="standard"] .deck-card-actions { flex-direction: column; align-items: stretch; justify-content: center; gap: 4px; margin: 0; }
+:root[data-layout-mode="standard"] .deck-card .deck-slot-badge { margin-bottom: 0; }
+:root[data-layout-mode="standard"] .standard-card-footer > .standard-card-action { flex: 1; min-width: 0; }
+@media (max-width: 650px) { :root[data-layout-mode="standard"] .deck-card { grid-template-columns: 1fr; } :root[data-layout-mode="standard"] .deck-card-actions { flex-direction: row; flex-wrap: wrap; } }
+@media (min-width: 1200px) {
+  .standard-library-controls { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: end; gap: 10px 22px; }
+  .standard-library-controls .standard-status-tabs { margin-bottom: 0; align-self: end; padding-bottom: 2px; }
+  .standard-library-controls .standard-search-toolbar { flex-wrap: nowrap; }
+  .standard-library-controls .standard-search-toolbar .standard-search { flex-basis: 200px; }
+  .standard-library-controls .standard-filter-summary { grid-column: 1 / -1; }
+}
+
+:root[data-layout-mode="standard"] .standard-game-details .star-rating-selector { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; min-width: 0; padding: 0; border: 0; background: transparent; }
+:root[data-layout-mode="standard"] .standard-game-details .star-rating-readout { color: var(--standard-muted); font-size: 10px; }
+@media (max-width: 800px) { .standard-game-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 650px) { .standard-details-rating { grid-column: 1 / -1; } }
+@media (max-width: 359px) { .standard-game-grid { grid-template-columns: 1fr; } }
+@media (max-width: 1100px) {
+  :root[data-layout-mode="standard"] .deck-card { grid-template-columns: 1fr; }
+  :root[data-layout-mode="standard"] .deck-card-actions { flex-direction: row; flex-wrap: wrap; }
+  :root[data-layout-mode="standard"] .deck-card .deck-game-info { min-width: 0; }
+}
+:root[data-layout-mode="standard"] .deck-game-info h4 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: normal; }
+:root[data-layout-mode="standard"] .deck-card-actions button { max-width: 100%; white-space: normal; }

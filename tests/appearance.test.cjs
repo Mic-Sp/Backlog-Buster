@@ -30,10 +30,10 @@ test("layout preference preserves the Cyberpunk sub-theme and restores portal ro
     assert.equal(root.cyberpunkTheme, "halloween");
     stored.clear();
     applyAppearance(root, readAppearance(root));
-    assert.deepEqual(root, { layoutMode: "cyberpunk", cyberpunkTheme: "default", theme: "cyberpunk" });
+    assert.deepEqual(root, { layoutMode: "standard", cyberpunkTheme: "default", theme: "standard" });
     stored.set("backlogbuster:layout-mode", "invalid");
     stored.set("backlogbuster:theme", "invalid");
-    assert.deepEqual(readAppearance(root), { layoutMode: "cyberpunk", cyberpunkTheme: "default" });
+    assert.deepEqual(readAppearance(root), { layoutMode: "standard", cyberpunkTheme: "default" });
   } finally {
     if (previous === undefined) delete global.localStorage;
     else global.localStorage = previous;

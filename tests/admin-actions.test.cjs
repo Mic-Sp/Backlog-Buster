@@ -119,7 +119,7 @@ test("directory serializes safe paginated summaries, includes achievement XP, an
   const [admin, member] = result.players;
   assert.deepEqual(admin, {
     id: "owner", operatorName: "Admin", handle: "admin", email: "admin@example.com", steamConnected: false, isAdmin: true, isOwner: true,
-    gameCount: 3, totalXp: 1350, level: 3, activeSessionCount: 2, preferredLayoutMode: "cyberpunk",
+    gameCount: 3, totalXp: 1350, level: 3, activeSessionCount: 2, preferredLayoutMode: "standard",
     createdAt: "2020-02-01T00:00:00.000Z", updatedAt: "2020-03-01T00:00:00.000Z",
     latestSessionAt: "2020-06-01T00:00:00.000Z", lastRecordedActivityAt: "2020-07-01T00:00:00.000Z",
   });

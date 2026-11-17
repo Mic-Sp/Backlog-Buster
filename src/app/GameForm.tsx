@@ -121,7 +121,7 @@ export default function GameForm() {
       </label>
 
       <div className="field field-hype">
-        <span>Hype</span>
+        <span>Hype Level</span>
         <HypeMeter title="new game" value={hypeLevel} onChange={setHypeLevel} />
         <input type="hidden" name="hypeLevel" value={hypeLevel} />
       </div>

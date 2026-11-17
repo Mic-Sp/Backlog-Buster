@@ -1,15 +1,16 @@
 "use client";
 
 import { useUIEffects } from "@/components/ThemeProvider";
+import { standardCopy } from "@/lib/standard-copy";
 import { biohazardCopy } from "@/lib/biohazard-copy";
 import type { ThemeTermKey } from "@/lib/custom-theme";
 
 /** Presentation copy changes without remounting the controller or altering saved data. */
 export function useLayoutCopy() {
   const { layoutMode, customTheme } = useUIEffects();
-  return (cyberpunk: string, fantasy: string, term?: ThemeTermKey) => {
+  return (cyberpunk: string, fantasy: string = cyberpunk, term?: ThemeTermKey) => {
     const key = term ?? (cyberpunk === "Netrunner Access" ? "authTitle" : undefined);
-    return (key ? customTheme?.terminology[key]?.trim() : "") || (layoutMode === "biohazard" ? biohazardCopy(cyberpunk, key) : layoutMode === "fantasy" ? fantasy : cyberpunk);
+    return (key ? customTheme?.terminology[key]?.trim() : "") || (layoutMode === "standard" ? standardCopy(cyberpunk, key) : layoutMode === "biohazard" ? biohazardCopy(cyberpunk, key) : layoutMode === "fantasy" ? fantasy : cyberpunk);
   };
 }
 

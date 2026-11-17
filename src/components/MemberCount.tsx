@@ -1,3 +1,4 @@
+import { standardCopy } from "@/lib/standard-copy";
 
 import { registeredPlayerWhere } from "@/lib/auth-policy";
 import { Suspense } from "react";
@@ -7,7 +8,7 @@ import { prisma } from "@/lib/prisma";
 // This boundary can stream after the device theme has already hydrated. Static
 // theme variants keep its server/client markup identical at any arrival time.
 function RegistryText({ cyberpunk, fantasy }: { cyberpunk: string; fantasy: string }) {
-  return <><span className="cyberpunk-label">{cyberpunk}</span><span className="fantasy-label">{fantasy}</span></>;
+  return <><span className="standard-label">{standardCopy(cyberpunk)}</span><span className="cyberpunk-label">{cyberpunk}</span><span className="fantasy-label">{fantasy}</span></>;
 }
 
 async function RegisteredMembers() {

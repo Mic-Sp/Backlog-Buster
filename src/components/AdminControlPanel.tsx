@@ -100,7 +100,7 @@ function AdminPanel({ onClose, currentPlayerId, currentPlayerIsOwner }: { onClos
     <div className="admin-modal" ref={panelRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={descriptionId} aria-busy={loading || locked}>
             <FantasyCorners />
       <header className="admin-modal-heading">
-        <div><p>ADMIN // OVERWATCH</p><h2 id={titleId}>{copy("Admin Control Panel", "Royal Administration")}</h2></div>
+        <div><p>{copy("ADMIN // OVERWATCH")}</p><h2 id={titleId}>{copy("Admin Control Panel", "Royal Administration")}</h2></div>
         <button type="button" aria-label="Close admin control panel" disabled={locked} onClick={onClose}>✕</button>
       </header>
       <p className="admin-hint" id={descriptionId}>{copy("System telemetry, chronology maintenance, and player account controls.", "Realm records, saga chronology maintenance, and player account controls.")}</p>
@@ -115,23 +115,24 @@ function AdminPanel({ onClose, currentPlayerId, currentPlayerIsOwner }: { onClos
         </dl>}
       </section>
       <section className="admin-maintenance" aria-labelledby={`${titleId}-maintenance`}>
-        <h3 id={`${titleId}-maintenance`}>02 // CACHE &amp; SESSION MAINTENANCE</h3>
+        <h3 id={`${titleId}-maintenance`}>{copy("02 // CACHE & SESSION MAINTENANCE")}</h3>
         <p className="admin-hint">Clear all shared saga chronology caches. Saved game orders stay intact; future scans rebuild cached timelines.</p>
         <div className="admin-maintenance-actions"><button className="admin-purge-button" type="button" disabled={loading || locked || !overview} onClick={() => void purgeCache()}>{purging ? "CLEARING CACHE // REFRESHING TELEMETRY…" : "RESET SAGA CHRONOLOGY CACHE"}</button><button type="button" disabled={loading || locked} onClick={() => void pruneSessions()}>{pruning ? "PRUNING EXPIRED SESSIONS…" : "PRUNE EXPIRED SESSIONS"}</button></div>
         <p className="admin-hint">Session pruning removes expired login records across all accounts. Active sessions stay connected.</p>
       </section>
       {error && <p className="admin-error" role="alert">{error}</p>}
-      {confirmation && <p className="admin-confirmation" role="status">{confirmation}</p>}
+      {confirmation && <p className="admin-confirmation" role="status">{copy(confirmation)}</p>}
       <AdminPlayerDirectory currentPlayerId={currentPlayerId} currentPlayerIsOwner={currentPlayerIsOwner} disabled={loading || locked} onBusyChange={onPlayerBusyChange} onAccountsChanged={onAccountsChanged} />
     </div>
   </div>;
 }
 
 export default function AdminControlPanel({ currentPlayerId, currentPlayerIsOwner }: { currentPlayerId: string; currentPlayerIsOwner: boolean }) {
+  const copy = useLayoutCopy();
   const [open, setOpen] = useState(false);
   const close = useCallback(() => setOpen(false), []);
   return <>
-    <button className="admin-panel-trigger" type="button" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)}>ADMIN // OVERWATCH</button>
+    <button className="admin-panel-trigger" type="button" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)}>{copy("ADMIN // OVERWATCH")}</button>
     {open && createPortal(<AdminPanel onClose={close} currentPlayerId={currentPlayerId} currentPlayerIsOwner={currentPlayerIsOwner} />, document.body)}
   </>;
 }

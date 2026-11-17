@@ -8,15 +8,15 @@ const style = theme => Object.fromEntries(Object.entries(theme).filter(([key]) =
 test('template catalog includes every existing built-in and saved custom sources', () => {
   const source = newCustomTheme('fantasy'), editing = newCustomTheme('cyberpunk');
   const templates = getThemeTemplates([source, editing], editing.id);
-  assert.deepEqual(templates.filter(template => template.group === 'builtin').map(template => template.name), ['Cyberpunk', 'Fantasy', 'Haunted Net / Blackwall Glitch']);
-  assert.equal(templates.length, 4);
+  assert.deepEqual(templates.filter(template => template.group === 'builtin').map(template => template.name), ['Standard', 'Cyberpunk', 'Fantasy', 'Typewriter / Safe Room', 'Haunted Net / Blackwall Glitch']);
+  assert.equal(templates.length, 6);
   assert.deepEqual(templates.filter(template => template.group === 'saved').map(template => template.key), [`saved:${source.id}`]);
   assert.equal(new Set(templates.map(template => template.key)).size, templates.length);
   assert(getThemeTemplates([source, editing]).some(template => template.key === `saved:${editing.id}`), 'A new draft can copy the active saved theme');
 });
 
 test('every built-in source reuses the existing layout defaults, including radius/effect/terminology values', () => {
-  const templates = getThemeTemplates([]), defaults = [newCustomTheme('cyberpunk'), newCustomTheme('fantasy'), newCustomTheme('cyberpunk', true)];
+  const templates = getThemeTemplates([]), defaults = [newCustomTheme('standard'), newCustomTheme('cyberpunk'), newCustomTheme('fantasy'), newCustomTheme('biohazard'), newCustomTheme('cyberpunk', true)];
   templates.filter(template => template.group === 'builtin').forEach((template, index) => assert.deepEqual(template.style, style(defaults[index])));
   for (const template of templates) assert(customThemeSchema.safeParse(applyThemeTemplate(newCustomTheme('cyberpunk'), template)).success);
 });

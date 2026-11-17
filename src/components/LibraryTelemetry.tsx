@@ -46,7 +46,7 @@ export default function LibraryTelemetry({ games }: { games: LibraryGame[] }) {
     <WorkspaceSection sectionKey="telemetry" className="telemetry-drawer" label="telemetry" title={copy("Netrunner Telemetry & Critic Matrix", "Library records & ratings")} defaultOpen={false}
       summary={<span className="workspace-section-count">{telemetry.totalGames} games</span>}>
       <div className="telemetry-content">
-        <p className="telemetry-intro">ANALYTICS &amp; CRITIC BREAKDOWN // Entire library · {telemetry.totalGames.toLocaleString("en-US")} games</p>
+        <p className="telemetry-intro">{copy("ANALYTICS & CRITIC BREAKDOWN // Entire library ·")} {telemetry.totalGames.toLocaleString("en-US")} games</p>
         <WorkspaceSection sectionKey="telemetry-stats" className="telemetry-subsection" label="library stats" title="Library stats" headingLevel={4}
           summary={<span className="workspace-section-count">{telemetry.completedCount} cleared</span>}>
         <dl className="telemetry-stats-grid">
@@ -85,7 +85,7 @@ export default function LibraryTelemetry({ games }: { games: LibraryGame[] }) {
           {breakdowns.map(({ title, groups }) => (
             <WorkspaceSection sectionKey={title === "BY GENRE" ? "genre-breakdown" : "platform-breakdown"} className="telemetry-breakdown" key={title} label={title === "BY GENRE" ? "genre breakdown" : "platform breakdown"} title={title} headingLevel={4}
               summary={<span className="workspace-section-count">{groups.length} groups</span>}>
-              {groups.length > 0 ? <ul>{groups.map(renderGroup)}</ul> : <p className="telemetry-empty">No games yet. Add or import a gig to start tracking.</p>}
+              {groups.length > 0 ? <ul>{groups.map(renderGroup)}</ul> : <p className="telemetry-empty">{copy("No games yet. Add or import a gig to start tracking.")}</p>}
             </WorkspaceSection>
           ))}
         </div>

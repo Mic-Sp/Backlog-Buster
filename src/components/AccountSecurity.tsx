@@ -151,7 +151,7 @@ function SecurityPanel({ onClose }: { onClose: () => void }) {
           <div><dt>Registered Email Address</dt><dd>{summary.email ?? "No email added"}</dd></div>
           <div><dt>{copy("Operator Handle", "Adventurer Handle")}</dt><dd>{summary.handle ? `@${summary.handle}` : "Unclaimed"}</dd></div>
           <div><dt>Account Created Date</dt><dd>{new Date(summary.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}</dd></div>
-          <div><dt>Active Session Status</dt><dd>● ACTIVE // Expires {new Date(summary.sessionExpiresAt).toLocaleDateString("en-US")}</dd></div>
+          <div><dt>Active Session Status</dt><dd>{copy("● ACTIVE // Expires")} {new Date(summary.sessionExpiresAt).toLocaleDateString("en-US")}</dd></div>
         </dl>
         {summary.email && <section className="security-verification" aria-label="Email verification">
           <span className="security-verification-badge" data-verified={Boolean(summary.emailVerifiedAt)}>{summary.emailVerifiedAt ? "✓ Email verified" : "Email verification pending"}</span>

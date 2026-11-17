@@ -15,7 +15,7 @@ import TitleAutocomplete from "@/components/TitleAutocomplete";
 import type { CatalogSuggestion } from "@/lib/catalog-types";
 import { useId, useRef, type RefObject } from "react";
 
-function MetadataFields({ game, formRef }: { game: LibraryGame; formRef: RefObject<HTMLFormElement | null> }) {
+export function MetadataFields({ game, formRef }: { game: LibraryGame; formRef: RefObject<HTMLFormElement | null> }) {
   const titleId = useId();
   const customized = useRef(new Set<string>());
   const autofilled = useRef(new Set<string>());

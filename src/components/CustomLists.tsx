@@ -32,7 +32,7 @@ export default function CustomLists({ controller: c }: { controller: GameLibrary
   }
   function edit(id: string) { setEditorId(id); setConfirmDelete(false); setNotice(null); if (managerRef.current) managerRef.current.open = true; }
 
-  return <WorkspaceSection sectionKey="custom-lists" className="custom-lists-panel" label="custom lists" busy={pending}
+  return <WorkspaceSection sectionKey="custom-lists" className="custom-lists-panel" label="custom lists" busy={pending} defaultOpen={c.layoutMode !== "standard"}
     title={copy("Your curated collections", "The curator’s shelves")} eyebrow={copy("DATA SHARDS // CUSTOM QUEUES", "CURATED SCROLLS // TAVERN SHELVES")}
     summary={<><span className="workspace-section-count">{c.customLists.length} / {MAX_CUSTOM_LISTS} shelves</span>{c.selectedCustomList && <span className="workspace-section-filter" title={`Active list: ${c.selectedCustomList.title}`}>Active: {c.selectedCustomList.title}</span>}</>}>
     {!c.socialEnabled ? <p>Sign in to create your own lists and ranked shelves.</p> : <>

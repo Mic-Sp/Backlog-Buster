@@ -94,6 +94,7 @@ function tab(bus, name, player = null) {
   const result = { name, root, saves, audioThemes, render,
     receive: event => run(() => { for (const fn of listeners) fn(event); render(); }),
     toggle: () => run(() => { tree.props.children.props.value.toggleLayout(); render(); }),
+    select: mode => run(() => { tree.props.children.props.value.selectBuiltIn(mode, "default"); render(); }),
     sync: player => run(() => { tree.props.value(player); render(); }),
   };
   bus.tabs.push(result); render(); return result;
@@ -147,5 +148,23 @@ test("layout cycling reaches Safe Room, saves it once, and selects its audio wit
   bus.write("foreign", layoutKey, "cyberpunk"); bus.drain();
   assert.equal(f.root.layoutMode, "biohazard");
   f.toggle(); await Promise.resolve(); await Promise.resolve();
-  assert.equal(f.root.layoutMode, "cyberpunk");
+  assert.equal(f.root.layoutMode, "standard");
+});
+
+
+test("new visitors start in Standard, and switching through all layouts persists and saves each choice", async () => {
+  const bus = browser(), visitor = tab(bus, "visitor");
+  assert.equal(visitor.root.layoutMode, "standard"); assert.equal(visitor.root.theme, "standard");
+  assert.equal(bus.writes.length, 0, "Restoring a default does not invent a saved preference");
+  visitor.select("standard");
+  assert.equal(bus.values.get(layoutKey), "standard", "Explicitly choosing the initial default survives reload");
+  const reloaded = tab(bus, "reloaded"); assert.equal(reloaded.root.layoutMode, "standard");
+  const f = tab(bus, "viewer", { id: "new-player", preferredLayoutMode: "standard" });
+  for (const mode of ["cyberpunk", "fantasy", "biohazard", "standard"]) {
+    f.select(mode); await Promise.resolve(); await Promise.resolve();
+    assert.equal(f.root.layoutMode, mode); assert.equal(f.root.theme, mode);
+    assert.equal(bus.values.get(layoutKey), mode);
+  }
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(f.saves, ["cyberpunk", "fantasy", "biohazard", "standard"]);
 });

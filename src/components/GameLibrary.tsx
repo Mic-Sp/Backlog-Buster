@@ -19,6 +19,8 @@ import FantasySubscreenView from "@/components/FantasySubscreenView";
 import { useSubscreen } from "@/components/WorkspaceShell";
 import useGameDrafts from "@/components/useGameDrafts";
 import { updateGame, deleteGame, flatlineGame } from "@/app/actions";
+import StandardLibraryView from "@/components/StandardLibraryView";
+import StandardGameDetails from "@/components/StandardGameDetails";
 import CyberpunkLibraryView from "@/components/CyberpunkLibraryView";
 import type { CustomListData } from "@/lib/custom-list-types";
 import GameMetadataEditor from "@/components/GameMetadataEditor";
@@ -223,7 +225,7 @@ function useGameLibraryController({ games: serverGames, customLists = [], achiev
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const modal = metadataModalRef.current;
-    modal?.querySelector<HTMLInputElement>('input[name="title"]')?.focus();
+    (modal?.querySelector<HTMLElement>("[data-details-autofocus]") ?? modal?.querySelector<HTMLInputElement>('input[name="title"]'))?.focus();
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.defaultPrevented) return;
@@ -232,7 +234,7 @@ function useGameLibraryController({ games: serverGames, customLists = [], achiev
         setEditingMetaGame(null);
       }
       if (event.key === "Tab" && modal) {
-        const controls = modal.querySelectorAll<HTMLElement>('input:not([type="hidden"]), button');
+        const controls = Array.from(modal.querySelectorAll<HTMLElement>('input:not([type="hidden"]):not(:disabled), button:not(:disabled), select:not(:disabled), textarea:not(:disabled), summary, a[href]')).filter(element => element.getClientRects().length > 0);
         const first = controls[0];
         const last = controls[controls.length - 1];
         if (event.shiftKey && document.activeElement === first) {
@@ -254,7 +256,7 @@ function useGameLibraryController({ games: serverGames, customLists = [], achiev
       // eslint-disable-next-line react-hooks/exhaustive-deps
       else collectionRef.current?.querySelector<HTMLButtonElement>(`[data-metadata-trigger-id="${editingMetaGame?.id}"]`)?.focus();
     };
-  }, [editingMetaGame]);
+  }, [editingMetaGame, layoutMode]);
 
   const { platforms, genres, viewCounts } = useMemo(() => ({
     platforms: [...new Set(games.map((game) => game.platform.trim()).filter(Boolean))].sort(),
@@ -720,6 +722,18 @@ function useGameLibraryController({ games: serverGames, customLists = [], achiev
   const vault = useLibraryDataVaultController({ games, savedSteamId: steamId });
   const social = useSocialHubController(socialEnabled);
   const roulette = useQuestRouletteController({ games: games.filter(game => game.status === "Backlog") });
+  useEffect(() => {
+    if (layoutMode !== "standard") return;
+    function navigate(event: Event) {
+      const action = (event as CustomEvent<string>).detail;
+      if (action === "random") roulette.open();
+      else if (action === "recommendations") advisor.openAdvisor();
+      else if (action === "transfer") vault.open();
+      else if (action === "library") revealLibrary(value => value + 1);
+    }
+    window.addEventListener("backlogbuster:standard-action", navigate);
+    return () => window.removeEventListener("backlogbuster:standard-action", navigate);
+  }, [layoutMode, roulette.open, advisor.openAdvisor, vault.open]);
   const deck = useUpNextDeckController({ startAction: startGameAndShowPlaying, games, draggedGame: deckDraggedGame, onDragGameChange: changeDeckDrag, onDragPointerDown: rememberDragOrigin, onGameDragStart: startLibraryDrag, disabled: rowReorderBusy });
   const debuggerController = useSagaDebuggerController({ enabled: isAdmin && Boolean(selectedSaga), sagaKey: selectedSaga?.key ?? "", scanDebug: sagaDebug?.key === selectedSaga?.key ? sagaDebug?.data ?? null : null, busy: timelineBusy, cooldownSeconds: sagaProviderCooldown.seconds, onForceRefresh: () => detectSagaOrder(true) });
   const controller = {
@@ -768,6 +782,7 @@ function useGameLibraryController({ games: serverGames, customLists = [], achiev
     openMetadata,
     closeMetadata,
     editingMetaGame,
+    revealedGameId,
     setEditingMetaGame,
     metadataModalRef,
     isLogging,
@@ -844,12 +859,12 @@ export default function GameLibrary(props: Parameters<typeof useGameLibraryContr
   } = controller;
   return <HypeMetersContext.Provider value={controller.hype}><DeckPinsContext.Provider value={controller.deck.pins}>
     <section className="collection" aria-labelledby="collection-title" ref={collectionRef} data-library-layout={layoutMode} onInputCapture={controller.captureGameDraft} onChangeCapture={controller.captureGameDraft}>
-    {layoutMode === "biohazard" ? <BiohazardSubscreenView controller={controller} /> : layoutMode === "fantasy" ? <FantasySubscreenView controller={controller} /> : <CyberpunkLibraryView controller={controller} />}
+    {layoutMode === "standard" ? <StandardLibraryView controller={controller} /> : layoutMode === "biohazard" ? <BiohazardSubscreenView controller={controller} /> : layoutMode === "fantasy" ? <FantasySubscreenView controller={controller} /> : <CyberpunkLibraryView controller={controller} />}
     <TacticalAdvisorView controller={advisor} part="overlay" />
     <LibraryDataVaultView controller={vault} part="overlay" />
     <SocialHubOverlay controller={controller.social} />
     <QuestRouletteView controller={roulette} part="overlay" />
-    <GameMetadataEditor controller={controller} />
+    {layoutMode === "standard" ? <StandardGameDetails controller={controller} /> : <GameMetadataEditor controller={controller} />}
     {controller.gameActionError && <p className="form-action-error library-action-error" role="alert">{controller.gameActionError}</p>}
     </section>
   </DeckPinsContext.Provider></HypeMetersContext.Provider>;

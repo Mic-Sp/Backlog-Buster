@@ -18,6 +18,10 @@ export default function BiohazardStatusDeck({ children, legacy, name, avatarUrl,
 }) {
   const { layoutMode, playSfx, customTheme } = useUIEffects();
   const { mode, showMode } = useSafeRoom();
+  if (layoutMode === "standard") return <header className="standard-player-bar" aria-label="Your account">
+    <div className="standard-player-identity"><OperatorAvatar avatarUrl={avatarUrl} alt={`${name} profile picture`} /><div><strong>{name}</strong><span>Level {rank} · {xp.toLocaleString("en-US")} XP · {completed}/{total} completed</span></div></div>
+    <div className="standard-account-tools">{children}</div>
+  </header>;
   if (layoutMode !== "biohazard") return legacy;
   const condition = operativeCondition(activeGames);
   return <header className="bio-status-deck" aria-label="Medical and operative status">

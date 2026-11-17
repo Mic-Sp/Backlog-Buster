@@ -62,7 +62,7 @@ model Player {
   operatorName      String            @default("ANONYMOUS NETRUNNER")
   tagline           String            @default("One more gig. One more legend.")
   neonAccent        String            @default("CYAN")
-  preferredLayoutMode String          @default("cyberpunk")
+  preferredLayoutMode String          @default("standard")
   avatarUrl         String?
   // Three ordered profile favorite game IDs; null slots use automatic trophies.
   // Legacy field name retained. Independent of the active queue's Game.pinnedOrder.

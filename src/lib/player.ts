@@ -26,7 +26,7 @@ export const getCurrentPlayer = cache(async (): Promise<CurrentPlayer | null> =>
     select: { id: true, operatorName: true, handle: true, email: true, passwordHash: true, googleId: true, steamVerifiedId: true },
   });
   if (!local || local.email !== null || local.passwordHash !== null || local.googleId || local.steamVerifiedId) return null;
-  return { id: local.id, operatorName: local.operatorName, handle: local.handle, isLocal: true, isAdmin: false, isOwner: false, preferredLayoutMode: "cyberpunk" };
+  return { id: local.id, operatorName: local.operatorName, handle: local.handle, isLocal: true, isAdmin: false, isOwner: false, preferredLayoutMode: "standard" };
 });
 
 export async function getCurrentPlayerId(): Promise<string> {

@@ -22,7 +22,7 @@ function render(viewer, target, selection) {
   const instance = new Module(filename, module); instance.filename = filename; instance.paths = Module._nodeModulePaths(path.dirname(filename));
   const original = instance.require.bind(instance);
   instance.require = name => name === 'react' ? { ...React, useState: initial => [Object.hasOwn(overrides, stateIndex) ? overrides[stateIndex++] : (stateIndex++, initial), () => {}] }
-    : name.startsWith('@/') ? {} : original(name);
+    : name === '@/components/LayoutText' ? { useLayoutCopy: () => text => text } : name.startsWith('@/') ? {} : original(name);
   instance._compile(ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
   }).outputText, filename);

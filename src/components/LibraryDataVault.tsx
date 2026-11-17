@@ -235,7 +235,7 @@ export function LibraryDataVaultView({ controller, part = "all" }: { controller:
   return (
     <>
       {part !== "overlay" && (<button className="vault-trigger-button" type="button" ref={triggerRef} aria-haspopup="dialog" aria-expanded={isOpen} onClick={open}>
-        🗄️ DATA VAULT // IMPORT &amp; EXPORT
+        {copy("🗄️ DATA VAULT // IMPORT & EXPORT", "🗄️ DATA VAULT // IMPORT & EXPORT")}
       </button>)}
       {part !== "trigger" && isOpen && createPortal(
         <div className="vault-modal-backdrop" onClick={(event) => {

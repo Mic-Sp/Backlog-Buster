@@ -143,7 +143,7 @@ async function PlayerSummary({ player }: { player: CurrentPlayer }) {
           <p><strong>{backlogCount}</strong><span>Backlog</span></p>
           <p><strong>{playingCount}</strong><span>Playing</span></p>
           <p><strong>{completedCount}</strong><span>Completed</span></p>
-          <p data-status="Flatlined"><strong>{flatlinedCount}</strong><span>Flatlined</span></p>
+          <p data-status="Flatlined"><strong>{flatlinedCount}</strong><span><LayoutText cyberpunk="Flatlined" fantasy="Flatlined" /></span></p>
         </div>
       </div>
       {careerTools}
@@ -270,7 +270,7 @@ async function PlayerWorkspace() {
             <span className="section-heading-copy">
               <span className="eyebrow cyberpunk-label">01 / NEW ENTRY</span><span className="biohazard-label bio-kicker">INK RIBBON / ARCHIVE RECORD</span>
               <span className="section-heading-title" id="add-title">
-                <span className="cyberpunk-label">Initialize Game Entry</span><span className="fantasy-label">Inscribe New Quest</span><span className="biohazard-label">Typewriter · Record a new game</span>
+                <span className="standard-label">Add Game</span><span className="cyberpunk-label">Initialize Game Entry</span><span className="fantasy-label">Inscribe New Quest</span><span className="biohazard-label">Typewriter · Record a new game</span>
               </span>
             </span>
             <span className="section-index" aria-hidden="true">+</span>

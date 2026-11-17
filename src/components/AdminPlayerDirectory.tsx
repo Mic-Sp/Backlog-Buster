@@ -1,5 +1,6 @@
 "use client";
 
+import { useLayoutCopy } from "@/components/LayoutText";
 import { useEffect, useId, useRef, useState } from "react";
 import { adminDeletePlayerAccount, adminResetPlayerPassword, adminUpdatePlayerEmail, adminRevokePlayerSessions, adminSetPlayerAdmin, adminSetPlayerLayoutMode, getAdminPlayerDirectory } from "@/app/admin-actions";
 import type { LayoutMode } from "@/lib/appearance";
@@ -14,6 +15,7 @@ const dateLabel = (value: string) => new Date(value).toLocaleDateString("en-US",
 export default function AdminPlayerDirectory({ currentPlayerId, currentPlayerIsOwner, disabled, onBusyChange, onAccountsChanged }: {
   currentPlayerId: string; currentPlayerIsOwner: boolean; disabled: boolean; onBusyChange: (busy: boolean) => void; onAccountsChanged: () => Promise<void>;
 }) {
+  const copy = useLayoutCopy();
   const [directory, setDirectory] = useState<PlayerDirectory | null>(null);
   const [page, setPage] = useState(1);
   const [version, setVersion] = useState(0);
@@ -146,19 +148,19 @@ export default function AdminPlayerDirectory({ currentPlayerId, currentPlayerIsO
     try {
       const result = unwrapActionResult(await adminSetPlayerLayoutMode(id, mode));
       setDirectory(current => current ? { ...current, players: current.players.map(player => player.id === id ? { ...player, preferredLayoutMode: result.preferredLayoutMode } : player) } : null);
-      setFeedback({ id, error: false, text: `DEFAULT VIEW SAVED // ${mode === "biohazard" ? "Safe Room" : mode === "fantasy" ? "Fantasy Subscreen" : "Cyberpunk Deck"}` });
+      setFeedback({ id, error: false, text: `DEFAULT VIEW SAVED // ${mode === "standard" ? "Standard" : mode === "biohazard" ? "Safe Room" : mode === "fantasy" ? "Fantasy Subscreen" : "Cyberpunk Deck"}` });
     } catch (cause) { setFeedback({ id, error: true, text: actionErrorMessage(cause, "Layout preference update failed. Please try again.") }); }
     finally { mutationRef.current = false; setPending(null); onBusyChange(false); }
   }
 
   return <section className="admin-directory" aria-labelledby={headingId} aria-busy={loading || Boolean(pending)}>
-    <div className="admin-section-heading"><h3 id={headingId}>03 // PLAYER DIRECTORY</h3><button type="button" disabled={locked} onClick={() => reload()}>REFRESH DIRECTORY</button></div>
+    <div className="admin-section-heading"><h3 id={headingId}>{copy("03 // PLAYER DIRECTORY")}</h3><button type="button" disabled={locked} onClick={() => reload()}>REFRESH DIRECTORY</button></div>
     <p className="admin-hint">Registered operators and account controls. Activity reflects the latest saved records.</p>
     {loading && <p className="admin-hint" role="status">LOADING PLAYER DIRECTORY…</p>}
     {error && <p className="admin-error" role="alert">{error}</p>}
-    {notice && <p className="admin-confirmation" role="status">{notice}</p>}
+    {notice && <p className="admin-confirmation" role="status">{copy(notice)}</p>}
     {directory && <>
-      <p className="admin-hint">{directory.totalCount.toLocaleString("en-US")} registered {directory.totalCount === 1 ? "account" : "accounts"}{" // Page "}{directory.page} of {Math.max(1, directory.pageCount)}</p>
+      <p className="admin-hint">{directory.totalCount.toLocaleString("en-US")} registered {directory.totalCount === 1 ? "account" : "accounts"}{copy(" // Page ")}{directory.page} of {Math.max(1, directory.pageCount)}</p>
       {!directory.players.length && !loading && <p className="admin-hint">No registered player accounts to display.</p>}
       <ul className="admin-player-list">{directory.players.map(player => {
         const manageable = canManage(player);
@@ -174,14 +176,14 @@ export default function AdminPlayerDirectory({ currentPlayerId, currentPlayerIsO
               <div><dt>Games</dt><dd>{player.gameCount.toLocaleString("en-US")}</dd></div>
               <div><dt>XP / Level</dt><dd>{player.totalXp.toLocaleString("en-US")} XP // LV {player.level}</dd></div>
               <div><dt>Active Sessions</dt><dd>{typeof player.activeSessionCount === "number" ? player.activeSessionCount.toLocaleString("en-US") : "—"}</dd></div>
-              <div><dt>Preferred Layout</dt><dd>{player.preferredLayoutMode === "biohazard" ? "Safe Room" : player.preferredLayoutMode === "fantasy" ? "Fantasy Subscreen" : "Cyberpunk Deck"}</dd></div>
+              <div><dt>Preferred Layout</dt><dd>{player.preferredLayoutMode === "standard" ? "Standard" : player.preferredLayoutMode === "biohazard" ? "Safe Room" : player.preferredLayoutMode === "fantasy" ? "Fantasy Subscreen" : "Cyberpunk Deck"}</dd></div>
               <div><dt>Created</dt><dd><time dateTime={player.createdAt}>{dateLabel(player.createdAt)}</time></dd></div>
               <div><dt>Last Recorded Activity</dt><dd><time dateTime={player.lastRecordedActivityAt}>{dateLabel(player.lastRecordedActivityAt)}</time></dd></div>
             </dl>
             <div className="admin-layout-preference">
               <label htmlFor={`${rowId}-layout`}>Default view</label>{" "}
-              <select id={`${rowId}-layout`} value={player.preferredLayoutMode ?? "cyberpunk"} disabled={locked || !manageable} onChange={event => void changeLayout(player.id, event.target.value as LayoutMode)}>
-                <option value="cyberpunk">Cyberpunk Deck</option>
+              <select id={`${rowId}-layout`} value={player.preferredLayoutMode ?? "standard"} disabled={locked || !manageable} onChange={event => void changeLayout(player.id, event.target.value as LayoutMode)}>
+                <option value="standard">Standard</option><option value="cyberpunk">Cyberpunk Deck</option>
                 <option value="fantasy">Fantasy Subscreen</option><option value="biohazard">Safe Room</option>
               </select>
               {pending?.id === player.id && pending.kind === "layout" && <span role="status"> SAVING DEFAULT VIEW…</span>}
@@ -219,7 +221,7 @@ export default function AdminPlayerDirectory({ currentPlayerId, currentPlayerIsO
               <p>Wipe {player.email ?? player.handle ?? player.id}? This permanently removes their account, sessions, games, and achievements.</p>
               <div className="admin-player-actions"><button type="button" disabled={locked} onClick={clearSelection}>CANCEL DELETION</button><button className="admin-delete-button" type="button" disabled={locked} onClick={() => void deleteAccount(player.id)}>{pending?.id === player.id && pending.kind === "delete" ? "WIPING ACCOUNT…" : "CONFIRM WIPE"}</button></div>
             </div>}
-            {rowFeedback && <p id={`${rowId}-feedback`} className={rowFeedback.error ? "admin-error" : "admin-confirmation"} role={rowFeedback.error ? "alert" : "status"}>{rowFeedback.text}</p>}
+            {rowFeedback && <p id={`${rowId}-feedback`} className={rowFeedback.error ? "admin-error" : "admin-confirmation"} role={rowFeedback.error ? "alert" : "status"}>{copy(rowFeedback.text)}</p>}
           </article>
         </li>;
       })}</ul>

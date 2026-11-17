@@ -2,11 +2,19 @@
 
 ## Architecture audit
 
-The existing theme system separates `LayoutMode` (`cyberpunk` / `fantasy`) from the Cyberpunk variant (`default` / `halloween`). `ThemeProvider` owns layout, sound, seasonal decorations and account preference synchronization. The pre-paint script in `appearance.ts` restores device preferences; an authenticated player's saved layout remains authoritative for built-in layouts. `ThemePlayerSync` supplies the current player after the suspended workspace renders.
+The existing theme system separates `LayoutMode` (`standard` / `cyberpunk` / `fantasy` / `biohazard`) from the Cyberpunk variant (`default` / `halloween`). `ThemeProvider` owns layout, sound, seasonal decorations and account preference synchronization. The pre-paint script in `appearance.ts` restores device preferences; an authenticated player's saved layout remains authoritative for built-in layouts. `ThemePlayerSync` supplies the current player after the suspended workspace renders.
 
 CSS uses `data-layout-mode`, `data-cyberpunk-theme` and `data-theme` on the root. The core variables include `--canvas`, `--paper`, `--ink`, `--muted`, `--line` and accent variables. Many component surfaces also have literal colors, so changing only those variables would leave parts of the app unthemed. Fantasy adds parchment/forest artwork, rounded borders and serif typography. Haunted Net / Blackwall Glitch adds its palette, ghosts, bats and other decorations. Floating fairies are a separate shared component. A scanline overlay is available only for custom themes; the existing Cyberpunk background was gradients rather than a separate scanline toggle.
 
 Custom themes extend that same provider and root-attribute pattern. The built-in stylesheet contents, names, layout controllers, sound preferences and game/account data remain intact.
+
+## Standard default
+
+New visitors and new accounts use Standard unless a theme preference is saved. Its navy background (`#0f131a`), elevated slate cards (`#181f2c`), system sans-serif type, 8px corners, sky-blue accent, and amber Tier 3 Hype highlight are defined in `standard.css` and `customThemeDefaults("standard")`; all preset effects are disabled. `standard-copy.ts` owns literal feature labels. `StandardNavigation` opens the existing library controllers and exposes a Theme button. `StandardLibraryView` owns a responsive cover grid with 20 games per page, shared filters and quick-start actions. Newly added games reveal their page automatically. `StandardGameDetails` uses the shared metadata fields and game actions in a focused drawer; status, playtime, rating, runs, journal dates, micro-reviews, private notes, Steam achievement sync, queue controls and confirmed deletion live there. The grid contains no editable game rows. Up Next precedes the grid, and stats, lists and series disclosures follow it collapsed. The HypeMeter inherits the Standard accent in both creation and saved-game controls.
+
+Existing account/device preferences, including legacy Cyberpunk variant-only storage, remain authoritative. Explicitly choosing Standard persists it even when it is already active. Email registration writes its default explicitly; Google and Steam contexts accept Standard too. Apply `prisma/standard-theme.sql` during deployment (or use the repository's `prisma db push` workflow) to update the database default for future inserts. The patch does not update existing players.
+
+`tests/standard-theme.test.cjs`, provider tests, and auth layout tests cover defaults, terminology, schema, restoration, persistence, and onboarding. `tests/standard-library-ui.test.cjs` checks grid bounds, quick-action fields, empty/upcoming states, and the complete drawer without nested forms. Desktop/mobile browser verification uses actual hydrated provider, workspace, library, navigation, and form components with server actions mocked; theme switching and navigation produce no hydration errors.
 
 ## Data model
 
@@ -16,7 +24,7 @@ Custom themes extend that same provider and root-attribute pattern. The built-in
 | --- | --- |
 | `id` | Unique custom ID beginning `custom-`; built-in IDs cannot be replaced. |
 | `name` | Required, trimmed, 1–60 characters. |
-| `baseLayout` | Optional on import; `cyberpunk` by default, or `fantasy`. Controls existing layout, typography and fallback terminology. |
+| `baseLayout` | Accepts `standard`, `cyberpunk`, `fantasy`, or `biohazard`. Omitted on legacy imports, it retains `cyberpunk` for compatibility. New drafts use the active layout. |
 | `colors` | Required six-digit hex strings: `background`, `surface`, `text`, `muted`, `accent`, `border`. |
 | `effects` | Optional booleans: `scanlines`, `particles`, `parchment`, `haunted`; omitted toggles default to false. |
 | `borderRadius` | Optional integer from 0–32 pixels; defaults to 3. |
@@ -56,7 +64,7 @@ The startup script restores safe CSS values before hydration. Full Zod validatio
 
 ### Template sources
 
-`src/lib/theme-templates.ts` combines the existing built-ins (Cyberpunk, Fantasy, Haunted Net / Blackwall Glitch) and the controller's validated localStorage themes. The built-in templates reuse `customThemeDefaults` so New theme and the template catalog share their palette definitions. Existing built-in appearances and the global theme selector remain unchanged.
+`src/lib/theme-templates.ts` combines the built-ins (Standard, Cyberpunk, Fantasy, Typewriter / Safe Room, Haunted Net / Blackwall Glitch) and the controller's validated localStorage themes. The built-in templates reuse `customThemeDefaults` so New theme and the template catalog share their palette definitions. Standard is also available in the global theme selector.
 
 The selector copies values only on an explicit selection and returns to its prompt, allowing users to pick the same source again to reset later edits. Nested values are cloned through the strict schema; sources remain unchanged. Catalog/storage updates can refresh the menu without resetting form edits. Picking a template clears incomplete hex inputs and old export feedback, then uses the existing live-preview path. Closing still restores the previous selected/shared theme.
 

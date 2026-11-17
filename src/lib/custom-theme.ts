@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { standardTerms } from "@/lib/standard-copy";
 import type { LayoutMode } from "@/lib/appearance";
 
 export const CUSTOM_THEMES_KEY = "backlogbuster:custom-themes:v1";
@@ -32,7 +33,7 @@ const term = z.string().trim().max(80).optional();
 export const customThemeSchema = z.object({
   id: z.string().regex(/^custom-[a-zA-Z0-9_-]{1,80}$/, "Custom theme IDs must start with custom-.").max(87),
   name: z.string().trim().min(1, "Give your theme a name.").max(60),
-  baseLayout: z.enum(["cyberpunk", "fantasy", "biohazard"]).default("cyberpunk"),
+  baseLayout: z.enum(["standard", "cyberpunk", "fantasy", "biohazard"]).default("cyberpunk"),
   colors: z.object({ background: hex, surface: hex, text: hex, muted: hex, accent: hex, border: hex }).strict(),
   effects: z.object({ scanlines: z.boolean().default(false), particles: z.boolean().default(false),
     parchment: z.boolean().default(false), haunted: z.boolean().default(false) }).strict().default({ scanlines: false, particles: false, parchment: false, haunted: false }),
@@ -69,12 +70,13 @@ export function readCustomThemes(storage: Pick<Storage, "getItem">): CustomTheme
 export function customThemeDefaults(baseLayout: LayoutMode, haunted = false): Omit<CustomTheme, "id" | "name"> {
   return {
     baseLayout,
-    colors: baseLayout === "fantasy" ? { background: "#183333", surface: "#efdfb5", text: "#30251d", muted: "#68523e", accent: "#365d3b", border: "#ad945d" }
+    colors: baseLayout === "standard" ? { background: "#0f131a", surface: "#181f2c", text: "#f1f5f9", muted: "#a9b6c9", accent: "#38bdf8", border: "#334155" }
+      : baseLayout === "fantasy" ? { background: "#183333", surface: "#efdfb5", text: "#30251d", muted: "#68523e", accent: "#365d3b", border: "#ad945d" }
       : baseLayout === "biohazard" ? { background: "#10120f", surface: "#252923", text: "#e3dfce", muted: "#afb3a2", accent: "#9eb78d", border: "#65695b" }
       : haunted ? { background: "#09060f", surface: "#160e21", text: "#f4edf7", muted: "#c0afca", accent: "#b4ff72", border: "#725078" }
         : { background: "#080a0e", surface: "#0b101b", text: "#e8edf7", muted: "#94a5b9", accent: "#00f0ff", border: "#32616a" },
     effects: { scanlines: false, particles: baseLayout === "fantasy", parchment: baseLayout === "fantasy", haunted: baseLayout === "cyberpunk" && haunted },
-    borderRadius: baseLayout === "fantasy" ? 8 : 3, terminology: {},
+    borderRadius: baseLayout === "fantasy" || baseLayout === "standard" ? 8 : 3, terminology: baseLayout === "standard" ? { ...standardTerms } : {},
   };
 }
 
