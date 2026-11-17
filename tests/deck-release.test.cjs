@@ -37,14 +37,15 @@ function deckFixture(releaseYear, source = "table", status = "Backlog") {
 }
 
 test("null-year library drags pin to a chosen slot and reorder an equipped game", async () => {
-  for (const source of ["table", "deck"]) {
+  for (const source of ["table", "deck"]) for (const slot of [1, 2, 3]) {
+    if (source === "deck" && slot === 1) continue; // Already in this slot.
     const f = deckFixture(null, source);
     assert.equal(f.controller.acceptsDrop, true);
-    f.controller.dropIntoSlot(f.event, 3);
+    f.controller.dropIntoSlot(f.event, slot);
     await Promise.all(f.pending);
     assert.equal(f.prevented, true); assert.equal(f.stopped, true);
-    assert.deepEqual(f.writes, [[source === "deck" ? "swap" : "assign", 1, 3]]);
-    assert.deepEqual(f.optimistic, [{ id: 1, slot: 3, source }]); assert.deepEqual(f.cleared, [null]);
+    assert.deepEqual(f.writes, [[source === "deck" ? "swap" : "assign", 1, slot]]);
+    assert.deepEqual(f.optimistic, [{ id: 1, slot, source }]); assert.deepEqual(f.cleared, [null]);
   }
 });
 

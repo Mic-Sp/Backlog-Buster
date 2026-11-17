@@ -124,6 +124,18 @@
 :root[data-layout-mode="standard"] .standard-game-card { min-width: 0; overflow: hidden; border: 1px solid color-mix(in srgb, var(--standard-border) 65%, transparent); border-radius: var(--standard-radius); background: var(--standard-surface); box-shadow: var(--standard-shadow); transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
 :root[data-layout-mode="standard"] .standard-game-card:hover, :root[data-layout-mode="standard"] .standard-game-card:focus-within { transform: translateY(-3px); border-color: color-mix(in srgb, var(--standard-accent) 55%, var(--standard-border)); box-shadow: 0 8px 24px #0004, 0 0 0 1px color-mix(in srgb, var(--standard-accent) 8%, transparent); }
 :root[data-layout-mode="standard"] .standard-game-card[data-drop-target="true"] { outline: 2px solid var(--standard-accent); }
+:root[data-layout-mode="standard"] .standard-game-card[draggable="true"],
+:root[data-layout-mode="standard"] .standard-game-card[draggable="true"] .standard-card-cover { cursor: grab; }
+:root[data-layout-mode="standard"] :is(.standard-game-card, .deck-card)[data-dragging="true"] { opacity: .45; transform: none; cursor: grabbing; }
+:root[data-layout-mode="standard"] .deck-grid > li[data-drop-active="true"] > :is(.deck-card, .deck-empty-slot) {
+  border-color: var(--standard-accent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--standard-accent) 25%, transparent);
+}
+:root[data-layout-mode="standard"] .deck-grid > li[data-drop-hover="true"] > :is(.deck-card, .deck-empty-slot) {
+  border-color: var(--standard-accent); background: color-mix(in srgb, var(--standard-accent) 16%, var(--standard-surface));
+  box-shadow: inset 0 0 0 2px var(--standard-accent), 0 0 16px color-mix(in srgb, var(--standard-accent) 18%, transparent);
+}
+:root[data-layout-mode="standard"] .deck-grid > li[data-drop-active="true"] .deck-empty-slot > span { color: var(--standard-text); }
+:root[data-layout-mode="standard"] .deck-grid > li[data-drop-hover="true"] .deck-empty-slot > span { color: var(--standard-accent); }
 :root[data-layout-mode="standard"] .standard-card-cover { position: relative; display: block; width: 100%; height: 88px; padding: 0; overflow: hidden; border: 0; border-bottom: 1px solid #ffffff08; border-radius: 0; background: #101722; }
 .standard-card-cover img { width: 100%; height: 100%; display: block; object-fit: cover; object-position: center 30%; transition: transform .3s ease; }
 .standard-game-card:hover .standard-card-cover img { transform: scale(1.035); }

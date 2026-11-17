@@ -74,8 +74,10 @@ function StandardGameGrid({ controller: c }: { controller: GameLibraryController
     <ul className="standard-game-grid" id="standard-game-grid" aria-label="Game library" tabIndex={-1}
       onDragOver={c.dragOverBacklog} onDragLeave={c.leaveBacklog} onDrop={c.dropDeckIntoBacklog}>
       {games.map(game => <li className="standard-game-card" key={game.id} data-library-game-id={game.id} data-status={game.status}
+        data-reorder-row-id={game.id} data-deck-draggable={c.canDragToDeck(game) || undefined}
+        data-dragging={c.dragSourceId === game.id || undefined}
         data-drop-target={c.dropTargetId === game.id || undefined} draggable={(c.canDragToDeck(game) || c.isReorderableRow(game.id)) && !c.rowReorderBusy}
-        onPointerDownCapture={event => c.rememberDragOrigin({ gameId: game.id, source: "table" }, event.target instanceof Element && Boolean(event.target.closest("button, input, select, textarea, a")))}
+        onPointerDownCapture={event => c.rememberDragOrigin({ gameId: game.id, source: "table" }, event.target instanceof Element && Boolean(event.target.closest(".hype-meter, button:not(.standard-card-cover), input, select, textarea, a, summary, [contenteditable='true']")))}
         onDragStart={event => c.startLibraryDrag(event, { gameId: game.id, source: "table" })} onDragEnd={c.endRowDrag}
         onDragOver={event => c.dragOverLibraryGame(event, game.id)} onDragLeave={event => c.leaveLibraryGame(event, game.id)} onDrop={event => c.dropRowGame(event, game.id)}>
         <button className="standard-card-cover" type="button" aria-label={`View details for ${game.title}`} data-metadata-trigger-id={game.id} onClick={() => c.openMetadata(game)}>

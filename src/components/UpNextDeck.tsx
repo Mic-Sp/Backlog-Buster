@@ -104,6 +104,7 @@ export function useUpNextDeckController({ games, draggedGame, onDragGameChange, 
 
   return {
     pins,
+    draggedGame,
     startDeckDrag,
     optimisticGames,
     saveSlot,
@@ -143,6 +144,7 @@ export function UpNextDeckView({ controller }: { controller: UpNextDeckControlle
     setHoveredSlot,
     notice,
     pinned,
+    draggedGame,
     busy,
     acceptsDrop,
     moveSlot,
@@ -179,6 +181,7 @@ export function UpNextDeckView({ controller }: { controller: UpNextDeckControlle
                   action={startAction}
                   className="deck-card"
                   data-deck-game-id={game.id}
+                  data-dragging={draggedGame?.source === "deck" && draggedGame.gameId === game.id || undefined}
                   aria-busy={busy}
                   draggable={!busy}
                   onPointerDownCapture={(event) => {

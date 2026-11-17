@@ -38,6 +38,9 @@ test('Standard renders a bounded cover grid with quick actions and no inline gam
   const f = fixture(), html = f.render('src/components/StandardLibraryView.tsx', { controller: f.c });
   assert.equal((html.match(/class="standard-game-card"/g) ?? []).length, 20);
   assert.match(html, /Page 1 of 3/); assert.match(html, /1–20 of 45 games/);
+  assert.match(html, /data-reorder-row-id="1"/);
+  assert.match(html, /data-deck-draggable="true"/);
+  assert.match(html, /draggable="true"/);
   assert.match(html, /View details for Game 1/); assert.match(html, /Start playing Game 1/);
   assert.match(html, /name="lengthHours" value="12"/); assert.match(html, /name="difficulty" value="2"/);
   assert.doesNotMatch(html, /class="game-row|name="playthroughCount"|name="review"|name="hoursPlayed"|Completed runs|02 \/ YOUR LIBRARY/);
@@ -64,4 +67,20 @@ test('all heavy editing belongs to a single focused dialog with Steam sync, revi
   const completed = f.render('src/components/StandardGameDetails.tsx', { controller: f.c });
   assert.equal((completed.match(/<form/g) ?? []).length, 1);
   assert.match(completed, /Log completed replay/);
+});
+
+
+test('Standard cards expose shared drag identity, eligibility, and active source state', () => {
+  const f = fixture();
+  f.c.dragSourceId = 1;
+  f.c.canDragToDeck = game => game.status === 'Backlog' && game.releaseYear <= 2026;
+  f.c.isReorderableRow = () => false;
+  f.c.games = f.c.visibleGames = [f.games[0], { ...f.games[1], status: 'Playing' }, { ...f.games[2], releaseYear: 2099 }];
+  const html = f.render('src/components/StandardLibraryView.tsx', { controller: f.c });
+  const cards = html.match(/<li class="standard-game-card"[^>]*>/g);
+  assert.match(cards[0], /data-reorder-row-id="1"/);
+  assert.match(cards[0], /data-deck-draggable="true"/); assert.match(cards[0], /data-dragging="true"/); assert.match(cards[0], /draggable="true"/);
+  for (const card of cards.slice(1)) { assert.match(card, /draggable="false"/); assert.doesNotMatch(card, /data-deck-draggable|data-dragging/); }
+  f.c.rowReorderBusy = true;
+  assert.doesNotMatch(f.render('src/components/StandardLibraryView.tsx', { controller: f.c }), /\sdraggable="true"/);
 });
