@@ -114,6 +114,7 @@ function useGameLibraryController({ games: serverGames, customLists = [], achiev
     try {
       const result = await action(data);
       unwrapActionResult(result);
+      drafts.clearGameDraft(Number(data.get("id")));
       return result;
     } catch (error) {
       setGameActionError(actionErrorMessage(error));
@@ -166,7 +167,9 @@ function useGameLibraryController({ games: serverGames, customLists = [], achiev
   const [dragSourceId, setDragSourceId] = useState<number | null>(null);
   const [dropTargetId, setDropTargetId] = useState<number | null>(null);
   const [deckDraggedGame, setDeckDraggedGame] = useState<DeckDragGame | null>(null);
-  const [editingMetaGame, setEditingMetaGame] = useState<LibraryGame | null>(null);
+  const [editingMetaGameId, setEditingMetaGameId] = useState<number | null>(null);
+  const editingMetaGame = games.find(game => game.id === editingMetaGameId) ?? null;
+  const editingMetadataId = editingMetaGame?.id ?? null;
   const metadataModalRef = useRef<HTMLFormElement>(null);
   const [isLogging, startLogging] = useTransition();
   const [sessionError, setSessionError] = useState<{ gameId: number; message: string } | null>(null);
@@ -220,7 +223,7 @@ function useGameLibraryController({ games: serverGames, customLists = [], achiev
   }
 
   useEffect(() => {
-    if (!editingMetaGame) return;
+    if (editingMetadataId === null) return;
     const trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -231,8 +234,9 @@ function useGameLibraryController({ games: serverGames, customLists = [], achiev
       if (event.defaultPrevented) return;
       if (event.key === "Escape") {
         event.preventDefault();
-        setEditingMetaGame(null);
+        setEditingMetaGameId(null);
       }
+      const modal = metadataModalRef.current;
       if (event.key === "Tab" && modal) {
         const controls = Array.from(modal.querySelectorAll<HTMLElement>('input:not([type="hidden"]):not(:disabled), button:not(:disabled), select:not(:disabled), textarea:not(:disabled), summary, a[href]')).filter(element => element.getClientRects().length > 0);
         const first = controls[0];
@@ -254,9 +258,9 @@ function useGameLibraryController({ games: serverGames, customLists = [], achiev
       if (trigger?.isConnected) trigger.focus();
       // Locate the replacement trigger if switching views removed the original.
       // eslint-disable-next-line react-hooks/exhaustive-deps
-      else collectionRef.current?.querySelector<HTMLButtonElement>(`[data-metadata-trigger-id="${editingMetaGame?.id}"]`)?.focus();
+      else collectionRef.current?.querySelector<HTMLButtonElement>(`[data-metadata-trigger-id="${editingMetadataId}"]`)?.focus();
     };
-  }, [editingMetaGame, layoutMode]);
+  }, [editingMetadataId, layoutMode]);
 
   const { platforms, genres, viewCounts } = useMemo(() => ({
     platforms: [...new Set(games.map((game) => game.platform.trim()).filter(Boolean))].sort(),
@@ -714,8 +718,8 @@ function useGameLibraryController({ games: serverGames, customLists = [], achiev
     showPane("items");
   }
 
-  function openMetadata(game: LibraryGame) { setEditingMetaGame(game); }
-  function closeMetadata() { setEditingMetaGame(null); }
+  function openMetadata(game: LibraryGame) { setEditingMetaGameId(game.id); }
+  function closeMetadata() { setEditingMetaGameId(null); }
 
   const drafts = useGameDrafts(games);
   const advisor = useTacticalAdvisorController({ games, isAdmin });
@@ -783,7 +787,6 @@ function useGameLibraryController({ games: serverGames, customLists = [], achiev
     closeMetadata,
     editingMetaGame,
     revealedGameId,
-    setEditingMetaGame,
     metadataModalRef,
     isLogging,
     sessionError,
@@ -858,7 +861,7 @@ export default function GameLibrary(props: Parameters<typeof useGameLibraryContr
     roulette,
   } = controller;
   return <HypeMetersContext.Provider value={controller.hype}><DeckPinsContext.Provider value={controller.deck.pins}>
-    <section className="collection" aria-labelledby="collection-title" ref={collectionRef} data-library-layout={layoutMode} onInputCapture={controller.captureGameDraft} onChangeCapture={controller.captureGameDraft}>
+    <section className="collection" aria-labelledby="collection-title" ref={collectionRef} data-library-layout={layoutMode} onChange={controller.captureGameDraft}>
     {layoutMode === "standard" ? <StandardLibraryView controller={controller} /> : layoutMode === "biohazard" ? <BiohazardSubscreenView controller={controller} /> : layoutMode === "fantasy" ? <FantasySubscreenView controller={controller} /> : <CyberpunkLibraryView controller={controller} />}
     <TacticalAdvisorView controller={advisor} part="overlay" />
     <LibraryDataVaultView controller={vault} part="overlay" />

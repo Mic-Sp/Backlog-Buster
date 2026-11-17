@@ -13,7 +13,7 @@ test('Standard is validated as a base with a neutral palette, sans effects, 8px 
   assert(Object.values(theme.effects).every(value => value === false));
   assert.deepEqual(Object.keys(standardTerms).sort(), Object.keys(themeTermFields).sort());
   for (const key of Object.keys(themeTermFields)) assert.equal(standardCopy('stylized fallback', key), standardTerms[key]);
-  for (const [source, expected] of Object.entries({ 'System Playqueue': 'Game Library', 'Initialize Game Entry': 'Add Game', 'Edit Game Metadata': 'Edit Game', 'Backlog Roulette': 'Random Game Picker', 'CORTEX // TACTICAL GIG ADVISOR': 'AI Recommendations', 'Data Vault': 'Import & Export', 'Backlog': 'Backlog', 'Playing': 'Playing', 'Completed': 'Completed', 'HYPE LEVEL': 'Hype Level' })) assert.equal(standardCopy(source), expected);
+  for (const [source, expected] of Object.entries({ 'System Playqueue': 'Game Library', 'Initialize Game Entry': 'Add Game', 'Edit Game Metadata': 'Edit Game', 'Backlog Roulette': 'Random Game Picker', 'CORTEX // TACTICAL GIG ADVISOR': 'Recommendations', 'Data Vault': 'Import & Export', 'Backlog': 'Backlog', 'Playing': 'Playing', 'Completed': 'Completed', 'HYPE LEVEL': 'Hype Level' })) assert.equal(standardCopy(source), expected);
   assert.equal(standardCopy('3 gigs match your filters.'), '3 games match your filters.');
 });
 

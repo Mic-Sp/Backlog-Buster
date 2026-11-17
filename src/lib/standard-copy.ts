@@ -15,7 +15,7 @@ const phrases: Record<string, string> = {
   "🎲 ROLL RANDOM GIG": "Random Game Picker", "Backlog Roulette": "Random Game Picker", "Close Backlog Roulette": "Close Random Game Picker",
   "SIDE JOB / RANDOM QUEST GENERATOR": "Choose a Game", "ROLL RANDOM GIG": "Pick a Random Game", "SCANNING GIGS…": "Picking a Game…",
   "GIG FOUND": "Selected Game", "ACCEPT GIG": "Start Playing", "Set your limits. Let the next gig find you.": "Filter your backlog and pick a random game to play.",
-  "🧠 CORTEX // ADVISE NEXT GIG": "AI Recommendations", "CORTEX // TACTICAL GIG ADVISOR": "AI Recommendations",
+  "🧠 CORTEX // ADVISE NEXT GIG": "Recommendations", "CORTEX // TACTICAL GIG ADVISOR": "Recommendations",
   "BACKLOG INTELLIGENCE // EXTERNAL SCOUT ONLINE": "Recommendations & Discovery", "SCANNING LIBRARY // CALIBRATING NEXT GIG…": "Loading Recommendations…",
   "🔗 AFFINITY // FAVORITES MATCH": "Similar to Your Favorites", "⚡ PALETTE CLEANSER // PACING RESET": "Try Something Different",
   "TACTICAL ASSESSMENT": "Why This Game", "ACQUISITION RATIONALE": "Why This Game", "▶ START GIG NOW": "Start Playing",

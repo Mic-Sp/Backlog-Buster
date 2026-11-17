@@ -2,17 +2,22 @@
 
 import { useState, type FormEvent } from "react";
 import type { LibraryGame } from "@/components/GameLibrary";
-import { gameDraftDefaults, gameRecordKey, type GameDraft } from "@/lib/game-record";
+import { gameDraftDefaults, mergeGameDraft, updateGameDraft, type GameDraft } from "@/lib/game-record";
 
 export default function useGameDrafts(games: LibraryGame[]) {
-  const [drafts, setDrafts] = useState<Record<number, { version: string; fields: GameDraft }>>({});
+  const [drafts, setDrafts] = useState<Record<number, Partial<GameDraft>>>({});
   function getGameDraft(game: LibraryGame) {
-    const saved = drafts[game.id];
-    return saved?.version === gameRecordKey(game) ? saved.fields : gameDraftDefaults(game);
+    return mergeGameDraft(game, drafts[game.id]);
   }
   function saveDraft(game: LibraryGame, fields: Partial<GameDraft>) {
-    const version = gameRecordKey(game);
-    setDrafts(current => ({ ...current, [game.id]: { version, fields: { ...(current[game.id]?.version === version ? current[game.id].fields : gameDraftDefaults(game)), ...fields } } }));
+    setDrafts(current => ({ ...current, [game.id]: updateGameDraft(game, current[game.id] ?? {}, fields) }));
+  }
+  function clearGameDraft(gameId: number) {
+    setDrafts(current => {
+      const next = { ...current };
+      delete next[gameId];
+      return next;
+    });
   }
   function captureGameDraft(event: FormEvent<HTMLElement>) {
     if (!(event.target instanceof Element)) return;
@@ -20,14 +25,13 @@ export default function useGameDrafts(games: LibraryGame[]) {
     if (!form) return;
     const game = games.find(game => game.id === Number(form.dataset.gameEditorId));
     if (!game) return;
-    const data = new FormData(form);
-    const fields: Partial<GameDraft> = {};
-    for (const name of Object.keys(gameDraftDefaults(game)) as (keyof GameDraft)[]) {
-      const value = data.get(name);
-      if (typeof value === "string") fields[name] = value;
-    }
-    if (form.elements.namedItem("review")) fields.reviewSpoiler = data.get("reviewSpoiler") === "true" ? "true" : "false";
-    saveDraft(game, fields);
+    // Capture after the child's onChange, and only the edited field. Snapshotting
+    // the whole form would turn untouched/stale inputs into dirty overrides.
+    const name = event.target.getAttribute("name");
+    if (!name || !Object.hasOwn(gameDraftDefaults(game), name)) return;
+    const value = new FormData(form).get(name);
+    if (name === "reviewSpoiler") saveDraft(game, { reviewSpoiler: value === "true" ? "true" : "false" });
+    else if (typeof value === "string") saveDraft(game, { [name]: value });
   }
-  return { getGameDraft, captureGameDraft, setGameDraftRating: (game: LibraryGame, rating: number | null) => saveDraft(game, { rating: rating === null ? "" : String(rating) }) };
+  return { getGameDraft, captureGameDraft, clearGameDraft, setGameDraftFields: saveDraft, setGameDraftRating: (game: LibraryGame, rating: number | null) => saveDraft(game, { rating: rating === null ? "" : String(rating) }) };
 }

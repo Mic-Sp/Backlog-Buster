@@ -32,7 +32,7 @@ function Details({ controller: c }: { controller: GameLibraryController }) {
   const canReorder = c.inTimelineView || c.canReorderBacklog && game.pinnedOrder == null;
   return <div className="standard-details-backdrop" onClick={event => { if (event.target === event.currentTarget) c.closeMetadata(); }}>
     <SafeForm className="standard-game-details" role="dialog" aria-modal="true" aria-labelledby="metadata-modal-title" ref={c.metadataModalRef}
-      data-game-editor-id={game.id} action={c.actions.updateGame} onSuccess={c.closeMetadata}>
+      data-game-editor-id={game.id} action={c.actions.updateGame} onSuccess={() => { c.clearGameDraft(game.id); c.closeMetadata(); }}>
       <header className="standard-details-header"><div><span>Game Details</span><h2 id="metadata-modal-title">{game.title}</h2><p>{game.platform} · {game.genre || "Uncategorized"}</p></div><button type="button" data-details-autofocus aria-label="Close game details" onClick={c.closeMetadata}>✕</button></header>
       <div className="standard-details-body">
         <input type="hidden" name="id" value={game.id} />
@@ -52,7 +52,7 @@ function Details({ controller: c }: { controller: GameLibraryController }) {
           <MicroReviewEditor title={game.title} review={draft.review} reviewSpoiler={draft.reviewSpoiler === "true"} />
           <label className="standard-private-notes">Private notes<textarea name="notes" rows={3} maxLength={1000} defaultValue={draft.notes} placeholder="Your checkpoint, plans, or thoughts…" /></label>
         </section>
-        <details className="standard-details-section"><summary>Game information</summary><MetadataFields game={game} formRef={c.metadataModalRef} /></details>
+        <details className="standard-details-section"><summary>Game information</summary><MetadataFields game={game} formRef={c.metadataModalRef} draft={draft} onDraftChange={fields => c.setGameDraftFields(game, fields)} /></details>
         <section className="standard-details-section" aria-label="Steam achievements"><h3>Steam achievements</h3>{validSteamAppId(game.steamAppId) ? <SteamProgress game={game} /> : <p>Import this game from Steam to link its achievements.</p>}</section>
         <section className="standard-details-section standard-details-queue" aria-label="Queue & actions"><h3>Queue &amp; actions</h3>
           {game.status === "Backlog" && <DeckPinButton gameId={game.id} pinnedOrder={game.pinnedOrder} pinnedCount={c.pinnedCount} releaseYear={game.releaseYear} />}

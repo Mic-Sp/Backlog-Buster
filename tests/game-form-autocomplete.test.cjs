@@ -387,6 +387,7 @@ function editorFixture(layout = "cyberpunk", initial = {}) {
   const TitleAutocomplete = () => null;
   const h = hooks();
   const Component = load("src/components/GameMetadataEditor.tsx", {
+    "@/lib/game-record": load("src/lib/game-record.ts", {}),
     react: h.react,
     "@/components/LayoutText": { useLayoutCopy: () => (cyberpunk, fantasy) => layout === "fantasy" ? fantasy : cyberpunk },
     "@/components/FantasyAccents": { FantasyCorners: () => null },
@@ -398,13 +399,13 @@ function editorFixture(layout = "cyberpunk", initial = {}) {
     "@/components/SafeForm": { default: () => null },
     "@/components/TitleAutocomplete": { default: TitleAutocomplete },
   }).default;
-  const calls = [];
-  const controller = { editingMetaGame: game, closeMetadata: () => {}, metadataModalRef: { current: { elements: { namedItem: name => fields[name] } } }, actions: { updateGame: async data => calls.push(data) } };
+  const calls = [], draftChanges = [];
+  const controller = { editingMetaGame: game, getGameDraft: value => load("src/lib/game-record.ts", {}).gameDraftDefaults(value), setGameDraftFields: (_game, changes) => draftChanges.push(changes), closeMetadata: () => {}, metadataModalRef: { current: { elements: { namedItem: name => fields[name] } } }, actions: { updateGame: async data => calls.push(data) } };
   const tree = Component({ controller });
   const element = get(tree, node => node.type?.name === "MetadataFields");
   function render() { return h.render(element.type, element.props); }
   return {
-    tree, fields, calls,
+    tree, fields, calls, draftChanges,
     get autocomplete() { return get(render(), node => node.type === TitleAutocomplete).props; },
     edit(name, value) { fields[name].value = value; render().props.onChangeCapture({ target: fields[name] }); },
     cleanup() { global.HTMLInputElement = previousInput; },
@@ -412,7 +413,7 @@ function editorFixture(layout = "cyberpunk", initial = {}) {
 }
 
 test("metadata autocomplete preserves saved metadata and 90-hour completions in both layouts", () => {
-  for (const layout of ["cyberpunk", "fantasy"]) {
+  for (const layout of ["standard", "cyberpunk", "fantasy", "biohazard"]) {
     const f = editorFixture(layout);
     try {
       assert.equal(f.autocomplete.defaultValue, "Saved title");
@@ -421,6 +422,8 @@ test("metadata autocomplete preserves saved metadata and 90-hour completions in 
       assert.equal(f.fields.coverUrl.value, item().coverUrl); assert.equal(f.fields.releaseYear.value, "2011");
       assert.equal(f.fields.lengthHours.value, "90"); assert.equal(f.fields.hoursPlayed.value, "90");
       assert.equal(f.fields.franchise.value, "Custom Saga"); assert.equal(f.fields.chronologicalOrder.value, "7");
+      assert.equal(f.draftChanges.at(-1).title, "Portal 2"); assert.equal(f.draftChanges.at(-1).genre, "Puzzle");
+      assert.equal(f.draftChanges.at(-1).platform, undefined, 'saved metadata must not become an autofill override');
       const hours = get(f.tree, node => node.props?.name === "lengthHours");
       assert.equal(hours.props.value, 90); assert.equal(hours.props.type, "hidden");
       assert.deepEqual(f.calls, []);
